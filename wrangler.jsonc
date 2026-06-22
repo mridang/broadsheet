@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "broadsheet",
+  "account_id": "779037e608ab1102679ef8b1bd499d49",
+  "compatibility_date": "2026-05-01",
+  // Pure static site: Next.js `output: "export"` writes plain files to ./out,
+  // served directly by Cloudflare's static-asset runtime. There is no Worker
+  // script (no `main`) — nothing dynamic runs server-side.
+  "assets": {
+    "directory": "./out",
+    // Pretty URLs + a proper 404 for a fully static export.
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page"
+  },
+  // The workers.dev subdomain is disabled so the canonical URL is the one we
+  // control. The apps.mrida.ng zone must be attached to this Cloudflare account
+  // for the custom_domain bind to succeed.
+  "workers_dev": false,
+  "routes": [{ "pattern": "broadsheet.apps.mrida.ng", "custom_domain": true }],
+  // Full Workers Observability — tiny volume, useful for debugging.
+  "observability": { "enabled": true }
+}
