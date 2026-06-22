@@ -5,8 +5,12 @@
   "account_id": "779037e608ab1102679ef8b1bd499d49",
   "compatibility_date": "2026-05-01",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
-  // Cloudflare auto-routes the Worker to the colo closest to D1.
+  // Cloudflare auto-routes the Worker to the colo closest to D1
+  // (avoids the worst-case ~70 ms hop). Free on all plans.
   "placement": { "mode": "smart" },
+  // Full Workers Observability: logs, metrics, invocation traces — all
+  // sampled at 100% (the volume is tiny, the data is gold for debugging
+  // an opaque background pipeline).
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1,
@@ -16,8 +20,10 @@
       "invocation_logs": true,
     },
   },
-  // The canonical URL is the one we control; the apps.mrida.ng zone must be
-  // attached to this Cloudflare account for the custom_domain bind to succeed.
+  // Custom domain — the workers.dev subdomain is disabled so the
+  // canonical URL is the one we control. The apps.mrida.ng zone must be
+  // attached to this Cloudflare account for the custom_domain bind to
+  // succeed.
   "workers_dev": false,
   "routes": [{ "pattern": "broadsheet.apps.mrida.ng", "custom_domain": true }],
   "assets": {
@@ -39,9 +45,9 @@
     "crons": ["0 6 * * *"],
   },
   "vars": {
-    // Public origin for OAuth redirects + absolute links. Secrets
-    // (SESSION_SECRET, GOOGLE_CLIENT_ID/SECRET) are set via
-    // `wrangler secret put`, never committed.
+    // Public origin for OAuth redirects + absolute links.
     "BASE_URL": "https://broadsheet.apps.mrida.ng",
   },
+  // SESSION_SECRET, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, ALLOW_DEV_LOGIN are
+  // Worker secrets (set via `wrangler secret put`), not plaintext vars.
 }
