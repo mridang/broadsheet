@@ -1,12 +1,9 @@
 # dependencies
 /node_modules
-/.pnp
-.pnp.*
 
-# next.js
-/.next/
-/out/
-/build
+# wrangler / cloudflare
+/.wrangler
+/dist
 
 # misc
 .DS_Store
@@ -15,14 +12,13 @@
 # debug
 npm-debug.log*
 yarn-debug.log*
-yarn-error.log*
 
 # env files
+.dev.vars
 .env*
 
 # typescript
 *.tsbuildinfo
-next-env.d.ts
 
 # local editor / agent tooling
 /.claude/
