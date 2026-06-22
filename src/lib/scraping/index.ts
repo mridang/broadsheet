@@ -8,7 +8,7 @@
  */
 import type { Database, Feed } from '../db';
 import { allFeeds, replaceArticles } from '../repository';
-import { logInfo } from '../util';
+import { logInfo, logWarn } from '../util';
 import { hostOf, ogImage, pageDescription, parseFeed, siteName } from './parse';
 import type { ScrapedItem } from './types';
 
@@ -51,24 +51,35 @@ async function resolveNames(
     'Reply ONLY with JSON: {"names":{"<index>":"<name>"}}.\n\n' +
     list;
   try {
-    const out = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
+    const out = await env.AI.run('@cf/meta/llama-3.1-8b-instruct-fast', {
       messages: [{ role: 'user', content: prompt }],
     });
-    const text =
-      typeof out === 'object' && out !== null && 'response' in out
-        ? String((out as { response?: unknown }).response ?? '')
-        : '';
-    // The model may wrap the JSON in prose — pull out the object.
-    const match = text.match(/\{[\s\S]*\}/);
-    if (!match) return;
-    const names =
-      (JSON.parse(match[0]) as { names?: Record<string, string> }).names ?? {};
+    // Workers AI returns `response` as a string, or (for JSON output) an
+    // already-parsed object.
+    const resp = (out as { response?: unknown }).response;
+    let parsed: { names?: Record<string, string> } | null = null;
+    if (resp && typeof resp === 'object') {
+      parsed = resp as { names?: Record<string, string> };
+    } else if (typeof resp === 'string') {
+      const match = resp.match(/\{[\s\S]*\}/);
+      if (match)
+        parsed = JSON.parse(match[0]) as { names?: Record<string, string> };
+    }
+    const names = parsed?.names ?? {};
+    let applied = 0;
     items.forEach((it, i) => {
       const n = names[String(i)];
-      if (n && n.trim()) it.source = n.trim().slice(0, 60);
+      if (n && n.trim()) {
+        it.source = n.trim().slice(0, 60);
+        applied++;
+      }
     });
-  } catch {
-    // deterministic names already populated — silently keep them.
+    logInfo({ event: 'ai.applied', applied, total: items.length });
+  } catch (err) {
+    logWarn({
+      event: 'ai.failed',
+      error: err instanceof Error ? err.message : String(err),
+    });
   }
 }
 
