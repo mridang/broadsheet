@@ -4,7 +4,7 @@
  * Feed refresh orchestration: fetch each feed, parse it, enrich the newest
  * items with og:image / description / site-name from the article page, and
  * replace that feed's stored articles. Optionally upgrades source names via
- * an LLM when `ANTHROPIC_API_KEY` is set.
+ * names via Workers AI (the `AI` binding).
  */
 import type { Database, Feed } from '../db';
 import { allFeeds, replaceArticles } from '../repository';
@@ -37,11 +37,11 @@ async function get(url: string, ms = 15000): Promise<string> {
 }
 
 /** Optional: LLM-resolve canonical source names in one batched call. */
-async function resolveNamesLLM(
+async function resolveNames(
   env: CloudflareEnv,
   items: ScrapedItem[],
 ): Promise<void> {
-  if (!env.ANTHROPIC_API_KEY || !items.length) return;
+  if (!env.AI || !items.length) return;
   const list = items
     .map((it, i) => `${i}\t${hostOf(it.url)}\t${it.title}`)
     .join('\n');
@@ -51,23 +51,18 @@ async function resolveNamesLLM(
     'Reply ONLY with JSON: {"names":{"<index>":"<name>"}}.\n\n' +
     list;
   try {
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 1024,
-        messages: [{ role: 'user', content: prompt }],
-      }),
+    const out = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
+      messages: [{ role: 'user', content: prompt }],
     });
-    const j = (await r.json()) as { content?: { text?: string }[] };
-    const text = j.content?.[0]?.text ?? '';
+    const text =
+      typeof out === 'object' && out !== null && 'response' in out
+        ? String((out as { response?: unknown }).response ?? '')
+        : '';
+    // The model may wrap the JSON in prose — pull out the object.
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) return;
     const names =
-      (JSON.parse(text) as { names?: Record<string, string> }).names ?? {};
+      (JSON.parse(match[0]) as { names?: Record<string, string> }).names ?? {};
     items.forEach((it, i) => {
       const n = names[String(i)];
       if (n && n.trim()) it.source = n.trim().slice(0, 60);
@@ -101,7 +96,7 @@ export async function refreshFeed(
     }),
   );
 
-  await resolveNamesLLM(env, items);
+  await resolveNames(env, items);
   await replaceArticles(db, feed.id, items);
   return { ok: true, n: items.length };
 }

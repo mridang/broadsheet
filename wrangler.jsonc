@@ -32,14 +32,16 @@
       "migrations_dir": "migrations",
     },
   ],
+  // Workers AI — resolves clean publisher/author names from domain + title.
+  "ai": { "binding": "AI" },
   "triggers": {
     // 06:00 UTC — daily fetch + scrape of every feed.
     "crons": ["0 6 * * *"],
   },
   "vars": {
     // Public origin for OAuth redirects + absolute links. Secrets
-    // (SESSION_SECRET, GOOGLE_CLIENT_ID/SECRET, ANTHROPIC_API_KEY, CRON_SECRET)
-    // are set via `wrangler secret put`, never committed.
+    // (SESSION_SECRET, GOOGLE_CLIENT_ID/SECRET) are set via
+    // `wrangler secret put`, never committed.
     "BASE_URL": "https://broadsheet.apps.mrida.ng",
   },
 }

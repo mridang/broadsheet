@@ -56,7 +56,10 @@ Pushing to `main` runs `.github/workflows/deploy.yml`: typecheck → apply D1 mi
 | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `SESSION_SECRET`                            | HMAC key for session cookies (required in production)                                                                                                                |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google sign-in. Register `https://broadsheet.apps.mrida.ng/auth/google/callback` as the redirect URI. When unset, the passwordless **dev login** is enabled instead. |
-| `ANTHROPIC_API_KEY`                         | Optional — LLM-resolved source names (falls back to a deterministic algorithm).                                                                                      |
 
 Without any secrets the site still works: it serves the public Hacker News edition
 and allows dev login.
+
+Clean source names are resolved by **Workers AI** (the `AI` binding, no API key) with
+a deterministic domain heuristic as fallback. The daily scrape runs from the Worker's
+`scheduled()` cron — there is no public HTTP scrape endpoint.

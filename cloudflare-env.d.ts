@@ -10,10 +10,6 @@ interface CloudflareEnv extends Cloudflare.Env {
   /** Google OAuth client; when unset, the passwordless dev login is enabled. */
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
-  /** Optional: enables LLM-resolved source names (falls back to a deterministic algorithm). */
-  ANTHROPIC_API_KEY?: string;
-  /** Optional bearer token guarding the /api/cron endpoint. */
-  CRON_SECRET?: string;
   /** Force-enable dev login ("1"); otherwise on only when OAuth is unconfigured. */
   ALLOW_DEV_LOGIN?: string;
 }
