@@ -1,17 +1,53 @@
 {
   "name": "broadsheet",
   "version": "0.1.0",
+  "type": "module",
   "private": true,
   "scripts": {
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
-    "typecheck": "tsc --noEmit",
-    "migrate:local": "wrangler d1 migrations apply broadsheet-db --local",
-    "migrate:remote": "wrangler d1 migrations apply broadsheet-db --remote"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "cf-typegen": "wrangler types",
+    "deploy": "opennextjs-cloudflare build && wrangler deploy",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "npx eslint .",
+    "lint:fix": "npx eslint . --fix",
+    "test": "jest --verbose --config=jest.config.mjs",
+    "test:watch": "npm run test -- --watch",
+    "cypress:open": "cypress open",
+    "cypress:run": "cypress run --browser chrome"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "dependencies": {
+    "@opennextjs/cloudflare": "^1.19.11",
+    "drizzle-orm": "^0.45.2",
+    "next": "16.2.7",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20250620.0",
-    "typescript": "^5.7.2",
-    "wrangler": "^4.98.0"
+    "@eslint/compat": "^2.1.0",
+    "@jest/globals": "^30.0.3",
+    "@mridang/eslint-defaults": "^1.6.3",
+    "@tailwindcss/postcss": "^4",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.13.1",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "cypress": "^14.5.4",
+    "eslint": "^9.39.4",
+    "eslint-plugin-drizzle": "^0.2.3",
+    "jest": "^30.0.3",
+    "jest-junit": "^17.0.0",
+    "knip": "^6.17.1",
+    "miniflare": "4.20260603.0",
+    "prettier": "^3.8.3",
+    "tailwindcss": "^4",
+    "ts-jest": "^29.4.0",
+    "typescript": "^6.0.3",
+    "wrangler": "^4.86.0"
   }
 }

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jetify-com/devbox/0.10.7/.schema/devbox.schema.json",
+  "packages": ["nodejs@24", "cloudflared@latest"],
+  "shell": {
+    "scripts": {
+      "dev": ["npm run dev -- --port 3737"],
+      "wrangler-dev": ["npx wrangler dev --port 3737 --local"],
+      "tunnel": [
+        "cloudflared tunnel --no-autoupdate --url http://localhost:3737"
+      ],
+      "migrate": ["npx wrangler d1 migrations apply broadsheet-db --local"],
+      "build": ["npm run build"],
+      "test": ["npm test"],
+      "lint": ["npx eslint ."],
+      "check": ["npm test && npm run build && npx eslint ."],
+      "bundle": ["npx opennextjs-cloudflare build"],
+      "deploy": ["npx opennextjs-cloudflare build && npx wrangler deploy"]
+    }
+  }
+}

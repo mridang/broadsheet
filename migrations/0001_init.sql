@@ -1,4 +1,4 @@
--- The Hacker Times schema (mirrors the POC's db.mjs, D1/SQLite-compatible).
+-- The Hacker Times schema. Authoritative; src/lib/db/schema.ts mirrors it.
 
 CREATE TABLE IF NOT EXISTS users (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,

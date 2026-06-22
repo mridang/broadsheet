@@ -1,30 +1,45 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "broadsheet",
+  "main": "src/worker.ts",
   "account_id": "779037e608ab1102679ef8b1bd499d49",
-  "main": "src/index.ts",
   "compatibility_date": "2026-05-01",
-  "compatibility_flags": ["nodejs_compat"],
-  // The canonical URL is the one we control; disable the workers.dev subdomain.
-  // The apps.mrida.ng zone must be attached to this Cloudflare account.
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  // Cloudflare auto-routes the Worker to the colo closest to D1.
+  "placement": { "mode": "smart" },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "invocation_logs": true,
+    },
+  },
+  // The canonical URL is the one we control; the apps.mrida.ng zone must be
+  // attached to this Cloudflare account for the custom_domain bind to succeed.
   "workers_dev": false,
   "routes": [{ "pattern": "broadsheet.apps.mrida.ng", "custom_domain": true }],
-  // Daily scrape: the scheduled() handler refreshes every feed at 06:00 UTC.
-  "triggers": { "crons": ["0 6 * * *"] },
+  "assets": {
+    "binding": "ASSETS",
+    "directory": ".open-next/assets",
+  },
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "broadsheet-db",
       "database_id": "eb5dc629-c6b1-4cc0-9b60-4a5b313edb54",
-      "migrations_dir": "migrations"
-    }
+      "migrations_dir": "migrations",
+    },
   ],
-  "vars": {
-    // BASE_URL is set per-environment; for production it must match the
-    // registered Google OAuth redirect origin. Secrets (GOOGLE_CLIENT_ID,
-    // GOOGLE_CLIENT_SECRET, SESSION_SECRET, ANTHROPIC_API_KEY) are set with
-    // `wrangler secret put`, never committed.
-    "BASE_URL": "https://broadsheet.apps.mrida.ng"
+  "triggers": {
+    // 06:00 UTC — daily fetch + scrape of every feed.
+    "crons": ["0 6 * * *"],
   },
-  "observability": { "enabled": true }
+  "vars": {
+    // Public origin for OAuth redirects + absolute links. Secrets
+    // (SESSION_SECRET, GOOGLE_CLIENT_ID/SECRET, ANTHROPIC_API_KEY, CRON_SECRET)
+    // are set via `wrangler secret put`, never committed.
+    "BASE_URL": "https://broadsheet.apps.mrida.ng",
+  },
 }

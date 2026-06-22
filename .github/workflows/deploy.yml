@@ -1,4 +1,4 @@
-name: Deploy
+name: Deploy Worker Application
 
 concurrency:
   group: deploy
@@ -13,14 +13,19 @@ defaults:
     working-directory: ./
 
 jobs:
-  deploy:
+  deploy-app:
     environment:
       name: production
     runs-on: ubuntu-latest
 
     steps:
+      - name: Runner Common Setup
+        uses: mridang/action-runner-common@v1
+
       - name: Checkout code
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -28,11 +33,11 @@ jobs:
           cache: 'npm'
           node-version-file: '.nvmrc'
 
-      - name: Install dependencies
+      - name: Install Dependencies
         run: npm ci
 
-      - name: Typecheck
-        run: npm run typecheck
+      - name: Build (OpenNext)
+        run: npx opennextjs-cloudflare build
 
       - name: Apply D1 migrations
         uses: cloudflare/wrangler-action@v3
@@ -41,7 +46,7 @@ jobs:
           wranglerVersion: '4.98.0'
           command: d1 migrations apply broadsheet-db --remote
 
-      - name: Deploy Worker
+      - name: Deploy to production
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
