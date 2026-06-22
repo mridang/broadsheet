@@ -745,3 +745,80 @@ header.mast {
   color: var(--muted);
   font-size: 13px;
 }
+
+/* ===== Edition (date) navigation ===== */
+.editionbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin: 20px 0 6px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--muted);
+}
+.editionbar .eddate {
+  font-weight: 700;
+  color: var(--ink);
+}
+.ednav {
+  text-decoration: none;
+  color: var(--accent);
+  font-size: 15px;
+  line-height: 1;
+  padding: 4px 9px;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+}
+.ednav.disabled {
+  color: var(--rule);
+  border-color: var(--rule);
+}
+.archive {
+  position: relative;
+}
+.archive > summary {
+  list-style: none;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 3px 6px;
+}
+.archive > summary::-webkit-details-marker {
+  display: none;
+}
+.archive-list {
+  position: absolute;
+  top: 130%;
+  left: 50%;
+  transform: translateX(-50%);
+  max-height: 60vh;
+  overflow: auto;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  white-space: nowrap;
+  z-index: 30;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
+}
+.archive-list a {
+  text-decoration: none;
+  color: var(--ink);
+  padding: 5px 12px;
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: 0;
+  border-radius: 5px;
+}
+.archive-list a:hover {
+  background: var(--rule);
+}
+.archive-list a.cur {
+  color: var(--accent);
+  font-weight: 700;
+}

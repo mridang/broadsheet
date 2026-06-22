@@ -54,3 +54,35 @@ export const hostOf = (u: string): string => {
     return u;
   }
 };
+
+const WEEKDAYS = [
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+];
+const MONTHS = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+
+/** Format a YYYY-MM-DD edition date as "Saturday, June 21, 2026" (UTC, no ICU). */
+export function formatEdition(date: string): string {
+  const [y, m, d] = date.split('-').map(Number);
+  if (!y || !m || !d) return date;
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return `${WEEKDAYS[dt.getUTCDay()]}, ${MONTHS[m - 1]} ${d}, ${y}`;
+}

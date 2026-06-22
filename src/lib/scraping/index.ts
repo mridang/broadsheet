@@ -7,7 +7,7 @@
  * names via Workers AI (the `AI` binding).
  */
 import type { Database, Feed } from '../db';
-import { allFeeds, replaceArticles } from '../repository';
+import { allFeeds, writeEdition } from '../repository';
 import { logInfo, logWarn } from '../util';
 import { hostOf, ogImage, pageDescription, parseFeed, siteName } from './parse';
 import type { ScrapedItem } from './types';
@@ -83,10 +83,14 @@ async function resolveNames(
   }
 }
 
+/** The current edition date (YYYY-MM-DD, UTC). */
+export const todayEdition = (): string => new Date().toISOString().slice(0, 10);
+
 export async function refreshFeed(
   db: Database,
   env: CloudflareEnv,
   feed: Feed,
+  edition: string = todayEdition(),
 ): Promise<{ ok: boolean; n: number }> {
   const xml = await get(feed.url);
   if (!xml) return { ok: false, n: 0 };
@@ -108,7 +112,7 @@ export async function refreshFeed(
   );
 
   await resolveNames(env, items);
-  await replaceArticles(db, feed.id, items);
+  await writeEdition(db, feed.id, edition, items);
   return { ok: true, n: items.length };
 }
 
@@ -116,18 +120,26 @@ export async function refreshAll(
   db: Database,
   env: CloudflareEnv,
 ): Promise<{ feeds: number; ok: number; articles: number }> {
+  const edition = todayEdition();
   const feeds = await allFeeds(db);
   const q = [...feeds];
   let ok = 0;
   let articles = 0;
   const worker = async (): Promise<void> => {
     for (let f = q.shift(); f; f = q.shift()) {
-      const r = await refreshFeed(db, env, f);
+      const r = await refreshFeed(db, env, f, edition);
       if (r.ok) ok++;
       articles += r.n;
     }
   };
   await Promise.all(Array.from({ length: FEED_CONCURRENCY }, () => worker()));
-  logInfo({ event: 'scrape.completed', feeds: feeds.length, ok, articles });
+  // History is kept indefinitely — no pruning of past editions.
+  logInfo({
+    event: 'scrape.completed',
+    edition,
+    feeds: feeds.length,
+    ok,
+    articles,
+  });
   return { feeds: feeds.length, ok, articles };
 }

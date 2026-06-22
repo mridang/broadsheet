@@ -45,9 +45,11 @@ export const articles = sqliteTable(
     favicon: text('favicon'),
     summary: text('summary'),
     published_at: text('published_at'),
+    /** The day this row was scraped (YYYY-MM-DD, UTC) — one edition per day. */
+    edition: text('edition'),
     fetched_at: text('fetched_at'),
   },
-  (t) => [unique().on(t.feed_id, t.url)],
+  (t) => [unique().on(t.feed_id, t.url, t.edition)],
 );
 
 export type User = typeof users.$inferSelect;

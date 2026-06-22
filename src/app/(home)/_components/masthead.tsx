@@ -2,35 +2,6 @@ import type { User } from '@/lib/db';
 import { ThemeSwitcher } from './theme-switcher';
 import { InstallButton } from './install-button';
 
-const WEEKDAYS = [
-  'Sunday',
-  'Monday',
-  'Tuesday',
-  'Wednesday',
-  'Thursday',
-  'Friday',
-  'Saturday',
-];
-const MONTHS = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-];
-
-function today(): string {
-  const d = new Date();
-  return `${WEEKDAYS[d.getUTCDay()]}, ${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`;
-}
-
 export function Masthead({ user }: { user: User | null }) {
   const nav = user ? (
     <>
@@ -60,7 +31,6 @@ export function Masthead({ user }: { user: User | null }) {
         &ldquo;All the News That&rsquo;s Fit to Upvote&rdquo;
       </div>
       <div className="date">
-        <span>{today()}</span>
         <span>{user ? 'Personalised Edition' : 'Hacker News Edition'}</span>
       </div>
       <ThemeSwitcher />

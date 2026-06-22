@@ -70,13 +70,20 @@ export function allFeeds(db: Database): Promise<Feed[]> {
   return db.select().from(feeds);
 }
 
-/** Replace a feed's article set (delete + re-insert the current items). */
-export async function replaceArticles(
+/**
+ * Write one day's edition for a feed: replace just THIS edition's rows (so a
+ * same-day re-run is idempotent) and insert the current items dated to
+ * `edition`. Past editions are never touched — history is kept indefinitely.
+ */
+export async function writeEdition(
   db: Database,
   feedId: number,
+  edition: string,
   items: ScrapedItem[],
 ): Promise<void> {
-  const del = db.delete(articles).where(eq(articles.feed_id, feedId));
+  const del = db
+    .delete(articles)
+    .where(and(eq(articles.feed_id, feedId), eq(articles.edition, edition)));
   if (!items.length) {
     await del;
     return;
@@ -95,16 +102,33 @@ export async function replaceArticles(
         favicon: a.favicon || '',
         summary: a.summary || '',
         published_at: a.published_at || '',
+        edition,
       })
-      .onConflictDoNothing({ target: [articles.feed_id, articles.url] }),
+      .onConflictDoNothing({
+        target: [articles.feed_id, articles.url, articles.edition],
+      }),
   );
   await db.batch([del, ...inserts]);
 }
 
-export function feedArticles(db: Database, feedId: number) {
+export function feedArticles(db: Database, feedId: number, edition: string) {
   return db
     .select()
     .from(articles)
-    .where(eq(articles.feed_id, feedId))
+    .where(and(eq(articles.feed_id, feedId), eq(articles.edition, edition)))
     .orderBy(desc(articles.published_at), desc(articles.id));
+}
+
+/** Distinct edition dates available for a user's feeds, newest first. */
+export async function listEditions(
+  db: Database,
+  userId: number,
+): Promise<string[]> {
+  const rows = await db
+    .selectDistinct({ edition: articles.edition })
+    .from(articles)
+    .innerJoin(feeds, eq(articles.feed_id, feeds.id))
+    .where(eq(feeds.user_id, userId))
+    .orderBy(desc(articles.edition));
+  return rows.map((r) => r.edition).filter((e): e is string => !!e);
 }
