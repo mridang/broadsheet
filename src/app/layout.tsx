@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from 'next';
 import { Lora, Source_Serif_4 } from 'next/font/google';
-import Script from 'next/script';
 import './globals.css';
 import { currentUser } from '@/lib/account';
 import { Masthead } from './(home)/_components/masthead';
@@ -65,10 +64,12 @@ export default async function RootLayout({
       suppressHydrationWarning
       className={`${sourceSerif.variable} ${lora.variable}`}
     >
+      <head>
+        {/* No-flash: a raw inline script in <head> runs before first paint.
+            (next/script with children is invalid in Next 16; use this.) */}
+        <script dangerouslySetInnerHTML={{ __html: NOFLASH }} />
+      </head>
       <body>
-        <Script id="noflash" strategy="beforeInteractive">
-          {NOFLASH}
-        </Script>
         <Masthead user={user} />
         <div className="wrap">{children}</div>
       </body>
