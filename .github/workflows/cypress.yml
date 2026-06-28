@@ -24,13 +24,13 @@ jobs:
           echo "${{ github.event.inputs.release_identifier }}" > release.txt
 
       - name: Upload release identifier
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release
           path: release.txt
 
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -45,7 +45,7 @@ jobs:
         run: npx wrangler d1 migrations apply scenery-db --local
 
       - name: Run Cypress Tests
-        uses: cypress-io/github-action@v6
+        uses: cypress-io/github-action@v7
         with:
           browser: chrome
           start: npx wrangler dev --port 3737 --local
