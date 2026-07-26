@@ -22,11 +22,11 @@
     "node": ">=24"
   },
   "dependencies": {
-    "@opennextjs/cloudflare": "^1.19.11",
+    "@opennextjs/cloudflare": "^1.20.2",
     "drizzle-orm": "^0.45.2",
-    "next": "16.2.7",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "next": "16.2.12",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
   },
   "devDependencies": {
     "@eslint/compat": "^2.1.0",
@@ -34,20 +34,20 @@
     "@mridang/eslint-defaults": "^1.6.3",
     "@tailwindcss/postcss": "^4",
     "@types/jest": "^30.0.0",
-    "@types/node": "^24.13.1",
+    "@types/node": "^26.1.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "cypress": "^14.5.4",
-    "eslint": "^9.39.4",
+    "cypress": "^15.19.0",
+    "eslint": "^10.8.0",
     "eslint-plugin-drizzle": "^0.2.3",
     "jest": "^30.0.3",
     "jest-junit": "^17.0.0",
-    "knip": "^6.17.1",
-    "miniflare": "4.20260603.0",
-    "prettier": "^3.8.3",
+    "knip": "^6.29.0",
+    "miniflare": "4.20260722.0",
+    "prettier": "^3.9.6",
     "tailwindcss": "^4",
-    "ts-jest": "^29.4.0",
-    "typescript": "^6.0.3",
-    "wrangler": "^4.86.0"
+    "ts-jest": "^29.4.12",
+    "typescript": "^7.0.2",
+    "wrangler": "^4.114.0"
   }
 }
