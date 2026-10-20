@@ -50,12 +50,15 @@ describe('signatures', () => {
     expect(signatureValid(URL_A, signature)).toBe(false);
   });
 
-  it('fall back to the development secret that sessions use when none is set', () => {
-    environment.current = {};
+  it('are neither made nor accepted when no secret is set, rather than using one anyone could guess', () => {
     const signature = signatureFor(URL_A) ?? null;
-    expect(signatureValid(URL_A, signature)).toBe(true);
+    for (const none of [{}, { SESSION_SECRET: '' }]) {
+      environment.current = none;
+      expect(signatureFor(URL_A)).toBeUndefined();
+      expect(signatureValid(URL_A, signature)).toBe(false);
+    }
     environment.current = { SESSION_SECRET: 'dev-insecure-secret-change-me' };
-    expect(signatureValid(URL_A, signature)).toBe(true);
+    expect(signatureValid(URL_A, signature)).toBe(false);
   });
 
   it('cannot be made or accepted outside a Cloudflare context', () => {

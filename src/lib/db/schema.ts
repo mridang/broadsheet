@@ -19,13 +19,17 @@ import {
   unique,
 } from 'drizzle-orm/sqlite-core';
 
-/** One row per signed-in person. `sub` is the identity provider's stable user id. */
+/**
+ * One row per signed-in person. `google_sub` is Google's stable id for the
+ * account; `session_epoch` is raised to end every session the person has.
+ */
 export const users = sqliteTable('users', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  sub: text('sub').unique(),
-  email: text('email'),
+  google_sub: text('google_sub').notNull().unique(),
+  email: text('email').notNull(),
   name: text('name'),
   picture: text('picture'),
+  session_epoch: integer('session_epoch').notNull().default(0),
   created_at: text('created_at').default(sql`(datetime('now'))`),
 });
 

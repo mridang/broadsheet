@@ -4,14 +4,13 @@
  * Which pictures anyone may ask the proxy for. Stories come from any site on
  * the web, so an open proxy would be a free image relay for everyone. Instead
  * every picture address the pages render carries a signature that only this
- * server can make (an HMAC of the address under the session secret), and the
+ * server can make (an HMAC of the address under the `SESSION_SECRET`), and the
  * proxy fetches nothing without a valid one. The signature does not cover the
  * width, so one signature serves a picture at every width the pages offer.
  */
 
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
-import { secretOf } from '../session';
 import { getEnv } from '../util';
 
 /** Domain separation, so a signature made here is never valid for anything else. */
@@ -24,10 +23,14 @@ function sign(secret: string, url: string): string {
     .digest('base64url');
 }
 
-/** The secret in the running Worker, or undefined outside one (tests, builds). */
+/**
+ * The secret in the running Worker, or undefined outside one (tests, builds) or
+ * when none is set: with no secret nothing is signed and nothing is accepted,
+ * rather than signing with a value anyone could guess.
+ */
 function currentSecret(): string | undefined {
   try {
-    return secretOf(getEnv());
+    return getEnv().SESSION_SECRET || undefined;
   } catch {
     return undefined;
   }

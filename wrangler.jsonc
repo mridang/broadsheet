@@ -73,6 +73,12 @@
   // namespace_id is account-wide and shared by every Worker that uses the same
   // number, hence the distinctive 73xx range.
   "ratelimits": [
+    // sign-in and sign-out: slow human actions
+    {
+      "name": "RL_AUTH",
+      "namespace_id": "7307",
+      "simple": { "limit": 30, "period": 60 },
+    },
     // pictures through /api/img, per person: a grid loads dozens, cache hits are cheap
     {
       "name": "RL_COVER",
@@ -114,10 +120,6 @@
     // 06:00 UTC — daily fetch + scrape of every feed.
     "crons": ["0 6 * * *"],
   },
-  "vars": {
-    // Public origin for OAuth redirects + absolute links.
-    "BASE_URL": "https://broadsheet.apps.mrida.ng",
-  },
-  // SESSION_SECRET, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, ALLOW_DEV_LOGIN are
-  // Worker secrets (set via `wrangler secret put`), not plaintext vars.
+  // GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET, SESSION_SECRET
+  // are Worker secrets (set via `wrangler secret put`), not plaintext vars.
 }

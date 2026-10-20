@@ -1,6 +1,7 @@
 import type { User } from '@/lib/repository';
 
 import { InstallButton } from './install-button';
+import { SignOutButton } from './sign-out-button';
 import { ThemeSwitcher } from './theme-switcher';
 
 /** The paper's masthead: the nameplate, the theme switcher, install and the account links. */
@@ -11,9 +12,7 @@ export function SiteHeader({ user }: { user: User | null }) {
         Manage feeds
       </a>{' '}
       <span className="navuser">{user.name || user.email}</span>{' '}
-      <a className="navlink" href="/logout">
-        Sign out
-      </a>
+      <SignOutButton />
     </>
   ) : (
     <a className="navlink" href="/login">

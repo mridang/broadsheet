@@ -34,13 +34,7 @@ describe('what crawlers may read', () => {
   });
 
   it('keeps them out of the feed manager, the sign-in flow and the API', () => {
-    expect(PRIVATE_PATHS).toEqual([
-      '/feeds',
-      '/login',
-      '/logout',
-      '/auth/',
-      '/api/',
-    ]);
+    expect(PRIVATE_PATHS).toEqual(['/feeds', '/login', '/api/']);
   });
 });
 

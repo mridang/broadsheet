@@ -844,6 +844,12 @@ header.mast {
   border-radius: 999px;
   padding: 5px 14px;
 }
+button.navlink {
+  background: none;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
 .navuser {
   color: var(--masttext);
   opacity: 0.85;

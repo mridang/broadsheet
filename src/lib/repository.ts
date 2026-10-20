@@ -4,12 +4,11 @@
  * Data access over Drizzle/D1: users, feeds, and articles. Every query the
  * app and scrape pipeline need, in one place.
  */
-import { and, asc, desc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq, sql } from 'drizzle-orm';
 
 import { type Database } from './db/client';
 import { articles, feeds, users } from './db/schema';
 import type { ScrapedItem } from './scraping/types';
-import type { OAuthProfile } from './auth';
 
 /** A signed-in person. */
 export type User = typeof users.$inferSelect;
@@ -18,20 +17,66 @@ export type Feed = typeof feeds.$inferSelect;
 /** An article scraped from a feed. */
 export type Article = typeof articles.$inferSelect;
 
-export async function upsertUser(db: Database, p: OAuthProfile): Promise<User> {
+/** What is known about a person from their Google account. */
+export interface Profile {
+  /** Google's stable id for the account. */
+  readonly sub: string;
+  readonly email: string;
+  readonly name?: string;
+  readonly picture?: string;
+}
+
+/**
+ * Find the person by their Google account id, creating them the first time and
+ * refreshing their email, name and picture on return. Their session epoch is
+ * left alone.
+ */
+export async function upsertUser(db: Database, p: Profile): Promise<User> {
+  const profile = {
+    email: p.email,
+    name: p.name ?? null,
+    picture: p.picture ?? null,
+  };
   const rows = await db
     .insert(users)
-    .values({ sub: p.sub, email: p.email, name: p.name, picture: p.picture })
-    .onConflictDoUpdate({
-      target: users.sub,
-      set: { email: p.email, name: p.name, picture: p.picture },
-    })
+    .values({ google_sub: p.sub, ...profile })
+    .onConflictDoUpdate({ target: users.google_sub, set: profile })
     .returning();
   return rows[0]!;
 }
 
 export function getUser(db: Database, id: number): Promise<User | undefined> {
   return db.query.users.findFirst({ where: eq(users.id, id) });
+}
+
+/**
+ * The epoch the person's sessions must carry to be honoured, or undefined when
+ * the account no longer exists.
+ */
+export async function getSessionEpoch(
+  db: Database,
+  id: number,
+): Promise<number | undefined> {
+  const [row] = await db
+    .select({ epoch: users.session_epoch })
+    .from(users)
+    .where(eq(users.id, id))
+    .limit(1);
+  return row?.epoch;
+}
+
+/**
+ * End every session the person has, on every device, by moving to the next
+ * epoch: cookies issued under the old one stop being honoured at once.
+ */
+export async function bumpSessionEpoch(
+  db: Database,
+  id: number,
+): Promise<void> {
+  await db
+    .update(users)
+    .set({ session_epoch: sql`${users.session_epoch} + 1` })
+    .where(eq(users.id, id));
 }
 
 export function listFeeds(db: Database, userId: number): Promise<Feed[]> {

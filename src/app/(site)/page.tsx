@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 
-import { currentUser, ensurePublicUser } from '@/lib/account';
+import { ensurePublicUser } from '@/lib/account';
+import { getCurrentUser } from '@/lib/auth/current-user';
 import { getDatabase } from '@/lib/util';
 import { feedArticles, listEditions, listFeeds } from '@/lib/repository';
 import { todayEdition } from '@/lib/scraping';
@@ -23,7 +24,7 @@ export default async function Home({
   searchParams: Promise<{ date?: string }>;
 }) {
   const { date } = await searchParams;
-  const user = await currentUser();
+  const user = await getCurrentUser();
   const database = getDatabase();
   // Logged-out visitors read the hidden public user's Hacker News edition.
   const ownerId = user ? user.id : await ensurePublicUser();

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 
-import { currentUser } from '@/lib/account';
+import { getCurrentUser } from '@/lib/auth/current-user';
 import { getDatabase } from '@/lib/util';
 import { listFeeds } from '@/lib/repository';
 import { hostOf } from '@/lib/render/tiers';
@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Your feeds' };
 
 export default async function FeedsPage() {
-  const user = await currentUser();
+  const user = await getCurrentUser();
   if (!user) redirect('/login');
   const feeds = await listFeeds(getDatabase(), user.id);
 

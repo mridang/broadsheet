@@ -5,11 +5,15 @@
 // declared here.
 
 interface CloudflareEnv extends Cloudflare.Env {
-  /** HMAC key for signed session cookies (required in production). */
-  SESSION_SECRET?: string;
-  /** Google OAuth client; when unset, the passwordless dev login is enabled. */
-  GOOGLE_CLIENT_ID?: string;
-  GOOGLE_CLIENT_SECRET?: string;
-  /** Force-enable dev login ("1"); otherwise on only when OAuth is unconfigured. */
-  ALLOW_DEV_LOGIN?: string;
+  /** OAuth web client id for signing in with Google. */
+  GOOGLE_OAUTH_CLIENT_ID: string;
+  /** OAuth web client secret (server-side only). */
+  GOOGLE_OAUTH_CLIENT_SECRET: string;
+  /** Secret that signs the session cookie. Required: with none, signing in is refused. */
+  SESSION_SECRET: string;
+  /**
+   * Public origin, e.g. https://broadsheet.apps.mrida.ng. Optional; derived
+   * from the request when unset (local dev).
+   */
+  APP_URL?: string;
 }

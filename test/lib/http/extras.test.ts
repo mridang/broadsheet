@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { SESSION_COOKIE } from '../../../src/lib/account';
+import { SESSION_COOKIE } from '../../../src/lib/auth/app';
 import { GENERIC_CLASSES } from '../../../src/lib/http/edge-limits';
 import { EDGE_LIMITS } from '../../../src/lib/http/extras';
 
@@ -8,8 +8,16 @@ const classOf = (pathname: string) =>
   EDGE_LIMITS.classify(new Request(`https://app.test${pathname}`));
 
 describe('EDGE_LIMITS', () => {
-  it('counts only the classes every app has', () => {
-    expect(EDGE_LIMITS.classes).toBe(GENERIC_CLASSES);
+  it('counts the classes every app has, and the sign-in class', () => {
+    expect(EDGE_LIMITS.classes).toEqual({
+      ...GENERIC_CLASSES,
+      auth: {
+        binding: 'RL_AUTH',
+        counted: 'address',
+        periodSeconds: 60,
+        style: 'text',
+      },
+    });
   });
 
   it('tells a signed-in reader by the session cookie', () => {
@@ -24,6 +32,10 @@ describe('EDGE_LIMITS', () => {
     ['/api/health', 'discovery'],
     ['/robots.txt', 'discovery'],
     ['/api/feeds', 'api'],
+    ['/api/sessions', 'api'],
+    ['/api/auth/login', 'auth'],
+    ['/api/auth/callback', 'auth'],
+    ['/api/sessions/self', 'auth'],
   ])('puts %s in %s', (pathname, expected) => {
     expect(classOf(pathname)).toBe(expected);
   });

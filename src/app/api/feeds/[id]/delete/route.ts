@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server';
 
-import { currentUser } from '@/lib/account';
+import { getCurrentUser } from '@/lib/auth/current-user';
 import { getDatabase } from '@/lib/util';
 import { removeFeed } from '@/lib/repository';
 
@@ -10,7 +10,7 @@ export async function POST(
   request: NextRequest,
   ctx: RouteContext<'/api/feeds/[id]/delete'>,
 ): Promise<Response> {
-  const user = await currentUser();
+  const user = await getCurrentUser();
   if (!user) return Response.redirect(new URL('/login', request.url), 303);
   const { id } = await ctx.params;
   await removeFeed(getDatabase(), user.id, Number(id));

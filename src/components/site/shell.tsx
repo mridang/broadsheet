@@ -1,6 +1,6 @@
 import type { ReactElement, ReactNode } from 'react';
 
-import { currentUser } from '@/lib/account';
+import { getCurrentUser } from '@/lib/auth/current-user';
 
 import { SiteHeader } from './site-header';
 import { SkipLink } from './skip-link';
@@ -13,7 +13,7 @@ import { SkipLink } from './skip-link';
 export async function SiteShell({
   children,
 }: Readonly<{ children: ReactNode }>): Promise<ReactElement> {
-  const user = await currentUser();
+  const user = await getCurrentUser();
   return (
     <>
       <SkipLink />

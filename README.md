@@ -22,9 +22,10 @@ The Hacker Times: a personalised daily newspaper that turns web feeds into a pri
 | --------------------------------------- | --------------------------------------------------------------------------------------- |
 | `/`                                     | The front page: the Hacker News edition, or the signed-in user's paper                  |
 | `/feeds`                                | Manage feeds (signed in)                                                                |
-| `/login`, `/logout`                     | Sign in and out                                                                         |
-| `/auth/google`, `/auth/google/callback` | Google sign-in                                                                          |
-| `/auth/dev`                             | Passwordless dev login, only when enabled                                               |
+| `/login`                                | The sign-in page: one "Sign in with Google" button                                      |
+| `/api/auth/login`, `/api/auth/callback` | Google sign-in (identity only: `openid email profile`)                                  |
+| `/api/sessions/self`                    | `DELETE` signs out                                                                      |
+| `/api/sessions`                         | `DELETE` signs out everywhere (ends every session of the signed-in person)              |
 | `/api/feeds`, `/api/feeds/{id}`         | Add and remove feeds (signed in)                                                        |
 | `/api/refresh`                          | Re-fetch the signed-in user's feeds                                                     |
 | `/api/health`                           | Plain `ok`                                                                              |
@@ -49,12 +50,12 @@ devbox run -- npm run format       # prettier
 Local-only settings live in `.env` (gitignored):
 
 ```
-BASE_URL=http://localhost:3737
-ALLOW_DEV_LOGIN=1
+GOOGLE_OAUTH_CLIENT_ID=...
+GOOGLE_OAUTH_CLIENT_SECRET=...
 SESSION_SECRET=...
 ```
 
-Dev login is on whenever `ALLOW_DEV_LOGIN=1` or the Google credentials are not set, so no Google setup is needed locally.
+Signing in is the same code as in chowdown (`src/lib/auth`, the `/api/auth` and `/api/sessions` routes). There is no dev login and no fallback secret: when any of the three settings is missing, `/api/auth/login` answers 503 naming what is missing, and nobody can be signed in. The public Hacker News edition needs none of them. Register `http://localhost:3737/api/auth/callback` as an authorised redirect URI of the Google OAuth client to sign in locally.
 
 ## Deploy
 
@@ -63,16 +64,16 @@ Dev login is on whenever `ALLOW_DEV_LOGIN=1` or the Google credentials are not s
 devbox run -- npx wrangler d1 create broadsheet-db       # paste the id into wrangler.jsonc
 devbox run -- npx wrangler d1 migrations apply DB --remote
 devbox run -- npx wrangler secret put SESSION_SECRET     # HMAC key for session cookies
-devbox run -- npx wrangler secret put GOOGLE_CLIENT_ID
-devbox run -- npx wrangler secret put GOOGLE_CLIENT_SECRET
+devbox run -- npx wrangler secret put GOOGLE_OAUTH_CLIENT_ID
+devbox run -- npx wrangler secret put GOOGLE_OAUTH_CLIENT_SECRET
 
 # every release
 devbox run -- npm run deploy                             # opennextjs-cloudflare build && wrangler deploy
 ```
 
-The custom domain `broadsheet.apps.mrida.ng` requires the `apps.mrida.ng` zone on the Cloudflare account, and the Worker needs the AI binding (declared in `wrangler.jsonc`). Register `https://broadsheet.apps.mrida.ng/auth/google/callback` as the Google OAuth redirect URI. `BASE_URL` is a plain `var` in `wrangler.jsonc`.
+The custom domain `broadsheet.apps.mrida.ng` requires the `apps.mrida.ng` zone on the Cloudflare account, and the Worker needs the AI binding (declared in `wrangler.jsonc`). Register `https://broadsheet.apps.mrida.ng/api/auth/callback` as the Google OAuth redirect URI. The redirect address is built from the address the request came to; set `APP_URL` only to override it.
 
-Without the Google secrets the site still works: it serves the public Hacker News edition and falls back to dev login.
+Without the three secrets the site still works: it serves the public Hacker News edition, and signing in is refused.
 
 GitHub Actions (`deploy.yml`) applies the D1 migrations and deploys on pushes to `master`.
 
