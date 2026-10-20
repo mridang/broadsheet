@@ -31,7 +31,7 @@
   "devDependencies": {
     "@eslint/compat": "^2.1.0",
     "@jest/globals": "^30.0.3",
-    "@mridang/eslint-defaults": "^1.6.3",
+    "@mridang/eslint-defaults": "^1.6.4",
     "@tailwindcss/postcss": "^4",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.13.1",

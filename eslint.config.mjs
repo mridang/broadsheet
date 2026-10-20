@@ -35,23 +35,6 @@ export default [
     },
   },
   {
-    // The Tailwind lint plugin shipped with the preset is built for Tailwind 3:
-    // it reads a tailwind.config file, which this Tailwind 4 project does not
-    // have (the theme lives in `@theme` blocks in globals.css). It cannot see
-    // the project's colours, radii or type, so it mislabels them as unknown
-    // classes, and it re-resolves its config for every file, which took lint
-    // from 8 seconds and 1.8 GB to 55 seconds and 6 GB. On a 7 GB CI runner that
-    // stalled for hours. Class order is left to Prettier. Turn these back on
-    // when the preset moves to a Tailwind 4 build of the plugin.
-    rules: {
-      'tailwindcss/classnames-order': 'off',
-      'tailwindcss/enforces-negative-arbitrary-values': 'off',
-      'tailwindcss/enforces-shorthand': 'off',
-      'tailwindcss/no-custom-classname': 'off',
-      'tailwindcss/no-unnecessary-arbitrary-value': 'off',
-    },
-  },
-  {
     // Tailwind v4 drives styling through at-rules (@theme, @apply,
     // @custom-variant, …) that the css plugin's at-rule validator doesn't
     // know about. Tailwind owns this syntax, so disable just that check
