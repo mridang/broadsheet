@@ -17,12 +17,17 @@
 import openNextHandler from '../.open-next/worker.js';
 
 import { createDatabase } from './lib/db';
+import { serve } from './lib/http/serve';
 import { backfillRecent, refreshAll } from './lib/scraping';
 
 const handler = {
-  /** Forwarded straight to OpenNext's Next.js handler. */
+  /**
+   * Forwarded to OpenNext's Next.js handler through `serve`, which adds the
+   * Content Security Policy nonce on the way in and the security headers on
+   * the way out (see `lib/http/serve.ts`).
+   */
   fetch(request, env, ctx) {
-    return openNextHandler.fetch(request, env, ctx);
+    return serve(request, env, ctx, { app: openNextHandler });
   },
 
   /**
