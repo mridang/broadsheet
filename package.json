@@ -4,9 +4,10 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --port 3737",
     "build": "next build",
     "start": "next start",
+    "migrate": "wrangler d1 migrations apply DB --local",
     "cf-typegen": "wrangler types",
     "deploy": "opennextjs-cloudflare build && wrangler deploy",
     "format": "prettier --write .",
