@@ -18,18 +18,18 @@ The Hacker Times: a personalised daily newspaper that turns web feeds into a pri
 
 ## Routes
 
-| Route                                   | What                                                                   |
-| --------------------------------------- | ---------------------------------------------------------------------- |
-| `/`                                     | The front page: the Hacker News edition, or the signed-in user's paper |
-| `/feeds`                                | Manage feeds (signed in)                                               |
-| `/login`, `/logout`                     | Sign in and out                                                        |
-| `/auth/google`, `/auth/google/callback` | Google sign-in                                                         |
-| `/auth/dev`                             | Passwordless dev login, only when enabled                              |
-| `/api/feeds`, `/api/feeds/{id}`         | Add and remove feeds (signed in)                                       |
-| `/api/refresh`                          | Re-fetch the signed-in user's feeds                                    |
-| `/api/health`                           | Plain `ok`                                                             |
-| `/img`                                  | Image proxy, so Cloudflare image transformations accept remote images  |
-| `/api/csp-reports`                      | Receives Content Security Policy violation reports                     |
+| Route                                   | What                                                                                    |
+| --------------------------------------- | --------------------------------------------------------------------------------------- |
+| `/`                                     | The front page: the Hacker News edition, or the signed-in user's paper                  |
+| `/feeds`                                | Manage feeds (signed in)                                                                |
+| `/login`, `/logout`                     | Sign in and out                                                                         |
+| `/auth/google`, `/auth/google/callback` | Google sign-in                                                                          |
+| `/auth/dev`                             | Passwordless dev login, only when enabled                                               |
+| `/api/feeds`, `/api/feeds/{id}`         | Add and remove feeds (signed in)                                                        |
+| `/api/refresh`                          | Re-fetch the signed-in user's feeds                                                     |
+| `/api/health`                           | Plain `ok`                                                                              |
+| `/api/img`                              | Image proxy: scales and caches remote pictures (`?url=&w=&sig=`), signed addresses only |
+| `/api/csp-reports`                      | Receives Content Security Policy violation reports                                      |
 
 The security headers and the nonce-based Content Security Policy are added by the Worker itself (`src/lib/http`), not by Next.js.
 

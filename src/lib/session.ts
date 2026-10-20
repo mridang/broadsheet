@@ -8,6 +8,13 @@
 
 const enc = new TextEncoder();
 
+/**
+ * The key that signs sessions and picture addresses: the `SESSION_SECRET`
+ * secret, or a fixed development value when none is set.
+ */
+export const secretOf = (env: CloudflareEnv): string =>
+  env.SESSION_SECRET || 'dev-insecure-secret-change-me';
+
 function b64urlEncode(buf: ArrayBuffer): string {
   let s = '';
   for (const b of new Uint8Array(buf)) s += String.fromCharCode(b);

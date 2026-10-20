@@ -54,6 +54,12 @@
   "ai": {
     "binding": "AI",
   },
+  // Scales remote pictures down (and re-encodes them as WebP) in the Worker, for
+  // the /api/img proxy. Needs no zone setting. Free monthly allowance; see
+  // src/lib/images/proxy.ts.
+  "images": {
+    "binding": "IMAGES",
+  },
   "triggers": {
     // 06:00 UTC — daily fetch + scrape of every feed.
     "crons": ["0 6 * * *"],

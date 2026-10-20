@@ -1,13 +1,16 @@
 import type { Article } from '@/lib/db';
+import { pictureSrc } from '@/lib/render/pictures';
 import {
   IMG_WIDTH,
   TIER,
   ago,
-  cfImage,
   excerpt,
   hostOf,
   type Tier,
 } from '@/lib/render/tiers';
+
+/** The width a source's favicon is asked for, in pixels (Google's service sends 64). */
+const FAVICON_WIDTH = 64;
 
 /**
  * One story. Tier fixes the lane span and excerpt budget; lead/feature
@@ -17,7 +20,9 @@ export function StoryCard({ article, tier }: { article: Article; tier: Tier }) {
   const [span, budget] = TIER[tier];
   const side = article.id % 2 ? 'ph-l' : 'ph-r';
   const ex = budget ? excerpt(article.summary, budget) : '';
-  const cls = `card t-${tier} w${span}${article.image ? '' : ' noimg'}`;
+  const photo = pictureSrc(article.image ?? '', IMG_WIDTH[tier]);
+  const icon = pictureSrc(article.favicon ?? '', FAVICON_WIDTH);
+  const cls = `card t-${tier} w${span}${photo ? '' : ' noimg'}`;
 
   return (
     <article className={cls}>
@@ -31,8 +36,8 @@ export function StoryCard({ article, tier }: { article: Article; tier: Tier }) {
       <div className="meat">
         <div className="kicker">
           <span className="num">•</span>
-          {article.favicon ? (
-            <img className="fav" loading="lazy" src={article.favicon} alt="" />
+          {icon ? (
+            <img className="fav" loading="lazy" src={icon} alt="" />
           ) : null}{' '}
           {article.source || hostOf(article.url)}
           <span className="score">
@@ -40,13 +45,9 @@ export function StoryCard({ article, tier }: { article: Article; tier: Tier }) {
           </span>
         </div>
         <h2 className="hl">{article.title}</h2>
-        {article.image ? (
+        {photo ? (
           <figure className={`ph ${side}`}>
-            <img
-              loading="lazy"
-              src={cfImage(article.image, IMG_WIDTH[tier])}
-              alt=""
-            />
+            <img loading="lazy" src={photo} alt="" />
           </figure>
         ) : null}
         {ex ? <p className="ex">{ex}</p> : null}

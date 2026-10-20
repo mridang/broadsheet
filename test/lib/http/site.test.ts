@@ -22,16 +22,13 @@ describe('site settings', () => {
     ]) {
       expect(OPEN_FILES.test(path)).toBe(true);
     }
-    for (const path of ['/', '/feeds', '/img', '/api/feeds']) {
+    for (const path of ['/', '/feeds', '/api/img', '/api/feeds']) {
       expect(OPEN_FILES.test(path)).toBe(false);
     }
   });
 
-  it('names only the favicon service and its image host as outside picture sources', () => {
-    expect(EXTRA_IMG_SOURCES).toEqual([
-      'https://www.google.com',
-      'https://*.gstatic.com',
-    ]);
+  it('adds no outside picture sources: every picture comes through this site', () => {
+    expect(EXTRA_IMG_SOURCES).toEqual([]);
   });
 
   it('lets the icons and the manifest be cached for a day', () => {

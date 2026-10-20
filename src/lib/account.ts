@@ -11,7 +11,7 @@ import { cookies } from 'next/headers';
 import { createDatabase, type Database, type Feed, type User } from './db';
 import { addFeed, getUser, listFeeds, upsertUser } from './repository';
 import { refreshFeed } from './scraping';
-import { cookie, sign, unsign } from './session';
+import { cookie, secretOf, sign, unsign } from './session';
 
 const DEFAULT_FEEDS: [string, string][] = [
   ['https://hnrss.org/frontpage', 'Hacker News'],
@@ -25,9 +25,6 @@ const PUBLIC_FEEDS: [string, string][] = [
 ];
 
 export const SESSION_COOKIE = 'ht_sess';
-
-const secret = (env: CloudflareEnv): string =>
-  env.SESSION_SECRET || 'dev-insecure-secret-change-me';
 
 /** The Drizzle client bound to the request's D1 binding. */
 export const db = (): Database => createDatabase(getCloudflareContext().env.DB);
@@ -44,14 +41,14 @@ export const devLoginOn = (): boolean =>
 export async function currentUser(): Promise<User | null> {
   const value = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!value) return null;
-  const id = await unsign(secret(env()), value);
+  const id = await unsign(secretOf(env()), value);
   if (!id) return null;
   return (await getUser(db(), Number(id))) ?? null;
 }
 
 /** A signed `Set-Cookie` string establishing the session for `userId`. */
 export const sessionCookie = async (userId: number): Promise<string> =>
-  cookie(SESSION_COOKIE, await sign(secret(env()), String(userId)), {
+  cookie(SESSION_COOKIE, await sign(secretOf(env()), String(userId)), {
     maxAge: 30 * 86400,
     secure: isSecure(),
   });
@@ -63,7 +60,7 @@ const OAUTH_COOKIE = 'ht_oauth';
 
 /** Sign the OAuth CSRF `state` into a short-lived cookie. */
 export const oauthStateCookie = async (state: string): Promise<string> =>
-  cookie(OAUTH_COOKIE, await sign(secret(env()), state), {
+  cookie(OAUTH_COOKIE, await sign(secretOf(env()), state), {
     maxAge: 600,
     secure: isSecure(),
   });
@@ -71,7 +68,7 @@ export const oauthStateCookie = async (state: string): Promise<string> =>
 /** Recover the signed OAuth `state` from the request cookies, or null. */
 export async function readOAuthState(): Promise<string | null> {
   const v = (await cookies()).get(OAUTH_COOKIE)?.value;
-  return v ? unsign(secret(env()), v) : null;
+  return v ? unsign(secretOf(env()), v) : null;
 }
 
 export const clearOAuthCookie = (): string =>

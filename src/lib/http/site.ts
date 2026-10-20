@@ -28,16 +28,11 @@ export const RARELY_CHANGING: ReadonlySet<string> = new Set([
 
 /**
  * The outside places pages may load pictures from, besides this site (`'self'`)
- * and inline `data:` pictures.
- * A story source's small icon comes from Google's favicon service, which
- * answers with a redirect to its own image host; a browser checks the redirect
- * against the policy too, so both are listed. Article pictures are not here:
- * they come through this site's own `/img` address.
+ * and inline `data:` pictures. None: article pictures and the sources' small
+ * icons (Google's favicon service) all come through this site's own
+ * `/api/img` address.
  */
-export const EXTRA_IMG_SOURCES: readonly string[] = [
-  'https://www.google.com',
-  'https://*.gstatic.com',
-];
+export const EXTRA_IMG_SOURCES: readonly string[] = [];
 
 /**
  * Directives only this app adds to its policy. None.

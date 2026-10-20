@@ -26,21 +26,6 @@ export const IMG_WIDTH: Record<Tier, number> = {
   brief: 480,
 };
 
-const SITE_ORIGIN = 'https://broadsheet.apps.mrida.ng';
-
-/**
- * Optimize a remote image via Cloudflare Image Transformations: resize to
- * `width`, auto-pick AVIF/WebP per browser, compress, and cache at the edge.
- * The source is routed through our own `/img` proxy so it counts as a
- * same-zone origin (transformations only allow same-zone sources by default).
- * `/cdn-cgi/image/` is handled before the Worker.
- */
-export function cfImage(src: string, width: number): string {
-  if (!src) return src;
-  const proxied = `${SITE_ORIGIN}/img?u=${encodeURIComponent(src)}`;
-  return `/cdn-cgi/image/format=auto,quality=75,fit=scale-down,width=${width}/${proxied}`;
-}
-
 /**
  * Prominence weight: log(points) + an image bonus, penalised for thin text.
  * Sort a section by this (desc) so the highest-scored story becomes the lead.
