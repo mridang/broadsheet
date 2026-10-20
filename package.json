@@ -5,6 +5,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --port 3737",
+    "typecheck": "tsc --noEmit",
     "build": "next build",
     "start": "next start",
     "migrate": "wrangler d1 migrations apply DB --local",
