@@ -2,7 +2,6 @@
   "name": "broadsheet",
   "version": "0.1.0",
   "type": "module",
-  "private": true,
   "scripts": {
     "dev": "next dev --port 3737",
     "typecheck": "tsc --noEmit",
@@ -11,18 +10,44 @@
     "migrate": "wrangler d1 migrations apply DB --local",
     "cf-typegen": "wrangler types && prettier --write worker-configuration.d.ts",
     "deploy": "opennextjs-cloudflare build && wrangler deploy",
+    "test": "jest --verbose --config=jest.config.mjs",
+    "test:watch": "npm run test -- --watch",
+    "test:debug": "jest --verbose --config=jest.config.mjs --detectOpenHandles",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "npx eslint .",
     "lint:fix": "npx eslint . --fix",
-    "test": "jest --verbose --config=jest.config.mjs",
-    "test:watch": "npm run test -- --watch",
     "cypress:open": "cypress open",
     "cypress:run": "cypress run --browser chrome"
   },
-  "engines": {
-    "node": ">=24"
+  "keywords": [
+    "cloudflare-d1",
+    "cloudflare-workers",
+    "drizzle-orm",
+    "hacker-news",
+    "newspaper",
+    "nextjs",
+    "opennext",
+    "rss",
+    "typescript"
+  ],
+  "author": {
+    "name": "Mridang Agarwalla",
+    "email": "mridang.agarwalla@gmail.com",
+    "url": "https://github.com/mridang"
   },
+  "license": "Apache-2.0",
+  "description": "The Hacker Times: a personalised daily newspaper that turns web feeds into a print-style front page, on Cloudflare Workers and D1.",
+  "private": true,
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mridang/broadsheet.git"
+  },
+  "homepage": "https://github.com/mridang/broadsheet",
+  "bugs": "https://github.com/mridang/broadsheet/issues",
   "dependencies": {
     "@opennextjs/cloudflare": "^1.20.12",
     "drizzle-orm": "^0.45.2",
