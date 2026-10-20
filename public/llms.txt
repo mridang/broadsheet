@@ -1,0 +1,14 @@
+# The Hacker Times
+
+> The Hacker Times is a personalised daily newspaper, generated fresh from the feeds a reader follows. Signed-out visitors read a Hacker News edition; every day's edition is kept in an archive.
+
+The Hacker Times is a web app at https://broadsheet.apps.mrida.ng. Only the front page is public; feeds and accounts are private to the signed-in reader.
+
+## Public pages
+
+- [Front page](https://broadsheet.apps.mrida.ng/): today's Hacker News edition, with the archive of past days.
+
+## Optional
+
+- [Security contact](https://broadsheet.apps.mrida.ng/.well-known/security.txt): how to report a vulnerability.
+- [Security policy](https://broadsheet.apps.mrida.ng/security-policy.txt): what to expect when you do.

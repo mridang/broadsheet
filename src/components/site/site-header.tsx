@@ -1,8 +1,10 @@
 import type { User } from '@/lib/repository';
-import { ThemeSwitcher } from './theme-switcher';
-import { InstallButton } from './install-button';
 
-export function Masthead({ user }: { user: User | null }) {
+import { InstallButton } from './install-button';
+import { ThemeSwitcher } from './theme-switcher';
+
+/** The paper's masthead: the nameplate, the theme switcher, install and the account links. */
+export function SiteHeader({ user }: { user: User | null }) {
   const nav = user ? (
     <>
       <a className="navlink" href="/feeds">

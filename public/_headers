@@ -2,6 +2,7 @@
 # Worker, so the security headers it adds to pages are repeated here (a test
 # keeps the two lists in step). Later, more specific rules add to these. They
 # also override OpenNext's default `max-age=0, must-revalidate` on assets.
+# The same in every app.
 
 /*
   X-Content-Type-Options: nosniff
@@ -17,10 +18,24 @@
 /_next/static/*
   Cache-Control: public, max-age=31536000, immutable
 
-# Un-hashed public files — cache for a day; they change rarely. The favicon is
-# also a file other sites load on purpose.
-/favicon.ico
+# Un-hashed public files — cache for a day; they change rarely. The icons, the
+# install screenshots, llms.txt and the security policy are also files other
+# sites (or the browser's install dialog) load or fetch on purpose.
+/icons/*
+  Cache-Control: public, max-age=86400
+  Cross-Origin-Resource-Policy: cross-origin
+/screenshots/*
+  Cache-Control: public, max-age=86400
+  Cross-Origin-Resource-Policy: cross-origin
+/llms.txt
+  Cross-Origin-Resource-Policy: cross-origin
+# The disclosure policy that security.txt points researchers to.
+/security-policy.txt
   Cache-Control: public, max-age=86400
   Cross-Origin-Resource-Policy: cross-origin
 /*.svg
   Cache-Control: public, max-age=86400
+
+# The service worker must be re-checked every time, or a bad one could stick.
+/sw.js
+  Cache-Control: no-cache

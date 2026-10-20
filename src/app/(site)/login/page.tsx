@@ -1,7 +1,12 @@
+import type { Metadata } from 'next';
+
 import { getEnv } from '@/lib/util';
 import { oauthConfigured } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
+
+/** The tab title of the sign-in page. */
+export const metadata: Metadata = { title: 'Sign in' };
 
 export default function LoginPage() {
   const configured = oauthConfigured(getEnv());

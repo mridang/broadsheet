@@ -1,0 +1,28 @@
+The Hacker Times security policy
+
+Report a vulnerability in https://broadsheet.apps.mrida.ng by email to
+mridang.agarwalla@gmail.com. Please include what you found, the address or
+request it affects, and the steps to reproduce it. Do not include other
+people's data; a description or a screenshot of your own test account is
+enough.
+
+What to expect
+- An acknowledgement within 5 days.
+- A fix, or an honest answer about why there is none, within 90 days. You will
+  be told when it is fixed, and credited if you want to be.
+- No legal action against anyone who reports in good faith, follows this
+  policy, and stops at proving the problem: do not read, change or delete
+  anyone else's data, do not degrade the service for others, and give a
+  reasonable time to fix before you share the details.
+
+In scope
+- https://broadsheet.apps.mrida.ng and its API.
+- The Google sign-in.
+
+Out of scope
+- Google's own services (Sign-In), Cloudflare's platform, and the third-party
+  sites whose feeds and articles are shown.
+- Denial of service by volume, spam, social engineering, and physical attacks.
+- Missing headers or settings with no demonstrable impact.
+
+This policy is also linked from https://broadsheet.apps.mrida.ng/.well-known/security.txt

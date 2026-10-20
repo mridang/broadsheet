@@ -1,5 +1,184 @@
 @import 'tailwindcss';
 
+/* ==========================================================================
+ * 1. This app's tokens: they differ per app.
+ *    The shared shell reads these roles: paper, ink, on-ink, surface, brand,
+ *    accent, highlight, on-highlight, and the font-sans / font-display faces.
+ * ======================================================================== */
+
+@theme {
+  /* The two newspaper themes (see section 4) set `--paper`, `--ink` and the
+   * rest on `<html data-theme>`; the roles the shared shell is written in
+   * follow whichever theme is on. */
+  --color-paper: var(--paper);
+  --color-ink: var(--ink);
+  --color-on-ink: var(--paper);
+  --color-surface: #fff;
+  --color-brand: var(--mastbg);
+  --color-accent: var(--accent);
+  --color-highlight: var(--accent);
+  --color-on-highlight: var(--masttext);
+}
+
+@theme inline {
+  /* Type: the one serif of the active theme (see `_fonts.ts`). */
+  --font-sans: var(--serif);
+  --font-display: var(--serif);
+}
+
+/* ==========================================================================
+ * 2. Shared tokens: the same in every app (they derive from the tokens above).
+ * ======================================================================== */
+
+/* Non-inline, so a page can override the radii with a data attribute. */
+@theme {
+  --radius-control: 0.5rem;
+  --radius-card: 0.875rem;
+}
+
+@theme inline {
+  /* Secondary text, in two strengths: `text-muted` for body copy and
+   * descriptions, `text-subtle` for captions, placeholders and icons. Both are
+   * the ink colour at a fixed strength (so they follow the palette), and both
+   * keep at least 5:1 contrast on paper. */
+  --color-muted: color-mix(in srgb, var(--color-ink) 75%, transparent);
+  --color-subtle: color-mix(in srgb, var(--color-ink) 65%, transparent);
+
+  /* Edges: `border-line` for a hairline between areas and around cards (purely
+   * decorative, so it may be faint), `border-field` for the edge of something
+   * you can act on (an input, a button, a chip). A control's border is often
+   * the only thing that shows where it is, so WCAG 1.4.11 asks 3:1 of it
+   * against what it sits on: ink at 50% measures 3.5:1 on white and on paper.
+   * (test/app/globals.test.ts keeps it honest.) */
+  --color-line: color-mix(in srgb, var(--color-ink) 10%, transparent);
+  --color-field: color-mix(in srgb, var(--color-ink) 50%, transparent);
+
+  /* The small tracked-caps label: eyebrows, group labels, facts. */
+  --text-label: 0.6875rem;
+  --text-label--line-height: 1rem;
+  --text-label--letter-spacing: 0.16em;
+}
+
+/* ==========================================================================
+ * 3. Shared base: the same in every app.
+ * ======================================================================== */
+
+/*
+ * The focus ring every interactive element shares: two pixels of ink, set off
+ * from the element by two pixels. `focus-ring-flush` hugs the element (for one
+ * that already has a border or fills its box), `focus-ring-wide` stands further
+ * off (for a bare text link).
+ */
+.focus-ring:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+.focus-ring-flush:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 0;
+}
+
+.focus-ring-wide:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 4px;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+
+/*
+ * For people who ask their system for less motion: every transition and
+ * animation collapses to an instant change (not removed, so anything waiting
+ * for an `animationend` or `transitionend` still gets it). One rule here covers
+ * every component, including ones added later. It needs no `!important`: this
+ * rule is outside every cascade layer, and unlayered styles beat the layered
+ * utility classes Tailwind generates.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+    transition-duration: 0.01ms;
+    scroll-behavior: auto;
+  }
+}
+
+/*
+ * Printing: the skip link has no place on paper, and the page prints on white.
+ * This lives here, not in a <style> on the page, because the Content Security
+ * Policy refuses inline styles.
+ */
+@media print {
+  a[href='#main'] {
+    display: none;
+  }
+
+  body {
+    background: #fff;
+  }
+}
+
+/*
+ * Typography and page layout the browser can do for us. All of it sits in the
+ * `base` layer so a utility class on an element (`text-nowrap`, `text-balance`,
+ * `overflow-auto`) still wins over it, and every property here is ignored, not
+ * broken, by a browser that does not know it.
+ */
+@layer base {
+  /* Short blocks, split into evenly long lines instead of one long line and a
+   * stranded word (the browser only balances a few lines, so a long heading
+   * costs nothing). Centred text is short by nature: taglines, empty states. */
+  @supports (text-wrap: balance) {
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6,
+    .text-center {
+      text-wrap: balance;
+    }
+  }
+
+  /* Paragraphs and list items (recipe steps, notes, descriptions): keep the
+   * last line from being a single orphaned word. Chrome and Safari do this;
+   * Firefox ignores it and wraps as it always has. */
+  @supports (text-wrap: pretty) {
+    p,
+    li,
+    dd,
+    blockquote {
+      text-wrap: pretty;
+    }
+  }
+
+  /* Always leave room for the page's scrollbar. Without it, a modal that
+   * hides the scrollbar makes a page that has one jump sideways by its width. */
+  @supports (scrollbar-gutter: stable) {
+    html {
+      scrollbar-gutter: stable;
+    }
+  }
+
+  /* No scrolling behind an open modal dialog. This is the whole scroll lock:
+   * `:modal` is true exactly while a dialog is shown with `showModal()`, so it
+   * also lets go by itself if the dialog is removed without being closed. */
+  @supports selector(:has(*)) {
+    html:has(dialog:modal) {
+      overflow: hidden;
+    }
+  }
+}
+
+/* ==========================================================================
+ * 4. This app's styles.
+ * ======================================================================== */
+
 /* ===== The Hacker Times — newspaper styles (ported from the POC _style.css).
    Theme body fonts are wired to next/font CSS variables. ===== */
 

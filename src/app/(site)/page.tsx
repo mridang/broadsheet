@@ -1,3 +1,5 @@
+import type { Metadata } from 'next';
+
 import { currentUser, ensurePublicUser } from '@/lib/account';
 import { getDatabase } from '@/lib/util';
 import { feedArticles, listEditions, listFeeds } from '@/lib/repository';
@@ -6,6 +8,14 @@ import { Section } from './_components/section';
 import { EditionBar } from './_components/edition-bar';
 
 export const dynamic = 'force-dynamic';
+
+/**
+ * The front page is the one public page: the title, description and social card
+ * come from the root layout, and the page opts in to being indexed (the
+ * Worker's `PUBLIC_PAGES` and robots.txt agree). It names no canonical address,
+ * as `?date=` shows a different edition.
+ */
+export const metadata: Metadata = { robots: { index: true, follow: true } };
 
 export default async function Home({
   searchParams,

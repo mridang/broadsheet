@@ -1,85 +1,44 @@
 import type { Metadata, Viewport } from 'next';
-import { headers } from 'next/headers';
-import { Lora, Source_Serif_4 } from 'next/font/google';
+import type { ReactElement, ReactNode } from 'react';
+
+import { ServiceWorker } from '@/components/site/service-worker';
+import { ThemeScript } from '@/components/site/theme-script';
+
+import { BODY_CLASS, HTML_ATTRIBUTES, HTML_CLASS } from './_fonts';
+import { siteMetadata, siteViewport } from './_metadata';
 import './globals.css';
-import { currentUser } from '@/lib/account';
-import { Masthead } from './(home)/_components/masthead';
 
-// Theme body fonts — FT → Source Serif 4, Economist → Lora. Exposed as CSS
-// variables the newspaper stylesheet switches between per data-theme.
-const sourceSerif = Source_Serif_4({
-  subsets: ['latin'],
-  variable: '--font-source-serif',
-  weight: ['400', '600', '700', '900'],
-  style: ['normal', 'italic'],
-});
-const lora = Lora({
-  subsets: ['latin'],
-  variable: '--font-lora',
-  weight: ['400', '500', '600', '700'],
-  style: ['normal', 'italic'],
-});
+/** What every page says about itself unless it says otherwise (see `_metadata.ts`). */
+export const metadata: Metadata = siteMetadata();
 
-const TITLE = 'The Hacker Times';
-const DESCRIPTION =
-  'A personalised daily newspaper, generated fresh from the feeds you follow.';
-const SITE_URL = 'https://broadsheet.apps.mrida.ng';
+/** How phones lay the page out, and the colour of the browser's own chrome. */
+export const viewport: Viewport = siteViewport();
 
-export const metadata: Metadata = {
-  metadataBase: new URL(SITE_URL),
-  title: TITLE,
-  description: DESCRIPTION,
-  manifest: '/manifest.webmanifest',
-  appleWebApp: { capable: true, title: 'Hacker Times' },
-  openGraph: {
-    type: 'website',
-    siteName: TITLE,
-    title: TITLE,
-    description: DESCRIPTION,
-    url: SITE_URL,
-  },
-};
-
-export const viewport: Viewport = {
-  width: 'device-width',
-  initialScale: 1,
-  themeColor: '#990F3D',
-};
-
-// No-flash: apply the saved theme + bar colour before first paint.
-const NOFLASH =
-  "(function(){try{var t=localStorage.getItem('ht-theme')||'ft';" +
-  "var c={ft:'#990F3D',economist:'#E3120B'}[t]||'#990F3D';" +
-  "document.documentElement.setAttribute('data-theme',t);" +
-  "var m=document.querySelector('meta[name=theme-color]');" +
-  "if(m)m.setAttribute('content',c);}catch(e){}})();";
-
-export default async function RootLayout({
+/**
+ * The document every page sits in: the language, the typefaces, the page
+ * colours, the script that applies a saved theme before the first paint (if
+ * the app has one), and the service worker that makes the app installable. The
+ * site's header and footer are added one level down, in the `(site)` layout,
+ * so the not-found and error pages can use a plainer frame.
+ */
+export default function RootLayout({
   children,
-}: Readonly<{ children: React.ReactNode }>) {
-  const user = await currentUser();
-  // The Worker puts this response's one-time number here; the Content Security
-  // Policy only lets a script that carries it run.
-  const nonce = (await headers()).get('x-nonce') ?? undefined;
+}: Readonly<{
+  children: ReactNode;
+}>): ReactElement {
   return (
     <html
       lang="en"
-      data-theme="ft"
+      className={HTML_CLASS}
       suppressHydrationWarning
-      className={`${sourceSerif.variable} ${lora.variable}`}
+      {...HTML_ATTRIBUTES}
     >
       <head>
-        {/* No-flash: a raw inline script in <head> runs before first paint.
-            (next/script with children is invalid in Next 16; use this.) */}
-        <script
-          nonce={nonce}
-          suppressHydrationWarning
-          dangerouslySetInnerHTML={{ __html: NOFLASH }}
-        />
+        <ThemeScript />
       </head>
-      <body>
-        <Masthead user={user} />
-        <div className="wrap">{children}</div>
+      <body className={BODY_CLASS}>
+        {children}
+        <ServiceWorker />
       </body>
     </html>
   );

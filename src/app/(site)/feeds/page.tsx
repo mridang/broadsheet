@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 
 import { currentUser } from '@/lib/account';
@@ -6,6 +7,9 @@ import { listFeeds } from '@/lib/repository';
 import { hostOf } from '@/lib/render/tiers';
 
 export const dynamic = 'force-dynamic';
+
+/** The tab title of the feed manager. */
+export const metadata: Metadata = { title: 'Your feeds' };
 
 export default async function FeedsPage() {
   const user = await currentUser();
