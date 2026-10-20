@@ -6,7 +6,8 @@
  * replace that feed's stored articles. Optionally upgrades source names via
  * names via Workers AI (the `AI` binding).
  */
-import type { Database, Feed } from '../db';
+import type { Database } from '../db/client';
+import type { Feed } from '../repository';
 import { allFeeds, editionsForFeed, writeEdition } from '../repository';
 import { logInfo, logWarn } from '../util';
 import {

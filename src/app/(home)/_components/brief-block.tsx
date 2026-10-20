@@ -1,4 +1,4 @@
-import type { Article } from '@/lib/db';
+import type { Article } from '@/lib/repository';
 import { hostOf } from '@/lib/render/tiers';
 
 /** The low-weight tail, rendered as a newspaper "In Brief" rail. */

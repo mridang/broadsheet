@@ -1,4 +1,5 @@
-import { currentUser, db, ensurePublicUser } from '@/lib/account';
+import { currentUser, ensurePublicUser } from '@/lib/account';
+import { getDatabase } from '@/lib/util';
 import { feedArticles, listEditions, listFeeds } from '@/lib/repository';
 import { todayEdition } from '@/lib/scraping';
 import { Section } from './_components/section';
@@ -13,7 +14,7 @@ export default async function Home({
 }) {
   const { date } = await searchParams;
   const user = await currentUser();
-  const database = db();
+  const database = getDatabase();
   // Logged-out visitors read the hidden public user's Hacker News edition.
   const ownerId = user ? user.id : await ensurePublicUser();
 

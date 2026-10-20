@@ -6,7 +6,7 @@
  * fixes the lane span and excerpt budget, and the excerpt is copyfit to
  * that budget. Different content ⇒ a different page, with no code change.
  */
-import type { Article } from '../db';
+import type { Article } from '../repository';
 
 export type Tier = 'lead' | 'feature' | 'standard' | 'brief';
 

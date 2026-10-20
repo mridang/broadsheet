@@ -2,12 +2,11 @@ import type { NextRequest } from 'next/server';
 
 import {
   clearOAuthCookie,
-  db,
-  env,
   readOAuthState,
   seedDefaults,
   sessionCookie,
 } from '@/lib/account';
+import { getDatabase, getEnv } from '@/lib/util';
 import { exchange } from '@/lib/auth';
 import { upsertUser } from '@/lib/repository';
 
@@ -22,10 +21,10 @@ export async function GET(request: NextRequest): Promise<Response> {
   const code = url.searchParams.get('code');
   if (!code) return new Response('missing code', { status: 400 });
 
-  const e = env();
+  const e = getEnv();
   const base = e.BASE_URL ?? url.origin;
   const profile = await exchange(e, code, base + '/auth/google/callback');
-  const user = await upsertUser(db(), profile);
+  const user = await upsertUser(getDatabase(), profile);
   await seedDefaults(user.id);
 
   const headers = new Headers({ Location: '/feeds' });

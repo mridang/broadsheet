@@ -1,7 +1,7 @@
-import { getCloudflareContext } from '@opennextjs/cloudflare';
 import type { NextRequest } from 'next/server';
 
-import { currentUser, db, env } from '@/lib/account';
+import { currentUser } from '@/lib/account';
+import { getDatabase, getEnv, runInBackground } from '@/lib/util';
 import { addFeed } from '@/lib/repository';
 import { refreshFeed } from '@/lib/scraping';
 
@@ -14,10 +14,10 @@ export async function POST(request: NextRequest): Promise<Response> {
   const form = await request.formData();
   const url = String(form.get('url') ?? '').trim();
   if (url) {
-    const feed = await addFeed(db(), user.id, url);
+    const feed = await addFeed(getDatabase(), user.id, url);
     if (feed) {
-      getCloudflareContext().ctx.waitUntil(
-        refreshFeed(db(), env(), feed).catch(() => undefined),
+      runInBackground(
+        refreshFeed(getDatabase(), getEnv(), feed).catch(() => undefined),
       );
     }
   }

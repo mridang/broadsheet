@@ -1,4 +1,4 @@
-import type { User } from '@/lib/db';
+import type { User } from '@/lib/repository';
 import { ThemeSwitcher } from './theme-switcher';
 import { InstallButton } from './install-button';
 

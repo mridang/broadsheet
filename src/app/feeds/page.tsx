@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 
-import { currentUser, db } from '@/lib/account';
+import { currentUser } from '@/lib/account';
+import { getDatabase } from '@/lib/util';
 import { listFeeds } from '@/lib/repository';
 import { hostOf } from '@/lib/render/tiers';
 
@@ -9,7 +10,7 @@ export const dynamic = 'force-dynamic';
 export default async function FeedsPage() {
   const user = await currentUser();
   if (!user) redirect('/login');
-  const feeds = await listFeeds(db(), user.id);
+  const feeds = await listFeeds(getDatabase(), user.id);
 
   return (
     <div className="panel">

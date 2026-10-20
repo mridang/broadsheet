@@ -1,4 +1,4 @@
-import type { Article, Feed } from '@/lib/db';
+import type { Article, Feed } from '@/lib/repository';
 import { assignTiers, hostOf, weight, type Tier } from '@/lib/render/tiers';
 import { StoryCard } from './story-card';
 import { BriefBlock } from './brief-block';

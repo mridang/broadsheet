@@ -5,7 +5,13 @@
  * HTTP concerns (transports, retry) live in `@/lib/transport`, not here.
  */
 
-export { getDB, getEnv } from './runtime';
+export {
+  getDB,
+  isDatabaseBound,
+  getEnv,
+  getDatabase,
+  runInBackground,
+} from './runtime';
 export { logInfo, logWarn, logError } from './logging';
 export type { LogFields, LogLevel } from './logging';
 export { safeJsonParse } from './json';

@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 
-import type { Article } from '../../../src/lib/db';
+import type { Article } from '../../../src/lib/repository';
 import { assignTiers, excerpt } from '../../../src/lib/render/tiers';
 
 function article(over: Partial<Article>): Article {

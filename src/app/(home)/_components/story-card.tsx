@@ -1,4 +1,4 @@
-import type { Article } from '@/lib/db';
+import type { Article } from '@/lib/repository';
 import { pictureSrc } from '@/lib/render/pictures';
 import {
   IMG_WIDTH,

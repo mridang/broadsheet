@@ -16,7 +16,7 @@
  */
 import openNextHandler from '../.open-next/worker.js';
 
-import { createDatabase } from './lib/db';
+import { createDatabase } from './lib/db/client';
 import { serve } from './lib/http/serve';
 import { backfillRecent, refreshAll } from './lib/scraping';
 

@@ -1,10 +1,10 @@
-import { env } from '@/lib/account';
+import { getEnv } from '@/lib/util';
 import { oauthConfigured } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
 export default function LoginPage() {
-  const configured = oauthConfigured(env());
+  const configured = oauthConfigured(getEnv());
 
   return (
     <div className="panel center">

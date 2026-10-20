@@ -6,16 +6,17 @@
  */
 import { and, asc, desc, eq } from 'drizzle-orm';
 
-import {
-  articles,
-  feeds,
-  users,
-  type Database,
-  type Feed,
-  type User,
-} from './db';
+import { type Database } from './db/client';
+import { articles, feeds, users } from './db/schema';
 import type { ScrapedItem } from './scraping/types';
 import type { OAuthProfile } from './auth';
+
+/** A signed-in person. */
+export type User = typeof users.$inferSelect;
+/** A feed a user follows. */
+export type Feed = typeof feeds.$inferSelect;
+/** An article scraped from a feed. */
+export type Article = typeof articles.$inferSelect;
 
 export async function upsertUser(db: Database, p: OAuthProfile): Promise<User> {
   const rows = await db

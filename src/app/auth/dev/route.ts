@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server';
 
-import { db, devLoginOn, seedDefaults, sessionCookie } from '@/lib/account';
+import { devLoginOn, seedDefaults, sessionCookie } from '@/lib/account';
+import { getDatabase } from '@/lib/util';
 import { upsertUser } from '@/lib/repository';
 
 export const dynamic = 'force-dynamic';
@@ -12,7 +13,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   const email = String(form.get('email') ?? '').trim();
   if (!email) return Response.redirect(new URL('/login', request.url), 303);
 
-  const user = await upsertUser(db(), {
+  const user = await upsertUser(getDatabase(), {
     sub: 'dev:' + email,
     email,
     name: email.split('@')[0] ?? email,

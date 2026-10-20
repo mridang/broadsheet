@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server';
 
-import { currentUser, db } from '@/lib/account';
+import { currentUser } from '@/lib/account';
+import { getDatabase } from '@/lib/util';
 import { removeFeed } from '@/lib/repository';
 
 export const dynamic = 'force-dynamic';
@@ -12,6 +13,6 @@ export async function POST(
   const user = await currentUser();
   if (!user) return Response.redirect(new URL('/login', request.url), 303);
   const { id } = await ctx.params;
-  await removeFeed(db(), user.id, Number(id));
+  await removeFeed(getDatabase(), user.id, Number(id));
   return Response.redirect(new URL('/feeds', request.url), 303);
 }
