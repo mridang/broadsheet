@@ -5,11 +5,6 @@ on: push
 permissions:
   contents: write
 
-# A newer push makes an older run of this workflow on the same branch pointless.
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 defaults:
   run:
     working-directory: ./
@@ -17,8 +12,6 @@ defaults:
 jobs:
   code-formatting:
     runs-on: ubuntu-latest
-    # A hung step must not run to GitHub's six-hour limit on paid minutes.
-    timeout-minutes: 10
 
     steps:
       - name: Runner Common Setup
@@ -28,7 +21,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v5
         with:
           cache: 'npm'
           node-version-file: '.nvmrc'
@@ -40,7 +33,7 @@ jobs:
         run: npm run format
 
       - name: Commit and Push Changes
-        uses: stefanzweifel/git-auto-commit-action@v7
+        uses: stefanzweifel/git-auto-commit-action@v6
         with:
           commit_message: Apply Prettier formatting
           commit_options: '--no-verify'

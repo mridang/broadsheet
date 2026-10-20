@@ -5,11 +5,6 @@ on: push
 permissions:
   contents: read
 
-# A newer push makes an older run of this workflow on the same branch pointless.
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 defaults:
   run:
     working-directory: ./
@@ -17,8 +12,6 @@ defaults:
 jobs:
   app-testing:
     runs-on: ubuntu-latest
-    # A hung step must not run to GitHub's six-hour limit on paid minutes.
-    timeout-minutes: 15
 
     steps:
       - name: Runner Common Setup
@@ -37,11 +30,4 @@ jobs:
         run: npm ci
 
       - name: Run Jest
-        run: npm test
-
-      - name: Generate coverage report
-        if: always()
-        uses: mridang/action-test-reporter@v3
-        with:
-          results-path: '.out/junit.xml'
-          coverage-path: '.out/lcov.info'
+        run: npm run test
