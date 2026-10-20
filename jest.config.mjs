@@ -39,6 +39,8 @@ export default {
   extensionsToTreatAsEsm: ['.ts', '.tsx', '.mts'],
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
+    // The app's `@/` alias for src/, so components and pages can be tested.
+    '^@/(.*)$': '<rootDir>/src/$1',
   },
   reporters: [
     'default',
