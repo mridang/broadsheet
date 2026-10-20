@@ -46,7 +46,7 @@ devbox run -- npm run typecheck    # tsc --noEmit
 devbox run -- npm run format       # prettier
 ```
 
-Local-only settings live in `.dev.vars` (gitignored):
+Local-only settings live in `.env` (gitignored):
 
 ```
 BASE_URL=http://localhost:3737
