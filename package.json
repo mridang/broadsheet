@@ -9,7 +9,7 @@
     "start": "next start",
     "migrate": "wrangler d1 migrations apply DB --local",
     "cf-typegen": "wrangler types && prettier --write worker-configuration.d.ts",
-    "deploy": "opennextjs-cloudflare build && wrangler deploy",
+    "deploy": "wrangler d1 migrations apply DB --remote && opennextjs-cloudflare build && wrangler deploy",
     "test": "jest --verbose --config=jest.config.mjs",
     "test:watch": "npm run test -- --watch",
     "test:debug": "jest --verbose --config=jest.config.mjs --detectOpenHandles",
