@@ -60,6 +60,56 @@
   "images": {
     "binding": "IMAGES",
   },
+  // The release id, so cached pages are keyed to the release that made them.
+  "version_metadata": {
+    "binding": "CF_VERSION_METADATA",
+  },
+  // Cloudflare Workers Rate Limiting: the first line of defence, checked in the
+  // Worker before the app, D1, Google, a model or an outbound fetch is touched
+  // (src/lib/http/edge-limits.ts and extras.ts say which request counts against
+  // which binding; a test keeps this list and those tables in step). A page or
+  // picture served from a cache still counts. Limits are per Cloudflare location
+  // and eventually consistent: a cost guard, not an accounting system.
+  // namespace_id is account-wide and shared by every Worker that uses the same
+  // number, hence the distinctive 73xx range.
+  "ratelimits": [
+    // pictures through /api/img, per person: a grid loads dozens, cache hits are cheap
+    {
+      "name": "RL_COVER",
+      "namespace_id": "7301",
+      "simple": { "limit": 600, "period": 60 },
+    },
+    // the rest of the API, per person
+    {
+      "name": "RL_API",
+      "namespace_id": "7302",
+      "simple": { "limit": 120, "period": 60 },
+    },
+    // well-known documents, health and crawler files, per address
+    {
+      "name": "RL_DISCOVERY",
+      "namespace_id": "7303",
+      "simple": { "limit": 120, "period": 60 },
+    },
+    // browser reports (what the CSP blocked), per address: a broken page can send many
+    {
+      "name": "RL_REPORTS",
+      "namespace_id": "7304",
+      "simple": { "limit": 60, "period": 60 },
+    },
+    // pages, per address
+    {
+      "name": "RL_SITE",
+      "namespace_id": "7305",
+      "simple": { "limit": 300, "period": 60 },
+    },
+    // everything, per address: bounds callers who make up session cookies
+    {
+      "name": "RL_ADDRESS",
+      "namespace_id": "7306",
+      "simple": { "limit": 900, "period": 60 },
+    },
+  ],
   "triggers": {
     // 06:00 UTC — daily fetch + scrape of every feed.
     "crons": ["0 6 * * *"],

@@ -5,22 +5,58 @@
  * type-checked, because the app it forwards to is generated at build time) so
  * that it can be checked and tested:
  *
- *  1. the request goes to the app with a fresh Content Security Policy and its
- *     nonce on it (that is where Next.js looks for it);
- *  2. an HTML answer carries that policy, and the report-only Trusted Types one;
- *  3. whatever goes back carries the site's security and cache headers.
+ *  1. a caller over a rate limit is refused at once (`edge-limits.ts`), before
+ *     anything is looked up, so a page that is cached still counts;
+ *  2. a public page may come from the edge copy (`edge-cache.ts`), with a fresh
+ *     Content Security Policy nonce of its own;
+ *  3. everything else goes to the app, with the policy and its nonce on the
+ *     request (that is where Next.js looks for it) and on the response;
+ *  4. whatever goes back carries the site's security and cache headers.
+ *
+ * This file is the same in every app. What an app counts against its rate
+ * limits is in its own `extras.ts`, which has the same exports everywhere.
  */
 
 import { buildCsp, cspSurfaceFor, forwardedHeaders, newNonce } from './csp';
+import {
+  edgeCache,
+  edgeCacheKey,
+  isEdgeCacheable,
+  storableCopy,
+  withFreshNonce,
+} from './edge-cache';
+import {
+  edgeLimitRefusal,
+  type EdgeLimitEnv,
+  type EdgeLimits,
+} from './edge-limits';
+import { EDGE_LIMITS } from './extras';
 import { applyResponseHeaders, replacingHeaders } from './headers';
+import { PUBLIC_PAGES } from './site';
 
-/** The app that answers requests: the generated OpenNext handler. */
+/** What the Worker is given besides the request. */
+export type ServeEnv = EdgeLimitEnv & {
+  readonly CF_VERSION_METADATA?: { readonly id?: string };
+};
+
+/** The app that answers what the edge does not: the generated OpenNext handler. */
 export interface ServeApp {
   fetch(
     request: Request,
     env: never,
     ctx: ExecutionContext,
   ): Response | Promise<Response>;
+}
+
+/** The pieces `serve` works with, passed in so a test can supply its own. */
+export interface ServeDeps {
+  readonly app: ServeApp;
+  /** The edge cache, or undefined where there is none (plain Node). */
+  readonly cache?: Cache | undefined;
+  /** What is rate limited, and how; the app's own unless a test supplies another. */
+  readonly limits?: EdgeLimits;
+  /** The pages the edge may keep a copy of; the public pages unless a test supplies others. */
+  readonly pages?: ReadonlySet<string>;
 }
 
 /** The response with one more header (responses from the app are read-only). */
@@ -35,13 +71,37 @@ function withHeader(response: Response, name: string, value: string): Response {
 /** Answer one request. */
 export async function serve(
   request: Request,
-  env: unknown,
+  env: ServeEnv,
   ctx: ExecutionContext,
-  { app }: { readonly app: ServeApp },
+  {
+    app,
+    cache = edgeCache(),
+    limits = EDGE_LIMITS,
+    pages = PUBLIC_PAGES,
+  }: ServeDeps,
 ): Promise<Response> {
-  // Each page gets its own policy, with a one-time number the app puts on its scripts.
+  const refused = await edgeLimitRefusal(request, env, limits);
+  if (refused) {
+    return applyResponseHeaders(request, refused);
+  }
+  // Each page gets its own Content Security Policy, with a one-time number the
+  // app puts on its scripts. The approval screen may not be framed by anyone,
+  // not even this site.
   const nonce = newNonce();
   const csp = buildCsp(nonce, cspSurfaceFor(new URL(request.url).pathname));
+  const key =
+    cache !== undefined && isEdgeCacheable(request, pages, limits.sessionCookie)
+      ? edgeCacheKey(request, env.CF_VERSION_METADATA?.id ?? 'dev')
+      : undefined;
+  if (cache && key) {
+    const hit = await cache.match(key);
+    if (hit) {
+      return applyResponseHeaders(
+        request,
+        await withFreshNonce(hit, nonce, csp),
+      );
+    }
+  }
   const forwarded = new Request(request, {
     headers: forwardedHeaders(request.headers, csp, nonce),
   });
@@ -53,5 +113,11 @@ export async function serve(
     isHtml && !fetched.headers.has('content-security-policy')
       ? withHeader(fetched, 'Content-Security-Policy', csp)
       : fetched;
+  if (cache && key) {
+    const copy = storableCopy(response);
+    if (copy) {
+      ctx.waitUntil(cache.put(key, copy));
+    }
+  }
   return applyResponseHeaders(request, response);
 }

@@ -1,17 +1,63 @@
 import { describe, expect, it } from '@jest/globals';
 
 import { nonceOf } from '../../../src/lib/http/csp';
+import { genericLimits } from '../../../src/lib/http/edge-limits';
 import { serve, type ServeApp } from '../../../src/lib/http/serve';
 
-const context = {
-  waitUntil: () => {},
-  passThroughOnException: () => {},
-} as unknown as ExecutionContext;
+/** What is rate limited in these tests: the classes every app has, with sessions in `app_session`. */
+const limits = genericLimits('app_session');
+/** The one page these tests let the edge keep a copy of. */
+const pages: ReadonlySet<string> = new Set(['/']);
+/** A rate limit binding that refuses everyone, and counts how often it was asked. */
+function refusing(): {
+  limit: () => Promise<{ success: boolean }>;
+  asked: number;
+} {
+  const binding = {
+    asked: 0,
+    limit: async () => {
+      binding.asked += 1;
+      return { success: false };
+    },
+  };
+  return binding;
+}
 
-/** An app that answers with `make` and remembers the requests it was sent. */
-function appAnswering(
-  make: (request: Request) => Response,
-): ServeApp & { readonly seen: Request[] } {
+/** A cache that keeps responses in memory, keyed by URL. */
+function memoryCache(): Cache & { readonly stored: Map<string, Response> } {
+  const stored = new Map<string, Response>();
+  return {
+    stored,
+    match: async (request: RequestInfo | URL) =>
+      stored
+        .get(request instanceof Request ? request.url : String(request))
+        ?.clone(),
+    put: async (request: RequestInfo | URL, response: Response) => {
+      stored.set(
+        request instanceof Request ? request.url : String(request),
+        response,
+      );
+    },
+  } as unknown as Cache & { readonly stored: Map<string, Response> };
+}
+
+const ctx = () => {
+  const pending: Promise<unknown>[] = [];
+  return {
+    pending,
+    context: {
+      waitUntil: (promise: Promise<unknown>) => {
+        pending.push(promise);
+      },
+      passThroughOnException: () => {},
+    } as unknown as ExecutionContext,
+  };
+};
+
+/** An app that answers every request with the given response factory and remembers what it was sent. */
+function appAnswering(make: (request: Request) => Response): ServeApp & {
+  readonly seen: Request[];
+} {
   const seen: Request[] = [];
   return {
     seen,
@@ -23,89 +69,280 @@ function appAnswering(
 }
 
 const html = () =>
-  new Response('<html></html>', {
+  new Response('<p>hi</p>', { headers: { 'content-type': 'text/html' } });
+
+const page = (body: string, nonce: string) =>
+  new Response(`<html><script nonce="${nonce}">${body}</script></html>`, {
     headers: { 'content-type': 'text/html; charset=utf-8' },
   });
 
-const get = (pathname: string, headers: Record<string, string> = {}) =>
-  new Request(`https://broadsheet.test${pathname}`, { headers });
+const get = (pathname = '/app', headers: Record<string, string> = {}) =>
+  new Request(`https://app.test${pathname}`, { headers });
 
 describe('serve', () => {
-  it('gives the app a fresh policy and its nonce, replacing any the caller sent', async () => {
+  it('passes the policy and its nonce to the app, and puts the policy on an HTML response', async () => {
+    const app = appAnswering(html);
+    const response = await serve(get(), {}, ctx().context, {
+      app,
+      limits,
+    });
+    const csp = response.headers.get('content-security-policy') ?? '';
+    const nonce = nonceOf(csp);
+    expect(nonce).toBeDefined();
+    expect(app.seen[0]?.headers.get('x-nonce')).toBe(nonce);
+    expect(app.seen[0]?.headers.get('content-security-policy')).toBe(csp);
+  });
+
+  it('sends only the enforced policy, never a report-only one', async () => {
+    const response = await serve(get(), {}, ctx().context, {
+      app: appAnswering(html),
+      limits,
+    });
+    expect(response.headers.has('content-security-policy')).toBe(true);
+    expect(response.headers.has('content-security-policy-report-only')).toBe(
+      false,
+    );
+  });
+
+  it('uses a new nonce for every request', async () => {
+    const app = appAnswering(html);
+    const { context } = ctx();
+    await serve(get(), {}, context, { app, limits });
+    await serve(get(), {}, context, { app, limits });
+    expect(app.seen[0]?.headers.get('x-nonce')).not.toBe(
+      app.seen[1]?.headers.get('x-nonce'),
+    );
+  });
+
+  it('replaces a policy or nonce the caller sent instead of forwarding it', async () => {
     const app = appAnswering(html);
     await serve(
-      get('/', {
-        'x-nonce': 'ATTACKER',
-        'content-security-policy': "script-src 'nonce-ATTACKER'",
+      get('/app', {
+        'x-nonce': 'attacker',
+        'content-security-policy': "script-src 'nonce-attacker'",
       }),
       {},
-      context,
-      { app },
+      ctx().context,
+      { app, limits },
     );
-    const sent = app.seen[0]!;
-    expect(sent.headers.get('x-nonce')).not.toBe('ATTACKER');
-    expect(nonceOf(sent.headers.get('content-security-policy')!)).toBe(
-      sent.headers.get('x-nonce'),
+    expect(app.seen[0]?.headers.get('x-nonce')).not.toBe('attacker');
+    expect(app.seen[0]?.headers.get('content-security-policy')).not.toContain(
+      'attacker',
     );
   });
 
-  it('puts the same policy on an HTML answer, and no report-only one', async () => {
-    const app = appAnswering(html);
-    const res = await serve(get('/'), {}, context, { app });
-    expect(res.headers.get('content-security-policy')).toBe(
-      app.seen[0]!.headers.get('content-security-policy'),
+  it('leaves a policy the app set itself alone, and adds none to a response that is not HTML', async () => {
+    const own = appAnswering(
+      () =>
+        new Response('x', {
+          headers: {
+            'content-type': 'text/html',
+            'content-security-policy': 'default-src none',
+          },
+        }),
     );
-    expect(res.headers.has('content-security-policy-report-only')).toBe(false);
+    const json = appAnswering(() => Response.json({ a: 1 }));
+    const { context } = ctx();
+    const a = await serve(get(), {}, context, { app: own, limits });
+    expect(a.headers.get('content-security-policy')).toBe('default-src none');
+    const b = await serve(get('/api/x'), {}, context, {
+      app: json,
+      limits,
+    });
+    expect(b.headers.get('content-security-policy')).toContain(
+      'frame-ancestors',
+    );
+    expect(b.headers.get('content-security-policy')).not.toContain('nonce-');
   });
 
-  it('adds the security headers to every answer', async () => {
-    const res = await serve(get('/api/health'), {}, context, {
+  it('gives the approval screen the policy that forbids framing and omits form-action', async () => {
+    const response = await serve(
+      get('/oauth/authorize?x=1'),
+      {},
+      ctx().context,
+      { app: appAnswering(html), limits },
+    );
+    const csp = response.headers.get('content-security-policy') ?? '';
+    expect(csp).toContain("frame-ancestors 'none'");
+    expect(csp).not.toContain('form-action');
+  });
+
+  it('adds the site’s security headers to every answer', async () => {
+    const response = await serve(get('/api/health'), {}, ctx().context, {
       app: appAnswering(() => new Response('{}')),
+      limits,
     });
-    expect(res.headers.get('strict-transport-security')).toContain(
-      'max-age=63072000',
-    );
-    expect(res.headers.get('x-content-type-options')).toBe('nosniff');
-    expect(res.headers.get('reporting-endpoints')).toBe(
-      'csp-endpoint="/api/csp-reports"',
+    expect(response.headers.get('x-content-type-options')).toBe('nosniff');
+    expect(response.headers.get('strict-transport-security')).toContain(
+      'max-age=',
     );
   });
+});
 
-  it('sends no policy with an answer that is not a page', async () => {
-    const res = await serve(get('/api/health'), {}, context, {
-      app: appAnswering(
-        () =>
-          new Response('{}', {
-            headers: { 'content-type': 'application/json' },
-          }),
-      ),
-    });
-    expect(res.headers.has('content-security-policy-report-only')).toBe(false);
-  });
-
-  it('keeps a policy the app set itself', async () => {
-    const res = await serve(get('/'), {}, context, {
-      app: appAnswering(
-        () =>
-          new Response('x', {
-            headers: {
-              'content-type': 'text/html',
-              'content-security-policy': "frame-ancestors 'none'",
-            },
-          }),
-      ),
-    });
-    expect(res.headers.get('content-security-policy')).toBe(
-      "frame-ancestors 'none'",
-    );
-  });
-
-  it('uses a different nonce for every request', async () => {
+describe('serve — rate limits', () => {
+  it('refuses a caller over a limit with a 429 and the site’s headers, before the app is asked', async () => {
     const app = appAnswering(html);
-    await serve(get('/'), {}, context, { app });
-    await serve(get('/'), {}, context, { app });
-    expect(app.seen[0]!.headers.get('x-nonce')).not.toBe(
-      app.seen[1]!.headers.get('x-nonce'),
+    const response = await serve(
+      get('/app'),
+      { RL_SITE: refusing() },
+      ctx().context,
+      { app, limits },
     );
+    expect(response.status).toBe(429);
+    expect(response.headers.get('retry-after')).toBe('60');
+    expect(response.headers.get('x-content-type-options')).toBe('nosniff');
+    expect(app.seen).toEqual([]);
+  });
+
+  it('counts a page that comes from the edge copy, and refuses it just the same', async () => {
+    const cache = memoryCache();
+    const app = appAnswering(() => page('a', 'n'));
+    const { context, pending } = ctx();
+    await serve(get('/'), {}, context, { app, cache, limits, pages });
+    await Promise.all(pending);
+    expect(cache.stored.size).toBe(1);
+    const binding = refusing();
+    const response = await serve(get('/'), { RL_SITE: binding }, context, {
+      app,
+      cache,
+      limits,
+      pages,
+    });
+    expect(response.status).toBe(429);
+    expect(binding.asked).toBe(1);
+    expect(app.seen).toHaveLength(1);
+  });
+
+  it('counts a picture, which the app keeps a copy of itself', async () => {
+    const app = appAnswering(() => new Response('image'));
+    const binding = refusing();
+    const response = await serve(
+      get('/api/img?url=https://a.test/p.jpg'),
+      { RL_COVER: binding },
+      ctx().context,
+      { app, limits },
+    );
+    expect(response.status).toBe(429);
+    expect(app.seen).toEqual([]);
+  });
+});
+
+describe('serve — the edge copy', () => {
+  it('stores a public page and answers the next visitor without the app', async () => {
+    const cache = memoryCache();
+    let renders = 0;
+    const app = appAnswering(() => {
+      renders += 1;
+      return page('a', 'will-be-replaced');
+    });
+    const { context, pending } = ctx();
+    const first = await serve(get('/'), {}, context, {
+      app,
+      cache,
+      limits,
+      pages,
+    });
+    await Promise.all(pending);
+    const second = await serve(get('/'), {}, context, {
+      app,
+      cache,
+      limits,
+      pages,
+    });
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(renders).toBe(1);
+    expect(await second.text()).toContain('<script');
+  });
+
+  it('gives every visit to a kept page a nonce of its own, in the scripts and in the policy', async () => {
+    const cache = memoryCache();
+    const app = appAnswering((request) =>
+      page('a', request.headers.get('x-nonce') ?? 'none'),
+    );
+    const { context, pending } = ctx();
+    const deps = { app, cache, limits, pages };
+    const first = await serve(get('/'), {}, context, deps);
+    await Promise.all(pending);
+    const second = await serve(get('/'), {}, context, deps);
+    const third = await serve(get('/'), {}, context, deps);
+    const nonces = [first, second, third].map((r) =>
+      nonceOf(r.headers.get('content-security-policy') ?? ''),
+    );
+    expect(new Set(nonces).size).toBe(3);
+    for (const response of [second, third]) {
+      const nonce = nonceOf(
+        response.headers.get('content-security-policy') ?? '',
+      );
+      expect(await response.text()).toContain(`nonce="${nonce}"`);
+    }
+  });
+
+  it.each([
+    ['a page with a session cookie', { cookie: 'app_session=abc' }, '/'],
+    [
+      'a page asked for with a bearer token',
+      { authorization: 'Bearer x' },
+      '/',
+    ],
+    ['a page with a query string', {}, '/?x=1'],
+    ['a page that is not public', {}, '/app'],
+  ])('does not store %s', async (_label, headers, url) => {
+    const cache = memoryCache();
+    const { context, pending } = ctx();
+    await serve(get(url, headers), {}, context, {
+      app: appAnswering(() => page('a', 'n')),
+      cache,
+      limits,
+      pages,
+    });
+    await Promise.all(pending);
+    expect(cache.stored.size).toBe(0);
+  });
+
+  it('does not store a response that sets a cookie or is not a success', async () => {
+    for (const make of [
+      () =>
+        new Response('x', {
+          headers: { 'content-type': 'text/html', 'set-cookie': 'a=b' },
+        }),
+      () =>
+        new Response('x', {
+          status: 500,
+          headers: { 'content-type': 'text/html' },
+        }),
+    ]) {
+      const cache = memoryCache();
+      const { context, pending } = ctx();
+      await serve(get('/'), {}, context, {
+        app: appAnswering(make),
+        cache,
+        limits,
+        pages,
+      });
+      await Promise.all(pending);
+      expect(cache.stored.size).toBe(0);
+    }
+  });
+
+  it('keys the copy by release, so a deploy never serves old HTML', async () => {
+    const cache = memoryCache();
+    const app = appAnswering(() => page('a', 'n'));
+    const { context, pending } = ctx();
+    const deps = { app, cache, limits, pages };
+    await serve(get('/'), { CF_VERSION_METADATA: { id: 'v1' } }, context, deps);
+    await Promise.all(pending);
+    await serve(get('/'), { CF_VERSION_METADATA: { id: 'v2' } }, context, deps);
+    expect(app.seen).toHaveLength(2);
+  });
+
+  it('runs without an edge cache', async () => {
+    const response = await serve(get('/'), {}, ctx().context, {
+      app: appAnswering(() => page('a', 'n')),
+      cache: undefined,
+      limits,
+      pages,
+    });
+    expect(response.status).toBe(200);
   });
 });

@@ -20,6 +20,11 @@ export type LogFields = {
   readonly event: string;
 } & Record<string, unknown>;
 
+/** The text of a thrown value, for a log field: an `Error`'s message, else the value as a string. @public */
+export function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 function emit(level: LogLevel, fields: LogFields): void {
   const line = JSON.stringify({
     level,
