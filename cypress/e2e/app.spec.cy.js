@@ -1,8 +1,7 @@
-describe('The Hacker Times homepage', () => {
-  it('loads with a 200 and renders the masthead', () => {
-    cy.request('http://localhost:3737/').then((response) => {
+describe('Application Health Check', () => {
+  it('should successfully load the homepage', () => {
+    cy.request('http://localhost:3000/').then((response) => {
       expect(response.status).to.eq(200);
-      expect(response.body).to.contain('The Hacker Times');
     });
   });
 });

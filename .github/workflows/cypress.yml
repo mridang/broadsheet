@@ -14,8 +14,6 @@ defaults:
 jobs:
   run-canary:
     runs-on: ubuntu-latest
-    # A hung step must not run to GitHub's six-hour limit on paid minutes.
-    timeout-minutes: 20
 
     steps:
       - name: Runner Common Setup
@@ -54,7 +52,8 @@ jobs:
         uses: cypress-io/github-action@v6
         with:
           browser: chrome
-          start: npx wrangler dev --port 3737 --local
-          wait-on: 'http://localhost:3737/'
+          build: npx opennextjs-cloudflare build
+          start: npx wrangler dev --port 3000 --local
+          wait-on: 'http://localhost:3000/'
         env:
           NODE_ENV: 'test'

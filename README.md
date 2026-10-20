@@ -74,7 +74,7 @@ The custom domain `broadsheet.apps.mrida.ng` requires the `apps.mrida.ng` zone o
 
 Without the Google secrets the site still works: it serves the public Hacker News edition and falls back to dev login.
 
-GitHub Actions (`deploy.yml`) applies the D1 migrations and deploys on pushes to `master` or `main`.
+GitHub Actions (`deploy.yml`) applies the D1 migrations and deploys on pushes to `master`.
 
 ## Operations
 
