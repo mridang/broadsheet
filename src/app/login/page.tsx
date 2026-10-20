@@ -7,12 +7,12 @@ export default function LoginPage() {
   const configured = oauthConfigured(env());
 
   return (
-    <div className="panel" style={{ textAlign: 'center' }}>
+    <div className="panel center">
       <h2>Sign in</h2>
       <p className="muted">
         Sign in to add your own feeds and get a personalised daily paper.
       </p>
-      <div style={{ margin: '22px 0' }}>
+      <div className="signin">
         {configured ? (
           <a className="gsi" href="/auth/google">
             <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">

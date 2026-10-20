@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { headers } from 'next/headers';
 import { Lora, Source_Serif_4 } from 'next/font/google';
 import './globals.css';
 import { currentUser } from '@/lib/account';
@@ -57,6 +58,9 @@ export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const user = await currentUser();
+  // The Worker puts this response's one-time number here; the Content Security
+  // Policy only lets a script that carries it run.
+  const nonce = (await headers()).get('x-nonce') ?? undefined;
   return (
     <html
       lang="en"
@@ -67,7 +71,11 @@ export default async function RootLayout({
       <head>
         {/* No-flash: a raw inline script in <head> runs before first paint.
             (next/script with children is invalid in Next 16; use this.) */}
-        <script dangerouslySetInnerHTML={{ __html: NOFLASH }} />
+        <script
+          nonce={nonce}
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{ __html: NOFLASH }}
+        />
       </head>
       <body>
         <Masthead user={user} />

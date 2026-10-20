@@ -822,3 +822,25 @@ header.mast {
   color: var(--accent);
   font-weight: 700;
 }
+
+/* Small layout helpers. They are classes, not inline style attributes, because
+   the Content Security Policy does not allow inline styles. */
+.empty {
+  padding: 8px 0;
+}
+.inline {
+  display: inline;
+}
+.btn.small {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+.back {
+  margin-top: 24px;
+}
+.panel.center {
+  text-align: center;
+}
+.signin {
+  margin: 22px 0;
+}

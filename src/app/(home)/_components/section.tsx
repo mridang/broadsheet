@@ -25,7 +25,7 @@ export function Section({
     return (
       <section className="zone">
         {head}
-        <p className="secdesc" style={{ padding: '8px 0' }}>
+        <p className="secdesc empty">
           No articles yet — they&rsquo;ll appear after the next refresh.
         </p>
       </section>

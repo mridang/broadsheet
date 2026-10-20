@@ -27,13 +27,8 @@ export default async function FeedsPage() {
       </form>
       <p className="muted">
         Feeds are fetched &amp; scraped automatically every day.{' '}
-        <form style={{ display: 'inline' }} method="post" action="/api/refresh">
-          <button
-            className="btn ghost"
-            style={{ padding: '4px 10px', fontSize: '12px' }}
-          >
-            Refresh now
-          </button>
+        <form className="inline" method="post" action="/api/refresh">
+          <button className="btn ghost small">Refresh now</button>
         </form>
       </p>
       {feeds.length ? (
@@ -51,7 +46,7 @@ export default async function FeedsPage() {
       ) : (
         <p className="muted">No feeds yet. Add an RSS/Atom feed URL above.</p>
       )}
-      <p style={{ marginTop: '24px' }}>
+      <p className="back">
         <a className="btn ghost" href="/">
           ← Back to the paper
         </a>
