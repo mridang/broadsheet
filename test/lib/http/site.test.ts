@@ -13,12 +13,20 @@ describe('site settings', () => {
     expect([...PUBLIC_PAGES]).toEqual(['/']);
   });
 
-  it('opens the icons, the manifest and the root text files to other sites', () => {
+  it('opens the cards, the icons, the manifest and the root text files to other sites', () => {
     for (const path of [
-      '/favicon.ico',
+      '/opengraph-image.png',
+      '/twitter-image.png',
       '/icon.svg',
+      '/apple-icon.png',
+      '/favicon.ico',
       '/manifest.webmanifest',
       '/robots.txt',
+      '/sitemap.xml',
+      '/llms.txt',
+      '/security-policy.txt',
+      '/icons/icon-192.png',
+      '/.well-known/security.txt',
     ]) {
       expect(OPEN_FILES.test(path)).toBe(true);
     }
@@ -31,14 +39,17 @@ describe('site settings', () => {
     expect(EXTRA_IMG_SOURCES).toEqual([]);
   });
 
-  it('lets the icons and the manifest be cached for a day', () => {
+  it('lets the social cards, the icons and the manifest be cached for a day', () => {
     for (const path of RARELY_CHANGING) {
       expect(OPEN_FILES.test(path)).toBe(true);
     }
     expect([...RARELY_CHANGING].sort()).toEqual([
+      '/apple-icon.png',
       '/favicon.ico',
       '/icon.svg',
       '/manifest.webmanifest',
+      '/opengraph-image.png',
+      '/twitter-image.png',
     ]);
   });
 

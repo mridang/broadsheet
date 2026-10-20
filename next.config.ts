@@ -5,14 +5,6 @@ import { initOpenNextCloudflareForDev } from '@opennextjs/cloudflare';
 const nextConfig: NextConfig = {
   // No need to tell the world which framework is serving the site.
   poweredByHeader: false,
-  async rewrites() {
-    // The security contact file lives at a well-known address (RFC 9116).
-    // Its route sits outside the dot-directory, which the TypeScript project
-    // that type-aware linting reads does not include.
-    return [
-      { source: '/.well-known/security.txt', destination: '/security-txt' },
-    ];
-  },
   async headers() {
     return [
       {

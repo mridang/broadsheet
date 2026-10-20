@@ -1,7 +1,7 @@
 @import 'tailwindcss';
 
 /* ==========================================================================
- * 1. This app's tokens: they differ per app.
+ * 1. This app's tokens: they differ per app (so do its own styles, section 4).
  *    The shared shell reads these roles: paper, ink, on-ink, surface, brand,
  *    accent, highlight, on-highlight, and the font-sans / font-display faces.
  * ======================================================================== */
@@ -176,7 +176,7 @@ body {
 }
 
 /* ==========================================================================
- * 4. This app's styles.
+ * 4. This app's styles: they differ per app. Sections 2 and 3 never do.
  * ======================================================================== */
 
 /* ===== The Hacker Times — newspaper styles (ported from the POC _style.css).

@@ -13,18 +13,21 @@
 export const PUBLIC_PAGES: ReadonlySet<string> = new Set(['/']);
 
 /**
- * The files other sites embed or fetch on purpose (the icons, the manifest and
- * the plain-text files at the root). They are open to all and not marked
- * noindex.
+ * The files other sites embed or fetch on purpose (the social cards, the
+ * icons, the manifest and the plain-text files at the root). They are open to
+ * all and not marked noindex.
  */
 export const OPEN_FILES =
-  /^\/(favicon\.ico|icon\.svg|manifest\.webmanifest|robots\.txt|sitemap\.xml|\.well-known\/.*)$/;
+  /^\/(opengraph-image\.png|twitter-image\.png|icon\.svg|apple-icon\.png|favicon\.ico|manifest\.webmanifest|robots\.txt|sitemap\.xml|llms\.txt|security-policy\.txt|\.well-known\/.*|icons\/.*)$/;
 
 /** The small files that rarely change, and for which a stale copy is harmless. */
 export const RARELY_CHANGING: ReadonlySet<string> = new Set([
   '/manifest.webmanifest',
   '/icon.svg',
+  '/apple-icon.png',
   '/favicon.ico',
+  '/opengraph-image.png',
+  '/twitter-image.png',
 ]);
 
 /**
