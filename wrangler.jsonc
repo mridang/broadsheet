@@ -8,16 +8,27 @@
   // Cloudflare auto-routes the Worker to the colo closest to D1
   // (avoids the worst-case ~70 ms hop). Free on all plans.
   "placement": { "mode": "smart" },
-  // Full Workers Observability: logs, metrics, invocation traces — all
-  // sampled at 100% (the volume is tiny, the data is gold for debugging
-  // an opaque background pipeline).
+  // Wrangler's own usage telemetry for this project (anonymous CLI usage; the
+  // setting overrides each developer's personal preference).
+  "send_metrics": true,
+  // Workers Observability, everything on at 100% (the volume is tiny and the data
+  // is what debugging needs): the app's own log lines, the automatic per-request
+  // invocation logs, distributed traces, and real-time Issues. Query strings are
+  // stripped from the URLs in logs and traces, because they can carry search
+  // text, addresses and sign-in codes.
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1,
+    "redact_query_string": true,
+    "issues": { "enabled": true },
     "logs": {
       "enabled": true,
       "head_sampling_rate": 1,
       "invocation_logs": true,
+    },
+    "traces": {
+      "enabled": true,
+      "head_sampling_rate": 1,
     },
   },
   // Custom domain — the workers.dev subdomain is disabled so the
@@ -34,12 +45,15 @@
     {
       "binding": "DB",
       "database_name": "broadsheet-db",
+      // Create with `wrangler d1 create <database_name>` and paste the id here.
       "database_id": "eb5dc629-c6b1-4cc0-9b60-4a5b313edb54",
       "migrations_dir": "migrations",
     },
   ],
   // Workers AI — resolves clean publisher/author names from domain + title.
-  "ai": { "binding": "AI" },
+  "ai": {
+    "binding": "AI",
+  },
   "triggers": {
     // 06:00 UTC — daily fetch + scrape of every feed.
     "crons": ["0 6 * * *"],
