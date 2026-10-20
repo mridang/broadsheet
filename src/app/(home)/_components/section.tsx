@@ -1,5 +1,5 @@
 import type { Article, Feed } from '@/lib/db';
-import { assignTiers, hostOf, type Tier } from '@/lib/render/tiers';
+import { assignTiers, hostOf, weight, type Tier } from '@/lib/render/tiers';
 import { StoryCard } from './story-card';
 import { BriefBlock } from './brief-block';
 
@@ -32,12 +32,15 @@ export function Section({
     );
   }
 
-  const tiers = assignTiers(articles);
+  // Rank by prominence (points + image), highest first, so the lead is the
+  // top-scored story; then assign tiers down that order.
+  const ranked = [...articles].sort((a, b) => weight(b) - weight(a));
+  const tiers = assignTiers(ranked);
   const tierOf = (i: number): Tier => tiers[i] ?? 'standard';
-  const main = articles
+  const main = ranked
     .map((a, i) => ({ a, t: tierOf(i) }))
     .filter((x) => x.t !== 'brief');
-  const briefs = articles.filter((_, i) => tierOf(i) === 'brief');
+  const briefs = ranked.filter((_, i) => tierOf(i) === 'brief');
 
   return (
     <section className="zone">

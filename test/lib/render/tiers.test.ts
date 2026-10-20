@@ -14,6 +14,8 @@ function article(over: Partial<Article>): Article {
     favicon: '',
     summary: '',
     published_at: '',
+    points: 0,
+    edition: '',
     fetched_at: '',
     ...over,
   };

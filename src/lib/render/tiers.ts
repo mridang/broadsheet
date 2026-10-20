@@ -18,7 +18,41 @@ export const TIER: Record<Tier, readonly [number, number]> = {
   brief: [1, 0],
 };
 
-/** Tiers emerge from the feed's own set (articles arrive newest-first). */
+/** Target image width (px) per tier — sized for ~2x retina at its lane span. */
+export const IMG_WIDTH: Record<Tier, number> = {
+  lead: 800,
+  feature: 600,
+  standard: 480,
+  brief: 480,
+};
+
+const SITE_ORIGIN = 'https://broadsheet.apps.mrida.ng';
+
+/**
+ * Optimize a remote image via Cloudflare Image Transformations: resize to
+ * `width`, auto-pick AVIF/WebP per browser, compress, and cache at the edge.
+ * The source is routed through our own `/img` proxy so it counts as a
+ * same-zone origin (transformations only allow same-zone sources by default).
+ * `/cdn-cgi/image/` is handled before the Worker.
+ */
+export function cfImage(src: string, width: number): string {
+  if (!src) return src;
+  const proxied = `${SITE_ORIGIN}/img?u=${encodeURIComponent(src)}`;
+  return `/cdn-cgi/image/format=auto,quality=75,fit=scale-down,width=${width}/${proxied}`;
+}
+
+/**
+ * Prominence weight: log(points) + an image bonus, penalised for thin text.
+ * Sort a section by this (desc) so the highest-scored story becomes the lead.
+ */
+export function weight(a: Article): number {
+  let w = Math.log((a.points ?? 0) + 1);
+  if (a.image) w += 0.6;
+  if ((a.summary ?? '').length < 300) w *= 0.6;
+  return w;
+}
+
+/** Tiers emerge from the section's own order (highest weight first). */
 export function assignTiers(arts: Article[]): Tier[] {
   const n = arts.length;
   return arts.map((a, i) => {

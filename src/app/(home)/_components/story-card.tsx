@@ -1,5 +1,13 @@
 import type { Article } from '@/lib/db';
-import { TIER, ago, excerpt, hostOf, type Tier } from '@/lib/render/tiers';
+import {
+  IMG_WIDTH,
+  TIER,
+  ago,
+  cfImage,
+  excerpt,
+  hostOf,
+  type Tier,
+} from '@/lib/render/tiers';
 
 /**
  * One story. Tier fixes the lane span and excerpt budget; lead/feature
@@ -27,12 +35,18 @@ export function StoryCard({ article, tier }: { article: Article; tier: Tier }) {
             <img className="fav" loading="lazy" src={article.favicon} alt="" />
           ) : null}{' '}
           {article.source || hostOf(article.url)}
-          <span className="score">{ago(article.published_at)}</span>
+          <span className="score">
+            {article.points ? `▲ ${article.points}` : ago(article.published_at)}
+          </span>
         </div>
         <h2 className="hl">{article.title}</h2>
         {article.image ? (
           <figure className={`ph ${side}`}>
-            <img loading="lazy" src={article.image} alt="" />
+            <img
+              loading="lazy"
+              src={cfImage(article.image, IMG_WIDTH[tier])}
+              alt=""
+            />
           </figure>
         ) : null}
         {ex ? <p className="ex">{ex}</p> : null}

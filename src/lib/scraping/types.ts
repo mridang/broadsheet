@@ -7,4 +7,5 @@ export interface ScrapedItem {
   favicon: string;
   summary: string;
   published_at: string;
+  points: number;
 }

@@ -7,9 +7,16 @@
  * names via Workers AI (the `AI` binding).
  */
 import type { Database, Feed } from '../db';
-import { allFeeds, writeEdition } from '../repository';
+import { allFeeds, editionsForFeed, writeEdition } from '../repository';
 import { logInfo, logWarn } from '../util';
-import { hostOf, ogImage, pageDescription, parseFeed, siteName } from './parse';
+import {
+  domainClean,
+  hostOf,
+  ogImage,
+  pageDescription,
+  parseFeed,
+  siteName,
+} from './parse';
 import type { ScrapedItem } from './types';
 
 export type { ScrapedItem } from './types';
@@ -83,19 +90,8 @@ async function resolveNames(
   }
 }
 
-/** The current edition date (YYYY-MM-DD, UTC). */
-export const todayEdition = (): string => new Date().toISOString().slice(0, 10);
-
-export async function refreshFeed(
-  db: Database,
-  env: CloudflareEnv,
-  feed: Feed,
-  edition: string = todayEdition(),
-): Promise<{ ok: boolean; n: number }> {
-  const xml = await get(feed.url);
-  if (!xml) return { ok: false, n: 0 };
-  const { items } = parseFeed(xml, feed.url);
-
+/** Enrich the newest items in place: og:image, fallback summary, site name. */
+async function enrich(items: ScrapedItem[]): Promise<void> {
   await Promise.all(
     items.slice(0, ENRICH).map(async (it) => {
       const page = await get(it.url, 12000);
@@ -110,10 +106,102 @@ export async function refreshFeed(
       if (name) it.source = name;
     }),
   );
+}
 
+/** The current edition date (YYYY-MM-DD, UTC). */
+export const todayEdition = (): string => new Date().toISOString().slice(0, 10);
+
+export async function refreshFeed(
+  db: Database,
+  env: CloudflareEnv,
+  feed: Feed,
+  edition: string = todayEdition(),
+): Promise<{ ok: boolean; n: number }> {
+  const xml = await get(feed.url);
+  if (!xml) return { ok: false, n: 0 };
+  const { items } = parseFeed(xml, feed.url);
+  await enrich(items);
   await resolveNames(env, items);
   await writeEdition(db, feed.id, edition, items);
   return { ok: true, n: items.length };
+}
+
+// ---- historical backfill via the HN Algolia API (hnrss only serves today) ----
+const HN_HOSTS = ['hnrss.org', 'news.ycombinator.com'];
+const isHnFeed = (url: string): boolean =>
+  HN_HOSTS.some((h) => url.includes(h));
+
+interface AlgoliaHit {
+  objectID: string;
+  title?: string;
+  url?: string | null;
+  created_at?: string;
+  points?: number;
+}
+
+/** Top HN stories for a single day (UTC), ranked by popularity, via Algolia. */
+async function hnTopForDate(date: string): Promise<ScrapedItem[]> {
+  const start = Math.floor(Date.parse(`${date}T00:00:00Z`) / 1000);
+  if (isNaN(start)) return [];
+  const end = start + 86400;
+  const url =
+    `https://hn.algolia.com/api/v1/search?tags=story&hitsPerPage=25` +
+    `&numericFilters=created_at_i>=${start},created_at_i<${end}`;
+  const txt = await get(url, 15000);
+  if (!txt) return [];
+  let hits: AlgoliaHit[] = [];
+  try {
+    hits = (JSON.parse(txt) as { hits?: AlgoliaHit[] }).hits ?? [];
+  } catch {
+    return [];
+  }
+  return hits
+    .filter((h) => h.title)
+    .map((h) => {
+      const link =
+        h.url || `https://news.ycombinator.com/item?id=${h.objectID}`;
+      return {
+        url: link,
+        title: h.title ?? link,
+        source: domainClean(hostOf(link)),
+        favicon: `https://www.google.com/s2/favicons?sz=64&domain=${hostOf(link)}`,
+        summary: '',
+        image: '',
+        published_at: h.created_at ?? `${date}T12:00:00Z`,
+        points: h.points ?? 0,
+      };
+    });
+}
+
+/**
+ * Fill in missing recent editions for the HN feeds from real historical HN
+ * data (the last `days` days). Idempotent — days already stored are skipped.
+ */
+export async function backfillRecent(
+  db: Database,
+  env: CloudflareEnv,
+  days = 7,
+): Promise<{ filled: number }> {
+  const feeds = (await allFeeds(db)).filter((f) => isHnFeed(f.url));
+  let filled = 0;
+  for (const feed of feeds) {
+    const have = new Set(await editionsForFeed(db, feed.id));
+    for (let i = 1; i <= days; i++) {
+      const date = new Date(Date.now() - i * 86400000)
+        .toISOString()
+        .slice(0, 10);
+      if (have.has(date)) continue;
+      const items = await hnTopForDate(date);
+      if (!items.length) continue;
+      await enrich(items);
+      await resolveNames(env, items);
+      await writeEdition(db, feed.id, date, items);
+      filled++;
+      logInfo({ event: 'backfill.day', feed: feed.id, date, n: items.length });
+    }
+  }
+  logInfo({ event: 'backfill.completed', filled });
+  return { filled };
 }
 
 export async function refreshAll(

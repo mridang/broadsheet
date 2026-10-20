@@ -17,7 +17,7 @@
 import openNextHandler from '../.open-next/worker.js';
 
 import { createDatabase } from './lib/db';
-import { refreshAll } from './lib/scraping';
+import { backfillRecent, refreshAll } from './lib/scraping';
 
 const handler = {
   /** Forwarded straight to OpenNext's Next.js handler. */
@@ -25,10 +25,18 @@ const handler = {
     return openNextHandler.fetch(request, env, ctx);
   },
 
-  /** Daily cron — refresh every feed (public + all users). */
+  /**
+   * Daily cron: scrape today's edition for every feed, then backfill any
+   * missing recent days for the HN feeds from real historical HN data
+   * (Algolia). The first run fills the past week; later runs add the new day.
+   */
   async scheduled(event, env, ctx) {
+    const db = createDatabase(env.DB);
     ctx.waitUntil(
-      refreshAll(createDatabase(env.DB), env).catch((err) => {
+      (async () => {
+        await refreshAll(db, env);
+        await backfillRecent(db, env, 7);
+      })().catch((err) => {
         console.error(
           JSON.stringify({
             event: 'scrape.failed',

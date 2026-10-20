@@ -151,6 +151,12 @@ export function siteName(html: string): string {
 export const isBoilerplate = (s: string): boolean =>
   /Article URL:|Comments URL:|\bPoints:\s|#\s*Comments:/i.test(s);
 
+/** Pull the HN score out of an hnrss description ("... Points: 374 ..."). */
+export function extractPoints(s: string): number {
+  const m = s.match(/Points:\s*(\d+)/i);
+  return m?.[1] ? Number(m[1]) : 0;
+}
+
 /** Minimal RSS 2.0 + Atom parser. */
 export function parseFeed(
   xml: string,
@@ -181,6 +187,7 @@ export function parseFeed(
       tag(b, 'content') ||
       ''
     ).slice(0, 1200);
+    const points = extractPoints(summary);
     if (isBoilerplate(summary)) summary = '';
     items.push({
       title: tag(b, 'title') || link,
@@ -190,6 +197,7 @@ export function parseFeed(
       source: domainClean(hostOf(link)),
       favicon: faviconFor(link),
       image: '',
+      points,
     });
   }
   return { title, items: items.slice(0, MAX_PER_FEED) };

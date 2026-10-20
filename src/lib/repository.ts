@@ -102,6 +102,7 @@ export async function writeEdition(
         favicon: a.favicon || '',
         summary: a.summary || '',
         published_at: a.published_at || '',
+        points: a.points || 0,
         edition,
       })
       .onConflictDoNothing({
@@ -130,5 +131,17 @@ export async function listEditions(
     .innerJoin(feeds, eq(articles.feed_id, feeds.id))
     .where(eq(feeds.user_id, userId))
     .orderBy(desc(articles.edition));
+  return rows.map((r) => r.edition).filter((e): e is string => !!e);
+}
+
+/** Distinct edition dates that already exist for a single feed. */
+export async function editionsForFeed(
+  db: Database,
+  feedId: number,
+): Promise<string[]> {
+  const rows = await db
+    .selectDistinct({ edition: articles.edition })
+    .from(articles)
+    .where(eq(articles.feed_id, feedId));
   return rows.map((r) => r.edition).filter((e): e is string => !!e);
 }

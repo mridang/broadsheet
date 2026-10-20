@@ -45,6 +45,8 @@ export const articles = sqliteTable(
     favicon: text('favicon'),
     summary: text('summary'),
     published_at: text('published_at'),
+    /** HN points/upvotes (0 for generic feeds without a score). */
+    points: integer('points'),
     /** The day this row was scraped (YYYY-MM-DD, UTC) — one edition per day. */
     edition: text('edition'),
     fetched_at: text('fetched_at'),
