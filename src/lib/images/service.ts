@@ -80,6 +80,22 @@ export function refuse(status: number, message: string): Response {
   });
 }
 
+/**
+ * What a page gets for a picture the other site cannot give us (gone, refusing,
+ * not a picture, too large): nothing, with a status that is not an error, so
+ * the page shows its own fallback without the browser logging a failed request.
+ * Kept for an hour so a dead picture is not asked for again on every page.
+ */
+export function unavailable(): Response {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      'Cache-Control': 'public, max-age=3600',
+      'X-Content-Type-Options': 'nosniff',
+    },
+  });
+}
+
 /** A picture's bytes and what is known about them. */
 interface Picture {
   readonly bytes: ArrayBuffer;
@@ -194,7 +210,11 @@ export async function serveImage(
     fetcher: deps.fetcher,
   });
   if (!result.ok) {
-    return refuse(result.status, result.reason);
+    // An address that leads somewhere it should not is refused outright; any
+    // other failure is the other site's, and is answered quietly.
+    return result.status === 400
+      ? refuse(result.status, result.reason)
+      : unavailable();
   }
   const picture: Picture = {
     bytes: result.bytes,

@@ -29,6 +29,3 @@ export const CSP_REPORT_DIRECTIVES: readonly string[] = [
   `report-to ${CSP_REPORT_GROUP}`,
   `report-uri ${CSP_REPORT_PATH}`,
 ];
-
-/** The name of the header that carries a policy which only reports. */
-export const REPORT_ONLY_HEADER = 'Content-Security-Policy-Report-Only';

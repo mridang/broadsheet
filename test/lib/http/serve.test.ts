@@ -49,15 +49,13 @@ describe('serve', () => {
     );
   });
 
-  it('puts the same policy on an HTML answer, next to the report-only Trusted Types one', async () => {
+  it('puts the same policy on an HTML answer, and no report-only one', async () => {
     const app = appAnswering(html);
     const res = await serve(get('/'), {}, context, { app });
     expect(res.headers.get('content-security-policy')).toBe(
       app.seen[0]!.headers.get('content-security-policy'),
     );
-    expect(res.headers.get('content-security-policy-report-only')).toContain(
-      "require-trusted-types-for 'script'",
-    );
+    expect(res.headers.has('content-security-policy-report-only')).toBe(false);
   });
 
   it('adds the security headers to every answer', async () => {

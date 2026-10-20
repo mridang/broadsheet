@@ -131,23 +131,19 @@ describe('GET /api/img', () => {
   });
 
   it.each([
-    ['gone', () => new Response('', { status: 404 }), 404],
-    ['failing', () => new Response('', { status: 500 }), 502],
+    ['gone', () => new Response('', { status: 404 })],
+    ['failing', () => new Response('', { status: 500 })],
     [
       'not an image',
       () =>
         new Response('<html>', { headers: { 'content-type': 'text/html' } }),
-      415,
     ],
-  ])(
-    'answers a short error that nobody keeps for a picture that is %s',
-    async (_n, make, status) => {
-      serving(make);
-      const res = await ask();
-      expect(res.status).toBe(status);
-      expect(res.headers.get('cache-control')).toBe('no-store');
-    },
-  );
+  ])('answers 204 for a picture that is %s', async (_n, make) => {
+    serving(make);
+    const res = await ask();
+    expect(res.status).toBe(204);
+    expect(res.headers.get('cache-control')).toBe('public, max-age=3600');
+  });
 
   it('scales a large picture with the Images binding, to the snapped width, and sends WebP', async () => {
     const widths: number[] = [];

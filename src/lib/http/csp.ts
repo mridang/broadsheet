@@ -67,20 +67,6 @@ export function buildCsp(nonce: string, surface: CspSurface = 'site'): string {
 }
 
 /**
- * A policy that only reports, never blocks, sent next to the real one: Trusted
- * Types for scripts. With it a browser says whenever code hands a plain string
- * to something that runs it as script (`eval`, `innerHTML` on a script,
- * `script.src = …`), which is where injected code usually gets in. Nothing is
- * refused, so nothing can break; the reports show whether the site (and the
- * framework under it) could one day enforce it.
- */
-export function buildReportOnlyCsp(): string {
-  return ["require-trusted-types-for 'script'", ...CSP_REPORT_DIRECTIVES].join(
-    '; ',
-  );
-}
-
-/**
  * Which policy a path gets. The approval screen may not be framed by anyone,
  * not even this site, and must let the browser follow the redirect back to the
  * assistant, so it has a policy of its own; every other page has the site's.

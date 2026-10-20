@@ -2,7 +2,6 @@ import { describe, expect, it } from '@jest/globals';
 
 import {
   buildCsp,
-  buildReportOnlyCsp,
   cspSurfaceFor,
   forwardedHeaders,
   newNonce,
@@ -157,12 +156,5 @@ describe('reporting', () => {
       expect(csp).toContain('report-to csp-endpoint');
       expect(csp).toContain('report-uri /api/csp-reports');
     }
-  });
-
-  it('builds a Trusted Types policy that only reports', () => {
-    const policy = buildReportOnlyCsp();
-    expect(policy).toContain("require-trusted-types-for 'script'");
-    expect(policy).toContain('report-to csp-endpoint');
-    expect(policy).not.toContain('default-src');
   });
 });

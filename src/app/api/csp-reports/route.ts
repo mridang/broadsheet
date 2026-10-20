@@ -1,6 +1,5 @@
 /**
- * Where browsers report what the Content Security Policy blocked, and what a
- * stricter one (Trusted Types, sent in report-only mode) would have blocked.
+ * Where browsers report what the Content Security Policy blocked.
  * Without this a policy that breaks something for a real visitor is invisible:
  * the page just does not work, and nobody is told. Each report becomes one
  * structured log line, which the Worker's observability keeps.

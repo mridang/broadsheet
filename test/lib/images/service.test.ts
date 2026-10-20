@@ -360,13 +360,12 @@ describe('serveImage', () => {
       });
 
     it.each([
-      ['is gone', () => new Response('', { status: 404 }), 404],
-      ['is refused by its site', () => new Response('', { status: 500 }), 502],
+      ['is gone', () => new Response('', { status: 404 })],
+      ['is refused by its site', () => new Response('', { status: 500 })],
       [
         'is not an image',
         () =>
           new Response('<html>', { headers: { 'content-type': 'text/html' } }),
-        415,
       ],
       [
         'is an SVG',
@@ -374,7 +373,6 @@ describe('serveImage', () => {
           new Response('<svg/>', {
             headers: { 'content-type': 'image/svg+xml' },
           }),
-        415,
       ],
       [
         'is too large',
@@ -385,24 +383,24 @@ describe('serveImage', () => {
               'content-length': String(50 * 1024 * 1024),
             },
           }),
-        413,
       ],
-    ])(
-      'answers a short error that nobody keeps when it %s',
-      async (_n, make, status) => {
-        const response = await answer(async () => make());
-        expect(response.status).toBe(status);
-        expect(response.headers.get('cache-control')).toBe('no-store');
-        expect(response.headers.get('content-type')).toContain('text/plain');
-      },
-    );
+    ])('answers 204, kept for an hour, when it %s', async (_n, make) => {
+      const response = await answer(async () => make());
+      expect(response.status).toBe(204);
+      expect(response.headers.get('cache-control')).toBe(
+        'public, max-age=3600',
+      );
+      expect(await response.text()).toBe('');
+    });
 
-    it('answers 502 when its site cannot be reached', async () => {
+    it('answers 204 when its site cannot be reached', async () => {
       const response = await answer(async () => {
         throw new Error('offline');
       });
-      expect(response.status).toBe(502);
-      expect(response.headers.get('cache-control')).toBe('no-store');
+      expect(response.status).toBe(204);
+      expect(response.headers.get('cache-control')).toBe(
+        'public, max-age=3600',
+      );
     });
 
     it('answers 400 when it redirects to an address it should not reach', async () => {
