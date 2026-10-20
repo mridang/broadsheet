@@ -1,9 +1,11 @@
 import { describe, expect, it } from '@jest/globals';
 
 import {
+  EXTRA_DIRECTIVES,
   EXTRA_IMG_SOURCES,
   OPEN_FILES,
   PUBLIC_PAGES,
+  RARELY_CHANGING,
 } from '../../../src/lib/http/site';
 
 describe('site settings', () => {
@@ -30,5 +32,20 @@ describe('site settings', () => {
       'https://www.google.com',
       'https://*.gstatic.com',
     ]);
+  });
+
+  it('lets the icons and the manifest be cached for a day', () => {
+    for (const path of RARELY_CHANGING) {
+      expect(OPEN_FILES.test(path)).toBe(true);
+    }
+    expect([...RARELY_CHANGING].sort()).toEqual([
+      '/favicon.ico',
+      '/icon.svg',
+      '/manifest.webmanifest',
+    ]);
+  });
+
+  it('adds no directives of its own', () => {
+    expect(EXTRA_DIRECTIVES).toEqual([]);
   });
 });

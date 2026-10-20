@@ -8,6 +8,10 @@ import {
   newNonce,
   nonceOf,
 } from '../../../src/lib/http/csp';
+import {
+  EXTRA_DIRECTIVES,
+  EXTRA_IMG_SOURCES,
+} from '../../../src/lib/http/site';
 
 describe('newNonce', () => {
   it('is base64 of 16 bytes, and different every time', () => {
@@ -29,8 +33,12 @@ describe('buildCsp', () => {
     );
   });
 
-  it('never allows inline script or eval', () => {
-    expect(csp).not.toContain('unsafe-inline');
+  it('never allows inline script or eval, beyond the directives site.ts names', () => {
+    const rest = csp
+      .split('; ')
+      .filter((d) => !EXTRA_DIRECTIVES.includes(d))
+      .join('; ');
+    expect(rest).not.toContain('unsafe-inline');
     expect(csp).not.toContain('unsafe-eval');
   });
 
@@ -50,12 +58,21 @@ describe('buildCsp', () => {
     expect(directive(name)).toMatch(new RegExp(`^${name} 'self'`));
   });
 
-  it('allows the favicon service and nothing else from other sites', () => {
+  it('allows pictures from this site and the places site.ts names, nothing else', () => {
     expect(directive('img-src')).toBe(
-      "img-src 'self' data: https://www.google.com https://*.gstatic.com",
+      ['img-src', "'self'", 'data:', ...EXTRA_IMG_SOURCES].join(' '),
     );
     expect(directive('connect-src')).toBe("connect-src 'self'");
     expect(directive('font-src')).toBe("font-src 'self'");
+  });
+
+  it('adds the directives site.ts names to both kinds of policy', () => {
+    for (const surface of ['site', 'approval'] as const) {
+      const directives = buildCsp('abc123==', surface).split('; ');
+      for (const extra of EXTRA_DIRECTIVES) {
+        expect(directives).toContain(extra);
+      }
+    }
   });
 
   it('forbids plugins, frames, media and a rewritten <base>', () => {
@@ -78,8 +95,8 @@ describe('buildCsp', () => {
 
   it('names no form-action on the approval screen, so its redirect back to the app is allowed', () => {
     // A browser checks the consent form's redirect (to the client's address)
-    // against form-action. `'self'` there would block returning to an app after
-    // approval.
+    // against form-action. `'self'` there would block returning to ChatGPT or
+    // Claude after approval.
     expect(buildCsp('abc123==', 'approval')).not.toContain('form-action');
     expect(buildCsp('abc123==', 'site')).toContain("form-action 'self'");
   });
@@ -123,10 +140,10 @@ describe('cspSurfaceFor', () => {
     expect(cspSurfaceFor('/oauth/authorize')).toBe('approval');
     for (const pathname of [
       '/',
-      '/feeds',
+      '/some/page',
       '/oauth/consent',
       '/oauth/authorize/x',
-      '/api/feeds',
+      '/api/mcp',
     ]) {
       expect(cspSurfaceFor(pathname)).toBe('site');
     }

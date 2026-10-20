@@ -8,7 +8,7 @@ import {
 /** A Reporting API report. */
 const modern = (body: Record<string, unknown>, type = 'csp-violation') => ({
   type,
-  url: 'https://broadsheet.test/feeds',
+  url: 'https://app.test/app',
   body,
 });
 
@@ -17,19 +17,19 @@ describe('summariseReports', () => {
     expect(
       summariseReports([
         modern({
-          documentURL: 'https://broadsheet.test/feeds/abc?q=secret#frag',
+          documentURL: 'https://app.test/recipe/abc?q=secret#frag',
           blockedURL: 'https://evil.test/x.js?token=1',
           effectiveDirective: 'script-src-elem',
           disposition: 'enforce',
           sample: 'alert(1)',
-          sourceFile: 'https://broadsheet.test/_next/static/a.js?v=2',
+          sourceFile: 'https://app.test/_next/static/a.js?v=2',
           lineNumber: 12,
         }),
       ]),
     ).toEqual([
       {
         type: 'csp-violation',
-        page: '/feeds/abc',
+        page: '/recipe/abc',
         blocked: 'https://evil.test',
         directive: 'script-src-elem',
         disposition: 'enforce',
@@ -42,13 +42,13 @@ describe('summariseReports', () => {
   it('reads the older single-report format', () => {
     const [report] = summariseReports({
       'csp-report': {
-        'document-uri': 'https://broadsheet.test/',
+        'document-uri': 'https://app.test/',
         'blocked-uri': 'inline',
         'violated-directive': 'script-src',
         'effective-directive': 'script-src-elem',
         disposition: 'report',
         'script-sample': 'var a',
-        'source-file': 'https://broadsheet.test/',
+        'source-file': 'https://app.test/',
         'line-number': 3,
       },
     });

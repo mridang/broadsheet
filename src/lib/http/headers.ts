@@ -9,7 +9,7 @@
  */
 
 import { REPORTING_ENDPOINTS } from './reporting';
-import { OPEN_FILES, PUBLIC_PAGES } from './site';
+import { OPEN_FILES, PUBLIC_PAGES, RARELY_CHANGING } from './site';
 
 /** Security headers for every response. */
 export const SECURITY_HEADERS: Readonly<Record<string, string>> = {
@@ -68,16 +68,6 @@ export function replacingHeaders(
 
 /** Tells crawlers not to index a page or follow its links. */
 const NOINDEX: HeaderPair = ['X-Robots-Tag', 'noindex, nofollow'];
-
-/** The small files that rarely change, and for which a stale copy is harmless. */
-const RARELY_CHANGING: ReadonlySet<string> = new Set([
-  '/manifest.webmanifest',
-  '/icon.svg',
-  '/apple-icon.png',
-  '/favicon.ico',
-  '/opengraph-image.png',
-  '/twitter-image.png',
-]);
 
 /** Cache rules for the few responses that want something other than the default. */
 function cacheControlFor(pathname: string, response: Response): string | null {

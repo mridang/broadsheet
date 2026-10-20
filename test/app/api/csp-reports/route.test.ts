@@ -24,7 +24,7 @@ afterEach(() => {
 
 const send = (body: BodyInit, contentType = 'application/reports+json') =>
   POST(
-    new Request('https://broadsheet.test/api/csp-reports', {
+    new Request('https://app.test/api/csp-reports', {
       method: 'POST',
       headers: { 'content-type': contentType },
       body,
@@ -35,7 +35,7 @@ const report = JSON.stringify([
   {
     type: 'csp-violation',
     body: {
-      documentURL: 'https://broadsheet.test/feeds',
+      documentURL: 'https://app.test/app',
       blockedURL: 'https://evil.test/x.js',
       effectiveDirective: 'script-src-elem',
     },
@@ -50,7 +50,7 @@ describe('POST /api/csp-reports', () => {
     expect(logged).toHaveLength(1);
     expect(logged[0]?.[0]).toBe('[csp-report]');
     expect(JSON.parse(String(logged[0]?.[1]))).toMatchObject({
-      page: '/feeds',
+      page: '/app',
       blocked: 'https://evil.test',
       directive: 'script-src-elem',
     });
