@@ -6,6 +6,7 @@ concurrency:
 on:
   push:
     branches:
+      - master
       - main
 
 defaults:
@@ -17,6 +18,8 @@ jobs:
     environment:
       name: production
     runs-on: ubuntu-latest
+    # A hung step must not run to GitHub's six-hour limit on paid minutes.
+    timeout-minutes: 15
 
     steps:
       - name: Runner Common Setup
@@ -38,22 +41,24 @@ jobs:
 
       - name: Build (OpenNext)
         # Workers AI has no local simulation, so OpenNext starts a remote proxy
-        # for the AI binding during the build — which needs Cloudflare auth.
+        # for the AI binding during the build, which needs Cloudflare auth.
         run: npx opennextjs-cloudflare build
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: '779037e608ab1102679ef8b1bd499d49'
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Apply D1 migrations
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           wranglerVersion: '4.98.0'
-          command: d1 migrations apply broadsheet-db --remote
+          command: d1 migrations apply DB --remote
 
       - name: Deploy to production
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           wranglerVersion: '4.98.0'
           command: deploy

@@ -14,14 +14,20 @@ defaults:
 jobs:
   run-canary:
     runs-on: ubuntu-latest
+    # A hung step must not run to GitHub's six-hour limit on paid minutes.
+    timeout-minutes: 20
 
     steps:
       - name: Runner Common Setup
         uses: mridang/action-runner-common@v1
 
       - name: Write inputs to file
+        # Through the environment, never spliced into the script: the input is
+        # free text from whoever starts the run.
+        env:
+          RELEASE_IDENTIFIER: ${{ github.event.inputs.release_identifier }}
         run: |
-          echo "${{ github.event.inputs.release_identifier }}" > release.txt
+          printf '%s\n' "$RELEASE_IDENTIFIER" > release.txt
 
       - name: Upload release identifier
         uses: actions/upload-artifact@v4
@@ -42,7 +48,7 @@ jobs:
         run: npm ci
 
       - name: Apply local D1 migrations
-        run: npx wrangler d1 migrations apply scenery-db --local
+        run: npx wrangler d1 migrations apply DB --local
 
       - name: Run Cypress Tests
         uses: cypress-io/github-action@v6
