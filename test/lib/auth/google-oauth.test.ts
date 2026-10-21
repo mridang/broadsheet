@@ -11,7 +11,7 @@ import {
 
 const base = {
   clientId: 'client-id',
-  redirectUri: 'https://app.test/api/auth/callback',
+  redirectUri: 'https://app.test/auth/callback',
   state: 'abc',
   scopes: SIGN_IN_SCOPES,
 };
@@ -72,7 +72,7 @@ describe('exchangeCode', () => {
     code: 'the-code',
     clientId: 'client-id',
     clientSecret: 'client-secret',
-    redirectUri: 'https://app.test/api/auth/callback',
+    redirectUri: 'https://app.test/auth/callback',
   };
 
   it('posts the code as a form and returns the tokens', async () => {
@@ -91,7 +91,7 @@ describe('exchangeCode', () => {
       code: 'the-code',
       client_id: 'client-id',
       client_secret: 'client-secret',
-      redirect_uri: 'https://app.test/api/auth/callback',
+      redirect_uri: 'https://app.test/auth/callback',
       grant_type: 'authorization_code',
     });
   });

@@ -34,7 +34,7 @@ const CLASSES: Readonly<Record<OwnClass, ClassSpec>> = {
 /** The class of a request this app counts specially, or undefined when it is one of the classes every app has. */
 function ownClass(request: Request): OwnClass | undefined {
   const { pathname } = new URL(request.url);
-  return pathname.startsWith('/api/auth/') || pathname === '/api/sessions/self'
+  return pathname.startsWith('/auth/') || pathname === '/api/sessions/self'
     ? 'auth'
     : undefined;
 }

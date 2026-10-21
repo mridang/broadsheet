@@ -55,10 +55,10 @@ describe('unfollowFeed', () => {
 });
 
 describe('refreshFeeds', () => {
-  it('posts to the feed refreshes collection', async () => {
+  it('posts to the feed refreshes', async () => {
     const spy = answer(new Response('{}', { status: 200 }));
     await refreshFeeds();
-    expect(spy).toHaveBeenCalledWith('/api/feed-refreshes', {
+    expect(spy).toHaveBeenCalledWith('/api/feeds/refreshes', {
       method: 'POST',
     });
   });

@@ -69,12 +69,13 @@ export function Button({
 }
 
 /**
- * Whether an address is one of our API routes. Those answer with a redirect to
- * another site (Google), which the client router can't follow, so a link to one
- * must be a plain `<a>` that the browser follows itself.
+ * Whether an address is one of our server routes (`/api/...` or the sign-in
+ * flow at `/auth/...`). Those answer with a redirect to another site (Google),
+ * which the client router can't follow, so a link to one must be a plain `<a>`
+ * that the browser follows itself.
  */
 export function isApiHref(href: string): boolean {
-  return href.startsWith('/api/');
+  return href.startsWith('/api/') || href.startsWith('/auth/');
 }
 
 /** A link that looks like a button. */

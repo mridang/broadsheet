@@ -4,8 +4,8 @@ import { createDatabase, type Database } from '../../src/lib/db/client';
 import {
   addFeed,
   bumpSessionEpoch,
-  getFeed,
   getFeedByUrl,
+  listFeeds,
   getSessionEpoch,
   getUser,
   removeFeed,
@@ -78,21 +78,19 @@ describe('getSessionEpoch and bumpSessionEpoch', () => {
   });
 });
 
-describe('getFeed, getFeedByUrl and removeFeed', () => {
-  it('finds a feed by id or address, for its owner only', async () => {
+describe('getFeedByUrl and removeFeed', () => {
+  it('finds a feed by address, for its owner only', async () => {
     const feed = (await addFeed(db, 1, 'https://a.test/f'))!;
-    expect(await getFeed(db, 1, feed.id)).toMatchObject({ url: feed.url });
     expect(await getFeedByUrl(db, 1, feed.url)).toMatchObject({ id: feed.id });
-    expect(await getFeed(db, 2, feed.id)).toBeUndefined();
     expect(await getFeedByUrl(db, 2, feed.url)).toBeUndefined();
   });
 
   it('says whether there was a feed to remove, and removes only the caller’s', async () => {
     const feed = (await addFeed(db, 1, 'https://a.test/f'))!;
     expect(await removeFeed(db, 2, feed.id)).toBe(false);
-    expect(await getFeed(db, 1, feed.id)).toBeDefined();
+    expect(await listFeeds(db, 1)).toHaveLength(1);
     expect(await removeFeed(db, 1, feed.id)).toBe(true);
     expect(await removeFeed(db, 1, feed.id)).toBe(false);
-    expect(await getFeed(db, 1, feed.id)).toBeUndefined();
+    expect(await listFeeds(db, 1)).toHaveLength(0);
   });
 });

@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: 'Sign in' };
 
 /**
  * The sign-in page: one button that starts the Google sign-in
- * (`/api/auth/login`). When a sign-in did not go through, the callback sends
+ * (`/auth/login`). When a sign-in did not go through, the callback sends
  * people back here with a fixed `?error=auth` flag, never anything Google said.
  */
 export default async function LoginPage({
@@ -27,7 +27,7 @@ export default async function LoginPage({
         </p>
       ) : null}
       <div className="signin">
-        <a className="gsi" href="/api/auth/login">
+        <a className="gsi" href="/auth/login">
           <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
             <path
               fill="#EA4335"

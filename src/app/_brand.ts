@@ -66,7 +66,12 @@ export const INDEX_BY_DEFAULT = false;
 export const CRAWLABLE_PATHS: readonly string[] = ['/$'];
 
 /** The paths crawlers must stay out of: the feed manager, the sign-in flow and the API. */
-export const PRIVATE_PATHS: readonly string[] = ['/feeds', '/login', '/api/'];
+export const PRIVATE_PATHS: readonly string[] = [
+  '/feeds',
+  '/login',
+  '/api/',
+  '/auth/',
+];
 
 /** The pages worth listing in the sitemap: the front page, which changes daily and so has no `lastmod`. */
 export const SITEMAP_PAGES: readonly Readonly<{

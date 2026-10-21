@@ -46,7 +46,7 @@ const env = (overrides: Record<string, string | undefined> = {}) =>
   }) as unknown as CloudflareEnv;
 
 const context = (overrides: Record<string, unknown> = {}) => ({
-  request: appRequest('GET', '/api/auth/callback'),
+  request: appRequest('GET', '/auth/callback'),
   env: env(),
   origin: 'https://app.test',
   returnTo: undefined,

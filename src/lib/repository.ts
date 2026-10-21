@@ -102,17 +102,6 @@ export async function addFeed(
   });
 }
 
-/** One of the person's feeds by its id, or undefined when they have no such feed. */
-export function getFeed(
-  db: Database,
-  userId: number,
-  id: number,
-): Promise<Feed | undefined> {
-  return db.query.feeds.findFirst({
-    where: and(eq(feeds.id, id), eq(feeds.user_id, userId)),
-  });
-}
-
 /** The person's feed at `url`, or undefined when they do not follow it. */
 export function getFeedByUrl(
   db: Database,

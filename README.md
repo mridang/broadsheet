@@ -18,19 +18,19 @@ The Hacker Times: a personalised daily newspaper that turns web feeds into a pri
 
 ## Routes
 
-| Route                                   | What                                                                                    |
-| --------------------------------------- | --------------------------------------------------------------------------------------- |
-| `/`                                     | The front page: the Hacker News edition, or the signed-in user's paper                  |
-| `/feeds`                                | Manage feeds (signed in)                                                                |
-| `/login`                                | The sign-in page: one "Sign in with Google" button                                      |
-| `/api/auth/login`, `/api/auth/callback` | Google sign-in (identity only: `openid email profile`)                                  |
-| `/api/sessions/self`                    | `DELETE` signs out                                                                      |
-| `/api/sessions`                         | `DELETE` signs out everywhere (ends every session of the signed-in person)              |
-| `/api/feeds`, `/api/feeds/{id}`         | `POST` follows a feed (201 + `Location`), `GET`/`DELETE` one feed (signed in)           |
-| `/api/feed-refreshes`                   | `POST` re-fetches the signed-in user's feeds and answers how many were refreshed        |
-| `/api/health`                           | Plain `ok`                                                                              |
-| `/api/img`                              | Image proxy: scales and caches remote pictures (`?url=&w=&sig=`), signed addresses only |
-| `/api/csp-reports`                      | Receives Content Security Policy violation reports                                      |
+| Route                           | What                                                                                    |
+| ------------------------------- | --------------------------------------------------------------------------------------- |
+| `/`                             | The front page: the Hacker News edition, or the signed-in user's paper                  |
+| `/feeds`                        | Manage feeds (signed in)                                                                |
+| `/login`                        | The sign-in page: one "Sign in with Google" button                                      |
+| `/auth/login`, `/auth/callback` | Google sign-in (identity only: `openid email profile`)                                  |
+| `/api/sessions/self`            | `DELETE` signs out                                                                      |
+| `/api/sessions`                 | `DELETE` signs out everywhere (ends every session of the signed-in person)              |
+| `/api/feeds`, `/api/feeds/{id}` | `POST` follows a feed (201 + `Location`), `DELETE` unfollows one (signed in)            |
+| `/api/feeds/refreshes`          | `POST` re-fetches the signed-in user's feeds and answers how many were refreshed        |
+| `/health`                       | Plain `ok`                                                                              |
+| `/img`                          | Image proxy: scales and caches remote pictures (`?url=&w=&sig=`), signed addresses only |
+| `/csp/reports`                  | Receives Content Security Policy violation reports                                      |
 
 The security headers and the nonce-based Content Security Policy are added by the Worker itself (`src/lib/http`), not by Next.js.
 
@@ -55,7 +55,7 @@ GOOGLE_OAUTH_CLIENT_SECRET=...
 SESSION_SECRET=...
 ```
 
-Signing in is the same code as in chowdown (`src/lib/auth`, the `/api/auth` and `/api/sessions` routes). There is no dev login and no fallback secret: when any of the three settings is missing, `/api/auth/login` answers 503 naming what is missing, and nobody can be signed in. The public Hacker News edition needs none of them. Register `http://localhost:3737/api/auth/callback` as an authorised redirect URI of the Google OAuth client to sign in locally.
+Signing in is the same code as in chowdown (`src/lib/auth`, the `/auth` and `/api/sessions` routes). There is no dev login and no fallback secret: when any of the three settings is missing, `/auth/login` answers 503 naming what is missing, and nobody can be signed in. The public Hacker News edition needs none of them. Register `http://localhost:3737/auth/callback` as an authorised redirect URI of the Google OAuth client to sign in locally.
 
 ## Deploy
 
@@ -71,7 +71,7 @@ devbox run -- npx wrangler secret put GOOGLE_OAUTH_CLIENT_SECRET
 devbox run -- npm run deploy                             # opennextjs-cloudflare build && wrangler deploy
 ```
 
-The custom domain `broadsheet.apps.mrida.ng` requires the `apps.mrida.ng` zone on the Cloudflare account, and the Worker needs the AI binding (declared in `wrangler.jsonc`). Register `https://broadsheet.apps.mrida.ng/api/auth/callback` as the Google OAuth redirect URI. The redirect address is built from the address the request came to; set `APP_URL` only to override it.
+The custom domain `broadsheet.apps.mrida.ng` requires the `apps.mrida.ng` zone on the Cloudflare account, and the Worker needs the AI binding (declared in `wrangler.jsonc`). Register `https://broadsheet.apps.mrida.ng/auth/callback` as the Google OAuth redirect URI. The redirect address is built from the address the request came to; set `APP_URL` only to override it.
 
 Without the three secrets the site still works: it serves the public Hacker News edition, and signing in is refused.
 
@@ -80,3 +80,7 @@ GitHub Actions (`deploy.yml`) applies the D1 migrations and deploys on pushes to
 ## Operations
 
 A single cron (`0 6 * * *`, 06:00 UTC) fires `scheduled()` in `src/worker.ts`. It refreshes every feed, then backfills the last seven days of the Hacker News feeds from historical data (Algolia), so the first run fills the past week and later runs add the new day. There is no public scrape endpoint; signed-in users can refresh their own feeds from `/api/refresh`.
+
+## API description
+
+The REST routes under `/api` are described in `openapi/openapi.json`; a test keeps it in step with `src/app/api`.

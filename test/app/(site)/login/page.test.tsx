@@ -16,7 +16,7 @@ describe('LoginPage', () => {
   it('offers one way in: the Google button, which starts the sign-in flow', async () => {
     const out = await page();
     expect(out).toMatch(
-      /<a class="gsi" href="\/api\/auth\/login">[\s\S]*Sign in with Google<\/a>/,
+      /<a class="gsi" href="\/auth\/login">[\s\S]*Sign in with Google<\/a>/,
     );
     expect(out.match(/<a /g)).toHaveLength(1);
   });

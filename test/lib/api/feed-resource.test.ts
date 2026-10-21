@@ -5,6 +5,7 @@ import {
   feedResource,
   parseFeedId,
   parseFeedInput,
+  rfc3339,
 } from '../../../src/lib/api/feed-resource';
 import type { Feed } from '../../../src/lib/repository';
 
@@ -23,8 +24,14 @@ describe('feedResource', () => {
       id: '4',
       url: 'https://a.test/feed.xml',
       title: 'A feed',
-      created_at: '2026-01-02 03:04:05',
+      created_at: '2026-01-02T03:04:05Z',
     });
+  });
+
+  it('leaves out a timestamp it cannot read', () => {
+    expect(feedResource(stored({ created_at: 'soon' }))).not.toHaveProperty(
+      'created_at',
+    );
   });
 
   it('leaves out what is unknown instead of sending null', () => {
@@ -33,6 +40,19 @@ describe('feedResource', () => {
       url: 'https://a.test/feed.xml',
     });
   });
+});
+
+describe('rfc3339', () => {
+  it('reads SQLite’s UTC timestamp as RFC 3339', () => {
+    expect(rfc3339('2026-01-02 03:04:05')).toBe('2026-01-02T03:04:05Z');
+  });
+
+  it.each(['', 'yesterday', '2026-13-45 99:99:99', '2026-01-02T03:04:05Z'])(
+    'does not know %j',
+    (text) => {
+      expect(rfc3339(text)).toBeUndefined();
+    },
+  );
 });
 
 describe('parseFeedInput', () => {

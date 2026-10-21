@@ -1,7 +1,7 @@
 /**
- * A refresh of the signed-in person's feeds.
+ * The refreshes of the signed-in person's feeds.
  *
- *   POST /api/feed-refreshes → 200 {feeds, refreshed, failed}
+ *   POST /api/feeds/refreshes → 200 {feeds, refreshed, failed}
  *
  * A refresh is not stored, so there is nothing to fetch afterwards: the result
  * is in the response, which is why it answers 200 and not 201.
@@ -17,7 +17,7 @@ import { getDatabase, getEnv } from '@/lib/util';
 export const dynamic = 'force-dynamic';
 
 /**
- * `POST /api/feed-refreshes`: fetch every feed the person follows again now.
+ * `POST /api/feeds/refreshes`: fetch every feed the person follows again now.
  * Answers 200 with how many feeds there were and how many were refreshed or
  * failed, 401 when nobody is signed in, or 403 for a request from another site.
  */

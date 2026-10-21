@@ -18,7 +18,7 @@ import { getEnv, logError } from '@/lib/util';
 import { appOrigin } from '@/lib/util/origin';
 
 /**
- * `GET /api/auth/login`: send the browser to Google to sign in. Open to
+ * `GET /auth/login`: send the browser to Google to sign in. Open to
  * everyone. Answers a redirect to Google's consent screen, with the one-time
  * `state` and the safe `?returnTo=` path (if any) kept in short-lived cookies,
  * or 503 naming the settings that are missing.
@@ -40,7 +40,7 @@ export function GET(request: NextRequest): NextResponse {
   const response = NextResponse.redirect(
     buildAuthUrl({
       clientId: env.GOOGLE_OAUTH_CLIENT_ID,
-      redirectUri: `${origin}/api/auth/callback`,
+      redirectUri: `${origin}/auth/callback`,
       state,
       scopes: SIGN_IN_SCOPES,
     }),

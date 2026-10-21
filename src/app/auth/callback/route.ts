@@ -40,7 +40,7 @@ function failurePath(purpose: string, kind: 'error' | 'denied'): string {
 }
 
 /**
- * `GET /api/auth/callback`: where Google sends the browser back after consent.
+ * `GET /auth/callback`: where Google sends the browser back after consent.
  * Open to everyone, but only a request whose `state` matches the cookie set
  * when the trip began is acted on. Always answers a redirect: on to the app on
  * success, or back with a fixed flag on any failure.
@@ -95,7 +95,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       code,
       clientId: env.GOOGLE_OAUTH_CLIENT_ID,
       clientSecret: env.GOOGLE_OAUTH_CLIENT_SECRET,
-      redirectUri: `${origin}/api/auth/callback`,
+      redirectUri: `${origin}/auth/callback`,
     });
     const info = await getUserInfo(tokens.access_token);
     if (purpose === SIGN_IN_PURPOSE) {

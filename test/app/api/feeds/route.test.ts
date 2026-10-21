@@ -93,10 +93,9 @@ describe('POST /api/feeds', () => {
     const again = await follow('https://a.test/feed.xml');
     expect(again.status).toBe(200);
     expect(await again.json()).toEqual(first);
-    expect(again.headers.get('content-location')).toBe(
+    expect(again.headers.get('location')).toBe(
       `https://app.test/api/feeds/${first.id}`,
     );
-    expect(again.headers.get('location')).toBeNull();
     expect(stored(7)).toHaveLength(1);
     expect(refreshFeed).not.toHaveBeenCalled();
   });

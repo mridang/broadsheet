@@ -27,14 +27,14 @@ describe('EDGE_LIMITS', () => {
   it.each([
     ['/', 'site'],
     ['/feeds', 'site'],
-    ['/api/img', 'cover'],
-    ['/api/csp-reports', 'reports'],
-    ['/api/health', 'discovery'],
+    ['/img', 'cover'],
+    ['/csp/reports', 'reports'],
+    ['/health', 'discovery'],
     ['/robots.txt', 'discovery'],
     ['/api/feeds', 'api'],
     ['/api/sessions', 'api'],
-    ['/api/auth/login', 'auth'],
-    ['/api/auth/callback', 'auth'],
+    ['/auth/login', 'auth'],
+    ['/auth/callback', 'auth'],
     ['/api/sessions/self', 'auth'],
   ])('puts %s in %s', (pathname, expected) => {
     expect(classOf(pathname)).toBe(expected);

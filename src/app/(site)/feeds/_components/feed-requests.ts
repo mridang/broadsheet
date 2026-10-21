@@ -31,7 +31,7 @@ export async function unfollowFeed(id: number): Promise<void> {
   await ensureOk(await fetch(`/api/feeds/${id}`, { method: 'DELETE' }));
 }
 
-/** Fetch every followed feed again now (`POST /api/feed-refreshes`). */
+/** Fetch every followed feed again now (`POST /api/feeds/refreshes`). */
 export async function refreshFeeds(): Promise<void> {
-  await ensureOk(await fetch('/api/feed-refreshes', { method: 'POST' }));
+  await ensureOk(await fetch('/api/feeds/refreshes', { method: 'POST' }));
 }

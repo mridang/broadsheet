@@ -54,7 +54,8 @@ describe('Button', () => {
 
 describe('isApiHref', () => {
   it('is true only for our own API routes', () => {
-    expect(isApiHref('/api/auth/login')).toBe(true);
+    expect(isApiHref('/api/x')).toBe(true);
+    expect(isApiHref('/auth/login')).toBe(true);
     expect(isApiHref('/app')).toBe(false);
     expect(isApiHref('https://example.com/api/x')).toBe(false);
   });
@@ -69,9 +70,9 @@ describe('ButtonLink', () => {
   });
 
   it('is a plain anchor for an API route, which the router cannot follow', () => {
-    const out = html(<ButtonLink href="/api/auth/login">Sign in</ButtonLink>);
+    const out = html(<ButtonLink href="/auth/login">Sign in</ButtonLink>);
     expect(out).toBe(
-      `<a href="/api/auth/login" class="${buttonClass({})}">Sign in</a>`,
+      `<a href="/auth/login" class="${buttonClass({})}">Sign in</a>`,
     );
   });
 });

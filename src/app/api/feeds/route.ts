@@ -1,7 +1,7 @@
 /**
  * The feeds the signed-in person follows.
  *
- *   POST /api/feeds {url} → 201 + Location (200 + Content-Location when they
+ *   POST /api/feeds {url} → 201 + Location (200 + Location when they
  *                           already follow it)
  */
 
@@ -44,7 +44,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   if (existing) {
     return NextResponse.json(feedResource(existing), {
       headers: {
-        'Content-Location': `${appOrigin(request)}/api/feeds/${existing.id}`,
+        Location: `${appOrigin(request)}/api/feeds/${existing.id}`,
         'Cache-Control': 'private, no-cache',
       },
     });

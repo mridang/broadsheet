@@ -18,13 +18,27 @@ export interface FeedResource {
   readonly created_at?: string;
 }
 
+/**
+ * A timestamp from SQLite (`datetime('now')`: UTC as `YYYY-MM-DD HH:MM:SS`) as
+ * RFC 3339, or undefined when it is not one.
+ */
+export function rfc3339(stored: string): string | undefined {
+  const match = /^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2})$/.exec(stored);
+  if (!match) {
+    return undefined;
+  }
+  const text = `${match[1]}T${match[2]}Z`;
+  return Number.isNaN(Date.parse(text)) ? undefined : text;
+}
+
 /** The API's view of a stored feed. */
 export function feedResource(feed: Readonly<Feed>): FeedResource {
+  const created = feed.created_at ? rfc3339(feed.created_at) : undefined;
   return {
     id: String(feed.id),
     url: feed.url,
     ...(feed.title ? { title: feed.title } : {}),
-    ...(feed.created_at ? { created_at: feed.created_at } : {}),
+    ...(created ? { created_at: created } : {}),
   };
 }
 
