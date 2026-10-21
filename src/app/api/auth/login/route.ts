@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
+import { problem } from '@/lib/api/problem';
 import { startFlowCookies } from '@/lib/auth/flow-cookies';
 import { SIGN_IN_SCOPES, buildAuthUrl } from '@/lib/auth/google-oauth';
 import { SIGN_IN_PURPOSE, newState } from '@/lib/auth/oauth-state';
@@ -27,15 +28,11 @@ export function GET(request: NextRequest): NextResponse {
   const missing = missingSignInSettings(env);
   if (missing.length > 0) {
     logError({ event: 'auth.login.not_configured', missing });
-    return new NextResponse(
+    return problem(
+      503,
+      '/problems/not-configured',
+      'Sign-in is not set up',
       `Sign-in is not set up on this server. Missing: ${missing.join(', ')}.`,
-      {
-        status: 503,
-        headers: {
-          'Content-Type': 'text/plain; charset=utf-8',
-          'Cache-Control': 'no-store',
-        },
-      },
     );
   }
   const origin = appOrigin(request);

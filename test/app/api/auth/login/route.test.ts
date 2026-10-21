@@ -138,6 +138,7 @@ describe('GET /api/auth/login on a server that is not set up', () => {
     const res = GET(appRequest('GET', '/api/auth/login'));
     expect(res.status).toBe(503);
     expect(res.headers.get('cache-control')).toBe('no-store');
+    expect(res.headers.get('content-type')).toBe('application/problem+json');
   });
 
   it('names every missing setting, and never a value', async () => {

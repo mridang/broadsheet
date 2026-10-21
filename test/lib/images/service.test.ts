@@ -95,15 +95,28 @@ describe('imageHeaders', () => {
 });
 
 describe('refuse', () => {
-  it('is a short plain-text sentence that nobody keeps', async () => {
+  it('is a problem document that nobody keeps', async () => {
     const response = refuse(403, 'No.');
     expect(response.status).toBe(403);
     expect(response.headers.get('cache-control')).toBe('no-store');
     expect(response.headers.get('content-type')).toBe(
-      'text/plain; charset=utf-8',
+      'application/problem+json',
     );
     expect(response.headers.get('x-content-type-options')).toBe('nosniff');
-    expect(await response.text()).toBe('No.\n');
+    expect(await response.json()).toEqual({
+      type: '/problems/forbidden',
+      title: 'Forbidden',
+      status: 403,
+      detail: 'No.',
+    });
+  });
+
+  it('words a 400 as a bad request', async () => {
+    const response = refuse(400, 'url: nope.');
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({
+      type: '/problems/bad-request',
+    });
   });
 });
 

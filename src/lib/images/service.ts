@@ -10,10 +10,11 @@
  * A picture is fully determined by its address and width, so the browser may
  * keep it for a month without asking again and the edge keeps its copy for a
  * week. Every answer carries the same headers, from the edge copy or not. A
- * request that cannot be served gets a short plain-text error that nobody
- * caches.
+ * request that cannot be served gets a problem document (RFC 9457), like the
+ * rest of the API, that nobody caches.
  */
 
+import { problems } from '../api/problem';
 import { isPublicWebUrl } from '../http/safe-fetch';
 import { isAllowedHost, snapWidth } from './address';
 import { fetchImage, type ImageFetch, type ImagesLike } from './proxy';
@@ -68,16 +69,12 @@ export function imageCacheKey(width: number, url: string): Request {
   );
 }
 
-/** A refusal: a short plain-text sentence that no cache keeps. */
-export function refuse(status: number, message: string): Response {
-  return new Response(`${message}\n`, {
-    status,
-    headers: {
-      'Content-Type': 'text/plain; charset=utf-8',
-      'Cache-Control': 'no-store',
-      'X-Content-Type-Options': 'nosniff',
-    },
-  });
+/** A refusal: a problem document that no cache keeps. */
+export function refuse(status: 400 | 403, message: string): Response {
+  const refusal =
+    status === 400 ? problems.badRequest(message) : problems.forbidden(message);
+  refusal.headers.set('X-Content-Type-Options', 'nosniff');
+  return refusal;
 }
 
 /**
