@@ -7,7 +7,7 @@
  *
  *  1. a caller over a rate limit is refused at once (`edge-limits.ts`), before
  *     anything is looked up, so a page that is cached still counts;
- *  2. a public page may come from the edge copy (`edge-cache.ts`), with a fresh
+ *  2. a kept page may come from the edge copy (`edge-cache.ts`), with a fresh
  *     Content Security Policy nonce of its own;
  *  3. everything else goes to the app, with the policy and its nonce on the
  *     request (that is where Next.js looks for it) and on the response;
@@ -32,7 +32,7 @@ import {
 } from './edge-limits';
 import { EDGE_LIMITS } from './extras';
 import { applyResponseHeaders, replacingHeaders } from './headers';
-import { PUBLIC_PAGES } from './site';
+import { CACHED_QUERY_PARAMS, EDGE_CACHED_PAGES } from './site';
 
 /** What the Worker is given besides the request. */
 export type ServeEnv = EdgeLimitEnv & {
@@ -55,8 +55,10 @@ export interface ServeDeps {
   readonly cache?: Cache | undefined;
   /** What is rate limited, and how; the app's own unless a test supplies another. */
   readonly limits?: EdgeLimits;
-  /** The pages the edge may keep a copy of; the public pages unless a test supplies others. */
+  /** The pages the edge may keep a copy of; the app's own unless a test supplies others. */
   readonly pages?: ReadonlySet<string>;
+  /** The query parameters a kept page may carry; the app's own unless a test supplies others. */
+  readonly queryParams?: ReadonlySet<string>;
 }
 
 /** The response with one more header (responses from the app are read-only). */
@@ -77,7 +79,8 @@ export async function serve(
     app,
     cache = edgeCache(),
     limits = EDGE_LIMITS,
-    pages = PUBLIC_PAGES,
+    pages = EDGE_CACHED_PAGES,
+    queryParams = CACHED_QUERY_PARAMS,
   }: ServeDeps,
 ): Promise<Response> {
   const refused = await edgeLimitRefusal(request, env, limits);
@@ -90,8 +93,9 @@ export async function serve(
   const nonce = newNonce();
   const csp = buildCsp(nonce, cspSurfaceFor(new URL(request.url).pathname));
   const key =
-    cache !== undefined && isEdgeCacheable(request, pages, limits.sessionCookie)
-      ? edgeCacheKey(request, env.CF_VERSION_METADATA?.id ?? 'dev')
+    cache !== undefined &&
+    isEdgeCacheable(request, pages, limits.sessionCookie, queryParams)
+      ? edgeCacheKey(request, env.CF_VERSION_METADATA?.id ?? 'dev', queryParams)
       : undefined;
   if (cache && key) {
     const hit = await cache.match(key);

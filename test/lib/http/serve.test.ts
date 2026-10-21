@@ -8,6 +8,8 @@ import { serve, type ServeApp } from '../../../src/lib/http/serve';
 const limits = genericLimits('app_session');
 /** The one page these tests let the edge keep a copy of. */
 const pages: ReadonlySet<string> = new Set(['/']);
+/** The query names these tests let a kept page carry. */
+const queryParams: ReadonlySet<string> = new Set(['alpha', 'beta']);
 /** A rate limit binding that refuses everyone, and counts how often it was asked. */
 function refusing(): {
   limit: () => Promise<{ success: boolean }>;
@@ -285,7 +287,8 @@ describe('serve — the edge copy', () => {
       { authorization: 'Bearer x' },
       '/',
     ],
-    ['a page with a query string', {}, '/?x=1'],
+    ['a page with a query name that is not allowed', {}, '/?x=1'],
+    ['a page with an allowed name given twice', {}, '/?alpha=1&alpha=2'],
     ['a page that is not public', {}, '/app'],
   ])('does not store %s', async (_label, headers, url) => {
     const cache = memoryCache();
@@ -295,9 +298,56 @@ describe('serve — the edge copy', () => {
       cache,
       limits,
       pages,
+      queryParams,
     });
     await Promise.all(pending);
     expect(cache.stored.size).toBe(0);
+  });
+
+  it('does not store a page on a developer’s machine', async () => {
+    const cache = memoryCache();
+    const { context, pending } = ctx();
+    await serve(new Request('http://localhost:3000/'), {}, context, {
+      app: appAnswering(() => page('a', 'n')),
+      cache,
+      limits,
+      pages,
+    });
+    await Promise.all(pending);
+    expect(cache.stored.size).toBe(0);
+  });
+
+  it('stores a page with allowed parameters once, however they are ordered', async () => {
+    const cache = memoryCache();
+    const app = appAnswering(() => page('a', 'n'));
+    const { context, pending } = ctx();
+    const deps = { app, cache, limits, pages, queryParams };
+    await serve(get('/?alpha=1&beta=2'), {}, context, deps);
+    await Promise.all(pending);
+    await serve(get('/?beta=2&alpha=1'), {}, context, deps);
+    expect(app.seen).toHaveLength(1);
+    expect(cache.stored.size).toBe(1);
+    await serve(get('/?alpha=2&beta=2'), {}, context, deps);
+    expect(app.seen).toHaveLength(2);
+  });
+
+  it('counts a page with a query that comes from the edge copy', async () => {
+    const cache = memoryCache();
+    const app = appAnswering(() => page('a', 'n'));
+    const { context, pending } = ctx();
+    const deps = { app, cache, limits, pages, queryParams };
+    await serve(get('/?alpha=1'), {}, context, deps);
+    await Promise.all(pending);
+    const binding = refusing();
+    const response = await serve(
+      get('/?alpha=1'),
+      { RL_SITE: binding },
+      context,
+      deps,
+    );
+    expect(response.status).toBe(429);
+    expect(binding.asked).toBe(1);
+    expect(app.seen).toHaveLength(1);
   });
 
   it('does not store a response that sets a cookie or is not a success', async () => {

@@ -1,6 +1,9 @@
 import { describe, expect, it } from '@jest/globals';
 
 import {
+  CACHED_QUERY_PARAMS,
+  EDGE_CACHED_PAGES,
+  EDGE_TTL_SECONDS,
   EXTRA_DIRECTIVES,
   EXTRA_IMG_SOURCES,
   OPEN_FILES,
@@ -9,6 +12,18 @@ import {
 } from '../../../src/lib/http/site';
 
 describe('site settings', () => {
+  it('lets the edge keep the same pages that may be indexed', () => {
+    expect([...EDGE_CACHED_PAGES]).toEqual([...PUBLIC_PAGES]);
+  });
+
+  it('lets a kept page carry no query string', () => {
+    expect([...CACHED_QUERY_PARAMS]).toEqual([]);
+  });
+
+  it('keeps a copy for five minutes', () => {
+    expect(EDGE_TTL_SECONDS).toBe(300);
+  });
+
   it('lets search engines index only the front page', () => {
     expect([...PUBLIC_PAGES]).toEqual(['/']);
   });

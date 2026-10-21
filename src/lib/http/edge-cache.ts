@@ -1,7 +1,7 @@
 /**
  * @packageDocumentation
  *
- * The pages anyone can see (the public pages in `site.ts`) are the same for
+ * The pages anyone can see (the kept pages in `site.ts`) are the same for
  * every signed-out visitor, so the Worker keeps a copy of each at the edge and
  * answers from it in a few milliseconds, without waking the app. Anyone with a
  * session cookie bypasses this entirely and always gets the live, personal
@@ -14,26 +14,97 @@ import { SITE_NAME } from '../site';
 import { nonceOf } from './csp';
 import { EDGE_LIMITS } from './extras';
 import { replacingHeaders } from './headers';
-import { PUBLIC_PAGES } from './site';
+import {
+  CACHED_QUERY_PARAMS,
+  EDGE_CACHED_PAGES,
+  EDGE_TTL_SECONDS,
+} from './site';
 
-/** How long the edge may keep a page before asking the app again. */
-export const EDGE_TTL_SECONDS = 300;
+/** The most query parameters a kept page may carry. */
+const MAX_PARAMS = 8;
+/** The longest value a parameter of a kept page may have. */
+const MAX_VALUE_LENGTH = 64;
+/** Addresses a developer reaches the Worker on; what they see is never kept. */
+const LOCAL_HOSTS: ReadonlySet<string> = new Set([
+  'localhost',
+  '127.0.0.1',
+  '[::1]',
+]);
+
+/**
+ * Whether the request was made on a developer's own machine: to a local
+ * address, or from a loopback address. `wrangler dev` rewrites both the
+ * request's URL and its `Host` header to the address in the app's route, but it
+ * still reports the caller as `::1` or `127.0.0.1` in `cf-connecting-ip`, which
+ * Cloudflare sets itself and a visitor cannot choose.
+ */
+function isLocal(request: Request, url: URL): boolean {
+  const host = (request.headers.get('host') ?? '')
+    .toLowerCase()
+    .replace(/:\d+$/, '');
+  const caller = request.headers.get('cf-connecting-ip') ?? '';
+  return (
+    LOCAL_HOSTS.has(url.hostname) ||
+    LOCAL_HOSTS.has(host) ||
+    caller === '::1' ||
+    /^(::ffff:)?127\./.test(caller)
+  );
+}
+
+/** The kinds of response worth keeping. */
+const STORABLE_TYPES: readonly string[] = ['text/html', 'application/rss+xml'];
+
+/**
+ * The query of a request reduced to what a kept page may carry, sorted by
+ * name, or null if it carries anything else: a name that is not in `allowed`, a
+ * name given twice, a value over {@link MAX_VALUE_LENGTH} characters, or more
+ * than {@link MAX_PARAMS} parameters. Refusing those keeps a caller from
+ * making an unlimited number of copies.
+ */
+function allowedQuery(
+  url: URL,
+  allowed: ReadonlySet<string>,
+): URLSearchParams | null {
+  const entries = [...url.searchParams];
+  if (entries.length > MAX_PARAMS) {
+    return null;
+  }
+  const names = new Set<string>();
+  for (const [name, value] of entries) {
+    if (
+      !allowed.has(name) ||
+      names.has(name) ||
+      value.length > MAX_VALUE_LENGTH
+    ) {
+      return null;
+    }
+    names.add(name);
+  }
+  return new URLSearchParams(
+    entries.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
+  );
+}
 
 /**
  * Whether this request may be answered from (and added to) the edge copy:
- * a plain GET of one of `pages` (the public pages unless told otherwise) from
- * someone with no session.
+ * a plain GET of one of `pages` (the kept pages unless told otherwise), with no
+ * query or only the parameters in `allowed`, from someone with no session, and
+ * not on a developer's own machine.
  */
 export function isEdgeCacheable(
   request: Request,
-  pages: ReadonlySet<string> = PUBLIC_PAGES,
+  pages: ReadonlySet<string> = EDGE_CACHED_PAGES,
   sessionCookie: string | undefined = EDGE_LIMITS.sessionCookie,
+  allowed: ReadonlySet<string> = CACHED_QUERY_PARAMS,
 ): boolean {
   if (request.method !== 'GET') {
     return false;
   }
   const url = new URL(request.url);
-  if (!pages.has(url.pathname) || url.search) {
+  if (!pages.has(url.pathname) || isLocal(request, url)) {
+    return false;
+  }
+  if (allowedQuery(url, allowed) === null) {
     return false;
   }
   if (request.headers.has('authorization')) {
@@ -44,24 +115,35 @@ export function isEdgeCacheable(
   return sessionCookie === undefined || !cookie.includes(`${sessionCookie}=`);
 }
 
-/** The cache key for a page at one release. */
-export function edgeCacheKey(request: Request, version: string): Request {
-  const { pathname } = new URL(request.url);
+/**
+ * The cache key for a page at one release: the path and the allowed
+ * parameters, sorted by name, so the order a caller wrote them in makes no
+ * difference. Only for a request {@link isEdgeCacheable} accepted.
+ */
+export function edgeCacheKey(
+  request: Request,
+  version: string,
+  allowed: ReadonlySet<string> = CACHED_QUERY_PARAMS,
+): Request {
+  const url = new URL(request.url);
+  const query = allowedQuery(url, allowed)?.toString() ?? '';
   return new Request(
-    `https://edge.${SITE_NAME}.invalid/${encodeURIComponent(version)}${pathname}`,
+    `https://edge.${SITE_NAME}.invalid/${encodeURIComponent(version)}${url.pathname}${query ? `?${query}` : ''}`,
   );
 }
 
 /**
  * A copy of the response fit to keep, or null if it isn't (an error, a
- * redirect, something that isn't HTML, or anything that sets a cookie). The
+ * redirect, something that isn't a page or a feed, or anything that sets a cookie). The
  * copy is marked public so the edge cache accepts it.
  */
 export function storableCopy(response: Response): Response | null {
   if (
     response.status !== 200 ||
     response.headers.has('set-cookie') ||
-    !(response.headers.get('content-type') ?? '').startsWith('text/html')
+    !STORABLE_TYPES.some((type) =>
+      (response.headers.get('content-type') ?? '').startsWith(type),
+    )
   ) {
     return null;
   }

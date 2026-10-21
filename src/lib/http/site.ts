@@ -3,14 +3,31 @@
  *
  * What differs from one app to the next in the shared HTTP code (`headers.ts`,
  * `csp.ts`, `edge-limits.ts`, `edge-cache.ts`): the pages search engines may
- * index (and the edge may keep a copy of), the files other sites may load, the
- * small files that may be cached for a day, the files the edge limits do not
- * count or count as discovery, and the few outside places and extra rules a
- * page's policy needs. Everything else in those files is the same in every app.
+ * index, the pages the edge may keep a copy of (with the query names they may
+ * carry and for how long), the files other sites may load, the small files
+ * that may be cached for a day, the files the edge limits do not count or count
+ * as discovery, and the few outside places and extra rules a page's policy
+ * needs. Everything else in those files is the same in every app.
  */
 
 /** The pages search engines may index. Everything else is private. */
 export const PUBLIC_PAGES: ReadonlySet<string> = new Set(['/']);
+
+/**
+ * The pages the Worker may keep a copy of at the edge and answer without waking
+ * the app. The same as the public pages: they are the same for every signed-out visitor.
+ */
+export const EDGE_CACHED_PAGES: ReadonlySet<string> = new Set(PUBLIC_PAGES);
+
+/**
+ * The query parameter names a kept page may carry. A request with any other
+ * name is never kept, and the copy is keyed by these parameters alone.
+ * None: the kept pages are only ever asked for without a query string.
+ */
+export const CACHED_QUERY_PARAMS: ReadonlySet<string> = new Set();
+
+/** How long the edge may keep a page before asking the app again, in seconds. */
+export const EDGE_TTL_SECONDS = 300;
 
 /**
  * The files other sites embed or fetch on purpose (the social cards, the
