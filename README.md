@@ -26,8 +26,8 @@ The Hacker Times: a personalised daily newspaper that turns web feeds into a pri
 | `/api/auth/login`, `/api/auth/callback` | Google sign-in (identity only: `openid email profile`)                                  |
 | `/api/sessions/self`                    | `DELETE` signs out                                                                      |
 | `/api/sessions`                         | `DELETE` signs out everywhere (ends every session of the signed-in person)              |
-| `/api/feeds`, `/api/feeds/{id}`         | Add and remove feeds (signed in)                                                        |
-| `/api/refresh`                          | Re-fetch the signed-in user's feeds                                                     |
+| `/api/feeds`, `/api/feeds/{id}`         | `POST` follows a feed (201 + `Location`), `GET`/`DELETE` one feed (signed in)           |
+| `/api/feed-refreshes`                   | `POST` re-fetches the signed-in user's feeds and answers how many were refreshed        |
 | `/api/health`                           | Plain `ok`                                                                              |
 | `/api/img`                              | Image proxy: scales and caches remote pictures (`?url=&w=&sig=`), signed addresses only |
 | `/api/csp-reports`                      | Receives Content Security Policy violation reports                                      |

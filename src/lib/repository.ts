@@ -102,14 +102,39 @@ export async function addFeed(
   });
 }
 
+/** One of the person's feeds by its id, or undefined when they have no such feed. */
+export function getFeed(
+  db: Database,
+  userId: number,
+  id: number,
+): Promise<Feed | undefined> {
+  return db.query.feeds.findFirst({
+    where: and(eq(feeds.id, id), eq(feeds.user_id, userId)),
+  });
+}
+
+/** The person's feed at `url`, or undefined when they do not follow it. */
+export function getFeedByUrl(
+  db: Database,
+  userId: number,
+  url: string,
+): Promise<Feed | undefined> {
+  return db.query.feeds.findFirst({
+    where: and(eq(feeds.user_id, userId), eq(feeds.url, url)),
+  });
+}
+
+/** Stop following a feed. True when there was one to remove. */
 export async function removeFeed(
   db: Database,
   userId: number,
   id: number,
-): Promise<void> {
-  await db
+): Promise<boolean> {
+  const removed = await db
     .delete(feeds)
-    .where(and(eq(feeds.id, id), eq(feeds.user_id, userId)));
+    .where(and(eq(feeds.id, id), eq(feeds.user_id, userId)))
+    .returning({ id: feeds.id });
+  return removed.length > 0;
 }
 
 export function allFeeds(db: Database): Promise<Feed[]> {

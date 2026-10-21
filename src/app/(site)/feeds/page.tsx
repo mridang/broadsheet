@@ -6,6 +6,10 @@ import { getDatabase } from '@/lib/util';
 import { listFeeds } from '@/lib/repository';
 import { hostOf } from '@/lib/render/tiers';
 
+import { AddFeedForm } from './_components/add-feed-form';
+import { RefreshFeedsButton } from './_components/refresh-feeds-button';
+import { RemoveFeedButton } from './_components/remove-feed-button';
+
 export const dynamic = 'force-dynamic';
 
 /** The tab title of the feed manager. */
@@ -19,22 +23,10 @@ export default async function FeedsPage() {
   return (
     <div className="panel">
       <h2>Your feeds</h2>
-      <form className="addform" method="post" action="/api/feeds">
-        <input
-          name="url"
-          type="url"
-          placeholder="https://example.com/feed.xml"
-          required
-        />
-        <button className="btn" type="submit">
-          Add
-        </button>
-      </form>
+      <AddFeedForm />
       <p className="muted">
         Feeds are fetched &amp; scraped automatically every day.{' '}
-        <form className="inline" method="post" action="/api/refresh">
-          <button className="btn ghost small">Refresh now</button>
-        </form>
+        <RefreshFeedsButton />
       </p>
       {feeds.length ? (
         feeds.map((f) => (
@@ -43,9 +35,7 @@ export default async function FeedsPage() {
               <strong>{f.title || hostOf(f.url)}</strong>
               <div className="u">{f.url}</div>
             </div>
-            <form method="post" action={`/api/feeds/${f.id}/delete`}>
-              <button className="btn danger">Remove</button>
-            </form>
+            <RemoveFeedButton id={f.id} />
           </div>
         ))
       ) : (

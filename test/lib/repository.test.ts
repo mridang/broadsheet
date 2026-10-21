@@ -2,9 +2,13 @@ import { beforeEach, describe, expect, it } from '@jest/globals';
 
 import { createDatabase, type Database } from '../../src/lib/db/client';
 import {
+  addFeed,
   bumpSessionEpoch,
+  getFeed,
+  getFeedByUrl,
   getSessionEpoch,
   getUser,
+  removeFeed,
   upsertUser,
 } from '../../src/lib/repository';
 import { APP_MIGRATIONS } from './db/migrations';
@@ -71,5 +75,24 @@ describe('getSessionEpoch and bumpSessionEpoch', () => {
 
   it('say nothing for an account that is gone', async () => {
     expect(await getSessionEpoch(db, 99)).toBeUndefined();
+  });
+});
+
+describe('getFeed, getFeedByUrl and removeFeed', () => {
+  it('finds a feed by id or address, for its owner only', async () => {
+    const feed = (await addFeed(db, 1, 'https://a.test/f'))!;
+    expect(await getFeed(db, 1, feed.id)).toMatchObject({ url: feed.url });
+    expect(await getFeedByUrl(db, 1, feed.url)).toMatchObject({ id: feed.id });
+    expect(await getFeed(db, 2, feed.id)).toBeUndefined();
+    expect(await getFeedByUrl(db, 2, feed.url)).toBeUndefined();
+  });
+
+  it('says whether there was a feed to remove, and removes only the caller’s', async () => {
+    const feed = (await addFeed(db, 1, 'https://a.test/f'))!;
+    expect(await removeFeed(db, 2, feed.id)).toBe(false);
+    expect(await getFeed(db, 1, feed.id)).toBeDefined();
+    expect(await removeFeed(db, 1, feed.id)).toBe(true);
+    expect(await removeFeed(db, 1, feed.id)).toBe(false);
+    expect(await getFeed(db, 1, feed.id)).toBeUndefined();
   });
 });
