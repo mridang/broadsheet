@@ -34,7 +34,7 @@ describe('openerPolicyFor', () => {
       '/some/page',
       '/oauth/consent',
       '/oauth/token',
-      '/api/mcp',
+      '/mcp',
     ]) {
       expect(openerPolicyFor(pathname)).toBe('same-origin');
     }

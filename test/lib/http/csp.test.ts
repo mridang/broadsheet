@@ -142,7 +142,7 @@ describe('cspSurfaceFor', () => {
       '/some/page',
       '/oauth/consent',
       '/oauth/authorize/x',
-      '/api/mcp',
+      '/mcp',
     ]) {
       expect(cspSurfaceFor(pathname)).toBe('site');
     }
