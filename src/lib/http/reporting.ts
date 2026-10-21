@@ -7,8 +7,8 @@
  * that both can point at the same place without importing each other.
  */
 
-/** The address reports are sent to (`app/api/csp-reports`). */
-export const CSP_REPORT_PATH = '/api/csp-reports';
+/** The address reports are sent to (`app/csp/reports`). */
+export const CSP_REPORT_PATH = '/csp/reports';
 
 /**
  * The name of the reporting group the policies point at. It is declared in the

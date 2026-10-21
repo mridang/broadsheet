@@ -2,7 +2,7 @@
  * @packageDocumentation
  *
  * The addresses pages put on pictures from other websites (an article's photo,
- * a source's favicon): our own signed `/api/img` address, so the browser never
+ * a source's favicon): our own signed `/img` address, so the browser never
  * talks to the picture's site and the Content Security Policy can keep
  * `img-src` at this site.
  */

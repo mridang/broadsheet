@@ -167,7 +167,7 @@ async function pictureFrom(copy: Response): Promise<Picture | undefined> {
 }
 
 /**
- * The response for a request for a picture: `GET /api/img?url=<address>&w=<width>`
+ * The response for a request for a picture: `GET /img?url=<address>&w=<width>`
  * (and `&sig=` where the app signs its addresses). The picture (200, or 304
  * when the browser's copy is current), 400 for a missing or non-public
  * address, 403 when the app does not allow it, 404 when its site no longer has

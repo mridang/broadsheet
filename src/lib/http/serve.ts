@@ -70,8 +70,34 @@ function withHeader(response: Response, name: string, value: string): Response {
   });
 }
 
-/** Answer one request. */
+/** Longest `X-Flow-ID` accepted from a caller, and the characters it may use. */
+const FLOW_ID = /^[A-Za-z0-9._:~-]{1,128}$/;
+
+/**
+ * Answer one request. Every answer carries an `X-Flow-ID`: the caller's own
+ * when it sent a sane one, otherwise a fresh one. The app sees the same id on
+ * the request, so a request can be followed through the logs.
+ */
 export async function serve(
+  request: Request,
+  env: ServeEnv,
+  ctx: ExecutionContext,
+  deps: ServeDeps,
+): Promise<Response> {
+  const sent = request.headers.get('X-Flow-ID');
+  const flowId =
+    sent !== null && FLOW_ID.test(sent) ? sent : crypto.randomUUID();
+  const tagged = new Request(request, {
+    headers: replacingHeaders(request.headers, { 'X-Flow-ID': flowId }),
+  });
+  const response = await answer(tagged, env, ctx, deps);
+  return response.status === 101 || response.webSocket
+    ? response
+    : withHeader(response, 'X-Flow-ID', flowId);
+}
+
+/** Answer one request, after it has been given its flow id. */
+async function answer(
   request: Request,
   env: ServeEnv,
   ctx: ExecutionContext,

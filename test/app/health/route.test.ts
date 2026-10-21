@@ -6,22 +6,22 @@ const app = {
   health: { ok: true, details: {} as Record<string, unknown> },
 };
 
-jest.unstable_mockModule('../../../../src/lib/util', () => ({
+jest.unstable_mockModule('../../../src/lib/util', () => ({
   isDatabaseBound: () => app.bound,
 }));
 
-jest.unstable_mockModule('../../../../src/lib/health', () => ({
+jest.unstable_mockModule('../../../src/lib/health', () => ({
   appHealth: async () => app.health,
 }));
 
-const { GET } = await import('../../../../src/app/api/health/route');
+const { GET } = await import('../../../src/app/health/route');
 
 beforeEach(() => {
   app.bound = true;
   app.health = { ok: true, details: {} };
 });
 
-describe('GET /api/health', () => {
+describe('GET /health', () => {
   it('answers 200 with ok, the database binding and a timestamp', async () => {
     const res = await GET();
     expect(res.status).toBe(200);

@@ -11,7 +11,7 @@ import {
   ALLOWED_HOSTS,
   ALLOWED_WIDTHS,
   DEFAULT_WIDTH,
-} from '../../../../src/lib/images/site';
+} from '../../../src/lib/images/site';
 
 /** What the mocked access rules answer. */
 const rules = {
@@ -20,7 +20,7 @@ const rules = {
   refusal: undefined as Response | undefined,
 };
 
-jest.unstable_mockModule('../../../../src/lib/images/access', () => ({
+jest.unstable_mockModule('../../../src/lib/images/access', () => ({
   authenticate: async () => rules.refusal,
   signatureFor: () => undefined,
   signatureValid: () => rules.signed,
@@ -40,7 +40,7 @@ jest.unstable_mockModule('@opennextjs/cloudflare', () => ({
   }),
 }));
 
-const { GET } = await import('../../../../src/app/api/img/route');
+const { GET } = await import('../../../src/app/img/route');
 
 const PHOTO = `https://${ALLOWED_HOSTS?.[0] ?? 'photos.example.org'}/soup.jpg`;
 const WIDTH = ALLOWED_WIDTHS[0] ?? DEFAULT_WIDTH;
@@ -67,7 +67,7 @@ const jpeg = () =>
 const ask = (url = PHOTO, width: string | number = WIDTH) =>
   GET(
     new Request(
-      `https://app.test/api/img?url=${encodeURIComponent(url)}&w=${width}`,
+      `https://app.test/img?url=${encodeURIComponent(url)}&w=${width}`,
     ),
   );
 
@@ -87,7 +87,7 @@ afterEach(() => {
   Reflect.set(globalThis, 'caches', realCaches);
 });
 
-describe('GET /api/img', () => {
+describe('GET /img', () => {
   it('sends a picture sealed and kept by the browser for good', async () => {
     const res = await ask();
     expect(res.status).toBe(200);
@@ -124,9 +124,9 @@ describe('GET /api/img', () => {
   it('answers 400 for an address that is not a public image, and for none', async () => {
     expect((await ask('http://127.0.0.1/x.png')).status).toBe(400);
     expect((await ask('file:///etc/passwd')).status).toBe(400);
-    expect(
-      (await GET(new Request('https://app.test/api/img?w=640'))).status,
-    ).toBe(400);
+    expect((await GET(new Request('https://app.test/img?w=640'))).status).toBe(
+      400,
+    );
     expect(fetched).toEqual([]);
   });
 

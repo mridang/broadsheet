@@ -1,8 +1,8 @@
 /**
  * @packageDocumentation
  *
- * What this app checks about itself for `GET /api/health`, beyond whether the
- * Worker is up and the database is bound (`src/app/api/health/route.ts`, which
+ * What this app checks about itself for `GET /health`, beyond whether the
+ * Worker is up and the database is bound (`src/app/health/route.ts`, which
  * is the same in every app). An app with nothing more to check answers that all
  * is well.
  */

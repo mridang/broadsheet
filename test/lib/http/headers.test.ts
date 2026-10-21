@@ -260,7 +260,7 @@ describe('applyResponseHeaders — reporting', () => {
         applyResponseHeaders(at(pathname), html()).headers.get(
           'reporting-endpoints',
         ),
-      ).toBe('csp-endpoint="/api/csp-reports"');
+      ).toBe('csp-endpoint="/csp/reports"');
     }
   });
 });

@@ -46,8 +46,8 @@ describe('imageSrc', () => {
     );
   });
 
-  it('serves the picture from /api/img', () => {
-    expect(IMAGE_PATH).toBe('/api/img');
+  it('serves the picture from /img', () => {
+    expect(IMAGE_PATH).toBe('/img');
   });
 
   it('adds the signature when it is given one', () => {

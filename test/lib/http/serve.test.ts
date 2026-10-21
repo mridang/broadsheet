@@ -170,7 +170,7 @@ describe('serve', () => {
   });
 
   it('adds the site’s security headers to every answer', async () => {
-    const response = await serve(get('/api/health'), {}, ctx().context, {
+    const response = await serve(get('/health'), {}, ctx().context, {
       app: appAnswering(() => new Response('{}')),
       limits,
     });
@@ -178,6 +178,46 @@ describe('serve', () => {
     expect(response.headers.get('strict-transport-security')).toContain(
       'max-age=',
     );
+  });
+});
+
+describe('serve — flow id', () => {
+  it('gives the app and the caller the id the caller sent', async () => {
+    const app = appAnswering(html);
+    const response = await serve(
+      get('/app', { 'x-flow-id': 'abc-123' }),
+      {},
+      ctx().context,
+      { app, limits },
+    );
+    expect(app.seen[0]?.headers.get('x-flow-id')).toBe('abc-123');
+    expect(response.headers.get('x-flow-id')).toBe('abc-123');
+  });
+
+  it('makes one up when none was sent, or when it is not a sane id', async () => {
+    for (const sent of [undefined, 'has space', 'x'.repeat(129)]) {
+      const app = appAnswering(html);
+      const response = await serve(
+        get('/app', sent === undefined ? {} : { 'x-flow-id': sent }),
+        {},
+        ctx().context,
+        { app, limits },
+      );
+      const id = response.headers.get('x-flow-id') ?? '';
+      expect(id).toMatch(/^[0-9a-f-]{36}$/);
+      expect(app.seen[0]?.headers.get('x-flow-id')).toBe(id);
+    }
+  });
+
+  it('is on a refusal too', async () => {
+    const response = await serve(
+      get('/app', { 'x-flow-id': 'f1' }),
+      { RL_SITE: refusing() },
+      ctx().context,
+      { app: appAnswering(html), limits },
+    );
+    expect(response.status).toBe(429);
+    expect(response.headers.get('x-flow-id')).toBe('f1');
   });
 });
 
@@ -219,7 +259,7 @@ describe('serve — rate limits', () => {
     const app = appAnswering(() => new Response('image'));
     const binding = refusing();
     const response = await serve(
-      get('/api/img?url=https://a.test/p.jpg'),
+      get('/img?url=https://a.test/p.jpg'),
       { RL_COVER: binding },
       ctx().context,
       { app, limits },

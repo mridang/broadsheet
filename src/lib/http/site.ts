@@ -51,7 +51,7 @@ export const RARELY_CHANGING: ReadonlySet<string> = new Set([
  * The outside places pages may load pictures from, besides this site (`'self'`)
  * and inline `data:` pictures. None: article pictures and the sources' small
  * icons (Google's favicon service) all come through this site's own
- * `/api/img` address.
+ * `/img` address.
  */
 export const EXTRA_IMG_SOURCES: readonly string[] = [];
 
@@ -68,5 +68,5 @@ export const DISCOVERY_PATHS: ReadonlySet<string> = new Set([
   '/robots.txt',
   '/sitemap.xml',
   '/manifest.webmanifest',
-  '/api/health',
+  '/health',
 ]);

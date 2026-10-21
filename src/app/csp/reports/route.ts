@@ -4,7 +4,7 @@
  * the page just does not work, and nobody is told. Each report becomes one
  * structured log line, which the Worker's observability keeps.
  *
- *   POST /api/csp-reports   (application/reports+json or application/csp-report)
+ *   POST /csp/reports   (application/reports+json or application/csp-report)
  */
 
 import { NextResponse } from 'next/server';
@@ -16,7 +16,7 @@ import { summariseReports } from '@/lib/http/csp-reports';
 const MAX_REPORT_BYTES = 16_384;
 
 /**
- * `POST /api/csp-reports`: take in a batch of reports from a browser. Answers
+ * `POST /csp/reports`: take in a batch of reports from a browser. Answers
  * 204 whether or not anything was worth logging (a browser cannot do anything
  * with an answer), 400 for a body that is not JSON, and 413 for one over 16 KiB.
  * Needs no sign-in: browsers send these anonymously, and the edge limits how

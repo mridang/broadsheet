@@ -29,7 +29,7 @@ function ask(
   headers: Record<string, string> = {},
 ): Request {
   return new Request(
-    `https://app.test/api/img?url=${encodeURIComponent(url)}&w=${WIDTH}${extra}`,
+    `https://app.test/img?url=${encodeURIComponent(url)}&w=${WIDTH}${extra}`,
     { headers },
   );
 }
@@ -180,7 +180,7 @@ describe('serveImage', () => {
       new Response(new Uint8Array(100_000), {
         headers: { 'content-type': 'image/jpeg' },
       });
-    const base = `https://app.test/api/img?url=${encodeURIComponent(PHOTO)}`;
+    const base = `https://app.test/img?url=${encodeURIComponent(PHOTO)}`;
     const deps = {
       access: open,
       fetcher: big,
@@ -342,7 +342,7 @@ describe('serveImage', () => {
         expect((await serveImage(ask(url), deps)).status).toBe(400);
       }
       expect(
-        (await serveImage(new Request('https://app.test/api/img?w=640'), deps))
+        (await serveImage(new Request('https://app.test/img?w=640'), deps))
           .status,
       ).toBe(400);
       expect(mayFetch).not.toHaveBeenCalled();

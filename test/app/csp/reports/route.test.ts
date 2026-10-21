@@ -7,7 +7,7 @@ import {
   jest,
 } from '@jest/globals';
 
-import { POST } from '../../../../src/app/api/csp-reports/route';
+import { POST } from '../../../../src/app/csp/reports/route';
 
 let logged: unknown[][];
 
@@ -24,7 +24,7 @@ afterEach(() => {
 
 const send = (body: BodyInit, contentType = 'application/reports+json') =>
   POST(
-    new Request('https://app.test/api/csp-reports', {
+    new Request('https://app.test/csp/reports', {
       method: 'POST',
       headers: { 'content-type': contentType },
       body,
@@ -42,7 +42,7 @@ const report = JSON.stringify([
   },
 ]);
 
-describe('POST /api/csp-reports', () => {
+describe('POST /csp/reports', () => {
   it('answers 204 and logs one structured line for a report', async () => {
     const res = await send(report);
     expect(res.status).toBe(204);

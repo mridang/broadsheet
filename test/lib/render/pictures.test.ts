@@ -13,7 +13,7 @@ const FAVICON = 'https://www.google.com/s2/favicons?sz=64&domain=example.org';
 describe('pictureSrc', () => {
   it('routes a picture through our own signed image proxy', () => {
     const src = pictureSrc(ARTICLE, 480);
-    expect(src).toContain('/api/img?url=');
+    expect(src).toContain('/img?url=');
     const params = new URL(src ?? '', 'https://app.test').searchParams;
     expect(params.get('url')).toBe(ARTICLE);
     expect(params.get('w')).toBe('480');

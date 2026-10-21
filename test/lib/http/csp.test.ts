@@ -154,7 +154,7 @@ describe('reporting', () => {
     for (const surface of ['site', 'approval'] as const) {
       const csp = buildCsp('abc', surface);
       expect(csp).toContain('report-to csp-endpoint');
-      expect(csp).toContain('report-uri /api/csp-reports');
+      expect(csp).toContain('report-uri /csp/reports');
     }
   });
 });

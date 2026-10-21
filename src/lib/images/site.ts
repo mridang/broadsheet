@@ -2,7 +2,7 @@
  * @packageDocumentation
  *
  * What differs from one app to the next in the shared image proxy
- * (`address.ts`, `proxy.ts`, `service.ts`, `src/app/api/img/route.ts`): where
+ * (`address.ts`, `proxy.ts`, `service.ts`, `src/app/img/route.ts`): where
  * pictures may come from and the widths they are offered at. The code that
  * decides who may ask lives in `access.ts`. Everything else is the same in
  * every app.

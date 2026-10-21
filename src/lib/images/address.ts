@@ -5,7 +5,7 @@
  * straight from there is slow (a new connection per site, full-size files),
  * leaks which pages you open to every site (referrers, cookies), breaks when a
  * site blocks hotlinking, and forces the Content Security Policy to name every
- * picture host. So pages ask our own `/api/img` for them (see `service.ts`):
+ * picture host. So pages ask our own `/img` for them (see `service.ts`):
  * it fetches the picture once, scales it down, and keeps a copy at the edge.
  *
  * This module is the part pages use, so it holds no server code: building
@@ -18,7 +18,7 @@ import { parseUrl } from '../util/url';
 import { ALLOWED_HOSTS, ALLOWED_WIDTHS } from './site';
 
 /** The path every app serves its pictures from. */
-export const IMAGE_PATH = '/api/img';
+export const IMAGE_PATH = '/img';
 
 /** The widest picture an app offers, in pixels. */
 const LARGEST_WIDTH = Math.max(...ALLOWED_WIDTHS);

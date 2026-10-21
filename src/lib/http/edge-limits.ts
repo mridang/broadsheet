@@ -127,7 +127,7 @@ export function genericClass(pathname: string): GenericClass | undefined {
   if (pathname === CSP_REPORT_PATH) {
     return 'reports';
   }
-  if (pathname === '/api/img') {
+  if (pathname === '/img') {
     return 'cover';
   }
   if (pathname.startsWith('/api/') || pathname.startsWith('/rpc/')) {

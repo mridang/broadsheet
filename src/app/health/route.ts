@@ -1,7 +1,7 @@
 /**
  * Minimal health endpoint for uptime monitors.
  *
- *   GET /api/health → 200 { ok, db, ts }, or 503 when the app's own check fails
+ *   GET /health → 200 { ok, db, ts }, or 503 when the app's own check fails
  */
 
 import { appHealth } from '@/lib/health';
@@ -11,7 +11,7 @@ import { isDatabaseBound } from '@/lib/util';
 export const dynamic = 'force-dynamic';
 
 /**
- * `GET /api/health`: reports whether the D1 binding is reachable from the
+ * `GET /health`: reports whether the D1 binding is reachable from the
  * current request context, and whatever else the app checks about itself
  * (`lib/health.ts`, which adds fields to the body and can turn the answer into
  * a 503). Needs no sign-in: the monitor wants to know the Worker is up, and a
