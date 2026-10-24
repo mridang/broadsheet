@@ -23,10 +23,12 @@ const session: { id: number | null } = { id: 7 };
 
 const { problems } = await import('@/lib/rest-json/problem');
 jest.unstable_mockModule('@/core/auth/guard', () => ({
-  requireSignedIn: async () =>
-    session.id === null
-      ? { ok: false, response: problems.unauthorized() }
-      : { ok: true, user: { id: session.id } },
+  requireUser: async (request: Request) => {
+    if (session.id === null) {
+      throw problems.unauthorized();
+    }
+    return { request, user: { id: session.id } };
+  },
 }));
 
 const { DELETE } = await import('@/app/api/feeds/[id]/route');

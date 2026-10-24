@@ -55,6 +55,25 @@ export type Caller =
   | { readonly ok: true; readonly user: User }
   | { readonly ok: false; readonly response: NextResponse };
 
+/** The context an authenticated endpoint runs in: the request and the person. */
+export interface AuthedContext {
+  readonly request: Request;
+  readonly user: User;
+}
+
+/**
+ * The context builder for an endpoint that needs a signed-in person: the
+ * caller, or a thrown refusal `Response` (401/403) for the controller to send.
+ * Used as the `context` of an {@link ApiController}.
+ */
+export async function requireUser(request: Request): Promise<AuthedContext> {
+  const caller = await requireSignedIn(request);
+  if (!caller.ok) {
+    throw caller.response;
+  }
+  return { request, user: caller.user };
+}
+
 /**
  * The signed-in person for a request that changes something: 403 for a request
  * from another site, 401 when nobody is signed in or the session has been
