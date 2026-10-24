@@ -10,7 +10,7 @@
  * a way round the rate limits: `serve.ts` counts the request first.
  */
 
-import { SITE_NAME } from '@/core/site';
+import { SITE_NAME } from '@/utils/site';
 import { nonceOf } from '@/core/http/csp';
 import { EDGE_LIMITS } from '@/core/http/extras';
 import { replacingHeaders } from '@/core/http/headers';

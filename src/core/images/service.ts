@@ -16,7 +16,7 @@
 
 import { problems } from '@/lib/rest-json/problem';
 import { isPublicWebUrl } from '@/lib/safe-fetch';
-import { SITE_NAME, SITE_URL } from '@/core/site';
+import { SITE_NAME, SITE_URL } from '@/utils/site';
 import type { ImageCatalog } from '@/lib/images/address';
 import {
   fetchImage,

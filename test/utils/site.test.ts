@@ -1,6 +1,11 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL } from '@/core/site';
+import {
+  SITE_DESCRIPTION,
+  SITE_NAME,
+  SITE_TITLE,
+  SITE_URL,
+} from '@/utils/site';
 
 describe('site identity', () => {
   it('gives the site an https address with no trailing slash', () => {
