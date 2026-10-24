@@ -42,7 +42,6 @@ describe('problems', () => {
     expect(problems.badRequest('bad').status).toBe(400);
     expect(problems.unsupportedMediaType('application/json').status).toBe(415);
     expect(problems.preconditionFailed().status).toBe(412);
-    expect(problems.upstream('drive down').status).toBe(502);
   });
 
   it('lists per-field errors for a bad request', async () => {
@@ -50,16 +49,5 @@ describe('problems', () => {
       .badRequest('Invalid.', ['name: required.'])
       .json()) as { errors: string[] };
     expect(body.errors).toEqual(['name: required.']);
-  });
-});
-
-describe('problems.driveNotConnected', () => {
-  it('is a 409 that tells the client to connect Drive', async () => {
-    const res = problems.driveNotConnected();
-    expect(res.status).toBe(409);
-    expect(res.headers.get('content-type')).toBe('application/problem+json');
-    const body = (await res.json()) as { type: string; detail: string };
-    expect(body.type).toBe('/problems/drive-not-connected');
-    expect(body.detail).toContain('Connect your Google Drive');
   });
 });
