@@ -6,9 +6,11 @@
  * `type` is a relative URI naming the kind of problem; it identifies the problem
  * and need not be resolvable. Details are written for API clients and never
  * include stack traces or internals.
+ *
+ * These build plain `Response`s, so the module is a pure library with no
+ * framework dependency; the controller framework in `core/api` returns them
+ * unchanged.
  */
-
-import { NextResponse } from 'next/server';
 
 /** The members of a problem document. */
 export interface ProblemBody {
@@ -30,7 +32,7 @@ export function problem(
     readonly errors?: readonly string[];
     readonly headers?: Readonly<Record<string, string>>;
   } = {},
-): NextResponse {
+): Response {
   const body: ProblemBody = {
     type,
     title,
@@ -40,7 +42,7 @@ export function problem(
       ? { errors: extra.errors }
       : {}),
   };
-  return NextResponse.json(body, {
+  return Response.json(body, {
     status,
     headers: {
       'Content-Type': 'application/problem+json',

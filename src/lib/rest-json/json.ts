@@ -8,8 +8,6 @@
  * validating its fields.
  */
 
-import type { NextResponse } from 'next/server';
-
 import { readJsonBody } from '@/lib/rest-json/body';
 import { problem, problems } from '@/lib/rest-json/problem';
 
@@ -22,7 +20,7 @@ import { problem, problems } from '@/lib/rest-json/problem';
 const DEFAULT_MAX_BODY_BYTES = 256 * 1024;
 
 /** The 413 problem for a body over `maxBytes`. */
-function tooLarge(maxBytes: number): NextResponse {
+function tooLarge(maxBytes: number): Response {
   return problem(
     413,
     '/problems/payload-too-large',
@@ -34,7 +32,7 @@ function tooLarge(maxBytes: number): NextResponse {
 /** A parsed body, or the problem response to send. */
 export type Body =
   | { readonly ok: true; readonly value: unknown }
-  | { readonly ok: false; readonly response: NextResponse };
+  | { readonly ok: false; readonly response: Response };
 
 /**
  * Read the request body as JSON. `mediaTypes` lists the acceptable
@@ -76,7 +74,7 @@ export type ObjectBody =
       readonly ok: true;
       readonly value: Readonly<Record<string, unknown>>;
     }
-  | { readonly ok: false; readonly response: NextResponse };
+  | { readonly ok: false; readonly response: Response };
 
 /**
  * Read the request body as a JSON object. `notObject` is the sentence for a

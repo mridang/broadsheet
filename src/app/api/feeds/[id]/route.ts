@@ -24,7 +24,7 @@ export const dynamic = 'force-dynamic';
 export async function DELETE(
   request: Request,
   { params }: IdContext,
-): Promise<NextResponse> {
+): Promise<Response> {
   const caller = await requireSignedIn(request);
   if (!caller.ok) {
     return caller.response;

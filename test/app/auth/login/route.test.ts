@@ -7,6 +7,8 @@ import {
   jest,
 } from '@jest/globals';
 
+import type { NextRequest, NextResponse } from 'next/server';
+
 import { GET } from '@/app/auth/login/route';
 import { RETURN_COOKIE, STATE_COOKIE } from '@/domain/auth/app';
 import {
@@ -14,6 +16,11 @@ import {
   appRequest,
   installEnv,
 } from '../../../domain/auth/auth-test-kit';
+
+// The redirect path answers a NextResponse (it sets cookies); the 503 path
+// answers a plain problem Response. Only the redirect cases read cookies.
+const redirect = (request: NextRequest): NextResponse =>
+  GET(request) as NextResponse;
 
 let restore: () => void;
 
@@ -48,7 +55,7 @@ describe('GET /auth/login', () => {
   });
 
   it('keeps the same one-time state in the address and in an httpOnly cookie', () => {
-    const res = GET(appRequest('GET', '/auth/login'));
+    const res = redirect(appRequest('GET', '/auth/login'));
     const state = locationOf(res)?.searchParams.get('state');
     expect(state).toMatch(/^signin\./);
     expect(res.cookies.get(STATE_COOKIE)).toMatchObject({
@@ -69,7 +76,7 @@ describe('GET /auth/login', () => {
   });
 
   it('remembers a safe returnTo in a cookie', () => {
-    const res = GET(appRequest('GET', '/auth/login?returnTo=%2Fa%2Fb'));
+    const res = redirect(appRequest('GET', '/auth/login?returnTo=%2Fa%2Fb'));
     expect(res.cookies.get(RETURN_COOKIE)?.value).toBe('/a/b');
   });
 
@@ -80,7 +87,7 @@ describe('GET /auth/login', () => {
     'javascript:alert(1)',
     '/a\r\nb',
   ])('refuses to remember the returnTo %s', (target) => {
-    const res = GET(
+    const res = redirect(
       appRequest('GET', `/auth/login?returnTo=${encodeURIComponent(target)}`),
     );
     expect(res.cookies.get(RETURN_COOKIE)?.value ?? '').toBe('');
@@ -122,7 +129,7 @@ describe('GET /auth/login on a server that is not set up', () => {
     expect(res.status).toBe(503);
     expect(res.headers.get('location')).toBeNull();
     expect(await res.text()).toContain(name);
-    expect(res.cookies.getAll()).toEqual([]);
+    expect(res.headers.get('set-cookie')).toBeNull();
   });
 
   it('refuses without a session secret, never signing with a made-up one', () => {

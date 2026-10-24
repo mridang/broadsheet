@@ -25,7 +25,7 @@ export const dynamic = 'force-dynamic';
  * not a valid feed, 401 when nobody is signed in, 403 for a request from
  * another site, or 415 for a body that is not JSON.
  */
-export async function POST(request: Request): Promise<NextResponse> {
+export async function POST(request: Request): Promise<Response> {
   const caller = await requireSignedIn(request);
   if (!caller.ok) {
     return caller.response;

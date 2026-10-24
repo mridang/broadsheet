@@ -24,7 +24,7 @@ import { appOrigin } from '@/core/origin';
  * `state` and the safe `?returnTo=` path (if any) kept in short-lived cookies,
  * or 503 naming the settings that are missing.
  */
-export function GET(request: NextRequest): NextResponse {
+export function GET(request: NextRequest): Response {
   const env = getEnv();
   const missing = missingSignInSettings(env);
   if (missing.length > 0) {
