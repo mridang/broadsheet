@@ -3,119 +3,15 @@
  *
  * Signing in: validates the `state`, exchanges the code, loads the identity,
  * records the user, issues the session cookie and sends them on (to the app's
- * landing page unless they came from somewhere specific).
+ * landing page unless they came from somewhere specific). An app can have other
+ * asks that come back the same way (see `EXTRA_PURPOSES` in `app.ts`); the
+ * `state` says which one this was, and the app's own flow (see `hooks.ts`)
+ * finishes it. Any failure sends them back with a fixed flag rather than
+ * leaking details.
  *
- * An app can have other asks that come back the same way (see `EXTRA_PURPOSES`
- * in `app.ts`); the `state` says which one this was, and the app's own flow
- * (see `hooks.ts`) finishes it.
- *
- * Any failure sends them back with a fixed flag rather than leaking details.
+ * The behaviour lives in the app's sign-in kit; this file only mounts it.
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { authKit } from '@/domain/auth/kit';
 
-import {
-  EXTRA_PURPOSES,
-  RETURN_COOKIE,
-  SIGN_IN_FAILED_PATH,
-  STATE_COOKIE,
-} from '@/domain/auth/app';
-import { finishFlow } from '@/core/auth/flow-cookies';
-import { GoogleOAuthClient } from '@/lib/google/auth';
-import { OTHER_FLOWS } from '@/domain/auth/hooks';
-import { SIGN_IN_PURPOSE, checkState } from '@/lib/web-security/oauth-state';
-import { safeReturnPath } from '@/lib/web-security/return-to';
-import {
-  completeSignIn,
-  missingSignInSettings,
-  type FlowContext,
-} from '@/domain/auth/sign-in';
-import { getEnv } from '@/core/runtime';
-import { logError, logWarn } from '@/utils/logging';
-import { appOrigin } from '@/core/origin';
-
-/** Where to send someone whose round trip failed, by what it was for. */
-function failurePath(purpose: string, kind: 'error' | 'denied'): string {
-  return purpose === SIGN_IN_PURPOSE
-    ? SIGN_IN_FAILED_PATH
-    : (OTHER_FLOWS[purpose]?.failurePath(kind) ?? SIGN_IN_FAILED_PATH);
-}
-
-/**
- * `GET /auth/callback`: where Google sends the browser back after consent.
- * Open to everyone, but only a request whose `state` matches the cookie set
- * when the trip began is acted on. Always answers a redirect: on to the app on
- * success, or back with a fixed flag on any failure.
- */
-export async function GET(request: NextRequest): Promise<NextResponse> {
-  const env = getEnv();
-  const origin = appOrigin(request);
-  const url = new URL(request.url);
-  const code = url.searchParams.get('code');
-  const state = url.searchParams.get('state');
-  const expectedState = request.cookies.get(STATE_COOKIE)?.value;
-  const oauthError = url.searchParams.get('error');
-
-  // Validate the round-trip before trusting the code.
-  const checked = checkState(state, expectedState, [
-    SIGN_IN_PURPOSE,
-    ...EXTRA_PURPOSES,
-  ]);
-  if (!checked.ok) {
-    logError({
-      event: 'auth.callback.state_check_failed',
-      hasState: Boolean(state),
-      hasExpected: Boolean(expectedState),
-      match: state === expectedState,
-      oauthError,
-    });
-    // Leave the cookies alone: a stray or forged request must not be able to
-    // wipe the state of a sign-in that is genuinely in flight. The label in the
-    // value is only used to pick the wording, never trusted.
-    return NextResponse.redirect(
-      `${origin}${failurePath(checked.claimed ?? SIGN_IN_PURPOSE, 'error')}`,
-    );
-  }
-  const { purpose } = checked;
-  // Closed the Google window or pressed Cancel.
-  if (!code) {
-    logWarn({ event: 'auth.callback.no_code', purpose, oauthError });
-    return finishFlow(origin, failurePath(purpose, 'denied'));
-  }
-  // Without these nothing can be signed or exchanged: stop before spending the code.
-  const missing = missingSignInSettings(env);
-  if (missing.length > 0) {
-    logError({ event: 'auth.callback.not_configured', missing });
-    return finishFlow(origin, failurePath(purpose, 'error'));
-  }
-
-  const context: FlowContext = {
-    request,
-    env,
-    origin,
-    returnTo: safeReturnPath(request.cookies.get(RETURN_COOKIE)?.value),
-  };
-  try {
-    const client = new GoogleOAuthClient({
-      clientId: env.GOOGLE_OAUTH_CLIENT_ID,
-      clientSecret: env.GOOGLE_OAUTH_CLIENT_SECRET,
-      redirectUri: `${origin}/auth/callback`,
-    });
-    const tokens = await client.exchangeCode(code);
-    const info = await client.userInfo(tokens.access_token);
-    if (purpose === SIGN_IN_PURPOSE) {
-      return await completeSignIn(context, info);
-    }
-    const other = OTHER_FLOWS[purpose];
-    if (!other) {
-      throw new Error(`No flow is registered for "${purpose}"`);
-    }
-    return await other.complete(context, info, tokens);
-  } catch (err) {
-    logError({
-      event: 'auth.callback.failed',
-      error: err instanceof Error ? `${err.name}: ${err.message}` : String(err),
-    });
-    return finishFlow(origin, failurePath(purpose, 'error'));
-  }
-}
+export const GET = authKit.callbackHandler();

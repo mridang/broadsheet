@@ -61,6 +61,10 @@ const OTHER_FLOWS = Object.fromEntries(
 
 jest.unstable_mockModule('@/domain/auth/store', () => ({
   upsertGoogleUser,
+  // The kit pulls in the current-user lookup, which reads these; a sign-in
+  // callback never calls them, so simple stubs keep the module shape whole.
+  getUserById: jest.fn(async () => person),
+  getSessionEpoch: jest.fn(async () => 0),
 }));
 jest.unstable_mockModule('@/domain/auth/hooks', () => ({
   afterSignIn,
