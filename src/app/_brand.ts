@@ -12,7 +12,7 @@
 
 import type { MetadataRoute } from 'next';
 
-import { SITE_DESCRIPTION, SITE_TITLE, SITE_URL } from '@/lib/site';
+import { SITE_DESCRIPTION, SITE_TITLE, SITE_URL } from '@/core/site';
 
 /** The name of the app, as the wordmark, the tab title suffix and the home-screen label. */
 export const BRAND_NAME = SITE_TITLE;

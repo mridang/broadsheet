@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
 
-import { SignOutButton } from '../../../src/components/site/sign-out-button';
+import { SignOutButton } from '@/components/site/sign-out-button';
 import { html } from '../render';
 
 describe('SignOutButton', () => {

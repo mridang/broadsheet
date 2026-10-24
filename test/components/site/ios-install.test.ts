@@ -8,7 +8,7 @@ import {
   shouldOfferIosInstall,
   type InstallEnvironment,
   type InstallHost,
-} from '../../../src/components/site/ios-install';
+} from '@/components/site/ios-install';
 
 /** Real user-agent strings, as the browsers send them. */
 const AGENTS = {

@@ -4,7 +4,7 @@ import {
   isInstallPromptEvent,
   runInstall,
   useInstallPrompt,
-} from '../../../src/components/site/use-install-prompt';
+} from '@/components/site/use-install-prompt';
 import { html } from '../render';
 
 /** Says whether the hook offers an install action. */

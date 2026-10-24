@@ -6,15 +6,15 @@ const app = {
   health: { ok: true, details: {} as Record<string, unknown> },
 };
 
-jest.unstable_mockModule('../../../src/lib/util', () => ({
+jest.unstable_mockModule('@/core/runtime', () => ({
   isDatabaseBound: () => app.bound,
 }));
 
-jest.unstable_mockModule('../../../src/lib/health', () => ({
+jest.unstable_mockModule('@/domain/health', () => ({
   appHealth: async () => app.health,
 }));
 
-const { GET } = await import('../../../src/app/health/route');
+const { GET } = await import('@/app/health/route');
 
 beforeEach(() => {
   app.bound = true;

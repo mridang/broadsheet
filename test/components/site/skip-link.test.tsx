@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { SkipLink } from '../../../src/components/site/skip-link';
+import { SkipLink } from '@/components/site/skip-link';
 import { html } from '../render';
 
 describe('SkipLink', () => {

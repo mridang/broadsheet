@@ -7,20 +7,20 @@ import {
   jest,
 } from '@jest/globals';
 
-import { createDatabase } from '../../../../../src/lib/db/client';
-import type { Feed } from '../../../../../src/lib/repository';
-import { addFeed } from '../../../../../src/lib/repository';
-import { APP_MIGRATIONS } from '../../../../lib/db/migrations';
+import { createDatabase } from '@/core/db/client';
+import type { Feed } from '@/domain/repository';
+import { addFeed } from '@/domain/repository';
+import { APP_MIGRATIONS } from '../../../../core/db/migrations';
 import {
   installCloudflareContext,
   sqliteD1,
-} from '../../../../lib/db/sqlite-d1';
+} from '../../../../core/db/sqlite-d1';
 
 /** Who is signed in; null means nobody. */
 const session: { id: number | null } = { id: 7 };
 
-const { problems } = await import('../../../../../src/lib/api/problem');
-jest.unstable_mockModule('../../../../../src/lib/auth/guard', () => ({
+const { problems } = await import('@/lib/rest-json/problem');
+jest.unstable_mockModule('@/core/auth/guard', () => ({
   requireSignedIn: async () =>
     session.id === null
       ? { ok: false, response: problems.unauthorized() }
@@ -36,12 +36,11 @@ const refreshFeed = jest.fn(async (_db: unknown, _env: unknown, feed: Feed) => {
   }
   return { ok: how === 'ok', n: 0 };
 });
-jest.unstable_mockModule('../../../../../src/lib/scraping', () => ({
+jest.unstable_mockModule('@/domain/scraping/index', () => ({
   refreshFeed,
 }));
 
-const { POST } =
-  await import('../../../../../src/app/api/feeds/refreshes/route');
+const { POST } = await import('@/app/api/feeds/refreshes/route');
 
 let restore: () => void;
 

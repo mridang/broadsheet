@@ -1,5 +1,5 @@
-import type { Article } from '@/lib/repository';
-import { pictureSrc } from '@/lib/render/pictures';
+import type { Article } from '@/domain/repository';
+import { pictureSrc } from '@/domain/render/pictures';
 import {
   IMG_WIDTH,
   TIER,
@@ -7,7 +7,7 @@ import {
   excerpt,
   hostOf,
   type Tier,
-} from '@/lib/render/tiers';
+} from '@/domain/render/tiers';
 
 /** The width a source's favicon is asked for, in pixels (Google's service sends 64). */
 const FAVICON_WIDTH = 64;

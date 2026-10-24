@@ -7,8 +7,8 @@
 
 import { NextResponse } from 'next/server';
 
-import { SESSION_COOKIE } from '@/lib/auth/app';
-import { crossSiteRefusal } from '@/lib/auth/guard';
+import { SESSION_COOKIE } from '@/domain/auth/app';
+import { crossSiteRefusal } from '@/core/auth/guard';
 
 /**
  * `DELETE /api/sessions/self`: sign out by clearing the session cookie. Answers

@@ -11,9 +11,9 @@
 
 import { NextResponse } from 'next/server';
 
-import { SESSION_COOKIE } from '@/lib/auth/app';
-import { requireSignedIn } from '@/lib/auth/guard';
-import { bumpSessionEpoch } from '@/lib/auth/store';
+import { SESSION_COOKIE } from '@/domain/auth/app';
+import { requireSignedIn } from '@/core/auth/guard';
+import { bumpSessionEpoch } from '@/domain/auth/store';
 
 /**
  * `DELETE /api/sessions`: end every session of the signed-in person, on every

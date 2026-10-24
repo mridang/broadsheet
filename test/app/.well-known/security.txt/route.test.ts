@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { GET } from '../../../../src/app/.well-known/security.txt/route';
+import { GET } from '@/app/.well-known/security.txt/route';
 
 describe('GET /.well-known/security.txt', () => {
   const res = GET();

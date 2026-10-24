@@ -4,8 +4,8 @@
  *   GET /health → 200 { ok, db, ts }, or 503 when the app's own check fails
  */
 
-import { appHealth } from '@/lib/health';
-import { isDatabaseBound } from '@/lib/util';
+import { appHealth } from '@/domain/health';
+import { isDatabaseBound } from '@/core/runtime';
 
 /** Never prerender or cache this route: the answer must reflect right now. */
 export const dynamic = 'force-dynamic';

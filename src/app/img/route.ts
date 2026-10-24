@@ -14,8 +14,8 @@ import {
   imageCache,
   imagesBinding,
   runInBackground,
-} from '@/lib/images/runtime';
-import { serveImage } from '@/lib/images/service';
+} from '@/core/images/runtime';
+import { serveImage } from '@/core/images/service';
 
 /**
  * `GET /img?url=…&w=…`: the picture at `url`, scaled to the nearest

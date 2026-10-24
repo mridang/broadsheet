@@ -1,7 +1,7 @@
 /* eslint-disable tailwindcss/no-custom-classname -- fixture class names that are not Tailwind classes. */
 import { describe, expect, it } from '@jest/globals';
 
-import { cn } from '../../../src/components/ui/cn';
+import { cn } from '@/components/ui/cn';
 
 describe('cn', () => {
   it('joins class names with a space', () => {

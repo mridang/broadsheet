@@ -2,7 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { BRAND_NAME, BRAND_URL, SECURITY_CONTACT } from '../src/app/_brand';
+import { BRAND_NAME, BRAND_URL, SECURITY_CONTACT } from '@/app/_brand';
 
 const read = (name: string) =>
   readFileSync(path.join(process.cwd(), 'public', name), 'utf8');

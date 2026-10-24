@@ -1,7 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { ERROR_REASSURANCE } from '../../src/app/_brand';
-import ErrorPage from '../../src/app/error';
+import { ERROR_REASSURANCE } from '@/app/_brand';
+import ErrorPage from '@/app/error';
 import { html } from '../components/render';
 
 describe('ErrorPage', () => {

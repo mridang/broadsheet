@@ -1,9 +1,9 @@
 import type { ReactElement, ReactNode } from 'react';
 
-import { getCurrentUser } from '@/lib/auth/current-user';
+import { getCurrentUser } from '@/core/auth/current-user';
 
-import { SiteHeader } from './site-header';
-import { SkipLink } from './skip-link';
+import { SiteHeader } from '@/components/site/site-header';
+import { SkipLink } from '@/components/site/skip-link';
 
 /**
  * The frame shared by every page: the skip link, the masthead (which shows who

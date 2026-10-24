@@ -16,16 +16,16 @@ import {
   SIGN_IN_FAILED_PATH,
   STATE_COOKIE,
   sessionClaims,
-} from '../../../../src/lib/auth/app';
-import type { User } from '../../../../src/lib/auth/store';
-import { verifySessionToken } from '../../../../src/lib/auth/session';
+} from '@/domain/auth/app';
+import type { User } from '@/domain/auth/store';
+import { verifySessionToken } from '@/lib/session/index';
 import {
   SESSION_SECRET,
   answerFetch,
   appRequest,
   installEnv,
   jar,
-} from '../../../lib/auth/auth-test-kit';
+} from '../../../domain/auth/auth-test-kit';
 
 const person = {
   id: 4,
@@ -59,15 +59,15 @@ const OTHER_FLOWS = Object.fromEntries(
   ]),
 );
 
-jest.unstable_mockModule('../../../../src/lib/auth/store', () => ({
+jest.unstable_mockModule('@/domain/auth/store', () => ({
   upsertGoogleUser,
 }));
-jest.unstable_mockModule('../../../../src/lib/auth/hooks', () => ({
+jest.unstable_mockModule('@/domain/auth/hooks', () => ({
   afterSignIn,
   OTHER_FLOWS,
 }));
 
-const { GET } = await import('../../../../src/app/auth/callback/route');
+const { GET } = await import('@/app/auth/callback/route');
 
 let restore: () => void;
 

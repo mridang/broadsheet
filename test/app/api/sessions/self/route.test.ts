@@ -1,8 +1,8 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { DELETE } from '../../../../../src/app/api/sessions/self/route';
-import { SESSION_COOKIE } from '../../../../../src/lib/auth/app';
-import { appRequest } from '../../../../lib/auth/auth-test-kit';
+import { DELETE } from '@/app/api/sessions/self/route';
+import { SESSION_COOKIE } from '@/domain/auth/app';
+import { appRequest } from '../../../../domain/auth/auth-test-kit';
 
 describe('DELETE /api/sessions/self', () => {
   it('clears the session cookie and answers 204', async () => {

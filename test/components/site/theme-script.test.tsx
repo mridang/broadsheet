@@ -1,14 +1,13 @@
 import { describe, expect, it, jest } from '@jest/globals';
 
-import { THEME_COLOR } from '../../../src/app/_brand';
+import { THEME_COLOR } from '@/app/_brand';
 import { html } from '../render';
 
 jest.unstable_mockModule('next/headers', () => ({
   headers: async () => new Headers({ 'x-nonce': 'abc123' }),
 }));
 
-const { ThemeScript } =
-  await import('../../../src/components/site/theme-script');
+const { ThemeScript } = await import('@/components/site/theme-script');
 
 describe('ThemeScript', () => {
   it('is an inline script that carries this response’s nonce, which the policy requires', async () => {

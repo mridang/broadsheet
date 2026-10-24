@@ -8,20 +8,20 @@ import {
 } from '@jest/globals';
 import type { DatabaseSync } from 'node:sqlite';
 
-import type { Feed } from '../../../../src/lib/repository';
-import { APP_MIGRATIONS } from '../../../lib/db/migrations';
+import type { Feed } from '@/domain/repository';
+import { APP_MIGRATIONS } from '../../../core/db/migrations';
 import {
   installCloudflareContext,
   settleBackground,
   sqliteD1,
-} from '../../../lib/db/sqlite-d1';
+} from '../../../core/db/sqlite-d1';
 
 /** Who is signed in; null means nobody. */
 const session: { id: number | null } = { id: 7 };
 
 // The sign-in gate has its own tests (test/lib/auth); here it says who is calling.
-const { problems } = await import('../../../../src/lib/api/problem');
-jest.unstable_mockModule('../../../../src/lib/auth/guard', () => ({
+const { problems } = await import('@/lib/rest-json/problem');
+jest.unstable_mockModule('@/core/auth/guard', () => ({
   requireSignedIn: async () =>
     session.id === null
       ? { ok: false, response: problems.unauthorized() }
@@ -31,11 +31,11 @@ jest.unstable_mockModule('../../../../src/lib/auth/guard', () => ({
 const refreshFeed = jest.fn<(...args: unknown[]) => Promise<unknown>>(
   async () => ({ ok: true, n: 0 }),
 );
-jest.unstable_mockModule('../../../../src/lib/scraping', () => ({
+jest.unstable_mockModule('@/domain/scraping/index', () => ({
   refreshFeed,
 }));
 
-const { POST } = await import('../../../../src/app/api/feeds/route');
+const { POST } = await import('@/app/api/feeds/route');
 
 let raw: DatabaseSync;
 let restore: () => void;

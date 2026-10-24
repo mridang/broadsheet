@@ -7,15 +7,15 @@ import {
   jest,
 } from '@jest/globals';
 
-import { SESSION_COOKIE } from '../../../../src/lib/auth/app';
-import type { User } from '../../../../src/lib/auth/store';
+import { SESSION_COOKIE } from '@/domain/auth/app';
+import type { User } from '@/domain/auth/store';
 import {
   appRequest,
   fakeCookies,
   installEnv,
   jar,
   tokenFor,
-} from '../../../lib/auth/auth-test-kit';
+} from '../../../domain/auth/auth-test-kit';
 
 jest.unstable_mockModule('next/headers', () => ({ cookies: fakeCookies }));
 
@@ -34,15 +34,14 @@ const bumpSessionEpoch = jest.fn(async (id: number) => {
   epochs.set(id, (epochs.get(id) ?? 0) + 1);
 });
 
-jest.unstable_mockModule('../../../../src/lib/auth/store', () => ({
+jest.unstable_mockModule('@/domain/auth/store', () => ({
   getUserById,
   getSessionEpoch: async (id: number) => epochs.get(id),
   bumpSessionEpoch,
 }));
 
-const { DELETE } = await import('../../../../src/app/api/sessions/route');
-const { getCurrentUser } =
-  await import('../../../../src/lib/auth/current-user');
+const { DELETE } = await import('@/app/api/sessions/route');
+const { getCurrentUser } = await import('@/core/auth/current-user');
 
 let restore: () => void;
 

@@ -7,14 +7,14 @@
 
 import { NextResponse } from 'next/server';
 
-import { feedResource, parseFeedInput } from '@/lib/api/feed-resource';
-import { readJsonObject } from '@/lib/api/json';
-import { problems } from '@/lib/api/problem';
-import { requireSignedIn } from '@/lib/auth/guard';
-import { addFeed, getFeedByUrl } from '@/lib/repository';
-import { refreshFeed } from '@/lib/scraping';
-import { getDatabase, getEnv, runInBackground } from '@/lib/util';
-import { appOrigin } from '@/lib/util/origin';
+import { feedResource, parseFeedInput } from '@/domain/api/feed-resource';
+import { readJsonObject } from '@/lib/rest-json/json';
+import { problems } from '@/lib/rest-json/problem';
+import { requireSignedIn } from '@/core/auth/guard';
+import { addFeed, getFeedByUrl } from '@/domain/repository';
+import { refreshFeed } from '@/domain/scraping/index';
+import { getDatabase, getEnv, runInBackground } from '@/core/runtime';
+import { appOrigin } from '@/core/origin';
 
 export const dynamic = 'force-dynamic';
 

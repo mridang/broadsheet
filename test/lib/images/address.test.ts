@@ -7,8 +7,8 @@ import {
   isAllowedHost,
   isProxyableUrl,
   snapWidth,
-} from '../../../src/lib/images/address';
-import { ALLOWED_HOSTS, ALLOWED_WIDTHS } from '../../../src/lib/images/site';
+} from '@/lib/images/address';
+import { ALLOWED_HOSTS, ALLOWED_WIDTHS } from '@/domain/images/site';
 
 /** A host the app takes pictures from. */
 const HOST = ALLOWED_HOSTS?.[0] ?? 'photos.example.org';

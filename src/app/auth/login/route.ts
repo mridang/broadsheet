@@ -8,14 +8,15 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
-import { problem } from '@/lib/api/problem';
-import { startFlowCookies } from '@/lib/auth/flow-cookies';
-import { SIGN_IN_SCOPES, buildAuthUrl } from '@/lib/auth/google-oauth';
-import { SIGN_IN_PURPOSE, newState } from '@/lib/auth/oauth-state';
-import { safeReturnPath } from '@/lib/auth/return-to';
-import { missingSignInSettings } from '@/lib/auth/sign-in';
-import { getEnv, logError } from '@/lib/util';
-import { appOrigin } from '@/lib/util/origin';
+import { problem } from '@/lib/rest-json/problem';
+import { startFlowCookies } from '@/core/auth/flow-cookies';
+import { SIGN_IN_SCOPES, buildAuthUrl } from '@/lib/google/auth';
+import { SIGN_IN_PURPOSE, newState } from '@/lib/web-security/oauth-state';
+import { safeReturnPath } from '@/lib/web-security/return-to';
+import { missingSignInSettings } from '@/domain/auth/sign-in';
+import { getEnv } from '@/core/runtime';
+import { logError } from '@/utils/logging';
+import { appOrigin } from '@/core/origin';
 
 /**
  * `GET /auth/login`: send the browser to Google to sign in. Open to

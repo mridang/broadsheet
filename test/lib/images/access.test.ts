@@ -5,7 +5,7 @@ const environment: { current: { SESSION_SECRET?: string } | null } = {
   current: { SESSION_SECRET: 'test-secret' },
 };
 
-jest.unstable_mockModule('../../../src/lib/util', () => ({
+jest.unstable_mockModule('@/core/runtime', () => ({
   getEnv: () => {
     if (environment.current === null) {
       throw new Error('no context');
@@ -15,7 +15,7 @@ jest.unstable_mockModule('../../../src/lib/util', () => ({
 }));
 
 const { authenticate, mayFetch, signatureFor, signatureValid } =
-  await import('../../../src/lib/images/access');
+  await import('@/lib/images/access');
 
 const URL_A = 'https://news.example.org/photo.jpg';
 const URL_B = 'https://news.example.org/other.jpg';

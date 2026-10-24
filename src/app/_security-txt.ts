@@ -6,7 +6,7 @@
  * information can be trusted.
  */
 
-import { BRAND_URL, SECURITY_CONTACT, SECURITY_POLICY_URL } from './_brand';
+import { BRAND_URL, SECURITY_CONTACT, SECURITY_POLICY_URL } from '@/app/_brand';
 
 /**
  * How long the file claims to be valid. RFC 9116 section 2.5.5 recommends

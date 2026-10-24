@@ -4,7 +4,7 @@ import type { ReactElement } from 'react';
 import { BarePage, MessagePage } from '@/components/site/bare-page';
 import { ButtonLink } from '@/components/ui/button';
 
-import { NOT_FOUND_LINK, NOT_FOUND_NOTE } from './_brand';
+import { NOT_FOUND_LINK, NOT_FOUND_NOTE } from '@/app/_brand';
 
 /** The tab title (the layout's template adds the app's name), and a note to crawlers that this is not a page to index. */
 export const metadata: Metadata = {

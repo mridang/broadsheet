@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 
-import LoginPage, { metadata } from '../../../../src/app/(site)/login/page';
+import LoginPage, { metadata } from '@/app/(site)/login/page';
 import { html } from '../../../components/render';
 
 /** The sign-in page for a visit with the given query string flags. */

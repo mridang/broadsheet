@@ -7,7 +7,7 @@ import {
   jest,
 } from '@jest/globals';
 
-import { POST } from '../../../../src/app/csp/reports/route';
+import { POST } from '@/app/csp/reports/route';
 
 let logged: unknown[][];
 

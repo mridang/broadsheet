@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { InstallIosHint } from '../../../src/components/site/install-ios-hint';
+import { InstallIosHint } from '@/components/site/install-ios-hint';
 import { html } from '../render';
 
 describe('InstallIosHint', () => {

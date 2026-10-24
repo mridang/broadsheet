@@ -11,7 +11,7 @@
 
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
-import { getEnv } from '../util';
+import { getEnv } from '@/core/runtime';
 
 /** Domain separation, so a signature made here is never valid for anything else. */
 const CONTEXT = 'image:';

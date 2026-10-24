@@ -1,7 +1,7 @@
-import type { Article, Feed } from '@/lib/repository';
-import { assignTiers, hostOf, weight, type Tier } from '@/lib/render/tiers';
-import { StoryCard } from './story-card';
-import { BriefBlock } from './brief-block';
+import type { Article, Feed } from '@/domain/repository';
+import { assignTiers, hostOf, weight, type Tier } from '@/domain/render/tiers';
+import { StoryCard } from '@/app/(site)/_components/story-card';
+import { BriefBlock } from '@/app/(site)/_components/brief-block';
 
 /** One feed = one desk: a section header plus the generative grid. */
 export function Section({

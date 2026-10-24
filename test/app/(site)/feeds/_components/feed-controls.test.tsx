@@ -1,8 +1,8 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { AddFeedForm } from '../../../../../src/app/(site)/feeds/_components/add-feed-form';
-import { RefreshFeedsButton } from '../../../../../src/app/(site)/feeds/_components/refresh-feeds-button';
-import { RemoveFeedButton } from '../../../../../src/app/(site)/feeds/_components/remove-feed-button';
+import { AddFeedForm } from '@/app/(site)/feeds/_components/add-feed-form';
+import { RefreshFeedsButton } from '@/app/(site)/feeds/_components/refresh-feeds-button';
+import { RemoveFeedButton } from '@/app/(site)/feeds/_components/remove-feed-button';
 import { html } from '../../../../components/render';
 
 describe('the feed manager’s controls', () => {

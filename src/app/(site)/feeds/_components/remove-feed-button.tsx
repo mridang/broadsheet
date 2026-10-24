@@ -2,8 +2,8 @@
 
 import type { ReactElement } from 'react';
 
-import { unfollowFeed } from './feed-requests';
-import { useFeedAction } from './use-feed-action';
+import { unfollowFeed } from '@/app/(site)/feeds/_components/feed-requests';
+import { useFeedAction } from '@/app/(site)/feeds/_components/use-feed-action';
 
 /** "Remove" on a row of the feed manager. */
 export function RemoveFeedButton({

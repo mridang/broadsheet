@@ -4,8 +4,8 @@ import {
   followFeed,
   refreshFeeds,
   unfollowFeed,
-} from '../../../../../src/app/(site)/feeds/_components/feed-requests';
-import { ProblemError } from '../../../../../src/lib/problem-message';
+} from '@/app/(site)/feeds/_components/feed-requests';
+import { ProblemError } from '@/lib/rest-json/problem-message';
 
 afterEach(() => {
   jest.restoreAllMocks();

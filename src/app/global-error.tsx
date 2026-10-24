@@ -4,7 +4,7 @@ import type { ReactElement } from 'react';
 
 import { buttonClass } from '@/components/ui/button';
 
-import { BRAND_NAME, ERROR_REASSURANCE } from './_brand';
+import { BRAND_NAME, ERROR_REASSURANCE } from '@/app/_brand';
 import './globals.css';
 
 /**

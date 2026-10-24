@@ -1,7 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { BRAND_NAME } from '../../../src/app/_brand';
-import { BarePage, MessagePage } from '../../../src/components/site/bare-page';
+import { BRAND_NAME } from '@/app/_brand';
+import { BarePage, MessagePage } from '@/components/site/bare-page';
 import { html } from '../render';
 
 describe('BarePage', () => {

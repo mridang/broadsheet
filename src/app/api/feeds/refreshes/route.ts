@@ -9,10 +9,10 @@
 
 import { NextResponse } from 'next/server';
 
-import { requireSignedIn } from '@/lib/auth/guard';
-import { listFeeds } from '@/lib/repository';
-import { refreshFeed } from '@/lib/scraping';
-import { getDatabase, getEnv } from '@/lib/util';
+import { requireSignedIn } from '@/core/auth/guard';
+import { listFeeds } from '@/domain/repository';
+import { refreshFeed } from '@/domain/scraping/index';
+import { getDatabase, getEnv } from '@/core/runtime';
 
 export const dynamic = 'force-dynamic';
 

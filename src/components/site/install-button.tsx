@@ -2,8 +2,8 @@
 
 import type { ReactElement } from 'react';
 
-import { InstallIosHint } from './install-ios-hint';
-import { useInstallPrompt } from './use-install-prompt';
+import { InstallIosHint } from '@/components/site/install-ios-hint';
+import { useInstallPrompt } from '@/components/site/use-install-prompt';
 
 /**
  * "Install app" in the masthead: shown only where the browser can install the

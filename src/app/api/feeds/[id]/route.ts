@@ -7,12 +7,12 @@
 
 import { NextResponse } from 'next/server';
 
-import { parseFeedId } from '@/lib/api/feed-resource';
-import { problems } from '@/lib/api/problem';
-import type { IdContext } from '@/lib/api/route-context';
-import { requireSignedIn } from '@/lib/auth/guard';
-import { removeFeed } from '@/lib/repository';
-import { getDatabase } from '@/lib/util';
+import { parseFeedId } from '@/domain/api/feed-resource';
+import { problems } from '@/lib/rest-json/problem';
+import type { IdContext } from '@/core/api/route-context';
+import { requireSignedIn } from '@/core/auth/guard';
+import { removeFeed } from '@/domain/repository';
+import { getDatabase } from '@/core/runtime';
 
 export const dynamic = 'force-dynamic';
 

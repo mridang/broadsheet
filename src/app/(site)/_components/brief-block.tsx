@@ -1,5 +1,5 @@
-import type { Article } from '@/lib/repository';
-import { hostOf } from '@/lib/render/tiers';
+import type { Article } from '@/domain/repository';
+import { hostOf } from '@/domain/render/tiers';
 
 /** The low-weight tail, rendered as a newspaper "In Brief" rail. */
 export function BriefBlock({ items }: { items: Article[] }) {

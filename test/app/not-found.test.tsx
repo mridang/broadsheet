@@ -1,7 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { NOT_FOUND_LINK, NOT_FOUND_NOTE } from '../../src/app/_brand';
-import NotFound, { metadata } from '../../src/app/not-found';
+import { NOT_FOUND_LINK, NOT_FOUND_NOTE } from '@/app/_brand';
+import NotFound, { metadata } from '@/app/not-found';
 import { html } from '../components/render';
 
 describe('NotFound', () => {

@@ -1,4 +1,4 @@
-import { formatEdition } from '@/lib/render/tiers';
+import { formatEdition } from '@/domain/render/tiers';
 
 /**
  * Date navigation at the top of the paper: page to the previous/next day's

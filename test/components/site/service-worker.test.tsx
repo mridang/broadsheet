@@ -5,7 +5,7 @@ import {
   ServiceWorker,
   WORKER_URL,
   type WorkerEnvironment,
-} from '../../../src/components/site/service-worker';
+} from '@/components/site/service-worker';
 import { html } from '../render';
 
 /** A browser stand-in: production, with service workers, still loading. */

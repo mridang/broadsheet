@@ -9,8 +9,8 @@
 
 import { NextResponse } from 'next/server';
 
-import { readJsonBody } from '@/lib/http/body';
-import { summariseReports } from '@/lib/http/csp-reports';
+import { readJsonBody } from '@/lib/rest-json/body';
+import { summariseReports } from '@/core/http/csp-reports';
 
 /** The largest report body read: a few reports are a few hundred bytes each. */
 const MAX_REPORT_BYTES = 16_384;

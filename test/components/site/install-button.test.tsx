@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { InstallButton } from '../../../src/components/site/install-button';
+import { InstallButton } from '@/components/site/install-button';
 import { html } from '../render';
 
 describe('InstallButton', () => {

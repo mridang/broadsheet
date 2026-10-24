@@ -1,14 +1,14 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 
-import { getCurrentUser } from '@/lib/auth/current-user';
-import { getDatabase } from '@/lib/util';
-import { listFeeds } from '@/lib/repository';
-import { hostOf } from '@/lib/render/tiers';
+import { getCurrentUser } from '@/core/auth/current-user';
+import { getDatabase } from '@/core/runtime';
+import { listFeeds } from '@/domain/repository';
+import { hostOf } from '@/domain/render/tiers';
 
-import { AddFeedForm } from './_components/add-feed-form';
-import { RefreshFeedsButton } from './_components/refresh-feeds-button';
-import { RemoveFeedButton } from './_components/remove-feed-button';
+import { AddFeedForm } from '@/app/(site)/feeds/_components/add-feed-form';
+import { RefreshFeedsButton } from '@/app/(site)/feeds/_components/refresh-feeds-button';
+import { RemoveFeedButton } from '@/app/(site)/feeds/_components/remove-feed-button';
 
 export const dynamic = 'force-dynamic';
 

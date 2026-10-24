@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next';
 
-import { BRAND_URL, SITEMAP_PAGES } from './_brand';
+import { BRAND_URL, SITEMAP_PAGES } from '@/app/_brand';
 
 /**
  * The pages worth indexing (see `SITEMAP_PAGES` in `_brand.ts`). A page has a

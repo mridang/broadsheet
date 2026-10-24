@@ -5,7 +5,7 @@
  * meta scraping (og:image, descriptions, site name), and clean
  * source-name resolution. All regex + string work — no DOM, no deps.
  */
-import type { ScrapedItem } from './types';
+import type { ScrapedItem } from '@/lib/scraping/types';
 
 const MAX_PER_FEED = 14;
 

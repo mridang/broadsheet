@@ -27,10 +27,10 @@
  */
 
 import openNextHandler from '../.open-next/worker.js';
-import { serve } from './lib/http/serve';
-import extraHandlers from './lib/worker-extras';
+import { serve } from '@/core/http/serve';
+import extraHandlers from '@/core/worker-extras';
 
-export * from './lib/worker-extras';
+export * from '@/core/worker-extras';
 
 /** The Worker itself. */
 const handler: ExportedHandler<CloudflareEnv> = {

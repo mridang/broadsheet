@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next';
 
-import { BRAND_URL, CRAWLABLE_PATHS, PRIVATE_PATHS } from './_brand';
+import { BRAND_URL, CRAWLABLE_PATHS, PRIVATE_PATHS } from '@/app/_brand';
 
 /**
  * Crawlers may read the public pages (see `CRAWLABLE_PATHS` in `_brand.ts`);

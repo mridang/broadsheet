@@ -1,8 +1,8 @@
-import type { User } from '@/lib/repository';
+import type { User } from '@/domain/repository';
 
-import { InstallButton } from './install-button';
-import { SignOutButton } from './sign-out-button';
-import { ThemeSwitcher } from './theme-switcher';
+import { InstallButton } from '@/components/site/install-button';
+import { SignOutButton } from '@/components/site/sign-out-button';
+import { ThemeSwitcher } from '@/components/site/theme-switcher';
 
 /** The paper's masthead: the nameplate, the theme switcher, install and the account links. */
 export function SiteHeader({ user }: { user: User | null }) {

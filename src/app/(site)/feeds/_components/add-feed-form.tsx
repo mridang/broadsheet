@@ -2,8 +2,8 @@
 
 import type { FormEvent, ReactElement } from 'react';
 
-import { followFeed } from './feed-requests';
-import { useFeedAction } from './use-feed-action';
+import { followFeed } from '@/app/(site)/feeds/_components/feed-requests';
+import { useFeedAction } from '@/app/(site)/feeds/_components/use-feed-action';
 
 /** The box at the top of the feed manager for following another feed. */
 export function AddFeedForm(): ReactElement {

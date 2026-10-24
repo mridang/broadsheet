@@ -6,8 +6,8 @@ import {
   BRAND_SHORT_NAME,
   BRAND_URL,
   INDEX_BY_DEFAULT,
-} from '../../src/app/_brand';
-import { pageMetadata, siteMetadata } from '../../src/app/_metadata';
+} from '@/app/_brand';
+import { pageMetadata, siteMetadata } from '@/app/_metadata';
 
 describe('siteMetadata', () => {
   const site = siteMetadata();

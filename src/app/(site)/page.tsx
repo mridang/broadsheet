@@ -1,12 +1,12 @@
 import type { Metadata } from 'next';
 
-import { ensurePublicUser } from '@/lib/account';
-import { getCurrentUser } from '@/lib/auth/current-user';
-import { getDatabase } from '@/lib/util';
-import { feedArticles, listEditions, listFeeds } from '@/lib/repository';
-import { todayEdition } from '@/lib/scraping';
-import { Section } from './_components/section';
-import { EditionBar } from './_components/edition-bar';
+import { ensurePublicUser } from '@/domain/account';
+import { getCurrentUser } from '@/core/auth/current-user';
+import { getDatabase } from '@/core/runtime';
+import { feedArticles, listEditions, listFeeds } from '@/domain/repository';
+import { todayEdition } from '@/domain/scraping/index';
+import { Section } from '@/app/(site)/_components/section';
+import { EditionBar } from '@/app/(site)/_components/edition-bar';
 
 export const dynamic = 'force-dynamic';
 

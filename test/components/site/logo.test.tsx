@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { BrandMark } from '../../../src/components/site/logo';
+import { BrandMark } from '@/components/site/logo';
 import { classOf, html } from '../render';
 
 describe('BrandMark', () => {

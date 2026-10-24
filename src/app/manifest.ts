@@ -8,7 +8,7 @@ import {
   MANIFEST_EXTRAS,
   MANIFEST_NAME,
   THEME_COLOR,
-} from './_brand';
+} from '@/app/_brand';
 
 /**
  * The web app manifest: what makes the app installable from Chrome and Safari

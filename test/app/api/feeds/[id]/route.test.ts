@@ -7,29 +7,26 @@ import {
   jest,
 } from '@jest/globals';
 
-import {
-  createDatabase,
-  type Database,
-} from '../../../../../src/lib/db/client';
-import { addFeed, listFeeds } from '../../../../../src/lib/repository';
-import { APP_MIGRATIONS } from '../../../../lib/db/migrations';
+import { createDatabase, type Database } from '@/core/db/client';
+import { addFeed, listFeeds } from '@/domain/repository';
+import { APP_MIGRATIONS } from '../../../../core/db/migrations';
 import {
   installCloudflareContext,
   sqliteD1,
-} from '../../../../lib/db/sqlite-d1';
+} from '../../../../core/db/sqlite-d1';
 
 /** Who is signed in; null means nobody. */
 const session: { id: number | null } = { id: 7 };
 
-const { problems } = await import('../../../../../src/lib/api/problem');
-jest.unstable_mockModule('../../../../../src/lib/auth/guard', () => ({
+const { problems } = await import('@/lib/rest-json/problem');
+jest.unstable_mockModule('@/core/auth/guard', () => ({
   requireSignedIn: async () =>
     session.id === null
       ? { ok: false, response: problems.unauthorized() }
       : { ok: true, user: { id: session.id } },
 }));
 
-const { DELETE } = await import('../../../../../src/app/api/feeds/[id]/route');
+const { DELETE } = await import('@/app/api/feeds/[id]/route');
 
 let restore: () => void;
 let db: Database;

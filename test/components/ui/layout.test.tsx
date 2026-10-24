@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import { describe, expect, it } from '@jest/globals';
 
-import { Container, Eyebrow, Heading } from '../../../src/components/ui/layout';
+import { Container, Eyebrow, Heading } from '@/components/ui/layout';
 import { classOf, html } from '../render';
 
 describe('Eyebrow', () => {

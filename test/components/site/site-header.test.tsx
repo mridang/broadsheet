@@ -1,7 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { SiteHeader } from '../../../src/components/site/site-header';
-import type { User } from '../../../src/lib/repository';
+import { SiteHeader } from '@/components/site/site-header';
+import type { User } from '@/domain/repository';
 import { html } from '../render';
 
 const user = (overrides: Partial<User> = {}): User => ({

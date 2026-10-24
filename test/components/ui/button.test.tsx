@@ -5,7 +5,7 @@ import {
   buttonClass,
   ButtonLink,
   isApiHref,
-} from '../../../src/components/ui/button';
+} from '@/components/ui/button';
 import { classOf, html } from '../render';
 
 describe('buttonClass', () => {

@@ -2,8 +2,8 @@
 
 import type { ReactElement } from 'react';
 
-import { refreshFeeds } from './feed-requests';
-import { useFeedAction } from './use-feed-action';
+import { refreshFeeds } from '@/app/(site)/feeds/_components/feed-requests';
+import { useFeedAction } from '@/app/(site)/feeds/_components/use-feed-action';
 
 /** "Refresh now": fetch every followed feed again. */
 export function RefreshFeedsButton(): ReactElement {

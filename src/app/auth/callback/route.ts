@@ -18,19 +18,20 @@ import {
   RETURN_COOKIE,
   SIGN_IN_FAILED_PATH,
   STATE_COOKIE,
-} from '@/lib/auth/app';
-import { finishFlow } from '@/lib/auth/flow-cookies';
-import { exchangeCode, getUserInfo } from '@/lib/auth/google-oauth';
-import { OTHER_FLOWS } from '@/lib/auth/hooks';
-import { SIGN_IN_PURPOSE, checkState } from '@/lib/auth/oauth-state';
-import { safeReturnPath } from '@/lib/auth/return-to';
+} from '@/domain/auth/app';
+import { finishFlow } from '@/core/auth/flow-cookies';
+import { exchangeCode, getUserInfo } from '@/lib/google/auth';
+import { OTHER_FLOWS } from '@/domain/auth/hooks';
+import { SIGN_IN_PURPOSE, checkState } from '@/lib/web-security/oauth-state';
+import { safeReturnPath } from '@/lib/web-security/return-to';
 import {
   completeSignIn,
   missingSignInSettings,
   type FlowContext,
-} from '@/lib/auth/sign-in';
-import { getEnv, logError, logWarn } from '@/lib/util';
-import { appOrigin } from '@/lib/util/origin';
+} from '@/domain/auth/sign-in';
+import { getEnv } from '@/core/runtime';
+import { logError, logWarn } from '@/utils/logging';
+import { appOrigin } from '@/core/origin';
 
 /** Where to send someone whose round trip failed, by what it was for. */
 function failurePath(purpose: string, kind: 'error' | 'denied'): string {

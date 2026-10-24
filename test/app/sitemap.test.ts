@@ -1,7 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { BRAND_URL, SITEMAP_PAGES } from '../../src/app/_brand';
-import sitemap from '../../src/app/sitemap';
+import { BRAND_URL, SITEMAP_PAGES } from '@/app/_brand';
+import sitemap from '@/app/sitemap';
 
 describe('sitemap', () => {
   const entries = sitemap();

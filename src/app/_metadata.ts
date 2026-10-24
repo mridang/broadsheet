@@ -17,7 +17,7 @@ import {
   COLOR_SCHEME,
   INDEX_BY_DEFAULT,
   THEME_COLOR,
-} from './_brand';
+} from '@/app/_brand';
 
 /** The tab title of a page called `title`: its own name, then the app's. */
 function titleOf(title: string): string {

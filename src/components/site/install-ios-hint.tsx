@@ -8,7 +8,7 @@ import {
   rememberDismissed,
   shouldOfferIosInstall,
   type InstallHost,
-} from './ios-install';
+} from '@/components/site/ios-install';
 
 /**
  * The Share button as Safari draws it: a square with an arrow leaving it. Kept
