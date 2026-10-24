@@ -12,7 +12,6 @@ import {
   type FetchFailure,
   type SafeFetcher,
 } from '@/lib/safe-fetch';
-import { snapWidth } from '@/lib/images/address';
 
 /** The most a picture may weigh before we refuse it. */
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -93,7 +92,8 @@ function refusal(
 /**
  * The picture scaled down to `width` and encoded as WebP, or undefined when
  * scaling fails or would not make it any smaller. The original is then sent
- * as it is, so a picture is never lost to an optimisation.
+ * as it is, so a picture is never lost to an optimisation. `width` is already
+ * one of the app's allowed widths (the caller snaps it).
  */
 async function scaledCopy(
   images: ImagesLike,
@@ -103,7 +103,7 @@ async function scaledCopy(
   const scaled = await attempt(async () => {
     const output = await images
       .input(new Blob([bytes]).stream())
-      .transform({ width: snapWidth(width), fit: 'scale-down' })
+      .transform({ width, fit: 'scale-down' })
       .output({ format: SCALED_TYPE, quality: SCALED_QUALITY });
     return output.response().arrayBuffer();
   });

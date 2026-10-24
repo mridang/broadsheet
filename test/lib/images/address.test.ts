@@ -1,14 +1,14 @@
 import { describe, expect, it } from '@jest/globals';
 
+import { IMAGE_PATH, ImageCatalog } from '@/lib/images/address';
 import {
-  IMAGE_PATH,
-  imageSrc,
-  imageSrcSet,
-  isAllowedHost,
-  isProxyableUrl,
-  snapWidth,
-} from '@/lib/images/address';
-import { ALLOWED_HOSTS, ALLOWED_WIDTHS } from '@/domain/images/site';
+  ALLOWED_HOSTS,
+  ALLOWED_WIDTHS,
+  IMAGE_SPEC,
+} from '@/domain/images/site';
+
+/** A catalog built with the app's real spec, so the cases match what it offers. */
+const catalog = new ImageCatalog(IMAGE_SPEC);
 
 /** A host the app takes pictures from. */
 const HOST = ALLOWED_HOSTS?.[0] ?? 'photos.example.org';
@@ -21,27 +21,27 @@ const LARGEST = Math.max(...ALLOWED_WIDTHS);
 
 describe('snapWidth', () => {
   it('snaps a width up to one the app offers', () => {
-    expect(snapWidth(1)).toBe(SMALLEST);
+    expect(catalog.snapWidth(1)).toBe(SMALLEST);
     for (const width of ALLOWED_WIDTHS) {
-      expect(snapWidth(width)).toBe(width);
+      expect(catalog.snapWidth(width)).toBe(width);
     }
   });
 
   it('uses the largest width for anything wider', () => {
-    expect(snapWidth(LARGEST + 1)).toBe(LARGEST);
-    expect(snapWidth(100_000)).toBe(LARGEST);
+    expect(catalog.snapWidth(LARGEST + 1)).toBe(LARGEST);
+    expect(catalog.snapWidth(100_000)).toBe(LARGEST);
   });
 
   it('always answers a width the app offers', () => {
     for (const width of [1, 100, 321, 481, 777, 1281, 5000]) {
-      expect(ALLOWED_WIDTHS).toContain(snapWidth(width));
+      expect(ALLOWED_WIDTHS).toContain(catalog.snapWidth(width));
     }
   });
 });
 
-describe('imageSrc', () => {
+describe('src', () => {
   it('builds our own address for a picture, at a snapped width', () => {
-    expect(imageSrc(`https://${HOST}/x y.jpg?v=1&w=2`, 1)).toBe(
+    expect(catalog.src(`https://${HOST}/x y.jpg?v=1&w=2`, 1)).toBe(
       `${IMAGE_PATH}?url=${encodeURIComponent(`https://${HOST}/x y.jpg?v=1&w=2`)}&w=${SMALLEST}`,
     );
   });
@@ -51,43 +51,47 @@ describe('imageSrc', () => {
   });
 
   it('adds the signature when it is given one', () => {
-    expect(imageSrc(`https://${HOST}/x.jpg`, SMALLEST, 'a+b/c')).toContain(
+    expect(catalog.src(`https://${HOST}/x.jpg`, SMALLEST, 'a+b/c')).toContain(
       '&sig=a%2Bb%2Fc',
     );
-    expect(imageSrc(`https://${HOST}/x.jpg`, SMALLEST)).not.toContain('sig=');
+    expect(catalog.src(`https://${HOST}/x.jpg`, SMALLEST)).not.toContain(
+      'sig=',
+    );
   });
 });
 
-describe('imageSrcSet', () => {
+describe('srcSet', () => {
   it('builds a srcset with each width', () => {
-    const set = imageSrcSet(`https://${HOST}/x.jpg`);
+    const set = catalog.srcSet(`https://${HOST}/x.jpg`);
     for (const width of ALLOWED_WIDTHS) {
       expect(set).toContain(`&w=${width} ${width}w`);
     }
   });
 
   it('builds one for just the widths asked for', () => {
-    const set = imageSrcSet(`https://${HOST}/x.jpg`, [LARGEST], 'sig');
+    const set = catalog.srcSet(`https://${HOST}/x.jpg`, [LARGEST], 'sig');
     expect(set).toBe(
-      `${imageSrc(`https://${HOST}/x.jpg`, LARGEST, 'sig')} ${LARGEST}w`,
+      `${catalog.src(`https://${HOST}/x.jpg`, LARGEST, 'sig')} ${LARGEST}w`,
     );
   });
 });
 
 describe('isAllowedHost', () => {
   it('accepts the hosts the app takes pictures from', () => {
-    expect(isAllowedHost(`https://${HOST}/a.jpg`)).toBe(true);
-    expect(isAllowedHost(`https://${HOST.toUpperCase()}/a.jpg`)).toBe(true);
+    expect(catalog.isAllowedHost(`https://${HOST}/a.jpg`)).toBe(true);
+    expect(catalog.isAllowedHost(`https://${HOST.toUpperCase()}/a.jpg`)).toBe(
+      true,
+    );
   });
 
   it('refuses any other host, where the app names the hosts it takes pictures from', () => {
     for (const host of OTHER_HOSTS) {
-      expect(isAllowedHost(`https://${host}/a.jpg`)).toBe(false);
+      expect(catalog.isAllowedHost(`https://${host}/a.jpg`)).toBe(false);
     }
   });
 
   it('refuses something that is not an address', () => {
-    expect(isAllowedHost('not a url')).toBe(false);
+    expect(catalog.isAllowedHost('not a url')).toBe(false);
   });
 });
 
@@ -97,7 +101,7 @@ describe('isProxyableUrl', () => {
     `http://${HOST}/a.png`,
     `https://${HOST}:443/a.webp`,
   ])('accepts %s', (url) => {
-    expect(isProxyableUrl(url)).toBe(true);
+    expect(catalog.isProxyableUrl(url)).toBe(true);
   });
 
   it.each([
@@ -122,6 +126,6 @@ describe('isProxyableUrl', () => {
     '',
     ...OTHER_HOSTS.map((host) => `https://${host}/a.jpg`),
   ])('refuses %s', (url) => {
-    expect(isProxyableUrl(url)).toBe(false);
+    expect(catalog.isProxyableUrl(url)).toBe(false);
   });
 });

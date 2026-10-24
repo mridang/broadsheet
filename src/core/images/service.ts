@@ -16,18 +16,17 @@
 
 import { problems } from '@/lib/rest-json/problem';
 import { isPublicWebUrl } from '@/lib/safe-fetch';
-import { isAllowedHost, snapWidth } from '@/lib/images/address';
+import type { ImageCatalog } from '@/lib/images/address';
 import {
   fetchImage,
   type ImageFetch,
   type ImagesLike,
 } from '@/lib/images/proxy';
-import { DEFAULT_WIDTH } from '@/domain/images/site';
 
 /** The two cache operations the service uses. */
 export type ImageCache = Pick<Cache, 'match' | 'put'>;
 
-/** Who may have which picture; the rules differ from app to app (see `access.ts`). */
+/** Who may have which picture; the rules differ from app to app. */
 export interface ImageAccess {
   /**
    * Asked first, of every request. A refusal is sent as it is; undefined lets
@@ -35,7 +34,7 @@ export interface ImageAccess {
    */
   authenticate(request: Request): Promise<Response | undefined>;
   /** Whether `signature` proves this server chose to show the picture at `url`. */
-  signatureValid(url: string, signature: string | null): boolean;
+  signatureValid(url: string, signature: string | null): Promise<boolean>;
   /**
    * Whether the caller may have the proxy fetch `url`. Asked only when the
    * edge has no copy, since a copy costs nothing and is a public picture anyway.
@@ -53,6 +52,8 @@ export interface ImageServiceDeps {
   readonly fetcher?: ImageFetch;
   /** The app's access rules. */
   readonly access: ImageAccess;
+  /** The app's picture addresses: which hosts and widths it offers. */
+  readonly catalog: ImageCatalog;
   /** Run work after the response is sent (storing the copy). */
   readonly background: (work: Promise<unknown>) => void;
 }
@@ -182,7 +183,7 @@ export async function serveImage(
   request: Request,
   deps: ImageServiceDeps,
 ): Promise<Response> {
-  const { access, cache } = deps;
+  const { access, cache, catalog } = deps;
   const early = await access.authenticate(request);
   if (early) {
     return early;
@@ -192,10 +193,15 @@ export async function serveImage(
   if (url.length === 0 || url.length > MAX_URL_LENGTH || !isPublicWebUrl(url)) {
     return refuse(400, 'url: must be a public http(s) image address.');
   }
-  if (!isAllowedHost(url) || !access.signatureValid(url, params.get('sig'))) {
+  if (
+    !catalog.isAllowedHost(url) ||
+    !(await access.signatureValid(url, params.get('sig')))
+  ) {
     return refuse(403, 'That image is not available through this site.');
   }
-  const width = snapWidth(Number(params.get('w')) || DEFAULT_WIDTH);
+  const width = catalog.snapWidth(
+    Number(params.get('w')) || catalog.defaultWidth,
+  );
   // The edge cache is shared across people, which is fine: the picture is public.
   const key = imageCacheKey(width, url);
   const hit = await cache?.match(key);

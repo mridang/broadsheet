@@ -7,14 +7,24 @@
  * `img-src` at this site.
  */
 
-import { imageSrc, isProxyableUrl } from '@/lib/images/address';
-import { signatureFor } from '@/lib/images/access';
+import type { ImageSigner } from '@/lib/images/signer';
+import { imageCatalog } from '@/domain/images/site';
 
 /**
  * The address to show the picture at `src` at, about `width` pixels wide, or
  * null when it is not a picture we may proxy (empty, relative, or not a
  * public web address), so the page shows no picture instead of a broken one.
+ * `signer` stamps the address so the proxy will serve it; without one (no
+ * secret, as in tests or a build) the address carries no signature.
  */
-export function pictureSrc(src: string, width: number): string | null {
-  return isProxyableUrl(src) ? imageSrc(src, width, signatureFor(src)) : null;
+export async function pictureSrc(
+  src: string,
+  width: number,
+  signer?: ImageSigner,
+): Promise<string | null> {
+  if (!imageCatalog.isProxyableUrl(src)) {
+    return null;
+  }
+  const signature = signer ? await signer.sign(src) : undefined;
+  return imageCatalog.src(src, width, signature);
 }

@@ -1,5 +1,6 @@
 import type { Article } from '@/domain/repository';
 import { pictureSrc } from '@/domain/render/pictures';
+import { imageSigner } from '@/core/images/runtime';
 import {
   IMG_WIDTH,
   TIER,
@@ -16,12 +17,19 @@ const FAVICON_WIDTH = 64;
  * One story. Tier fixes the lane span and excerpt budget; lead/feature
  * photos float (alternating side by id) so the body copy wraps around them.
  */
-export function StoryCard({ article, tier }: { article: Article; tier: Tier }) {
+export async function StoryCard({
+  article,
+  tier,
+}: {
+  article: Article;
+  tier: Tier;
+}) {
   const [span, budget] = TIER[tier];
   const side = article.id % 2 ? 'ph-l' : 'ph-r';
   const ex = budget ? excerpt(article.summary, budget) : '';
-  const photo = pictureSrc(article.image ?? '', IMG_WIDTH[tier]);
-  const icon = pictureSrc(article.favicon ?? '', FAVICON_WIDTH);
+  const signer = imageSigner();
+  const photo = await pictureSrc(article.image ?? '', IMG_WIDTH[tier], signer);
+  const icon = await pictureSrc(article.favicon ?? '', FAVICON_WIDTH, signer);
   const cls = `card t-${tier} w${span}${photo ? '' : ' noimg'}`;
 
   return (

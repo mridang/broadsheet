@@ -7,25 +7,16 @@ import {
   jest,
 } from '@jest/globals';
 
+import { ImageSigner } from '@/lib/images/signer';
 import {
   ALLOWED_HOSTS,
   ALLOWED_WIDTHS,
   DEFAULT_WIDTH,
 } from '@/domain/images/site';
 
-/** What the mocked access rules answer. */
-const rules = {
-  signed: true,
-  allowed: true,
-  refusal: undefined as Response | undefined,
-};
-
-jest.unstable_mockModule('@/lib/images/access', () => ({
-  authenticate: async () => rules.refusal,
-  signatureFor: () => undefined,
-  signatureValid: () => rules.signed,
-  mayFetch: async () => rules.allowed,
-}));
+/** The secret the mocked Worker holds; the route signs and checks with it. */
+const SECRET = 'test-secret';
+const signer = new ImageSigner(SECRET);
 
 /** The Cloudflare bindings the mocked context carries, and the work it was asked to finish later. */
 const context = {
@@ -63,19 +54,18 @@ const jpeg = () =>
     headers: { 'content-type': 'image/jpeg' },
   });
 
-/** A request for a picture. */
-const ask = (url = PHOTO, width: string | number = WIDTH) =>
-  GET(
+/** A request for a picture, signed the way the pages sign one. */
+const ask = async (url = PHOTO, width: string | number = WIDTH) => {
+  const sig = encodeURIComponent(await signer.sign(url));
+  return GET(
     new Request(
-      `https://app.test/img?url=${encodeURIComponent(url)}&w=${width}`,
+      `https://app.test/img?url=${encodeURIComponent(url)}&w=${width}&sig=${sig}`,
     ),
   );
+};
 
 beforeEach(() => {
-  rules.signed = true;
-  rules.allowed = true;
-  rules.refusal = undefined;
-  context.env = {};
+  context.env = { SESSION_SECRET: SECRET };
   context.waiting = [];
   fetched = [];
   serving(jpeg);
@@ -106,17 +96,16 @@ describe('GET /img', () => {
     expect(fetched).toEqual([PHOTO]);
   });
 
-  it("sends the access rules' refusal as it is, without fetching", async () => {
-    rules.refusal = new Response('no', { status: 401 });
-    expect((await ask()).status).toBe(401);
+  it('answers 403, without fetching, for a wrong or missing signature', async () => {
+    const bad = `https://app.test/img?url=${encodeURIComponent(PHOTO)}&w=${WIDTH}&sig=nope`;
+    expect((await GET(new Request(bad))).status).toBe(403);
+    const none = `https://app.test/img?url=${encodeURIComponent(PHOTO)}&w=${WIDTH}`;
+    expect((await GET(new Request(none))).status).toBe(403);
     expect(fetched).toEqual([]);
   });
 
-  it('answers 403, without fetching, when the access rules do not allow the picture', async () => {
-    rules.allowed = false;
-    expect((await ask()).status).toBe(403);
-    rules.allowed = true;
-    rules.signed = false;
+  it('answers 403 when the Worker has no secret to check signatures with', async () => {
+    context.env = {};
     expect((await ask()).status).toBe(403);
     expect(fetched).toEqual([]);
   });

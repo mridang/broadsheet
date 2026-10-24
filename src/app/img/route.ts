@@ -4,18 +4,21 @@
  *
  *   GET /img?url=<picture address>&w=<width>
  *
- * Who may ask, and for what, is each app's own rule (`lib/images/access.ts`),
- * so it can't become a free image proxy for the web. Answers come from the
- * edge cache when they can, and a browser keeps them for a month.
+ * Who may ask, and for what, is each app's own rule, so it can't become a free
+ * image proxy for the web. Stories come from any site, so there is no host
+ * allow-list: the rule is the signature, which only this server can make.
+ * Answers come from the edge cache when they can, and a browser keeps them for
+ * a month.
  */
 
-import * as access from '@/lib/images/access';
+import { imageCatalog } from '@/domain/images/site';
 import {
   imageCache,
+  imageSigner,
   imagesBinding,
   runInBackground,
 } from '@/core/images/runtime';
-import { serveImage } from '@/core/images/service';
+import { serveImage, type ImageAccess } from '@/core/images/service';
 
 /**
  * `GET /img?url=…&w=…`: the picture at `url`, scaled to the nearest
@@ -26,8 +29,20 @@ import { serveImage } from '@/core/images/service';
  * and 502 when its site fails. Errors are short plain text that no cache keeps.
  */
 export async function GET(request: Request): Promise<Response> {
+  const signer = imageSigner();
+  const access: ImageAccess = {
+    // Nobody is turned away before the address is looked at: the signature is
+    // the rule.
+    authenticate: () => Promise.resolve(undefined),
+    // With no secret nothing is accepted, rather than trusting any signature.
+    signatureValid: (url, signature) =>
+      signer ? signer.verify(url, signature) : Promise.resolve(false),
+    // A signed address may be fetched.
+    mayFetch: () => Promise.resolve(true),
+  };
   return serveImage(request, {
     access,
+    catalog: imageCatalog,
     cache: imageCache(),
     images: imagesBinding(),
     background: runInBackground,

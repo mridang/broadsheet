@@ -10,7 +10,23 @@
 import { getCloudflareContext } from '@opennextjs/cloudflare';
 
 import { isImagesBinding, type ImagesLike } from '@/lib/images/proxy';
+import { ImageSigner } from '@/lib/images/signer';
 import type { ImageCache } from '@/core/images/service';
+
+/**
+ * A signer keyed by the running Worker's `SESSION_SECRET`, or undefined when
+ * there is no secret or no Cloudflare context (tests, builds): with no secret
+ * nothing is signed and nothing is accepted, rather than signing with a value
+ * anyone could guess.
+ */
+export function imageSigner(): ImageSigner | undefined {
+  try {
+    const secret = getCloudflareContext().env.SESSION_SECRET;
+    return secret ? new ImageSigner(secret) : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 /** The Images binding, where the deployment has one. */
 export function imagesBinding(): ImagesLike | undefined {
