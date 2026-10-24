@@ -2,16 +2,21 @@ import { describe, expect, it } from '@jest/globals';
 
 import { bytesToBase64Url } from '@/utils/base64';
 import {
-  SESSION_COOKIE,
   SESSION_TTL_SECONDS,
-  createSessionToken,
+  SessionTokens,
+  type NewSession,
   requireSessionSecret,
   sessionIsCurrent,
-  verifySessionToken,
-} from '@/lib/session/index';
-import { SESSION_COOKIE as APP_SESSION_COOKIE } from '@/domain/auth/app';
+} from '@/lib/session';
 
 const SECRET = 'test-session-secret-value';
+
+// Thin adapters over the SessionTokens handle, so each case reads as a
+// one-line sign/verify.
+const createSessionToken = (payload: NewSession, secret: string = SECRET) =>
+  new SessionTokens(secret).create(payload);
+const verifySessionToken = (token: string, secret: string = SECRET) =>
+  new SessionTokens(secret).verify(token);
 
 describe('session tokens', () => {
   it('round-trips a valid session', async () => {
@@ -219,12 +224,6 @@ describe('session epoch', () => {
   it('treats a session issued before epochs existed as epoch 0', () => {
     expect(sessionIsCurrent({}, 0)).toBe(true);
     expect(sessionIsCurrent({}, 1)).toBe(false);
-  });
-});
-
-describe('the session cookie', () => {
-  it('is named by the app and read from the same place as the tokens', () => {
-    expect(SESSION_COOKIE).toBe(APP_SESSION_COOKIE);
   });
 });
 

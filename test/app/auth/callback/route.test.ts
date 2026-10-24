@@ -18,7 +18,7 @@ import {
   sessionClaims,
 } from '@/domain/auth/app';
 import type { User } from '@/domain/auth/store';
-import { verifySessionToken } from '@/lib/session/index';
+import { SessionTokens } from '@/lib/session';
 import {
   SESSION_SECRET,
   answerFetch,
@@ -205,9 +205,8 @@ describe('GET /auth/callback signing in', () => {
   it('issues a signed session for the person, stamped with their epoch and the app’s claims', async () => {
     googleSignsIn();
     const res = await callback(`code=c&state=${STATE}`);
-    const session = await verifySessionToken(
+    const session = await new SessionTokens(SESSION_SECRET).verify(
       cookiesOf(res)[SESSION_COOKIE] ?? '',
-      SESSION_SECRET,
     );
     expect(session).toMatchObject({
       uid: 4,

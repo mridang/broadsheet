@@ -2,7 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 import { NextResponse } from 'next/server';
 
 import { SESSION_COOKIE, sessionClaims } from '@/domain/auth/app';
-import { verifySessionToken } from '@/lib/session/index';
+import { SessionTokens } from '@/lib/session';
 import { setSessionCookie } from '@/core/auth/session-cookie';
 import type { User } from '@/domain/auth/store';
 
@@ -33,7 +33,10 @@ async function issued(
     ...options,
   });
   const cookie = response.cookies.get(SESSION_COOKIE);
-  return { cookie, payload: await verifySessionToken(cookie!.value, SECRET) };
+  return {
+    cookie,
+    payload: await new SessionTokens(SECRET).verify(cookie!.value),
+  };
 }
 
 describe('setSessionCookie', () => {

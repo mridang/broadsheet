@@ -31,7 +31,7 @@ jest.unstable_mockModule('@/domain/auth/hooks', () => ({
 
 const { completeSignIn, missingSignInSettings } =
   await import('@/domain/auth/sign-in');
-const { verifySessionToken } = await import('@/lib/session/index');
+const { SessionTokens } = await import('@/lib/session');
 
 const env = (overrides: Record<string, string | undefined> = {}) =>
   ({
@@ -92,9 +92,8 @@ describe('completeSignIn', () => {
     });
     expect(afterSignIn).toHaveBeenCalledWith(person);
     expect(
-      await verifySessionToken(
+      await new SessionTokens(SESSION_SECRET).verify(
         res.cookies.get(SESSION_COOKIE)?.value ?? '',
-        SESSION_SECRET,
       ),
     ).toMatchObject({ uid: 4, ep: 2, ...sessionClaims(person) });
   });

@@ -1,7 +1,7 @@
 import { jest } from '@jest/globals';
 import { NextRequest } from 'next/server';
 
-import { createSessionToken } from '@/lib/session/index';
+import { SessionTokens } from '@/lib/session';
 import { installCloudflareContext } from '../../core/db/sqlite-d1';
 
 /** The session secret the sign-in tests use. */
@@ -42,10 +42,11 @@ export function tokenFor(
   options: Readonly<{ ep?: number; exp?: number; secret?: string }> = {},
 ): Promise<string> {
   const { secret, ...claims } = options;
-  return createSessionToken(
-    { uid: user.id, email: user.email ?? 'a@b.com', ...claims },
-    secret ?? SESSION_SECRET,
-  );
+  return new SessionTokens(secret ?? SESSION_SECRET).create({
+    uid: user.id,
+    email: user.email ?? 'a@b.com',
+    ...claims,
+  });
 }
 
 /** A request to the app at `path`, as the browser would send it, carrying whatever is in {@link jar}. */
