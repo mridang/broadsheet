@@ -10,7 +10,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { problem } from '@/lib/rest-json/problem';
 import { startFlowCookies } from '@/core/auth/flow-cookies';
-import { SIGN_IN_SCOPES, buildAuthUrl } from '@/lib/google/auth';
+import { GoogleOAuthClient, SIGN_IN_SCOPES } from '@/lib/google/auth';
 import { SIGN_IN_PURPOSE, newState } from '@/lib/web-security/oauth-state';
 import { safeReturnPath } from '@/lib/web-security/return-to';
 import { missingSignInSettings } from '@/domain/auth/sign-in';
@@ -38,13 +38,13 @@ export function GET(request: NextRequest): NextResponse {
   }
   const origin = appOrigin(request);
   const state = newState(SIGN_IN_PURPOSE);
+  const client = new GoogleOAuthClient({
+    clientId: env.GOOGLE_OAUTH_CLIENT_ID,
+    clientSecret: env.GOOGLE_OAUTH_CLIENT_SECRET,
+    redirectUri: `${origin}/auth/callback`,
+  });
   const response = NextResponse.redirect(
-    buildAuthUrl({
-      clientId: env.GOOGLE_OAUTH_CLIENT_ID,
-      redirectUri: `${origin}/auth/callback`,
-      state,
-      scopes: SIGN_IN_SCOPES,
-    }),
+    client.authUrl({ state, scopes: SIGN_IN_SCOPES }),
   );
   // Remember where to land afterwards (e.g. back on an assistant's approval
   // screen), but only if it is a path on this site.
