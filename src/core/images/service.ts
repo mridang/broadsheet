@@ -16,6 +16,7 @@
 
 import { problems } from '@/lib/rest-json/problem';
 import { isPublicWebUrl } from '@/lib/safe-fetch';
+import { SITE_NAME, SITE_URL } from '@/core/site';
 import type { ImageCatalog } from '@/lib/images/address';
 import {
   fetchImage,
@@ -215,6 +216,7 @@ export async function serveImage(
   const result = await fetchImage(url, width, {
     images: deps.images,
     fetcher: deps.fetcher,
+    userAgent: `${SITE_NAME}/1.0 (+${SITE_URL})`,
   });
   if (!result.ok) {
     // An address that leads somewhere it should not is refused outright; any

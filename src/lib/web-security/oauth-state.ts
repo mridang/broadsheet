@@ -4,11 +4,10 @@
  * The one-time `state` value of a Google round trip. It does two jobs: it is the
  * CSRF check (the callback only proceeds when the value Google hands back
  * matches the one kept in a short-lived cookie), and it says which ask the round
- * trip was for (signing in, or one of the app's {@link EXTRA_PURPOSES}), so all
- * of them can share a single registered callback address.
+ * trip was for, so all of them can share a single registered callback address.
+ * Which labels count as ours is passed in by the caller, so this stays a pure
+ * helper that knows nothing about the app's own asks.
  */
-
-import { EXTRA_PURPOSES } from '@/domain/auth/app';
 
 /** How long a round trip to Google may take before it is abandoned, in seconds. */
 export const STATE_TTL_SECONDS = 600;
@@ -38,23 +37,25 @@ export type StateCheck =
 export function checkState(
   state: string | null,
   expected: string | undefined,
+  validPurposes: readonly string[],
 ): StateCheck {
-  const purpose = state ? purposeOf(state) : undefined;
+  const purpose = state ? purposeOf(state, validPurposes) : undefined;
   return state && expected && state === expected && purpose
     ? { ok: true, purpose }
     : { ok: false, claimed: purpose };
 }
 
 /**
- * What a `state` value was made for, or undefined when it is not one of ours.
- * This only reads the label; trusting it still requires the value to match the
- * cookie.
+ * What a `state` value was made for, or undefined when it is not one of
+ * `validPurposes`. This only reads the label; trusting it still requires the
+ * value to match the cookie.
  */
-export function purposeOf(state: string): string | undefined {
+export function purposeOf(
+  state: string,
+  validPurposes: readonly string[],
+): string | undefined {
   const [purpose, nonce] = state.split('.');
-  return purpose &&
-    nonce &&
-    (purpose === SIGN_IN_PURPOSE || EXTRA_PURPOSES.includes(purpose))
+  return purpose && nonce && validPurposes.includes(purpose)
     ? purpose
     : undefined;
 }

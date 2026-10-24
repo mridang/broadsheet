@@ -18,14 +18,14 @@
  * It introduces itself with one honest `User-Agent` that says who to contact.
  */
 
-import { SITE_NAME, SITE_URL } from '@/core/site';
 import { parseUrl } from '@/utils/url';
 
 /**
- * Who we say we are to the sites we fetch from. A site operator who sees us in
- * their logs can find out what we are and where to complain.
+ * Who we say we are when the caller names nobody. A caller passes its own
+ * `userAgent` (its site name and a contact address) so an operator who sees us
+ * in their logs can find out what we are; this is only the fallback.
  */
-export const USER_AGENT = `${SITE_NAME}/1.0 (+${SITE_URL})`;
+const DEFAULT_USER_AGENT = 'safe-fetch';
 
 /** The longest address we will follow; real links are far shorter. */
 const MAX_URL_LENGTH = 2048;
@@ -112,6 +112,8 @@ export interface CappedFetchOptions {
   readonly overflow?: 'reject' | 'truncate';
   /** Keep the original at the edge (Cloudflare only). */
   readonly edgeCache?: EdgeCacheHint;
+  /** How to introduce ourselves to the site; a neutral default when left out. */
+  readonly userAgent?: string;
   /** The function that fetches; the real `fetch` when left out. */
   readonly fetcher?: SafeFetcher;
 }
@@ -235,7 +237,10 @@ async function fetchHop(
   }
   const fetcher = options.fetcher ?? realFetch;
   const response = await fetcher(url, {
-    headers: { Accept: options.accept, 'User-Agent': USER_AGENT },
+    headers: {
+      Accept: options.accept,
+      'User-Agent': options.userAgent ?? DEFAULT_USER_AGENT,
+    },
     // Redirects are followed here, one at a time, so that every address we
     // end up at has been checked.
     redirect: 'manual',

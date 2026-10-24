@@ -5,7 +5,6 @@ import {
   isImagesBinding,
   type ImageFetch,
 } from '@/lib/images/proxy';
-import { SITE_NAME } from '@/core/site';
 
 const image = (type = 'image/jpeg', headers: Record<string, string> = {}) =>
   new Response('bytes', { headers: { 'content-type': type, ...headers } });
@@ -166,13 +165,16 @@ describe('fetchImage', () => {
       return { fetcher, calls };
     }
 
-    it('introduces itself honestly and keeps the original at the edge', async () => {
+    it('introduces itself with the user-agent it is given and keeps the original at the edge', async () => {
       const { fetcher, calls } = serving(image());
-      await fetchImage('https://a.com/x.jpg', 640, { fetcher });
+      await fetchImage('https://a.com/x.jpg', 640, {
+        fetcher,
+        userAgent: 'broadsheet/1.0 (+https://broadsheet.test)',
+      });
       const init = calls[0]?.init;
       expect(init?.headers).toEqual(
         expect.objectContaining({
-          'User-Agent': expect.stringContaining(SITE_NAME),
+          'User-Agent': 'broadsheet/1.0 (+https://broadsheet.test)',
         }),
       );
       expect(init?.redirect).toBe('manual');

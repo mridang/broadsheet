@@ -15,6 +15,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import {
+  EXTRA_PURPOSES,
   RETURN_COOKIE,
   SIGN_IN_FAILED_PATH,
   STATE_COOKIE,
@@ -56,7 +57,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const oauthError = url.searchParams.get('error');
 
   // Validate the round-trip before trusting the code.
-  const checked = checkState(state, expectedState);
+  const checked = checkState(state, expectedState, [
+    SIGN_IN_PURPOSE,
+    ...EXTRA_PURPOSES,
+  ]);
   if (!checked.ok) {
     logError({
       event: 'auth.callback.state_check_failed',

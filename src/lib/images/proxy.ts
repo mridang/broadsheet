@@ -157,7 +157,11 @@ function refusalFor(failure: FetchFailure): ImageResult {
 export async function fetchImage(
   url: string,
   width: number,
-  deps: Readonly<{ fetcher?: ImageFetch; images?: ImagesLike }> = {},
+  deps: Readonly<{
+    fetcher?: ImageFetch;
+    images?: ImagesLike;
+    userAgent?: string;
+  }> = {},
 ): Promise<ImageResult> {
   const fetched = await fetchCapped(url, {
     maxBytes: MAX_IMAGE_BYTES,
@@ -166,6 +170,7 @@ export async function fetchImage(
     acceptsType: isRasterImage,
     // Cloudflare-only: keep the original at the edge, ignored elsewhere.
     edgeCache: { cacheEverything: true, cacheTtl: ORIGINAL_KEEP_SECONDS },
+    userAgent: deps.userAgent,
     fetcher: deps.fetcher,
   });
   if (!fetched.ok) {

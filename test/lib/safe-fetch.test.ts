@@ -3,12 +3,10 @@ import { describe, expect, it } from '@jest/globals';
 import {
   fetchCapped,
   isPublicWebUrl,
-  USER_AGENT,
   type CappedFetchOptions,
   type SafeFetcher,
   type SafeRequestInit,
 } from '@/lib/safe-fetch';
-import { SITE_URL } from '@/core/site';
 
 describe('isPublicWebUrl', () => {
   it.each([
@@ -142,14 +140,14 @@ describe('fetchCapped', () => {
       ...OPTIONS,
       accept: 'image/*',
       edgeCache: { cacheEverything: true, cacheTtl: 60 },
+      userAgent: 'broadsheet/1.0 (+https://broadsheet.test)',
       fetcher,
     });
     const init = calls[0]?.init;
     expect(init?.headers).toEqual({
       Accept: 'image/*',
-      'User-Agent': USER_AGENT,
+      'User-Agent': 'broadsheet/1.0 (+https://broadsheet.test)',
     });
-    expect(USER_AGENT).toContain(SITE_URL);
     expect(init?.redirect).toBe('manual');
     expect(init?.signal).toBeInstanceOf(AbortSignal);
     expect(init?.cf).toEqual({ cacheEverything: true, cacheTtl: 60 });
