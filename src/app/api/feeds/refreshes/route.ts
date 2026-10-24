@@ -10,7 +10,7 @@
 import { NextResponse } from 'next/server';
 
 import { requireSignedIn } from '@/core/auth/guard';
-import { listFeeds } from '@/domain/repository';
+import { Repository } from '@/domain/repository';
 import { refreshFeed } from '@/domain/scraping/index';
 import { getDatabase, getEnv } from '@/core/runtime';
 
@@ -28,7 +28,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
   const db = getDatabase();
   const env = getEnv();
-  const feeds = await listFeeds(db, caller.user.id);
+  const feeds = await new Repository(db).listFeeds(caller.user.id);
   const outcomes = await Promise.all(
     feeds.map((feed) =>
       refreshFeed(db, env, feed).then(

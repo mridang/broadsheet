@@ -7,8 +7,7 @@
  * names via Workers AI (the `AI` binding).
  */
 import type { Database } from '@/core/db/client';
-import type { Feed } from '@/domain/repository';
-import { allFeeds, editionsForFeed, writeEdition } from '@/domain/repository';
+import { Repository, type Feed } from '@/domain/repository';
 import { logInfo, logWarn } from '@/utils/logging';
 import {
   domainClean,
@@ -123,7 +122,7 @@ export async function refreshFeed(
   const { items } = parseFeed(xml, feed.url);
   await enrich(items);
   await resolveNames(env, items);
-  await writeEdition(db, feed.id, edition, items);
+  await new Repository(db).writeEdition(feed.id, edition, items);
   return { ok: true, n: items.length };
 }
 
@@ -183,10 +182,11 @@ export async function backfillRecent(
   env: CloudflareEnv,
   days = 7,
 ): Promise<{ filled: number }> {
-  const feeds = (await allFeeds(db)).filter((f) => isHnFeed(f.url));
+  const repo = new Repository(db);
+  const feeds = (await repo.allFeeds()).filter((f) => isHnFeed(f.url));
   let filled = 0;
   for (const feed of feeds) {
-    const have = new Set(await editionsForFeed(db, feed.id));
+    const have = new Set(await repo.editionsForFeed(feed.id));
     for (let i = 1; i <= days; i++) {
       const date = new Date(Date.now() - i * 86400000)
         .toISOString()
@@ -196,7 +196,7 @@ export async function backfillRecent(
       if (!items.length) continue;
       await enrich(items);
       await resolveNames(env, items);
-      await writeEdition(db, feed.id, date, items);
+      await repo.writeEdition(feed.id, date, items);
       filled++;
       logInfo({ event: 'backfill.day', feed: feed.id, date, n: items.length });
     }
@@ -210,7 +210,7 @@ export async function refreshAll(
   env: CloudflareEnv,
 ): Promise<{ feeds: number; ok: number; articles: number }> {
   const edition = todayEdition();
-  const feeds = await allFeeds(db);
+  const feeds = await new Repository(db).allFeeds();
   const q = [...feeds];
   let ok = 0;
   let articles = 0;

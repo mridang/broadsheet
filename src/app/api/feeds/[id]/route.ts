@@ -11,7 +11,7 @@ import { parseFeedId } from '@/domain/api/feed-resource';
 import { problems } from '@/lib/rest-json/problem';
 import type { IdContext } from '@/core/api/route-context';
 import { requireSignedIn } from '@/core/auth/guard';
-import { removeFeed } from '@/domain/repository';
+import { Repository } from '@/domain/repository';
 import { getDatabase } from '@/core/runtime';
 
 export const dynamic = 'force-dynamic';
@@ -31,7 +31,8 @@ export async function DELETE(
   }
   const id = parseFeedId((await params).id);
   const removed =
-    id !== undefined && (await removeFeed(getDatabase(), caller.user.id, id));
+    id !== undefined &&
+    (await new Repository(getDatabase()).removeFeed(caller.user.id, id));
   return removed
     ? new NextResponse(null, { status: 204 })
     : problems.notFound('feed');

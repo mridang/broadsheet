@@ -8,7 +8,10 @@ import {
 } from '@jest/globals';
 
 import { createDatabase, type Database } from '@/core/db/client';
-import { addFeed, listFeeds } from '@/domain/repository';
+import { Repository } from '@/domain/repository';
+const addFeed = (d: Database, u: number, url: string, t?: string) =>
+  new Repository(d).addFeed(u, url, t);
+const listFeeds = (d: Database, u: number) => new Repository(d).listFeeds(u);
 import { APP_MIGRATIONS } from '../../../../core/db/migrations';
 import {
   installCloudflareContext,

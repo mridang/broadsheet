@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import { ensurePublicUser } from '@/domain/account';
 import { getCurrentUser } from '@/core/auth/current-user';
 import { getDatabase } from '@/core/runtime';
-import { feedArticles, listEditions, listFeeds } from '@/domain/repository';
+import { Repository } from '@/domain/repository';
 import { todayEdition } from '@/domain/scraping/index';
 import { Section } from '@/app/(site)/_components/section';
 import { EditionBar } from '@/app/(site)/_components/edition-bar';
@@ -25,11 +25,11 @@ export default async function Home({
 }) {
   const { date } = await searchParams;
   const user = await getCurrentUser();
-  const database = getDatabase();
+  const repo = new Repository(getDatabase());
   // Logged-out visitors read the hidden public user's Hacker News edition.
   const ownerId = user ? user.id : await ensurePublicUser();
 
-  const feeds = await listFeeds(database, ownerId);
+  const feeds = await repo.listFeeds(ownerId);
   if (!feeds.length) {
     return (
       <div className="panel">
@@ -46,14 +46,14 @@ export default async function Home({
 
   // Every day's scrape is its own edition; all are kept. Pick the requested
   // day if it exists, else the most recent.
-  const editions = await listEditions(database, ownerId);
+  const editions = await repo.listEditions(ownerId);
   const selected =
     date && editions.includes(date) ? date : (editions[0] ?? todayEdition());
 
   const sections = await Promise.all(
     feeds.map(async (feed) => ({
       feed,
-      articles: await feedArticles(database, feed.id, selected),
+      articles: await repo.feedArticles(feed.id, selected),
     })),
   );
 

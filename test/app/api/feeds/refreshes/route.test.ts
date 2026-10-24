@@ -7,9 +7,11 @@ import {
   jest,
 } from '@jest/globals';
 
-import { createDatabase } from '@/core/db/client';
+import { createDatabase, type Database } from '@/core/db/client';
 import type { Feed } from '@/domain/repository';
-import { addFeed } from '@/domain/repository';
+import { Repository } from '@/domain/repository';
+const addFeed = (d: Database, u: number, url: string, t?: string) =>
+  new Repository(d).addFeed(u, url, t);
 import { APP_MIGRATIONS } from '../../../../core/db/migrations';
 import {
   installCloudflareContext,

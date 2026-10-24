@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 
 import { getCurrentUser } from '@/core/auth/current-user';
 import { getDatabase } from '@/core/runtime';
-import { listFeeds } from '@/domain/repository';
+import { Repository } from '@/domain/repository';
 import { hostOf } from '@/domain/render/tiers';
 
 import { AddFeedForm } from '@/app/(site)/feeds/_components/add-feed-form';
@@ -18,7 +18,7 @@ export const metadata: Metadata = { title: 'Your feeds' };
 export default async function FeedsPage() {
   const user = await getCurrentUser();
   if (!user) redirect('/login');
-  const feeds = await listFeeds(getDatabase(), user.id);
+  const feeds = await new Repository(getDatabase()).listFeeds(user.id);
 
   return (
     <div className="panel">

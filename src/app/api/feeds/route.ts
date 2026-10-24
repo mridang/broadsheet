@@ -11,7 +11,7 @@ import { feedResource, parseFeedInput } from '@/domain/api/feed-resource';
 import { readJsonObject } from '@/lib/rest-json/json';
 import { problems } from '@/lib/rest-json/problem';
 import { requireSignedIn } from '@/core/auth/guard';
-import { addFeed, getFeedByUrl } from '@/domain/repository';
+import { Repository } from '@/domain/repository';
 import { refreshFeed } from '@/domain/scraping/index';
 import { getDatabase, getEnv, runInBackground } from '@/core/runtime';
 import { appOrigin } from '@/core/origin';
@@ -40,7 +40,8 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   const db = getDatabase();
-  const existing = await getFeedByUrl(db, caller.user.id, input.url);
+  const repo = new Repository(db);
+  const existing = await repo.getFeedByUrl(caller.user.id, input.url);
   if (existing) {
     return NextResponse.json(feedResource(existing), {
       headers: {
@@ -49,7 +50,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       },
     });
   }
-  const feed = await addFeed(db, caller.user.id, input.url);
+  const feed = await repo.addFeed(caller.user.id, input.url);
   if (!feed) {
     return problems.badRequest('The feed could not be added.');
   }

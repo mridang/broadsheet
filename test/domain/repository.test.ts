@@ -1,18 +1,25 @@
 import { beforeEach, describe, expect, it } from '@jest/globals';
 
 import { createDatabase, type Database } from '@/core/db/client';
-import {
-  addFeed,
-  bumpSessionEpoch,
-  getFeedByUrl,
-  listFeeds,
-  getSessionEpoch,
-  getUser,
-  removeFeed,
-  upsertUser,
-} from '@/domain/repository';
+import { Repository, type Profile } from '@/domain/repository';
 import { APP_MIGRATIONS } from '../core/db/migrations';
 import { sqliteD1 } from '../core/db/sqlite-d1';
+
+// Thin adapters over the Repository handle, so each case reads as a one-liner.
+const upsertUser = (d: Database, p: Profile) => new Repository(d).upsertUser(p);
+const getUser = (d: Database, id: number) => new Repository(d).getUser(id);
+const getSessionEpoch = (d: Database, id: number) =>
+  new Repository(d).getSessionEpoch(id);
+const bumpSessionEpoch = (d: Database, id: number) =>
+  new Repository(d).bumpSessionEpoch(id);
+const listFeeds = (d: Database, userId: number) =>
+  new Repository(d).listFeeds(userId);
+const addFeed = (d: Database, userId: number, url: string, title?: string) =>
+  new Repository(d).addFeed(userId, url, title);
+const getFeedByUrl = (d: Database, userId: number, url: string) =>
+  new Repository(d).getFeedByUrl(userId, url);
+const removeFeed = (d: Database, userId: number, id: number) =>
+  new Repository(d).removeFeed(userId, id);
 
 let db: Database;
 

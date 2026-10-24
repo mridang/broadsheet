@@ -6,7 +6,7 @@
  * logged-out edition. Who is signed in, and signing in itself, live in
  * `auth/`.
  */
-import { addFeed, listFeeds, upsertUser, type Feed } from '@/domain/repository';
+import { Repository, type Feed } from '@/domain/repository';
 import { refreshFeed } from '@/domain/scraping/index';
 import { getDatabase, getEnv, runInBackground } from '@/core/runtime';
 
@@ -23,11 +23,11 @@ const PUBLIC_FEEDS: [string, string][] = [
 
 /** Seed a new user's default feeds and warm them in the background. */
 export async function seedDefaults(userId: number): Promise<void> {
-  const database = getDatabase();
-  if ((await listFeeds(database, userId)).length) return;
+  const repo = new Repository(getDatabase());
+  if ((await repo.listFeeds(userId)).length) return;
   const added: Feed[] = [];
   for (const [url, title] of DEFAULT_FEEDS) {
-    const f = await addFeed(database, userId, url, title);
+    const f = await repo.addFeed(userId, url, title);
     if (f) added.push(f);
   }
   warm(added);
@@ -35,17 +35,17 @@ export async function seedDefaults(userId: number): Promise<void> {
 
 /** The logged-out edition is backed by a hidden system user. Returns its id. */
 export async function ensurePublicUser(): Promise<number> {
-  const database = getDatabase();
-  const u = await upsertUser(database, {
+  const repo = new Repository(getDatabase());
+  const u = await repo.upsertUser({
     sub: '__public__',
     email: 'public',
     name: 'Hacker News',
     picture: '',
   });
-  if (!(await listFeeds(database, u.id)).length) {
+  if (!(await repo.listFeeds(u.id)).length) {
     const added: Feed[] = [];
     for (const [url, title] of PUBLIC_FEEDS) {
-      const f = await addFeed(database, u.id, url, title);
+      const f = await repo.addFeed(u.id, url, title);
       if (f) added.push(f);
     }
     warm(added);
