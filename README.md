@@ -79,8 +79,4 @@ GitHub Actions (`deploy.yml`) applies the D1 migrations and deploys on pushes to
 
 ## Operations
 
-A single cron (`0 6 * * *`, 06:00 UTC) fires `scheduled()` in `src/worker.ts`. It refreshes every feed, then backfills the last seven days of the Hacker News feeds from historical data (Algolia), so the first run fills the past week and later runs add the new day. There is no public scrape endpoint; signed-in users can refresh their own feeds from `/api/refresh`.
-
-## API description
-
-The REST routes under `/api` are described in `openapi/openapi.json`; a test keeps it in step with `src/app/api`.
+A single cron (`0 6 * * *`, 06:00 UTC) fires `scheduled()` in `src/worker.ts`. It refreshes every feed, then backfills the last seven days of the Hacker News feeds from historical data (Algolia), so the first run fills the past week and later runs add the new day. There is no public scrape endpoint; signed-in users can refresh their own feeds with `POST /api/feeds/refreshes`.
