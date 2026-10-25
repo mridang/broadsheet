@@ -11,7 +11,7 @@ import type { NextRequest, NextResponse } from 'next/server';
 
 import { LANDING_PATH } from '@/domain/auth/app';
 import { finishFlow, setSessionCookie } from '@/lib/core/auth';
-import type { GoogleUser, TokenResponse } from '@/lib/google/auth';
+import type { GoogleUserResponse, TokenResponse } from '@/lib/google/auth';
 import { afterSignIn } from '@/domain/auth/hooks';
 import { requireSessionSecret } from '@/lib/session/index';
 import { upsertGoogleUser } from '@/domain/auth/store';
@@ -33,7 +33,7 @@ export interface OtherFlow {
   /** Finish the round trip for a code that has been exchanged. */
   readonly complete: (
     context: FlowContext,
-    info: GoogleUser,
+    info: GoogleUserResponse,
     tokens: TokenResponse,
   ) => Promise<NextResponse>;
 }
@@ -55,7 +55,7 @@ export function missingSignInSettings(env: CloudflareEnv): string[] {
 /** Finish a sign-in: record the person, issue their session and send them on. */
 export async function completeSignIn(
   { env, origin, returnTo }: FlowContext,
-  info: GoogleUser,
+  info: GoogleUserResponse,
 ): Promise<NextResponse> {
   if (!info.email) {
     // Signing in asked for the email scope, so Google not sharing one is a

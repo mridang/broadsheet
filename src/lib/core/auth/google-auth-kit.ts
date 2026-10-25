@@ -19,7 +19,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
 import { GoogleOAuthClient } from '@/lib/google/auth';
-import type { GoogleUser } from '@/lib/google/auth';
+import type { GoogleUserResponse } from '@/lib/google/auth';
 import { checkState, newState, safeReturnPath } from '@/lib/web-security';
 import { finishFlow, startFlowCookies } from './flow-cookies';
 import { getCurrentUser } from './current-user';
@@ -47,7 +47,7 @@ export interface GoogleAuthKitConfig {
   /** Finish a sign-in: record the person, issue their session, send them on. */
   readonly completeSignIn: (
     context: FlowContext,
-    info: GoogleUser,
+    info: GoogleUserResponse,
   ) => Promise<NextResponse>;
   /** The settings signing in needs that are not set, in the order to report them. */
   readonly missingSignInSettings: (env: CloudflareEnv) => string[];
@@ -73,12 +73,11 @@ export class GoogleAuthKit {
       : (otherFlows[purpose]?.failurePath(kind) ?? signInFailedPath);
   }
 
-  #client(origin: string): GoogleOAuthClient {
+  #client(): GoogleOAuthClient {
     const env = getEnv();
     return new GoogleOAuthClient({
       clientId: env.GOOGLE_OAUTH_CLIENT_ID,
       clientSecret: env.GOOGLE_OAUTH_CLIENT_SECRET,
-      redirectUri: `${origin}/auth/callback`,
     });
   }
 
@@ -99,7 +98,11 @@ export class GoogleAuthKit {
       const origin = appOrigin(request);
       const state = newState(this.#config.signInPurpose);
       const response = NextResponse.redirect(
-        this.#client(origin).authUrl({ state, scopes: this.#config.scopes }),
+        this.#client().authUrl({
+          redirectUri: `${origin}/auth/callback`,
+          state,
+          scopes: this.#config.scopes,
+        }),
       );
       startFlowCookies(response, {
         state,
@@ -159,17 +162,34 @@ export class GoogleAuthKit {
         ),
       };
       try {
-        const client = this.#client(origin);
-        const tokens = await client.exchangeCode(code);
-        const info = await client.userInfo(tokens.access_token);
+        const client = this.#client();
+        const tokens = await client.exchangeCode({
+          code,
+          redirectUri: `${origin}/auth/callback`,
+        });
+        if (!tokens.ok) {
+          logError({
+            event: 'auth.callback.failed',
+            error: `token exchange: http ${tokens.status}`,
+          });
+          return finishFlow(origin, this.#failurePath(purpose, 'error'));
+        }
+        const info = await client.getUserInfo(tokens.value.access_token);
+        if (!info.ok) {
+          logError({
+            event: 'auth.callback.failed',
+            error: `userinfo: http ${info.status}`,
+          });
+          return finishFlow(origin, this.#failurePath(purpose, 'error'));
+        }
         if (purpose === this.#config.signInPurpose) {
-          return await this.#config.completeSignIn(context, info);
+          return await this.#config.completeSignIn(context, info.value);
         }
         const other = this.#config.otherFlows[purpose];
         if (!other) {
           throw new Error(`No flow is registered for "${purpose}"`);
         }
-        return await other.complete(context, info, tokens);
+        return await other.complete(context, info.value, tokens.value);
       } catch (err) {
         logError({
           event: 'auth.callback.failed',
