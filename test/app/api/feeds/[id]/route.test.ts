@@ -1,55 +1,58 @@
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  jest,
-} from '@jest/globals';
+import { afterEach, beforeEach, describe, expect, it } from '@jest/globals';
 
 import { databaseFrom, type Database } from '@/domain/db/database';
 import { Repository } from '@/domain/repository';
-const addFeed = (d: Database, u: number, url: string, t?: string) =>
-  new Repository(d).addFeed(u, url, t);
-const listFeeds = (d: Database, u: number) => new Repository(d).listFeeds(u);
+import { SESSION_COOKIE } from '@/domain/auth/app';
 import { APP_MIGRATIONS } from '../../../../lib/core/db/migrations';
 import {
   installCloudflareContext,
   sqliteD1,
 } from '../../../../lib/core/db/sqlite-d1';
+import {
+  SESSION_SECRET,
+  tokenFor,
+} from '../../../../domain/auth/auth-test-kit';
 
-/** Who is signed in; null means nobody. */
-const session: { id: number | null } = { id: 7 };
-
-const { problems } = await import('@/lib/core/api');
-jest.unstable_mockModule('@/lib/core/auth', () => ({
-  requireUser: async (request: Request) => {
-    if (session.id === null) {
-      throw problems.unauthorized();
-    }
-    return { request, user: { id: session.id } };
-  },
-}));
+const addFeed = (d: Database, u: number, url: string, t?: string) =>
+  new Repository(d).addFeed(u, url, t);
+const listFeeds = (d: Database, u: number) => new Repository(d).listFeeds(u);
 
 const { DELETE } = await import('@/app/api/feeds/[id]/route');
 
 let restore: () => void;
 let db: Database;
 let mine: number;
+/** The Cookie header the browser sends; empty for a signed-out caller. */
+let auth: Record<string, string>;
+
+/** A Cookie header carrying a signed session for `uid`. */
+async function cookieFor(uid: number): Promise<Record<string, string>> {
+  return {
+    cookie: `${SESSION_COOKIE}=${await tokenFor({ id: uid }, { ep: 0 })}`,
+  };
+}
 
 beforeEach(async () => {
-  session.id = 7;
   const made = sqliteD1(...APP_MIGRATIONS);
-  restore = installCloudflareContext(made.d1);
+  restore = installCloudflareContext(made.d1, { SESSION_SECRET });
+  made.raw
+    .prepare(
+      'INSERT INTO users (id, google_sub, email, session_epoch) VALUES (7, ?, ?, 0), (8, ?, ?, 0)',
+    )
+    .run('g7', 'a@b.com', 'g8', 'b@b.com');
   db = databaseFrom(made.d1);
   mine = (await addFeed(db, 7, 'https://a.test/feed.xml'))!.id;
+  auth = await cookieFor(7);
 });
 
 afterEach(() => restore());
 
 const remove = (id: string | number) =>
   DELETE(
-    new Request(`https://app.test/api/feeds/${id}`, { method: 'DELETE' }),
+    new Request(`https://app.test/api/feeds/${id}`, {
+      method: 'DELETE',
+      headers: { ...auth },
+    }),
     {
       params: Promise.resolve({ id: String(id) }),
     },
@@ -71,7 +74,7 @@ describe('DELETE /api/feeds/:id', () => {
   });
 
   it('answers 404, removing nothing, for another person’s feed', async () => {
-    session.id = 8;
+    auth = await cookieFor(8);
     expect((await remove(mine)).status).toBe(404);
     expect(await listFeeds(db, 7)).toHaveLength(1);
   });
@@ -85,7 +88,7 @@ describe('DELETE /api/feeds/:id', () => {
   );
 
   it('answers 401 when nobody is signed in, removing nothing', async () => {
-    session.id = null;
+    auth = {};
     expect((await remove(mine)).status).toBe(401);
     expect(await listFeeds(db, 7)).toHaveLength(1);
   });

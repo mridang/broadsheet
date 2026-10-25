@@ -9,27 +9,18 @@ import {
 import type { DatabaseSync } from 'node:sqlite';
 
 import type { Feed } from '@/domain/repository';
+import { SESSION_COOKIE } from '@/domain/auth/app';
 import { APP_MIGRATIONS } from '../../../lib/core/db/migrations';
 import {
   installCloudflareContext,
   settleBackground,
   sqliteD1,
 } from '../../../lib/core/db/sqlite-d1';
+import { SESSION_SECRET, tokenFor } from '../../../domain/auth/auth-test-kit';
 
-/** Who is signed in; null means nobody. */
-const session: { id: number | null } = { id: 7 };
-
-// The sign-in gate has its own tests (test/lib/auth); here it says who is calling.
-const { problems } = await import('@/lib/core/api');
-jest.unstable_mockModule('@/lib/core/auth', () => ({
-  requireUser: async (request: Request) => {
-    if (session.id === null) {
-      throw problems.unauthorized();
-    }
-    return { request, user: { id: session.id } };
-  },
-}));
-
+// Identity is resolved from the signed session cookie on the request; the
+// resolver has its own tests (test/domain/api/auth). Here we sign a real
+// cookie for the caller so the feed endpoints run as that person.
 const refreshFeed = jest.fn<(...args: unknown[]) => Promise<unknown>>(
   async () => ({ ok: true, n: 0 }),
 );
@@ -41,24 +32,45 @@ const { POST } = await import('@/app/api/feeds/route');
 
 let raw: DatabaseSync;
 let restore: () => void;
+/** The Cookie header the browser sends; empty for a signed-out caller. */
+let auth: Record<string, string>;
 
-beforeEach(() => {
-  session.id = 7;
+/** A Cookie header carrying a signed session for `uid`. */
+async function cookieFor(uid: number): Promise<Record<string, string>> {
+  return {
+    cookie: `${SESSION_COOKIE}=${await tokenFor({ id: uid }, { ep: 0 })}`,
+  };
+}
+
+beforeEach(async () => {
   refreshFeed.mockClear();
   const made = sqliteD1(...APP_MIGRATIONS);
   raw = made.raw;
-  restore = installCloudflareContext(made.d1);
+  restore = installCloudflareContext(made.d1, { SESSION_SECRET });
+  raw
+    .prepare(
+      'INSERT INTO users (id, google_sub, email, session_epoch) VALUES (7, ?, ?, 0), (8, ?, ?, 0)',
+    )
+    .run('g7', 'a@b.com', 'g8', 'b@b.com');
+  auth = await cookieFor(7);
 });
 
 afterEach(() => restore());
 
 const URL = 'https://app.test/api/feeds';
 
-/** A POST with the given body text. */
+/** A POST with the given body text, carrying the current caller's cookie. */
 const post = (
   body: string,
   headers: Record<string, string> = { 'content-type': 'application/json' },
-) => POST(new Request(URL, { method: 'POST', headers, body }));
+) =>
+  POST(
+    new Request(URL, {
+      method: 'POST',
+      headers: { ...auth, ...headers },
+      body,
+    }),
+  );
 
 /** The body of a response, as the fields these tests read. */
 const body = async (res: Response) =>
@@ -104,12 +116,12 @@ describe('POST /api/feeds', () => {
 
   it('lets two people follow the same address', async () => {
     await follow('https://a.test/feed.xml');
-    session.id = 8;
+    auth = await cookieFor(8);
     expect((await follow('https://a.test/feed.xml')).status).toBe(201);
   });
 
   it('answers 401 as a problem when nobody is signed in, storing nothing', async () => {
-    session.id = null;
+    auth = {};
     const res = await follow('https://a.test/feed.xml');
     expect(res.status).toBe(401);
     expect(res.headers.get('content-type')).toBe('application/problem+json');

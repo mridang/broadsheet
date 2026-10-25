@@ -10,26 +10,19 @@ import {
 import { databaseFrom, type Database } from '@/domain/db/database';
 import type { Feed } from '@/domain/repository';
 import { Repository } from '@/domain/repository';
-const addFeed = (d: Database, u: number, url: string, t?: string) =>
-  new Repository(d).addFeed(u, url, t);
+import { SESSION_COOKIE } from '@/domain/auth/app';
 import { APP_MIGRATIONS } from '../../../../lib/core/db/migrations';
 import {
   installCloudflareContext,
   sqliteD1,
 } from '../../../../lib/core/db/sqlite-d1';
+import {
+  SESSION_SECRET,
+  tokenFor,
+} from '../../../../domain/auth/auth-test-kit';
 
-/** Who is signed in; null means nobody. */
-const session: { id: number | null } = { id: 7 };
-
-const { problems } = await import('@/lib/core/api');
-jest.unstable_mockModule('@/lib/core/auth', () => ({
-  requireUser: async (request: Request) => {
-    if (session.id === null) {
-      throw problems.unauthorized();
-    }
-    return { request, user: { id: session.id } };
-  },
-}));
+const addFeed = (d: Database, u: number, url: string, t?: string) =>
+  new Repository(d).addFeed(u, url, t);
 
 /** What each refresh does, by feed address. */
 const outcome = new Map<string, 'ok' | 'empty' | 'throws'>();
@@ -47,23 +40,42 @@ jest.unstable_mockModule('@/domain/scraping/index', () => ({
 const { POST } = await import('@/app/api/feeds/refreshes/route');
 
 let restore: () => void;
+/** The Cookie header the browser sends; empty for a signed-out caller. */
+let auth: Record<string, string>;
+
+/** A Cookie header carrying a signed session for `uid`. */
+async function cookieFor(uid: number): Promise<Record<string, string>> {
+  return {
+    cookie: `${SESSION_COOKIE}=${await tokenFor({ id: uid }, { ep: 0 })}`,
+  };
+}
 
 beforeEach(async () => {
-  session.id = 7;
   outcome.clear();
   refreshFeed.mockClear();
   const made = sqliteD1(...APP_MIGRATIONS);
-  restore = installCloudflareContext(made.d1);
+  restore = installCloudflareContext(made.d1, { SESSION_SECRET });
+  made.raw
+    .prepare(
+      'INSERT INTO users (id, google_sub, email, session_epoch) VALUES (7, ?, ?, 0), (8, ?, ?, 0)',
+    )
+    .run('g7', 'a@b.com', 'g8', 'b@b.com');
   const db = databaseFrom(made.d1);
   await addFeed(db, 7, 'https://a.test/1');
   await addFeed(db, 7, 'https://a.test/2');
   await addFeed(db, 8, 'https://a.test/other');
+  auth = await cookieFor(7);
 });
 
 afterEach(() => restore());
 
 const refresh = () =>
-  POST(new Request('https://app.test/api/feeds/refreshes', { method: 'POST' }));
+  POST(
+    new Request('https://app.test/api/feeds/refreshes', {
+      method: 'POST',
+      headers: { ...auth },
+    }),
+  );
 
 describe('POST /api/feeds/refreshes', () => {
   it('refreshes only the caller’s feeds and says how it went', async () => {
@@ -85,7 +97,7 @@ describe('POST /api/feeds/refreshes', () => {
   });
 
   it('answers 401 as a problem when nobody is signed in, refreshing nothing', async () => {
-    session.id = null;
+    auth = {};
     const res = await refresh();
     expect(res.status).toBe(401);
     expect(res.headers.get('content-type')).toBe('application/problem+json');
