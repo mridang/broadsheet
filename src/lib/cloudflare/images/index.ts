@@ -1,21 +1,13 @@
 /**
  * @packageDocumentation
  *
- * The Cloudflare image proxy: our own `/img` address for pictures on other
- * sites, fetched once, scaled with the Images binding and kept at the edge.
- * This is the one place in `lib` that reaches the Cloudflare runtime (the
- * `IMAGES` binding and the edge cache), so it lives under the `cloudflare`
- * vendor package rather than with the portable libraries.
- *
- * Public surface: the pure address/signing codec ({@link ImageCatalog},
- * {@link ImageSigner}), the capped fetch ({@link fetchImage}), the request
- * service ({@link serveImage} and its {@link ImageAccess} port), and the
- * runtime bindings ({@link imagesBinding}, {@link imageCache},
- * {@link imageSigner}, {@link runInBackground}).
+ * The client-safe render surface of the Cloudflare image proxy: building our
+ * own `/img` addresses for pictures on other sites and deciding which pictures
+ * are ours to proxy ({@link ImageCatalog}, its {@link ImageSpec}, the shared
+ * `/img` path). This is all a page or component needs to render an image, and
+ * it reaches no runtime bindings, so importing it pulls no server code into the
+ * client bundle. The server half — fetching, scaling, caching, signing and the
+ * request service — lives in `./server`.
  */
 
 export * from './address';
-export * from './signer';
-export * from './proxy';
-export * from './service';
-export * from './runtime';

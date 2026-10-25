@@ -26,7 +26,7 @@ jest.unstable_mockModule('@opennextjs/cloudflare', () => ({
 // Everything that reaches the image package is imported after the mock: the
 // barrel pulls in the Cloudflare runtime, so loading it (directly, or via
 // domain/images/site) before the mock would bind the real context accessor.
-const { ImageSigner } = await import('@/lib/cloudflare/images');
+const { ImageSigner } = await import('@/lib/cloudflare/images/server');
 const { ALLOWED_HOSTS, ALLOWED_WIDTHS, DEFAULT_WIDTH } =
   await import('@/domain/images/site');
 const { GET } = await import('@/app/img/route');

@@ -7,7 +7,7 @@
  * `img-src` at this site.
  */
 
-import type { ImageSigner } from '@/lib/cloudflare/images';
+import type { ImageSigner } from '@/lib/cloudflare/images/server';
 import { imageCatalog } from '@/domain/images/site';
 
 /**

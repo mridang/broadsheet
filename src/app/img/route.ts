@@ -1,6 +1,6 @@
 /**
  * Pictures from other websites, served from our own address (see
- * `lib/images/address.ts` for why).
+ * `lib/cloudflare/images` for why).
  *
  *   GET /img?url=<picture address>&w=<width>
  *
@@ -13,12 +13,13 @@
 
 import { imageCatalog } from '@/domain/images/site';
 import {
+  ImageService,
   imageCache,
   imageSigner,
   imagesBinding,
   runInBackground,
-} from '@/lib/cloudflare/images';
-import { serveImage, type ImageAccess } from '@/lib/cloudflare/images';
+  type ImageAccess,
+} from '@/lib/cloudflare/images/server';
 
 /**
  * `GET /img?url=…&w=…`: the picture at `url`, scaled to the nearest
@@ -40,11 +41,11 @@ export async function GET(request: Request): Promise<Response> {
     // A signed address may be fetched.
     mayFetch: () => Promise.resolve(true),
   };
-  return serveImage(request, {
+  return new ImageService({
     access,
     catalog: imageCatalog,
     cache: imageCache(),
     images: imagesBinding(),
     background: runInBackground,
-  });
+  }).serve(request);
 }

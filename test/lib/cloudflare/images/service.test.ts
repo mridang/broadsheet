@@ -1,9 +1,9 @@
 import { describe, expect, it, jest } from '@jest/globals';
 
+import { ImageCatalog } from '@/lib/cloudflare/images';
 import {
   BROWSER_SECONDS,
   EDGE_SECONDS,
-  ImageCatalog,
   imageCacheKey,
   imageHeaders,
   refuse,
@@ -11,7 +11,7 @@ import {
   type ImageAccess,
   type ImageCache,
   type ImageFetch,
-} from '@/lib/cloudflare/images';
+} from '@/lib/cloudflare/images/server';
 import {
   ALLOWED_HOSTS,
   ALLOWED_WIDTHS,

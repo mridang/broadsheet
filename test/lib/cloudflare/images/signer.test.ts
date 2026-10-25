@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { ImageSigner } from '@/lib/cloudflare/images';
+import { ImageSigner } from '@/lib/cloudflare/images/server';
 
 const URL_A = 'https://news.example.org/photo.jpg';
 const URL_B = 'https://news.example.org/other.jpg';
