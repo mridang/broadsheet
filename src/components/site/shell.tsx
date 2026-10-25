@@ -1,6 +1,6 @@
 import type { ReactElement, ReactNode } from 'react';
 
-import { getCurrentUser } from '@/core/auth/current-user';
+import { getCurrentUser } from '@/core/auth';
 
 import { SiteHeader } from '@/components/site/site-header';
 import { SkipLink } from '@/components/site/skip-link';

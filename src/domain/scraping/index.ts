@@ -16,10 +16,10 @@ import {
   pageDescription,
   parseFeed,
   siteName,
-} from '@/lib/scraping/parse';
-import type { ScrapedItem } from '@/lib/scraping/types';
+} from '@/lib/scraping';
+import type { ScrapedItem } from '@/lib/scraping';
 
-export type { ScrapedItem } from '@/lib/scraping/types';
+export type { ScrapedItem } from '@/lib/scraping';
 
 const UA =
   'Mozilla/5.0 (compatible; HackerTimesBot/1.0; +https://broadsheet.apps.mrida.ng)';

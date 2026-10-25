@@ -11,8 +11,8 @@
 import { NextResponse } from 'next/server';
 
 import { appOrigin } from '@/core/origin';
-import { isSameOriginPost } from '@/lib/web-security/csrf';
-import { getCurrentUser } from '@/core/auth/current-user';
+import { isSameOriginPost } from '@/lib/web-security';
+import { getCurrentUser } from './current-user';
 import type { User } from '@/domain/auth/store';
 
 /** A problem response with the fixed shape every refusal here has. */

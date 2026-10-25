@@ -30,7 +30,7 @@ jest.unstable_mockModule('@/domain/auth/store', () => ({
   getSessionEpoch: async () => 0,
 }));
 
-const { crossSiteRefusal, requireSignedIn } = await import('@/core/auth/guard');
+const { crossSiteRefusal, requireSignedIn } = await import('@/core/auth');
 
 let restore: () => void;
 

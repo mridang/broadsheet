@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { problem, problems } from '@/lib/rest-json/problem';
+import { problem, problems } from '@/lib/rest-json';
 
 describe('problem', () => {
   it('sends RFC 9457 problem details with the right media type and status', async () => {

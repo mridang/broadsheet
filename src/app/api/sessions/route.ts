@@ -12,7 +12,7 @@
 import { NextResponse } from 'next/server';
 
 import { SESSION_COOKIE } from '@/domain/auth/app';
-import { requireSignedIn } from '@/core/auth/guard';
+import { requireSignedIn } from '@/core/auth';
 import { bumpSessionEpoch } from '@/domain/auth/store';
 
 /**

@@ -6,7 +6,7 @@ import {
   pageDescription,
   parseFeed,
   siteName,
-} from '@/lib/scraping/parse';
+} from '@/lib/scraping';
 
 describe('domainClean', () => {
   it('applies curated overrides', () => {

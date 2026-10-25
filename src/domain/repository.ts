@@ -10,7 +10,7 @@ import { and, asc, desc, eq, sql } from 'drizzle-orm';
 
 import { type Database } from '@/core/db/client';
 import { articles, feeds, users } from '@/domain/db/schema';
-import type { ScrapedItem } from '@/lib/scraping/types';
+import type { ScrapedItem } from '@/lib/scraping';
 
 /** A signed-in person. */
 export type User = typeof users.$inferSelect;

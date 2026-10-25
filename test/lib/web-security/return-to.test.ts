@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { safeReturnPath } from '@/lib/web-security/return-to';
+import { safeReturnPath } from '@/lib/web-security';
 
 describe('safeReturnPath', () => {
   it('allows a path on this site, with its query', () => {

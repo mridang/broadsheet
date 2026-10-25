@@ -20,13 +20,12 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 import { GoogleOAuthClient } from '@/lib/google/auth';
 import type { GoogleUser } from '@/lib/google/auth';
-import { checkState, newState } from '@/lib/web-security/oauth-state';
-import { safeReturnPath } from '@/lib/web-security/return-to';
-import { finishFlow, startFlowCookies } from '@/core/auth/flow-cookies';
-import { getCurrentUser } from '@/core/auth/current-user';
+import { checkState, newState, safeReturnPath } from '@/lib/web-security';
+import { finishFlow, startFlowCookies } from './flow-cookies';
+import { getCurrentUser } from './current-user';
 import type { FlowContext, OtherFlow } from '@/domain/auth/sign-in';
 import type { User } from '@/domain/auth/store';
-import { problem } from '@/lib/rest-json/problem';
+import { problem } from '@/lib/rest-json';
 import { getEnv } from '@/core/runtime';
 import { appOrigin } from '@/core/origin';
 import { logError, logWarn } from '@/utils/logging';

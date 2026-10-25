@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { readBodyText, readFormBody, readJsonBody } from '@/lib/rest-json/body';
+import { readBodyText, readFormBody, readJsonBody } from '@/lib/rest-json';
 
 /** A POST with a body that arrives in the given pieces (no Content-Length, as with chunked uploads). */
 function chunked(

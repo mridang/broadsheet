@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 import { ensurePublicUser } from '@/domain/account';
-import { getCurrentUser } from '@/core/auth/current-user';
+import { getCurrentUser } from '@/core/auth';
 import { getDatabase } from '@/core/runtime';
 import { Repository } from '@/domain/repository';
 import { todayEdition } from '@/domain/scraping/index';

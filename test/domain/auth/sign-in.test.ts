@@ -23,6 +23,10 @@ const afterSignIn = jest
 
 jest.unstable_mockModule('@/domain/auth/store', () => ({
   upsertGoogleUser,
+  // Importing core/auth via its barrel now also loads the current-user lookup,
+  // which reads these; sign-in never calls them, so stubs keep the shape whole.
+  getUserById: jest.fn(async () => person),
+  getSessionEpoch: jest.fn(async () => 0),
 }));
 jest.unstable_mockModule('@/domain/auth/hooks', () => ({
   afterSignIn,

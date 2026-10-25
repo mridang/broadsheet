@@ -1,8 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 
 import { SESSION_COOKIE } from '@/domain/auth/app';
-import { GENERIC_CLASSES } from '@/core/http/edge-limits';
-import { EDGE_LIMITS } from '@/core/http/extras';
+import { GENERIC_CLASSES, EDGE_LIMITS } from '@/core/http';
 
 const classOf = (pathname: string) =>
   EDGE_LIMITS.classify(new Request(`https://app.test${pathname}`));

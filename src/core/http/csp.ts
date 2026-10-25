@@ -13,9 +13,9 @@
  */
 
 import { bytesToBase64 } from '@/utils/base64';
-import { replacingHeaders } from '@/core/http/headers';
-import { CSP_REPORT_DIRECTIVES } from '@/core/http/reporting';
-import { EXTRA_DIRECTIVES, EXTRA_IMG_SOURCES } from '@/core/http/site';
+import { replacingHeaders } from './headers';
+import { CSP_REPORT_DIRECTIVES } from './reporting';
+import { EXTRA_DIRECTIVES, EXTRA_IMG_SOURCES } from './site';
 
 /** A fresh, unguessable nonce: 16 random bytes, base64. */
 export function newNonce(): string {

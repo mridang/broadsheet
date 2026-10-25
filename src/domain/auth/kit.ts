@@ -8,9 +8,9 @@
  * handlers; nothing else needs to know how the pieces fit together.
  */
 
-import { GoogleAuthKit } from '@/core/auth/google-auth-kit';
+import { GoogleAuthKit } from '@/core/auth';
 import { SIGN_IN_SCOPES } from '@/lib/google/auth';
-import { SIGN_IN_PURPOSE } from '@/lib/web-security/oauth-state';
+import { SIGN_IN_PURPOSE } from '@/lib/web-security';
 import {
   EXTRA_PURPOSES,
   RETURN_COOKIE,

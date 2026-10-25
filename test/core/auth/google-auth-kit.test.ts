@@ -5,6 +5,8 @@ import type { User } from '@/domain/auth/store';
 const person = { id: 7, email: 'a@b.com' } as User;
 const getCurrentUser = jest.fn<() => Promise<User | null>>();
 
+// Mock the specific module and import the kit from its own file: mocking the
+// package barrel would replace GoogleAuthKit too.
 jest.unstable_mockModule('@/core/auth/current-user', () => ({
   getCurrentUser,
 }));

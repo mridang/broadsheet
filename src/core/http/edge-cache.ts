@@ -11,14 +11,14 @@
  */
 
 import { SITE_NAME } from '@/utils/site';
-import { nonceOf } from '@/core/http/csp';
-import { EDGE_LIMITS } from '@/core/http/extras';
-import { replacingHeaders } from '@/core/http/headers';
+import { nonceOf } from './csp';
+import { EDGE_LIMITS } from './extras';
+import { replacingHeaders } from './headers';
 import {
   CACHED_QUERY_PARAMS,
   EDGE_CACHED_PAGES,
   EDGE_TTL_SECONDS,
-} from '@/core/http/site';
+} from './site';
 
 /** The most query parameters a kept page may carry. */
 const MAX_PARAMS = 8;

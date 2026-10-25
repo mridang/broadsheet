@@ -9,7 +9,7 @@ import {
   OPEN_FILES,
   PUBLIC_PAGES,
   RARELY_CHANGING,
-} from '@/core/http/site';
+} from '@/core/http';
 
 describe('site settings', () => {
   it('lets the edge keep the same pages that may be indexed', () => {

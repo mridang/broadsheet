@@ -1,10 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 
-import {
-  UNKNOWN_ADDRESS,
-  addressSubject,
-  clientSubject,
-} from '@/core/http/client-address';
+import { UNKNOWN_ADDRESS, addressSubject, clientSubject } from '@/core/http';
 
 describe('addressSubject', () => {
   it('leaves an IPv4 address as it is', () => {

@@ -5,7 +5,7 @@ import {
   checkState,
   newState,
   purposeOf,
-} from '@/lib/web-security/oauth-state';
+} from '@/lib/web-security';
 
 /** A sample set of valid labels, as a caller would pass in (sign-in plus one extra). */
 const PURPOSES = [SIGN_IN_PURPOSE, 'extra'];

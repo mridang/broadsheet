@@ -1,7 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { ApiController } from '@/core/api/controller';
-import { problems } from '@/lib/rest-json/problem';
+import { ApiController } from '@/core/api';
+import { problems } from '@/lib/rest-json';
 
 /** Read a response's JSON body as a record. */
 async function body(response: Response): Promise<Record<string, unknown>> {
