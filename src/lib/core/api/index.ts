@@ -13,6 +13,7 @@ export * from './problem';
 export * from './json';
 export * from './body';
 export * from './pagination';
+export * from './etag';
 export * from './results';
 export * from './controller';
 export * from './route-context';
