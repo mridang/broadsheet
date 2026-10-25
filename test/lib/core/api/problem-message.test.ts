@@ -5,7 +5,7 @@ import {
   problemError,
   problemMessage,
   problemText,
-} from '@/lib/rest-json';
+} from '@/lib/core/api';
 
 const refusal = (body: unknown, status = 409) =>
   new Response(JSON.stringify(body), { status });

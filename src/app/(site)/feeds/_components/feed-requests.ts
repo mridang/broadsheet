@@ -6,7 +6,7 @@
  * refused (see `problemText`).
  */
 
-import { problemError } from '@/lib/rest-json';
+import { problemError } from '@/lib/core/api';
 
 /** Throw the server's refusal, if the response is one. */
 async function ensureOk(res: Response): Promise<void> {

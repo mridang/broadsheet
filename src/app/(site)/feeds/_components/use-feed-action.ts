@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-import { problemText } from '@/lib/rest-json';
+import { problemText } from '@/lib/core/api';
 
 /** What a feed control shows while its request runs and after it fails. */
 export interface FeedAction {

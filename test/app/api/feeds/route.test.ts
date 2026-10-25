@@ -20,7 +20,7 @@ import {
 const session: { id: number | null } = { id: 7 };
 
 // The sign-in gate has its own tests (test/lib/auth); here it says who is calling.
-const { problems } = await import('@/lib/rest-json');
+const { problems } = await import('@/lib/core/api');
 jest.unstable_mockModule('@/lib/core/auth', () => ({
   requireUser: async (request: Request) => {
     if (session.id === null) {

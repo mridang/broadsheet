@@ -9,7 +9,7 @@
 
 import { NextResponse } from 'next/server';
 
-import { readJsonBody } from '@/lib/rest-json';
+import { readJsonBody } from '@/lib/core/api';
 import { summariseReports } from '@/lib/core/http';
 
 /** The largest report body read: a few reports are a few hundred bytes each. */

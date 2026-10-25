@@ -14,8 +14,7 @@ import {
   parseFeedInput,
   type FeedResource,
 } from '@/domain/api/feed-resource';
-import { readJsonObject, problems } from '@/lib/rest-json';
-import { ApiController } from '@/lib/core/api';
+import { readJsonObject, problems, ApiController } from '@/lib/core/api';
 import { requireUser, type AuthedContext } from '@/lib/core/auth';
 import { Repository, type Feed } from '@/domain/repository';
 import { refreshFeed } from '@/domain/scraping/index';

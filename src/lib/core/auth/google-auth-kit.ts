@@ -25,7 +25,7 @@ import { finishFlow, startFlowCookies } from './flow-cookies';
 import { getCurrentUser } from './current-user';
 import type { FlowContext, OtherFlow } from '@/domain/auth/sign-in';
 import type { User } from '@/domain/auth/store';
-import { problem } from '@/lib/rest-json';
+import { problem } from '@/lib/core/api';
 import { getEnv } from '@/lib/core/runtime';
 import { appOrigin } from '@/lib/core/origin';
 import { logError, logWarn } from '@/utils/logging';

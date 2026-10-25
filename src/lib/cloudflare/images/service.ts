@@ -14,7 +14,7 @@
  * rest of the API, that nobody caches.
  */
 
-import { problems } from '@/lib/rest-json';
+import { problems } from '@/lib/core/api';
 import { isPublicWebUrl } from '@/lib/safe-fetch';
 import { SITE_NAME, SITE_URL } from '@/utils/site';
 import type { ImageCatalog } from './address';

@@ -21,7 +21,7 @@ import {
 /** Who is signed in; null means nobody. */
 const session: { id: number | null } = { id: 7 };
 
-const { problems } = await import('@/lib/rest-json');
+const { problems } = await import('@/lib/core/api');
 jest.unstable_mockModule('@/lib/core/auth', () => ({
   requireUser: async (request: Request) => {
     if (session.id === null) {
