@@ -1,47 +1,80 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# Dependency directories
+node_modules/
+jspm_packages/
 
-# dependencies
-/node_modules
-/.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
+# TypeScript compiled output
+dist/
+build/
+out/
+*.tsbuildinfo
 
-# testing
-/coverage
+# Environment configuration files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 
-# next.js
-/.next/
-/out/
-
-# production
-/build
-/dist
-
-# misc
-.DS_Store
-*.pem
-
-# debug
+# Debug log files
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# IDE and editor folders
+/.idea/
+/.vscode/
+*.swp
+*.swo
+*~
+
+# Operating System generated files
+.DS_Store
+Thumbs.db
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variable files
 .env*
 
-# vercel
-.vercel
+# parcel-bundler cache (https://parceljs.org/)
+.cache
+.parcel-cache
 
-# typescript
-*.tsbuildinfo
-next-env.d.ts
+# Next.js build output
+.next
+
+# Nuxt.js build output
+.nuxt
+
+# Gatsby files
+.cache/
+# Comment in the public line in if your project uses Gatsby and not Next.js
+# public
+
+# vuepress build output
+.vuepress/dist
+
+# Serverless directories
+.serverless/
+
+# Jest coverage
+.out
+
+# Github Keys
+*.pem
+
+# Cloudflare / Next.js build output
 .open-next/
 .wrangler/
-
-# Jest coverage + junit output
-/.out/
+.dev.vars
+next-env.d.ts

@@ -1,6 +1,6 @@
 import { includeIgnoreFile } from '@eslint/compat';
 import { fileURLToPath } from 'node:url';
-import mridang from '@mridang/eslint-defaults';
+import mridangPlugin from '@mridang/eslint-defaults';
 import drizzle from 'eslint-plugin-drizzle';
 
 export default [
@@ -18,7 +18,7 @@ export default [
       'src/worker.ts',
     ],
   },
-  ...mridang.configs.recommended,
+  ...mridangPlugin.configs.recommended,
   {
     languageOptions: {
       parserOptions: {
