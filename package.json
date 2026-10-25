@@ -57,6 +57,8 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@emnapi/core": "^1.11.3",
+    "@emnapi/runtime": "^1.11.3",
     "@eslint/compat": "^2.1.0",
     "@jest/globals": "^30.0.3",
     "@mridang/eslint-defaults": "^1.7.0",
