@@ -6,8 +6,11 @@ import {
   getUserById,
   upsertGoogleUser,
 } from '@/domain/auth/store';
-import { APP_MIGRATIONS } from '../../core/db/migrations';
-import { installCloudflareContext, sqliteD1 } from '../../core/db/sqlite-d1';
+import { APP_MIGRATIONS } from '../../lib/core/db/migrations';
+import {
+  installCloudflareContext,
+  sqliteD1,
+} from '../../lib/core/db/sqlite-d1';
 
 let restore: () => void;
 

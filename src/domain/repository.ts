@@ -8,7 +8,7 @@
  */
 import { and, asc, desc, eq, sql } from 'drizzle-orm';
 
-import { type Database } from '@/core/db/client';
+import { type Database } from '@/domain/db/database';
 import { articles, feeds, users } from '@/domain/db/schema';
 import type { ScrapedItem } from '@/lib/scraping';
 

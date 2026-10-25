@@ -9,19 +9,19 @@ import {
 import type { DatabaseSync } from 'node:sqlite';
 
 import type { Feed } from '@/domain/repository';
-import { APP_MIGRATIONS } from '../../../core/db/migrations';
+import { APP_MIGRATIONS } from '../../../lib/core/db/migrations';
 import {
   installCloudflareContext,
   settleBackground,
   sqliteD1,
-} from '../../../core/db/sqlite-d1';
+} from '../../../lib/core/db/sqlite-d1';
 
 /** Who is signed in; null means nobody. */
 const session: { id: number | null } = { id: 7 };
 
 // The sign-in gate has its own tests (test/lib/auth); here it says who is calling.
 const { problems } = await import('@/lib/rest-json');
-jest.unstable_mockModule('@/core/auth', () => ({
+jest.unstable_mockModule('@/lib/core/auth', () => ({
   requireUser: async (request: Request) => {
     if (session.id === null) {
       throw problems.unauthorized();

@@ -4,8 +4,8 @@ import { describe, expect, it } from '@jest/globals';
 import type { DatabaseSync } from 'node:sqlite';
 
 import * as schema from '@/domain/db/schema';
-import { APP_MIGRATIONS } from '../../core/db/migrations';
-import { sqliteD1 } from '../../core/db/sqlite-d1';
+import { APP_MIGRATIONS } from '../../lib/core/db/migrations';
+import { sqliteD1 } from '../../lib/core/db/sqlite-d1';
 
 /** The column names SQLite reports for a table, sorted. */
 function columnsOf(raw: DatabaseSync, table: string): readonly string[] {

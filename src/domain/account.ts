@@ -8,7 +8,8 @@
  */
 import { Repository, type Feed } from '@/domain/repository';
 import { refreshFeed } from '@/domain/scraping/index';
-import { getDatabase, getEnv, runInBackground } from '@/core/runtime';
+import { getEnv, runInBackground } from '@/lib/core/runtime';
+import { getDatabase } from '@/domain/db/database';
 
 const DEFAULT_FEEDS: [string, string][] = [
   ['https://hnrss.org/frontpage', 'Hacker News'],

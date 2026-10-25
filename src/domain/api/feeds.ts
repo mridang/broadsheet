@@ -15,12 +15,13 @@ import {
   type FeedResource,
 } from '@/domain/api/feed-resource';
 import { readJsonObject, problems } from '@/lib/rest-json';
-import { ApiController } from '@/core/api';
-import { requireUser, type AuthedContext } from '@/core/auth';
+import { ApiController } from '@/lib/core/api';
+import { requireUser, type AuthedContext } from '@/lib/core/auth';
 import { Repository, type Feed } from '@/domain/repository';
 import { refreshFeed } from '@/domain/scraping/index';
-import { getDatabase, getEnv, runInBackground } from '@/core/runtime';
-import { appOrigin } from '@/core/origin';
+import { getEnv, runInBackground } from '@/lib/core/runtime';
+import { getDatabase } from '@/domain/db/database';
+import { appOrigin } from '@/lib/core/origin';
 
 /** A followed feed, and whether this request created it. */
 interface FollowResult {

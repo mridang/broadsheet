@@ -7,22 +7,22 @@ import {
   jest,
 } from '@jest/globals';
 
-import { createDatabase, type Database } from '@/core/db/client';
+import { databaseFrom, type Database } from '@/domain/db/database';
 import type { Feed } from '@/domain/repository';
 import { Repository } from '@/domain/repository';
 const addFeed = (d: Database, u: number, url: string, t?: string) =>
   new Repository(d).addFeed(u, url, t);
-import { APP_MIGRATIONS } from '../../../../core/db/migrations';
+import { APP_MIGRATIONS } from '../../../../lib/core/db/migrations';
 import {
   installCloudflareContext,
   sqliteD1,
-} from '../../../../core/db/sqlite-d1';
+} from '../../../../lib/core/db/sqlite-d1';
 
 /** Who is signed in; null means nobody. */
 const session: { id: number | null } = { id: 7 };
 
 const { problems } = await import('@/lib/rest-json');
-jest.unstable_mockModule('@/core/auth', () => ({
+jest.unstable_mockModule('@/lib/core/auth', () => ({
   requireUser: async (request: Request) => {
     if (session.id === null) {
       throw problems.unauthorized();
@@ -54,7 +54,7 @@ beforeEach(async () => {
   refreshFeed.mockClear();
   const made = sqliteD1(...APP_MIGRATIONS);
   restore = installCloudflareContext(made.d1);
-  const db = createDatabase(made.d1);
+  const db = databaseFrom(made.d1);
   await addFeed(db, 7, 'https://a.test/1');
   await addFeed(db, 7, 'https://a.test/2');
   await addFeed(db, 8, 'https://a.test/other');

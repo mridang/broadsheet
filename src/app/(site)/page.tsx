@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 
 import { ensurePublicUser } from '@/domain/account';
-import { getCurrentUser } from '@/core/auth';
-import { getDatabase } from '@/core/runtime';
+import { getCurrentUser } from '@/lib/core/auth';
+import { getDatabase } from '@/domain/db/database';
 import { Repository } from '@/domain/repository';
 import { todayEdition } from '@/domain/scraping/index';
 import { Section } from '@/app/(site)/_components/section';

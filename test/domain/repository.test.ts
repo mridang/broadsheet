@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it } from '@jest/globals';
 
-import { createDatabase, type Database } from '@/core/db/client';
+import { databaseFrom, type Database } from '@/domain/db/database';
 import { Repository, type Profile } from '@/domain/repository';
-import { APP_MIGRATIONS } from '../core/db/migrations';
-import { sqliteD1 } from '../core/db/sqlite-d1';
+import { APP_MIGRATIONS } from '../lib/core/db/migrations';
+import { sqliteD1 } from '../lib/core/db/sqlite-d1';
 
 // Thin adapters over the Repository handle, so each case reads as a one-liner.
 const upsertUser = (d: Database, p: Profile) => new Repository(d).upsertUser(p);
@@ -24,7 +24,7 @@ const removeFeed = (d: Database, userId: number, id: number) =>
 let db: Database;
 
 beforeEach(() => {
-  db = createDatabase(sqliteD1(...APP_MIGRATIONS).d1);
+  db = databaseFrom(sqliteD1(...APP_MIGRATIONS).d1);
 });
 
 describe('upsertUser', () => {

@@ -3,7 +3,7 @@ import path from 'node:path';
 import { beforeEach, describe, expect, it } from '@jest/globals';
 import type { DatabaseSync } from 'node:sqlite';
 
-import { sqliteD1 } from '../../core/db/sqlite-d1';
+import { sqliteD1 } from '../../lib/core/db/sqlite-d1';
 
 let raw: DatabaseSync;
 

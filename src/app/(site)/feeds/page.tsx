@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 
-import { getCurrentUser } from '@/core/auth';
-import { getDatabase } from '@/core/runtime';
+import { getCurrentUser } from '@/lib/core/auth';
+import { getDatabase } from '@/domain/db/database';
 import { Repository } from '@/domain/repository';
 import { hostOf } from '@/domain/render/tiers';
 

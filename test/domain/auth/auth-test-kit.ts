@@ -2,7 +2,7 @@ import { jest } from '@jest/globals';
 import { NextRequest } from 'next/server';
 
 import { SessionTokens } from '@/lib/session';
-import { installCloudflareContext } from '../../core/db/sqlite-d1';
+import { installCloudflareContext } from '../../lib/core/db/sqlite-d1';
 
 /** The session secret the sign-in tests use. */
 export const SESSION_SECRET = 'test-session-secret-value-0123456789';

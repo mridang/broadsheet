@@ -8,7 +8,7 @@
  */
 
 import { Repository, type Profile, type User } from '@/domain/repository';
-import { getDatabase } from '@/core/runtime';
+import { getDatabase } from '@/domain/db/database';
 
 export type { User };
 
