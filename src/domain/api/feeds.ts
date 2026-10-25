@@ -14,19 +14,24 @@ import {
   feedResource,
   parseFeedId,
   parseFeedInput,
-  type FeedResource,
 } from '@/domain/api/feed-resource';
 import {
   liveUid,
   requestCookieResolver,
   type CurrentUserResolver,
 } from '@/domain/api/auth';
-import { readJsonObject, problems, ApiController } from '@/lib/core/api';
+import {
+  readJsonObject,
+  problems,
+  ApiController,
+  ok,
+  created,
+  noContent,
+} from '@/lib/core/api';
 import { Repository, type Feed } from '@/domain/repository';
 import { refreshFeed } from '@/domain/scraping/index';
 import { getEnv, runInBackground } from '@/lib/core/runtime';
 import { getDatabase } from '@/domain/db/database';
-import { appOrigin } from '@/lib/core/origin';
 
 /** The signed-in caller's id and the request, for a feed endpoint. */
 interface UidContext {
@@ -84,21 +89,13 @@ export function createFeedsCollection(
       runInBackground(refreshFeed(db, getEnv(), feed).catch(() => undefined));
       return { feed, created: true };
     },
-    encode: (
-      { feed, created },
-      { request },
-    ): {
-      status: number;
-      body: FeedResource;
-      headers: Record<string, string>;
-    } => ({
-      status: created ? 201 : 200,
-      body: feedResource(feed),
-      headers: {
-        Location: `${appOrigin(request)}/api/feeds/${feed.id}`,
-        ...(created ? {} : { 'Cache-Control': 'private, no-cache' }),
-      },
-    }),
+    encode: ({ feed, created: isNew }) =>
+      isNew
+        ? created(feedResource(feed), `/api/feeds/${feed.id}`)
+        : ok(feedResource(feed), {
+            location: `/api/feeds/${feed.id}`,
+            headers: { 'Cache-Control': 'private, no-cache' },
+          }),
   });
 }
 
@@ -126,8 +123,7 @@ export function createFeedItem(
         ? new Repository(getDatabase()).removeFeed(uid, id)
         : false;
     },
-    encode: (removed) =>
-      removed ? { status: 204 } : { response: problems.notFound('feed') },
+    encode: (removed) => (removed ? noContent() : problems.notFound('feed')),
   });
 }
 
@@ -182,7 +178,7 @@ export function createFeedRefreshes(
         failed: feeds.length - refreshed,
       };
     },
-    encode: (body) => ({ body, headers: { 'Cache-Control': 'no-store' } }),
+    encode: (body) => ok(body, { headers: { 'Cache-Control': 'no-store' } }),
   });
 }
 

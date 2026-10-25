@@ -16,20 +16,41 @@
  * they grow without touching the route file, which only mounts `handlers()`.
  */
 
+import { appOrigin } from '@/lib/core/origin';
 import { problem } from './problem';
+import { encodeCursor, type CursorPosition } from './pagination';
 import type { RouteContext } from './route-context';
 
 /** The HTTP methods an endpoint may answer. */
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
-/** How an endpoint's output becomes a response. */
+/**
+ * How an endpoint's output becomes a response. An endpoint builds one with the
+ * success vocabulary in `./results` (`ok`/`created`/`noContent`/`page`) rather
+ * than filling these fields by hand; the controller renders the status, the
+ * absolute `Location` and the page body here, in one place.
+ */
 export interface ApiResponse<Output> {
-  /** Status code; 200 by default (or 204 when there is no body). */
+  /** Status code; 200 by default (204 when there is no body). */
   readonly status?: number;
   /** The JSON body; omit for an empty response. */
   readonly body?: Output;
   /** Extra response headers. */
   readonly headers?: Readonly<Record<string, string>>;
+  /**
+   * A path on this app; the controller makes it an absolute `Location` header
+   * against the app's public origin. The status is whatever the result sets
+   * (`created` makes it 201), so this header can ride a 200 too.
+   */
+  readonly location?: string;
+  /**
+   * One page of a list; the controller builds the `{ self, next?, items }` body
+   * and its cursor links from the request, so no handler builds a paging URL.
+   */
+  readonly page?: {
+    readonly items: readonly unknown[];
+    readonly next?: CursorPosition;
+  };
   /** Escape hatch: send this response verbatim (cookies, redirects, …). */
   readonly response?: Response;
 }
@@ -72,20 +93,63 @@ function serverError(): Response {
   );
 }
 
-/** Build a `Response` from an endpoint's `ApiResponse`. */
-function toResponse(result: ApiResponse<unknown> | Response): Response {
+/** The wire body of a page: the current URL, the next page's URL, and the items. */
+interface PageBody {
+  readonly self: string;
+  readonly next?: string;
+  readonly items: readonly unknown[];
+}
+
+/**
+ * The response body for a `page` result: `self` is the request's own absolute
+ * URL (on the app's public origin), and `next` is the same URL with the cursor
+ * swapped for the one that starts the following page. Built here so a handler
+ * only computes the `next` position, never a URL.
+ */
+function pageBody(
+  request: Request,
+  page: NonNullable<ApiResponse<unknown>['page']>,
+): PageBody {
+  const url = new URL(request.url);
+  const origin = appOrigin(request);
+  const self = `${origin}${url.pathname}${url.search}`;
+  if (!page.next) {
+    return { self, items: page.items };
+  }
+  const query = new URLSearchParams(url.search);
+  query.set('cursor', encodeCursor(page.next));
+  return {
+    self,
+    next: `${origin}${url.pathname}?${query.toString()}`,
+    items: page.items,
+  };
+}
+
+/**
+ * Build a `Response` from an endpoint's `ApiResponse`. The request is needed to
+ * resolve a relative `location` and the paging URLs against the app's origin.
+ */
+function toResponse(
+  result: ApiResponse<unknown> | Response,
+  request: Request,
+): Response {
   if (result instanceof Response) {
     return result;
   }
   if (result.response) {
     return result.response;
   }
-  const status = result.status ?? (result.body === undefined ? 204 : 200);
   const headers = new Headers(result.headers);
-  if (result.body === undefined) {
+  if (result.location !== undefined) {
+    headers.set('Location', `${appOrigin(request)}${result.location}`);
+  }
+  const body =
+    result.page !== undefined ? pageBody(request, result.page) : result.body;
+  const status = result.status ?? (body === undefined ? 204 : 200);
+  if (body === undefined) {
     return new Response(null, { status, headers });
   }
-  const response = Response.json(result.body, { status });
+  const response = Response.json(body, { status });
   headers.forEach((value, name) => response.headers.set(name, value));
   return response;
 }
@@ -131,7 +195,7 @@ export class ApiController<Ctx = Request> {
       const result: ApiResponse<unknown> | Response = endpoint.encode
         ? endpoint.encode(output, ctx)
         : { body: output };
-      return toResponse(result);
+      return toResponse(result, request);
     } catch (error) {
       // A thrown problem response (bad input, a refusal) is the answer.
       if (error instanceof Response) {

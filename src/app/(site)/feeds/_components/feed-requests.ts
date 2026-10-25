@@ -6,14 +6,7 @@
  * refused (see `problemText`).
  */
 
-import { problemError } from '@/lib/core/api';
-
-/** Throw the server's refusal, if the response is one. */
-async function ensureOk(res: Response): Promise<void> {
-  if (!res.ok) {
-    throw await problemError(res);
-  }
-}
+import { ensureOk } from '@/components/api/problem-message';
 
 /** Follow the feed at `url` (`POST /api/feeds`). */
 export async function followFeed(url: string): Promise<void> {

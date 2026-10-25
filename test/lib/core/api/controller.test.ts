@@ -1,6 +1,14 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { ApiController, problems } from '@/lib/core/api';
+import {
+  ApiController,
+  problems,
+  ok,
+  created,
+  noContent,
+  page,
+  encodeCursor,
+} from '@/lib/core/api';
 
 /** Read a response's JSON body as a record. */
 async function body(response: Response): Promise<Record<string, unknown>> {
@@ -112,5 +120,78 @@ describe('ApiController', () => {
       })
       .handlers();
     expect((await GET(new Request('https://app.test/x'))).status).toBe(503);
+  });
+
+  it('created() answers 201 with an absolute Location from a relative path', async () => {
+    const { POST } = new ApiController()
+      .on<null, { id: number }>({
+        method: 'POST',
+        handle: () => ({ id: 7 }),
+        encode: ({ id }) => created({ id }, `/api/things/${id}`),
+      })
+      .handlers();
+    const res = await POST(new Request('https://app.test/api/things'));
+    expect(res.status).toBe(201);
+    expect(res.headers.get('location')).toBe('https://app.test/api/things/7');
+    expect(await body(res)).toEqual({ id: 7 });
+  });
+
+  it('ok() can carry a Location without changing the 200 status', async () => {
+    const { POST } = new ApiController()
+      .on<null, { id: number }>({
+        method: 'POST',
+        handle: () => ({ id: 7 }),
+        encode: ({ id }) => ok({ id }, { location: `/api/things/${id}` }),
+      })
+      .handlers();
+    const res = await POST(new Request('https://app.test/api/things'));
+    expect(res.status).toBe(200);
+    expect(res.headers.get('location')).toBe('https://app.test/api/things/7');
+  });
+
+  it('noContent() answers an empty 204', async () => {
+    const { DELETE } = new ApiController()
+      .on<null, null>({
+        method: 'DELETE',
+        handle: () => null,
+        encode: () => noContent(),
+      })
+      .handlers();
+    const res = await DELETE(new Request('https://app.test/api/things/7'));
+    expect(res.status).toBe(204);
+    expect(await res.text()).toBe('');
+  });
+
+  it('page() builds the self and next links and carries the items', async () => {
+    const next = { key: '2024-01-01', id: '5' };
+    const { GET } = new ApiController()
+      .on<null, { items: number[] }>({
+        method: 'GET',
+        handle: () => ({ items: [1, 2] }),
+        encode: ({ items }) => page(items, next),
+      })
+      .handlers();
+    const res = await GET(new Request('https://app.test/api/list?limit=2'));
+    expect(res.status).toBe(200);
+    expect(await body(res)).toEqual({
+      self: 'https://app.test/api/list?limit=2',
+      next: `https://app.test/api/list?limit=2&cursor=${encodeCursor(next)}`,
+      items: [1, 2],
+    });
+  });
+
+  it('page() omits next on the last page', async () => {
+    const { GET } = new ApiController()
+      .on<null, { items: number[] }>({
+        method: 'GET',
+        handle: () => ({ items: [1] }),
+        encode: ({ items }) => page(items),
+      })
+      .handlers();
+    const res = await GET(new Request('https://app.test/api/list'));
+    expect(await body(res)).toEqual({
+      self: 'https://app.test/api/list',
+      items: [1],
+    });
   });
 });

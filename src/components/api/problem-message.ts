@@ -1,9 +1,11 @@
 /**
  * @packageDocumentation
  *
- * Turning an API error response (RFC 9457 problem details) into a sentence for
- * the user: the problem's `detail` if it has one, otherwise its `title`, plus any
- * per-field messages. Safe to call on any response; falls back to the status.
+ * Browser-side reading of the API's error responses. The server emits RFC 9457
+ * problem details (see `@/lib/core/api/problem`); this turns one back into a
+ * sentence to show the person, and `ensureOk` throws it for a failed fetch so a
+ * caller can `try`/`catch` one way for every request. This is client code — it
+ * lives with the components, not in the server `lib/core/api` package.
  */
 
 /** The string at `key` in a parsed JSON object, if there is one. */
@@ -49,6 +51,13 @@ export class ProblemError extends Error {
 /** The error to throw for a failed API response, to be shown with {@link problemText}. */
 export async function problemError(res: Response): Promise<ProblemError> {
   return new ProblemError(await problemMessage(res));
+}
+
+/** Throw the server's refusal when `res` is not ok; otherwise do nothing. */
+export async function ensureOk(res: Response): Promise<void> {
+  if (!res.ok) {
+    throw await problemError(res);
+  }
 }
 
 /**
