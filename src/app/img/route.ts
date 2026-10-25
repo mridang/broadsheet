@@ -11,7 +11,6 @@
  * a month.
  */
 
-import { imageCatalog } from '@/domain/images/site';
 import {
   ImageService,
   imageCache,
@@ -43,7 +42,6 @@ export async function GET(request: Request): Promise<Response> {
   };
   return new ImageService({
     access,
-    catalog: imageCatalog,
     cache: imageCache(),
     images: imagesBinding(),
     background: runInBackground,

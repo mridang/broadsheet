@@ -17,7 +17,7 @@
 import { problems } from '@/lib/core/api';
 import { isPublicWebUrl } from '@/lib/safe-fetch';
 import { SITE_NAME, SITE_URL } from '@/utils/site';
-import type { ImageCatalog } from './address';
+import { DEFAULT_WIDTH, isAllowedHost, snapWidth } from './address';
 import { fetchImage, type ImageFetch, type ImagesLike } from './proxy';
 
 /** The two cache operations the service uses. */
@@ -49,8 +49,6 @@ export interface ImageServiceDeps {
   readonly fetcher?: ImageFetch;
   /** The app's access rules. */
   readonly access: ImageAccess;
-  /** The app's picture addresses: which hosts and widths it offers. */
-  readonly catalog: ImageCatalog;
   /** Run work after the response is sent (storing the copy). */
   readonly background: (work: Promise<unknown>) => void;
 }
@@ -180,7 +178,7 @@ export async function serveImage(
   request: Request,
   deps: ImageServiceDeps,
 ): Promise<Response> {
-  const { access, cache, catalog } = deps;
+  const { access, cache } = deps;
   const early = await access.authenticate(request);
   if (early) {
     return early;
@@ -191,14 +189,12 @@ export async function serveImage(
     return refuse(400, 'url: must be a public http(s) image address.');
   }
   if (
-    !catalog.isAllowedHost(url) ||
+    !isAllowedHost(url) ||
     !(await access.signatureValid(url, params.get('sig')))
   ) {
     return refuse(403, 'That image is not available through this site.');
   }
-  const width = catalog.snapWidth(
-    Number(params.get('w')) || catalog.defaultWidth,
-  );
+  const width = snapWidth(Number(params.get('w')) || DEFAULT_WIDTH);
   // The edge cache is shared across people, which is fine: the picture is public.
   const key = imageCacheKey(width, url);
   const hit = await cache?.match(key);

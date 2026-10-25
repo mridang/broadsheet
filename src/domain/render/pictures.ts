@@ -7,8 +7,8 @@
  * `img-src` at this site.
  */
 
+import { imageSrc, isProxyableUrl } from '@/lib/cloudflare/images';
 import type { ImageSigner } from '@/lib/cloudflare/images/server';
-import { imageCatalog } from '@/domain/images/site';
 
 /**
  * The address to show the picture at `src` at, about `width` pixels wide, or
@@ -22,9 +22,9 @@ export async function pictureSrc(
   width: number,
   signer?: ImageSigner,
 ): Promise<string | null> {
-  if (!imageCatalog.isProxyableUrl(src)) {
+  if (!isProxyableUrl(src)) {
     return null;
   }
   const signature = signer ? await signer.sign(src) : undefined;
-  return imageCatalog.src(src, width, signature);
+  return imageSrc(src, width, signature);
 }

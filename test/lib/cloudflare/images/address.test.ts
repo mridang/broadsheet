@@ -1,14 +1,17 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { IMAGE_PATH, ImageCatalog } from '@/lib/cloudflare/images';
 import {
   ALLOWED_HOSTS,
   ALLOWED_WIDTHS,
-  IMAGE_SPEC,
-} from '@/domain/images/site';
-
-/** A catalog built with the app's real spec, so the cases match what it offers. */
-const catalog = new ImageCatalog(IMAGE_SPEC);
+  DEFAULT_WIDTH,
+  IMAGE_PATH,
+  imageSrc,
+  imageSrcSet,
+  isAllowedHost,
+  isProxyableUrl,
+  snapWidth,
+} from '@/lib/cloudflare/images';
+import { IMG_WIDTH } from '@/domain/render/tiers';
 
 /** A host the app takes pictures from. */
 const HOST = ALLOWED_HOSTS?.[0] ?? 'photos.example.org';
@@ -19,29 +22,47 @@ const OTHER_HOSTS = ALLOWED_HOSTS === null ? [] : ['evil.example.org'];
 const SMALLEST = Math.min(...ALLOWED_WIDTHS);
 const LARGEST = Math.max(...ALLOWED_WIDTHS);
 
+describe('image settings', () => {
+  it('takes pictures from any public site, because stories do (the signature is the rule)', () => {
+    expect(ALLOWED_HOSTS).toBeNull();
+  });
+
+  it('offers the favicon width and the width of each kind of story', () => {
+    expect(ALLOWED_WIDTHS).toEqual([64, 480, 600, 800]);
+    for (const width of Object.values(IMG_WIDTH)) {
+      expect(ALLOWED_WIDTHS).toContain(width);
+    }
+  });
+
+  it('uses one of the offered widths when none is asked for', () => {
+    expect(DEFAULT_WIDTH).toBe(480);
+    expect(ALLOWED_WIDTHS).toContain(DEFAULT_WIDTH);
+  });
+});
+
 describe('snapWidth', () => {
   it('snaps a width up to one the app offers', () => {
-    expect(catalog.snapWidth(1)).toBe(SMALLEST);
+    expect(snapWidth(1)).toBe(SMALLEST);
     for (const width of ALLOWED_WIDTHS) {
-      expect(catalog.snapWidth(width)).toBe(width);
+      expect(snapWidth(width)).toBe(width);
     }
   });
 
   it('uses the largest width for anything wider', () => {
-    expect(catalog.snapWidth(LARGEST + 1)).toBe(LARGEST);
-    expect(catalog.snapWidth(100_000)).toBe(LARGEST);
+    expect(snapWidth(LARGEST + 1)).toBe(LARGEST);
+    expect(snapWidth(100_000)).toBe(LARGEST);
   });
 
   it('always answers a width the app offers', () => {
     for (const width of [1, 100, 321, 481, 777, 1281, 5000]) {
-      expect(ALLOWED_WIDTHS).toContain(catalog.snapWidth(width));
+      expect(ALLOWED_WIDTHS).toContain(snapWidth(width));
     }
   });
 });
 
-describe('src', () => {
+describe('imageSrc', () => {
   it('builds our own address for a picture, at a snapped width', () => {
-    expect(catalog.src(`https://${HOST}/x y.jpg?v=1&w=2`, 1)).toBe(
+    expect(imageSrc(`https://${HOST}/x y.jpg?v=1&w=2`, 1)).toBe(
       `${IMAGE_PATH}?url=${encodeURIComponent(`https://${HOST}/x y.jpg?v=1&w=2`)}&w=${SMALLEST}`,
     );
   });
@@ -51,47 +72,43 @@ describe('src', () => {
   });
 
   it('adds the signature when it is given one', () => {
-    expect(catalog.src(`https://${HOST}/x.jpg`, SMALLEST, 'a+b/c')).toContain(
+    expect(imageSrc(`https://${HOST}/x.jpg`, SMALLEST, 'a+b/c')).toContain(
       '&sig=a%2Bb%2Fc',
     );
-    expect(catalog.src(`https://${HOST}/x.jpg`, SMALLEST)).not.toContain(
-      'sig=',
-    );
+    expect(imageSrc(`https://${HOST}/x.jpg`, SMALLEST)).not.toContain('sig=');
   });
 });
 
-describe('srcSet', () => {
+describe('imageSrcSet', () => {
   it('builds a srcset with each width', () => {
-    const set = catalog.srcSet(`https://${HOST}/x.jpg`);
+    const set = imageSrcSet(`https://${HOST}/x.jpg`);
     for (const width of ALLOWED_WIDTHS) {
       expect(set).toContain(`&w=${width} ${width}w`);
     }
   });
 
   it('builds one for just the widths asked for', () => {
-    const set = catalog.srcSet(`https://${HOST}/x.jpg`, [LARGEST], 'sig');
+    const set = imageSrcSet(`https://${HOST}/x.jpg`, [LARGEST], 'sig');
     expect(set).toBe(
-      `${catalog.src(`https://${HOST}/x.jpg`, LARGEST, 'sig')} ${LARGEST}w`,
+      `${imageSrc(`https://${HOST}/x.jpg`, LARGEST, 'sig')} ${LARGEST}w`,
     );
   });
 });
 
 describe('isAllowedHost', () => {
   it('accepts the hosts the app takes pictures from', () => {
-    expect(catalog.isAllowedHost(`https://${HOST}/a.jpg`)).toBe(true);
-    expect(catalog.isAllowedHost(`https://${HOST.toUpperCase()}/a.jpg`)).toBe(
-      true,
-    );
+    expect(isAllowedHost(`https://${HOST}/a.jpg`)).toBe(true);
+    expect(isAllowedHost(`https://${HOST.toUpperCase()}/a.jpg`)).toBe(true);
   });
 
   it('refuses any other host, where the app names the hosts it takes pictures from', () => {
     for (const host of OTHER_HOSTS) {
-      expect(catalog.isAllowedHost(`https://${host}/a.jpg`)).toBe(false);
+      expect(isAllowedHost(`https://${host}/a.jpg`)).toBe(false);
     }
   });
 
   it('refuses something that is not an address', () => {
-    expect(catalog.isAllowedHost('not a url')).toBe(false);
+    expect(isAllowedHost('not a url')).toBe(false);
   });
 });
 
@@ -101,7 +118,7 @@ describe('isProxyableUrl', () => {
     `http://${HOST}/a.png`,
     `https://${HOST}:443/a.webp`,
   ])('accepts %s', (url) => {
-    expect(catalog.isProxyableUrl(url)).toBe(true);
+    expect(isProxyableUrl(url)).toBe(true);
   });
 
   it.each([
@@ -126,6 +143,6 @@ describe('isProxyableUrl', () => {
     '',
     ...OTHER_HOSTS.map((host) => `https://${host}/a.jpg`),
   ])('refuses %s', (url) => {
-    expect(catalog.isProxyableUrl(url)).toBe(false);
+    expect(isProxyableUrl(url)).toBe(false);
   });
 });

@@ -1,6 +1,11 @@
 import { describe, expect, it, jest } from '@jest/globals';
 
-import { ImageCatalog } from '@/lib/cloudflare/images';
+import {
+  ALLOWED_HOSTS,
+  ALLOWED_WIDTHS,
+  DEFAULT_WIDTH,
+  snapWidth,
+} from '@/lib/cloudflare/images';
 import {
   BROWSER_SECONDS,
   EDGE_SECONDS,
@@ -12,17 +17,10 @@ import {
   type ImageCache,
   type ImageFetch,
 } from '@/lib/cloudflare/images/server';
-import {
-  ALLOWED_HOSTS,
-  ALLOWED_WIDTHS,
-  DEFAULT_WIDTH,
-  IMAGE_SPEC,
-} from '@/domain/images/site';
 
 const HOST = ALLOWED_HOSTS?.[0] ?? 'photos.example.org';
 const PHOTO = `https://${HOST}/soup.jpg`;
 const WIDTH = ALLOWED_WIDTHS[0] ?? DEFAULT_WIDTH;
-const catalog = new ImageCatalog(IMAGE_SPEC);
 
 /** A request for a picture. */
 function ask(
@@ -130,7 +128,6 @@ describe('serveImage', () => {
       access: open,
       cache,
       fetcher: serving,
-      catalog,
       background,
     });
     expect(response.status).toBe(200);
@@ -159,7 +156,6 @@ describe('serveImage', () => {
     const response = await serveImage(ask(), {
       access: open,
       fetcher: serving,
-      catalog,
       background,
     });
     expect(response.status).toBe(200);
@@ -189,16 +185,15 @@ describe('serveImage', () => {
       access: open,
       fetcher: big,
       images,
-      catalog,
       background: () => undefined,
     };
     await serveImage(new Request(`${base}&w=1`), deps);
     await serveImage(new Request(`${base}&w=abc`), deps);
     await serveImage(new Request(base), deps);
     expect(seen).toEqual([
-      catalog.snapWidth(1),
-      catalog.snapWidth(DEFAULT_WIDTH),
-      catalog.snapWidth(DEFAULT_WIDTH),
+      snapWidth(1),
+      snapWidth(DEFAULT_WIDTH),
+      snapWidth(DEFAULT_WIDTH),
     ]);
   });
 
@@ -220,7 +215,6 @@ describe('serveImage', () => {
         access: { ...open, mayFetch },
         cache,
         fetcher,
-        catalog,
         background: () => undefined,
       });
       expect(response.status).toBe(200);
@@ -236,7 +230,7 @@ describe('serveImage', () => {
       const { cache } = fakeCache(copy());
       const response = await serveImage(
         ask(PHOTO, '', { 'If-None-Match': 'W/"v1", "other"' }),
-        { access: open, cache, catalog, background: () => undefined },
+        { access: open, cache, background: () => undefined },
       );
       expect(response.status).toBe(304);
       expect(response.headers.get('etag')).toBe('"v1"');
@@ -248,7 +242,7 @@ describe('serveImage', () => {
       const { cache } = fakeCache(copy());
       const response = await serveImage(
         ask(PHOTO, '', { 'If-None-Match': '"v0"' }),
-        { access: open, cache, catalog, background: () => undefined },
+        { access: open, cache, background: () => undefined },
       );
       expect(response.status).toBe(200);
     });
@@ -259,7 +253,6 @@ describe('serveImage', () => {
         access: open,
         cache,
         fetcher: serving,
-        catalog,
         background: () => undefined,
       });
       expect(response.headers.get('content-type')).toBe('image/jpeg');
@@ -270,12 +263,11 @@ describe('serveImage', () => {
     const first = await serveImage(ask(), {
       access: open,
       fetcher: serving,
-      catalog,
       background: () => undefined,
     });
     const second = await serveImage(
       ask(PHOTO, '', { 'If-None-Match': first.headers.get('etag') ?? '' }),
-      { access: open, fetcher: serving, catalog, background: () => undefined },
+      { access: open, fetcher: serving, background: () => undefined },
     );
     expect(second.status).toBe(304);
   });
@@ -287,7 +279,6 @@ describe('serveImage', () => {
       const response = await serveImage(ask('http://127.0.0.1/'), {
         access: { ...open, authenticate: async () => refusal },
         fetcher,
-        catalog,
         background: () => undefined,
       });
       expect(response).toBe(refusal);
@@ -306,7 +297,6 @@ describe('serveImage', () => {
           },
         },
         fetcher,
-        catalog,
         background: () => undefined,
       });
       expect(response.status).toBe(403);
@@ -325,7 +315,7 @@ describe('serveImage', () => {
           return signature === 'good';
         },
       };
-      const deps = { access, fetcher, catalog, background: () => undefined };
+      const deps = { access, fetcher, background: () => undefined };
       expect((await serveImage(ask(PHOTO, '&sig=bad'), deps)).status).toBe(403);
       expect((await serveImage(ask(), deps)).status).toBe(403);
       expect(fetcher).not.toHaveBeenCalled();
@@ -340,7 +330,6 @@ describe('serveImage', () => {
       const signatureValid = jest.fn(async () => true);
       const deps = {
         access: { ...open, mayFetch, signatureValid },
-        catalog,
         background: () => undefined,
       };
       for (const url of [
@@ -367,7 +356,6 @@ describe('serveImage', () => {
         const response = await serveImage(ask(`https://${host}/a.jpg`), {
           access: open,
           fetcher,
-          catalog,
           background: () => undefined,
         });
         expect(response.status).toBe(403);
@@ -381,7 +369,6 @@ describe('serveImage', () => {
       serveImage(ask(), {
         access: open,
         fetcher,
-        catalog,
         background: () => undefined,
       });
 
@@ -447,7 +434,6 @@ describe('serveImage', () => {
         access: open,
         cache,
         fetcher: async () => new Response('', { status: 500 }),
-        catalog,
         background,
       });
       expect(background).not.toHaveBeenCalled();
