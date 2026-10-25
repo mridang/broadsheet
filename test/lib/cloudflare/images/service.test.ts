@@ -1,17 +1,17 @@
 import { describe, expect, it, jest } from '@jest/globals';
 
-import { ImageCatalog } from '@/lib/images/address';
-import type { ImageFetch } from '@/lib/images/proxy';
 import {
   BROWSER_SECONDS,
   EDGE_SECONDS,
+  ImageCatalog,
   imageCacheKey,
   imageHeaders,
   refuse,
   serveImage,
   type ImageAccess,
   type ImageCache,
-} from '@/core/images/service';
+  type ImageFetch,
+} from '@/lib/cloudflare/images';
 import {
   ALLOWED_HOSTS,
   ALLOWED_WIDTHS,

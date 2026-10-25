@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { ImageSigner } from '@/lib/images/signer';
+import { ImageSigner } from '@/lib/cloudflare/images';
 import { pictureSrc } from '@/domain/render/pictures';
 
 const signer = new ImageSigner('test-secret');

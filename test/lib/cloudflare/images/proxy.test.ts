@@ -4,7 +4,7 @@ import {
   fetchImage,
   isImagesBinding,
   type ImageFetch,
-} from '@/lib/images/proxy';
+} from '@/lib/cloudflare/images';
 
 const image = (type = 'image/jpeg', headers: Record<string, string> = {}) =>
   new Response('bytes', { headers: { 'content-type': type, ...headers } });

@@ -17,12 +17,8 @@
 import { problems } from '@/lib/rest-json/problem';
 import { isPublicWebUrl } from '@/lib/safe-fetch';
 import { SITE_NAME, SITE_URL } from '@/utils/site';
-import type { ImageCatalog } from '@/lib/images/address';
-import {
-  fetchImage,
-  type ImageFetch,
-  type ImagesLike,
-} from '@/lib/images/proxy';
+import type { ImageCatalog } from './address';
+import { fetchImage, type ImageFetch, type ImagesLike } from './proxy';
 
 /** The two cache operations the service uses. */
 export type ImageCache = Pick<Cache, 'match' | 'put'>;

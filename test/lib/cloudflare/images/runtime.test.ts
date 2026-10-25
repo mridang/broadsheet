@@ -15,7 +15,7 @@ jest.unstable_mockModule('@opennextjs/cloudflare', () => ({
 }));
 
 const { imageCache, imagesBinding, runInBackground } =
-  await import('@/core/images/runtime');
+  await import('@/lib/cloudflare/images');
 
 const realCaches = Reflect.get(globalThis, 'caches');
 

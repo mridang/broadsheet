@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { IMAGE_PATH, ImageCatalog } from '@/lib/images/address';
+import { IMAGE_PATH, ImageCatalog } from '@/lib/cloudflare/images';
 import {
   ALLOWED_HOSTS,
   ALLOWED_WIDTHS,

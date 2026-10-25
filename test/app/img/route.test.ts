@@ -7,16 +7,8 @@ import {
   jest,
 } from '@jest/globals';
 
-import { ImageSigner } from '@/lib/images/signer';
-import {
-  ALLOWED_HOSTS,
-  ALLOWED_WIDTHS,
-  DEFAULT_WIDTH,
-} from '@/domain/images/site';
-
 /** The secret the mocked Worker holds; the route signs and checks with it. */
 const SECRET = 'test-secret';
-const signer = new ImageSigner(SECRET);
 
 /** The Cloudflare bindings the mocked context carries, and the work it was asked to finish later. */
 const context = {
@@ -31,7 +23,14 @@ jest.unstable_mockModule('@opennextjs/cloudflare', () => ({
   }),
 }));
 
+// Everything that reaches the image package is imported after the mock: the
+// barrel pulls in the Cloudflare runtime, so loading it (directly, or via
+// domain/images/site) before the mock would bind the real context accessor.
+const { ImageSigner } = await import('@/lib/cloudflare/images');
+const { ALLOWED_HOSTS, ALLOWED_WIDTHS, DEFAULT_WIDTH } =
+  await import('@/domain/images/site');
 const { GET } = await import('@/app/img/route');
+const signer = new ImageSigner(SECRET);
 
 const PHOTO = `https://${ALLOWED_HOSTS?.[0] ?? 'photos.example.org'}/soup.jpg`;
 const WIDTH = ALLOWED_WIDTHS[0] ?? DEFAULT_WIDTH;

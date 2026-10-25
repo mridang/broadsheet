@@ -9,9 +9,9 @@
 
 import { getCloudflareContext } from '@opennextjs/cloudflare';
 
-import { isImagesBinding, type ImagesLike } from '@/lib/images/proxy';
-import { ImageSigner } from '@/lib/images/signer';
-import type { ImageCache } from '@/core/images/service';
+import { isImagesBinding, type ImagesLike } from './proxy';
+import { ImageSigner } from './signer';
+import type { ImageCache } from './service';
 
 /**
  * A signer keyed by the running Worker's `SESSION_SECRET`, or undefined when

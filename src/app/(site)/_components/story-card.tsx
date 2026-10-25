@@ -1,6 +1,6 @@
 import type { Article } from '@/domain/repository';
 import { pictureSrc } from '@/domain/render/pictures';
-import { imageSigner } from '@/core/images/runtime';
+import { imageSigner } from '@/lib/cloudflare/images';
 import {
   IMG_WIDTH,
   TIER,

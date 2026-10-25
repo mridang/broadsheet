@@ -17,8 +17,8 @@ import {
   imageSigner,
   imagesBinding,
   runInBackground,
-} from '@/core/images/runtime';
-import { serveImage, type ImageAccess } from '@/core/images/service';
+} from '@/lib/cloudflare/images';
+import { serveImage, type ImageAccess } from '@/lib/cloudflare/images';
 
 /**
  * `GET /img?url=…&w=…`: the picture at `url`, scaled to the nearest

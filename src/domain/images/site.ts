@@ -2,13 +2,13 @@
  * @packageDocumentation
  *
  * What differs from one app to the next in the shared image proxy
- * (`lib/images/*`, `core/images/*`, `src/app/img/route.ts`): where pictures
- * may come from and the widths they are offered at. This is the app's own
+ * (`lib/cloudflare/images`, `src/app/img/route.ts`): where pictures may come
+ * from and the widths they are offered at. This is the app's own
  * {@link ImageSpec}, bound into an {@link ImageCatalog} the rest of the app
  * uses. Who may ask (the signature) is the image service's business.
  */
 
-import { ImageCatalog, type ImageSpec } from '@/lib/images/address';
+import { ImageCatalog, type ImageSpec } from '@/lib/cloudflare/images';
 
 /**
  * The hosts the proxy fetches pictures from, or null for any public host. An
