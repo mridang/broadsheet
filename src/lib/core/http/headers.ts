@@ -9,7 +9,12 @@
  */
 
 import { REPORTING_ENDPOINTS } from './reporting';
-import { OPEN_FILES, PUBLIC_PAGES, RARELY_CHANGING } from './site';
+import {
+  OPEN_FILES,
+  PAGE_CACHE_RULES,
+  PUBLIC_PAGES,
+  RARELY_CHANGING,
+} from './site';
 
 /** Security headers for every response. */
 export const SECURITY_HEADERS: Readonly<Record<string, string>> = {
@@ -73,7 +78,16 @@ export function replacingHeaders(
 const NOINDEX: HeaderPair = ['X-Robots-Tag', 'noindex, nofollow'];
 
 /** Cache rules for the few responses that want something other than the default. */
-function cacheControlFor(pathname: string, response: Response): string | null {
+function cacheControlFor(
+  pathname: string,
+  response: Response,
+  rules: Readonly<Record<string, string>>,
+): string | null {
+  // An app's own rule for a path wins over the defaults below.
+  const own = Object.hasOwn(rules, pathname) ? rules[pathname] : undefined;
+  if (own !== undefined) {
+    return own;
+  }
   if (RARELY_CHANGING.has(pathname)) {
     // Rarely changes, and a stale copy is harmless.
     return 'public, max-age=86400, stale-while-revalidate=604800';
@@ -98,6 +112,7 @@ function cacheControlFor(pathname: string, response: Response): string | null {
 export function applyResponseHeaders(
   request: Request,
   response: Response,
+  pageCacheRules: Readonly<Record<string, string>> = PAGE_CACHE_RULES,
 ): Response {
   // A redirect or an upgrade has no headers we may change, and no body to protect.
   if (response.status === 101 || response.webSocket) {
@@ -126,7 +141,7 @@ export function applyResponseHeaders(
   // Added only where the response has not set its own.
   const defaults = candidates.filter(([name]) => !present.has(name));
   // A cache rule from here replaces whatever the response said.
-  const cache = cacheControlFor(pathname, response);
+  const cache = cacheControlFor(pathname, response, pageCacheRules);
   const replacing: HeaderPair[] = cache ? [['Cache-Control', cache]] : [];
   const kept: HeaderPair[] = [...present].filter(
     ([name]) => replacing.length === 0 || name !== 'cache-control',

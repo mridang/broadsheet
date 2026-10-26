@@ -70,3 +70,9 @@ export const DISCOVERY_PATHS: ReadonlySet<string> = new Set([
   '/manifest.webmanifest',
   '/health',
 ]);
+
+/**
+ * A cache rule for pages that differ from the default `private, no-cache`,
+ * keyed by path. None: every page here varies by session.
+ */
+export const PAGE_CACHE_RULES: Readonly<Record<string, string>> = {};

@@ -7,6 +7,7 @@
 /*
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
+  Cross-Origin-Resource-Policy: same-site
   Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()
   Content-Security-Policy: frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'
@@ -24,15 +25,19 @@
 # sites (or the browser's install dialog) load or fetch on purpose.
 /icons/*
   Cache-Control: public, max-age=86400
+  ! Cross-Origin-Resource-Policy
   Cross-Origin-Resource-Policy: cross-origin
 /screenshots/*
   Cache-Control: public, max-age=86400
+  ! Cross-Origin-Resource-Policy
   Cross-Origin-Resource-Policy: cross-origin
 /llms.txt
+  ! Cross-Origin-Resource-Policy
   Cross-Origin-Resource-Policy: cross-origin
 # The disclosure policy that security.txt points researchers to.
 /security-policy.txt
   Cache-Control: public, max-age=86400
+  ! Cross-Origin-Resource-Policy
   Cross-Origin-Resource-Policy: cross-origin
 /*.svg
   Cache-Control: public, max-age=86400

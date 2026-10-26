@@ -8,6 +8,7 @@ import {
   openerPolicyFor,
   replacingHeaders,
   resourcePolicyFor,
+  PAGE_CACHE_RULES,
   PUBLIC_PAGES,
   RARELY_CHANGING,
 } from '@/lib/core/http';
@@ -211,6 +212,27 @@ describe('X-Robots-Tag', () => {
   });
 });
 
+describe('applyResponseHeaders — page cache rules', () => {
+  it('has no rule of its own here, so pages stay private', () => {
+    expect(PAGE_CACHE_RULES).toEqual({});
+    const out = applyResponseHeaders(at('/some/page'), html());
+    expect(out.headers.get('cache-control')).toBe('private, no-cache');
+  });
+
+  it('uses an app’s rule for its path, and the default elsewhere', () => {
+    const rules = { '/shared': 'public, max-age=60' };
+    const ruled = applyResponseHeaders(at('/shared'), html(), rules);
+    const other = applyResponseHeaders(at('/other'), html(), rules);
+    expect(ruled.headers.get('cache-control')).toBe('public, max-age=60');
+    expect(other.headers.get('cache-control')).toBe('private, no-cache');
+  });
+
+  it('does not mistake an inherited property for a rule', () => {
+    const out = applyResponseHeaders(at('/toString'), html(), {});
+    expect(out.headers.get('cache-control')).toBe('private, no-cache');
+  });
+});
+
 describe('SECURITY_HEADERS', () => {
   it('forbids framing by anyone', () => {
     expect(SECURITY_HEADERS['X-Frame-Options']).toBe('DENY');
@@ -233,6 +255,24 @@ describe('public/_headers', () => {
     for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
       expect(file).toContain(`${name}: ${value}`);
     }
+  });
+
+  it('gives static files the default resource policy and detaches it where files are open', () => {
+    const file = readFileSync(
+      path.join(process.cwd(), 'public/_headers'),
+      'utf8',
+    );
+    expect(file).toContain(
+      `Cross-Origin-Resource-Policy: ${resourcePolicyFor('/some/file')}`,
+    );
+    const open = file
+      .split('\n')
+      .filter((l) => l.trim() === 'Cross-Origin-Resource-Policy: cross-origin');
+    const detached = file
+      .split('\n')
+      .filter((l) => l.trim() === '! Cross-Origin-Resource-Policy');
+    expect(open.length).toBeGreaterThan(0);
+    expect(detached).toHaveLength(open.length);
   });
 });
 
