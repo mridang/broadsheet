@@ -211,6 +211,19 @@ describe('X-Robots-Tag', () => {
   });
 });
 
+describe('SECURITY_HEADERS', () => {
+  it('forbids framing by anyone', () => {
+    expect(SECURITY_HEADERS['X-Frame-Options']).toBe('DENY');
+    expect(SECURITY_HEADERS['Content-Security-Policy']).toContain(
+      "frame-ancestors 'none'",
+    );
+  });
+
+  it('puts the origin in its own agent cluster', () => {
+    expect(SECURITY_HEADERS['Origin-Agent-Cluster']).toBe('?1');
+  });
+});
+
 describe('public/_headers', () => {
   it('gives static files the same security headers as the Worker gives pages', () => {
     const file = readFileSync(

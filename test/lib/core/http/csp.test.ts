@@ -79,8 +79,8 @@ describe('buildCsp', () => {
     expect(directive('base-uri')).toBe("base-uri 'self'");
   });
 
-  it('only lets this site frame it, and forces https', () => {
-    expect(directive('frame-ancestors')).toBe("frame-ancestors 'self'");
+  it('lets nobody frame it, and forces https', () => {
+    expect(directive('frame-ancestors')).toBe("frame-ancestors 'none'");
     expect(csp).toContain('upgrade-insecure-requests');
   });
 

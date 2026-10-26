@@ -22,11 +22,14 @@ export const SECURITY_HEADERS: Readonly<Record<string, string>> = {
   // Nothing here needs the camera, microphone, location or payments.
   'Permissions-Policy':
     'camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()',
-  // Only this site may frame it (the sign-in approval page forbids even that),
-  // and keep forms, <base> and plugins on a short leash.
+  // Nobody may frame it, this site included, and keep forms, <base> and
+  // plugins on a short leash.
   'Content-Security-Policy':
-    "frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'",
-  'X-Frame-Options': 'SAMEORIGIN',
+    "frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'",
+  'X-Frame-Options': 'DENY',
+  // Give this origin its own agent cluster, so it shares no memory or event
+  // loop with other origins on the same site.
+  'Origin-Agent-Cluster': '?1',
   // Keep other windows from reaching into this one.
   'Cross-Origin-Opener-Policy': 'same-origin',
 };

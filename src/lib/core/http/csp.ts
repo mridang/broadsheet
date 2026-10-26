@@ -28,8 +28,8 @@ export type CspSurface = 'site' | 'approval';
 /**
  * The policy for one response, carrying that response's nonce.
  *
- * The approval screen (`approval`) differs in two ways. It may not be framed by
- * anyone, this site included (`frame-ancestors 'none'`). And it names no
+ * No page may be framed by anyone, this site included (`frame-ancestors 'none'`).
+ * The approval screen (`approval`) differs in one way: it names no
  * `form-action`: its form posts to our own consent endpoint, which answers with a
  * redirect to the *client's* address (a web page, a localhost port, an app's own
  * scheme). Browsers check a form's redirects against `form-action`, so listing
@@ -58,7 +58,7 @@ export function buildCsp(nonce: string, surface: CspSurface = 'site'): string {
     "frame-src 'none'",
     "base-uri 'self'",
     ...(approval ? [] : ["form-action 'self'"]),
-    `frame-ancestors '${approval ? 'none' : 'self'}'`,
+    "frame-ancestors 'none'",
     'upgrade-insecure-requests',
     // Directives only this app adds, if any (see `site.ts`).
     ...EXTRA_DIRECTIVES,

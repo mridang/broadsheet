@@ -1,7 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 
 import { nonceOf, genericLimits } from '@/lib/core/http';
-import { serve, type ServeApp } from '@/lib/core/http';
+import { serve, serverTiming, type ServeApp } from '@/lib/core/http';
 
 /** What is rate limited in these tests: the classes every app has, with sessions in `app_session`. */
 const limits = genericLimits('app_session');
@@ -433,5 +433,68 @@ describe('serve — the edge copy', () => {
       pages,
     });
     expect(response.status).toBe(200);
+  });
+});
+
+describe('serve — Server-Timing', () => {
+  it('reports the total, a skipped edge cache and the app on an uncached answer', async () => {
+    const response = await serve(get('/api/x'), {}, ctx().context, {
+      app: appAnswering(() => Response.json({})),
+      limits,
+    });
+    expect(response.headers.get('server-timing')).toMatch(
+      /^total;dur=\d+(\.\d)?, edge;desc="skip", app;dur=\d+(\.\d)?$/,
+    );
+  });
+
+  it('reports a miss, then a hit without the app, for a kept page', async () => {
+    const cache = memoryCache();
+    const { context, pending } = ctx();
+    const deps = {
+      app: appAnswering(() => page('a', 'n')),
+      cache,
+      limits,
+      pages,
+    };
+    const miss = await serve(get('/'), {}, context, deps);
+    await Promise.all(pending);
+    const hit = await serve(get('/'), {}, context, deps);
+    expect(miss.headers.get('server-timing')).toContain('edge;desc="miss"');
+    expect(miss.headers.get('server-timing')).toContain('app;dur=');
+    expect(hit.headers.get('server-timing')).toContain('edge;desc="hit"');
+    expect(hit.headers.get('server-timing')).not.toContain('app;dur=');
+  });
+
+  it('is on a refusal, which never reaches the app', async () => {
+    const binding = refusing();
+    const response = await serve(
+      get('/app'),
+      { RL_SITE: binding },
+      ctx().context,
+      { app: appAnswering(html), limits },
+    );
+    expect(response.headers.get('server-timing')).toMatch(/^total;dur=/);
+    expect(response.headers.get('server-timing')).not.toContain('app;dur=');
+  });
+
+  it('keeps timing the app already sent', async () => {
+    const response = await serve(get('/api/x'), {}, ctx().context, {
+      app: appAnswering(
+        () => new Response('{}', { headers: { 'server-timing': 'db;dur=3' } }),
+      ),
+      limits,
+    });
+    expect(response.headers.get('server-timing')).toMatch(/^db;dur=3, total;/);
+  });
+});
+
+describe('serverTiming', () => {
+  it('rounds to a tenth and never goes negative', () => {
+    expect(serverTiming(12.345, { edge: 'miss', appMs: 1.26 })).toBe(
+      'total;dur=12.3, edge;desc="miss", app;dur=1.3',
+    );
+    expect(serverTiming(-1, { edge: 'skip' })).toBe(
+      'total;dur=0, edge;desc="skip"',
+    );
   });
 });
