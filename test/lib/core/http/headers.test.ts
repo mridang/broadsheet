@@ -213,9 +213,17 @@ describe('X-Robots-Tag', () => {
 });
 
 describe('applyResponseHeaders — page cache rules', () => {
-  it('has no rule of its own here, so pages stay private', () => {
-    expect(PAGE_CACHE_RULES).toEqual({});
-    const out = applyResponseHeaders(at('/some/page'), html());
+  it('gives each of the app’s own rules exactly that rule', () => {
+    for (const [pathname, rule] of Object.entries(PAGE_CACHE_RULES)) {
+      const out = applyResponseHeaders(at(pathname), html());
+      expect(out.headers.get('cache-control')).toBe(rule);
+    }
+  });
+
+  it('keeps pages private on a path with no rule', () => {
+    const pathname = '/no-rule-for-this-path';
+    expect(Object.keys(PAGE_CACHE_RULES)).not.toContain(pathname);
+    const out = applyResponseHeaders(at(pathname), html());
     expect(out.headers.get('cache-control')).toBe('private, no-cache');
   });
 

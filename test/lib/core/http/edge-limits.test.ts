@@ -15,7 +15,12 @@ import {
   type GenericClass,
   type RateLimitBinding,
 } from '@/lib/core/http';
-import { EDGE_LIMITS } from '@/lib/core/http';
+import { DISCOVERY_PATHS, EDGE_LIMITS, STATIC_PREFIXES } from '@/lib/core/http';
+
+/** A static file under the app's own first static prefix. */
+const staticFile = `${STATIC_PREFIXES[0] ?? '/'}static/x.js`;
+/** One of the app's own discovery paths. */
+const discoveryPath = [...DISCOVERY_PATHS][0] ?? '/robots.txt';
 
 /** A binding that allows the first `allowance` calls per key and refuses the rest. */
 function binding(allowance: number): RateLimitBinding & {
@@ -38,14 +43,16 @@ const limits = genericLimits('app_session');
 
 describe('genericClass', () => {
   it.each<[string, GenericClass | undefined]>([
-    ['/_next/static/chunks/a.js', undefined],
-    ['/icons/icon-192.png', undefined],
+    ...STATIC_PREFIXES.map((prefix): [string, GenericClass | undefined] => [
+      `${prefix}anything.bin`,
+      undefined,
+    ]),
     ['/csp/reports', 'reports'],
     ['/img', 'cover'],
     ['/api/things', 'api'],
     ['/api/things/abc', 'api'],
     ['/rpc/anything', 'api'],
-    ['/health', 'discovery'],
+    [discoveryPath, 'discovery'],
     ['/.well-known/anything', 'discovery'],
     ['/robots.txt', 'discovery'],
     ['/', 'site'],
@@ -60,7 +67,7 @@ describe('genericLimits', () => {
     expect(limits.classes).toBe(GENERIC_CLASSES);
     expect(limits.sessionCookie).toBe('app_session');
     expect(limits.classify(get('/'))).toBe('site');
-    expect(limits.classify(get('/_next/x.js'))).toBeUndefined();
+    expect(limits.classify(get(staticFile))).toBeUndefined();
   });
 });
 
@@ -135,9 +142,7 @@ describe('edgeLimitRefusal', () => {
   it('does not count static files or CORS preflights', async () => {
     const site = binding(0);
     const env = { RL_SITE: site, RL_API: site, [OVERALL_BINDING]: site };
-    expect(
-      await edgeLimitRefusal(get('/_next/static/x.js'), env, limits),
-    ).toBeNull();
+    expect(await edgeLimitRefusal(get(staticFile), env, limits)).toBeNull();
     expect(
       await edgeLimitRefusal(
         new Request('https://app.test/api/things', { method: 'OPTIONS' }),
