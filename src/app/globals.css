@@ -157,6 +157,24 @@ body {
     }
   }
 
+  /* Tailwind 4 stopped giving buttons the pointer cursor, so a button that did
+   * not ask for it looked inert under the mouse. Anything clickable gets the
+   * hand; a disabled one keeps the arrow, which says it does nothing. */
+  button:not(:disabled),
+  summary,
+  select:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  input:is(
+      [type='button'],
+      [type='submit'],
+      [type='reset'],
+      [type='checkbox'],
+      [type='radio'],
+      [type='file']
+    ):not(:disabled) {
+    cursor: pointer;
+  }
+
   /* Always leave room for the page's scrollbar. Without it, a modal that
    * hides the scrollbar makes a page that has one jump sideways by its width. */
   @supports (scrollbar-gutter: stable) {
