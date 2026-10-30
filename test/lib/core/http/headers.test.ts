@@ -252,6 +252,12 @@ describe('SECURITY_HEADERS', () => {
   it('puts the origin in its own agent cluster', () => {
     expect(SECURITY_HEADERS['Origin-Agent-Cluster']).toBe('?1');
   });
+
+  it('names no permissions feature that browsers have removed', () => {
+    expect(SECURITY_HEADERS['Permissions-Policy']).not.toContain(
+      'interest-cohort',
+    );
+  });
 });
 
 describe('public/_headers', () => {

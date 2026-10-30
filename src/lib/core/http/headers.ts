@@ -26,7 +26,7 @@ export const SECURITY_HEADERS: Readonly<Record<string, string>> = {
   'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
   // Nothing here needs the camera, microphone, location or payments.
   'Permissions-Policy':
-    'camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()',
+    'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
   // Nobody may frame it, this site included, and keep forms, <base> and
   // plugins on a short leash.
   'Content-Security-Policy':
