@@ -357,7 +357,6 @@ header.mast {
   background: transparent;
   color: var(--masttext);
   border: none;
-  cursor: pointer;
   transition:
     background 0.15s,
     color 0.15s;
@@ -381,7 +380,6 @@ header.mast {
   color: var(--mastbg);
   border: none;
   border-radius: 999px;
-  cursor: pointer;
 }
 .install[hidden] {
   display: none;
@@ -866,7 +864,6 @@ button.navlink {
   background: none;
   font: inherit;
   font-weight: 700;
-  cursor: pointer;
 }
 .navuser {
   color: var(--masttext);
@@ -904,7 +901,6 @@ button.navlink {
   color: var(--paper);
   border-radius: 6px;
   padding: 9px 16px;
-  cursor: pointer;
   text-decoration: none;
   display: inline-block;
 }
@@ -983,7 +979,6 @@ button.navlink {
 }
 .archive > summary {
   list-style: none;
-  cursor: pointer;
   font-size: 16px;
   line-height: 1;
   padding: 3px 6px;
