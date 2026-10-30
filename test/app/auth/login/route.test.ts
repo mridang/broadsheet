@@ -19,8 +19,8 @@ import {
 
 // The redirect path answers a NextResponse (it sets cookies); the 503 path
 // answers a plain problem Response. Only the redirect cases read cookies.
-const redirect = (request: NextRequest): NextResponse =>
-  GET(request) as NextResponse;
+const redirect = async (request: NextRequest): Promise<NextResponse> =>
+  (await GET(request)) as NextResponse;
 
 let restore: () => void;
 
@@ -40,8 +40,8 @@ const locationOf = (res: Response): URL | undefined => {
 };
 
 describe('GET /auth/login', () => {
-  it('sends the browser to Google asking only who the person is', () => {
-    const res = GET(appRequest('GET', '/auth/login'));
+  it('sends the browser to Google asking only who the person is', async () => {
+    const res = await GET(appRequest('GET', '/auth/login'));
     const target = locationOf(res);
     expect(res.status).toBe(307);
     expect(`${target?.origin}${target?.pathname}`).toBe(
@@ -54,8 +54,8 @@ describe('GET /auth/login', () => {
     expect(target?.searchParams.get('scope')).toBe('openid email profile');
   });
 
-  it('keeps the same one-time state in the address and in an httpOnly cookie', () => {
-    const res = redirect(appRequest('GET', '/auth/login'));
+  it('keeps the same one-time state in the address and in an httpOnly cookie', async () => {
+    const res = await redirect(appRequest('GET', '/auth/login'));
     const state = locationOf(res)?.searchParams.get('state');
     expect(state).toMatch(/^signin\./);
     expect(res.cookies.get(STATE_COOKIE)).toMatchObject({
@@ -67,16 +67,18 @@ describe('GET /auth/login', () => {
     });
   });
 
-  it('gives each visit a different state', () => {
-    const state = () =>
-      locationOf(GET(appRequest('GET', '/auth/login')))?.searchParams.get(
+  it('gives each visit a different state', async () => {
+    const state = async () =>
+      locationOf(await GET(appRequest('GET', '/auth/login')))?.searchParams.get(
         'state',
       );
-    expect(state()).not.toBe(state());
+    expect(await state()).not.toBe(await state());
   });
 
-  it('remembers a safe returnTo in a cookie', () => {
-    const res = redirect(appRequest('GET', '/auth/login?returnTo=%2Fa%2Fb'));
+  it('remembers a safe returnTo in a cookie', async () => {
+    const res = await redirect(
+      appRequest('GET', '/auth/login?returnTo=%2Fa%2Fb'),
+    );
     expect(res.cookies.get(RETURN_COOKIE)?.value).toBe('/a/b');
   });
 
@@ -86,14 +88,14 @@ describe('GET /auth/login', () => {
     '/\\evil.example',
     'javascript:alert(1)',
     '/a\r\nb',
-  ])('refuses to remember the returnTo %s', (target) => {
-    const res = redirect(
+  ])('refuses to remember the returnTo %s', async (target) => {
+    const res = await redirect(
       appRequest('GET', `/auth/login?returnTo=${encodeURIComponent(target)}`),
     );
     expect(res.cookies.get(RETURN_COOKIE)?.value ?? '').toBe('');
   });
 
-  it('uses the address from APP_URL when one is configured', () => {
+  it('uses the address from APP_URL when one is configured', async () => {
     restore();
     restore = installEnv({
       SESSION_SECRET,
@@ -101,7 +103,7 @@ describe('GET /auth/login', () => {
       GOOGLE_OAUTH_CLIENT_SECRET: 'client-secret',
       APP_URL: 'https://the.site',
     });
-    const target = locationOf(GET(appRequest('GET', '/auth/login')));
+    const target = locationOf(await GET(appRequest('GET', '/auth/login')));
     expect(target?.searchParams.get('redirect_uri')).toBe(
       'https://the.site/auth/callback',
     );
@@ -125,21 +127,21 @@ describe('GET /auth/login on a server that is not set up', () => {
   ])('refuses and names %s when it is missing', async (name, env) => {
     restore();
     restore = installEnv(env);
-    const res = GET(appRequest('GET', '/auth/login'));
+    const res = await GET(appRequest('GET', '/auth/login'));
     expect(res.status).toBe(503);
     expect(res.headers.get('location')).toBeNull();
     expect(await res.text()).toContain(name);
     expect(res.headers.get('set-cookie')).toBeNull();
   });
 
-  it('refuses without a session secret, never signing with a made-up one', () => {
+  it('refuses without a session secret, never signing with a made-up one', async () => {
     restore();
     restore = installEnv({
       SESSION_SECRET: '',
       GOOGLE_OAUTH_CLIENT_ID: 'a',
       GOOGLE_OAUTH_CLIENT_SECRET: 'b',
     });
-    const res = GET(appRequest('GET', '/auth/login'));
+    const res = await GET(appRequest('GET', '/auth/login'));
     expect(res.status).toBe(503);
     expect(res.headers.get('cache-control')).toBe('no-store');
     expect(res.headers.get('content-type')).toBe('application/problem+json');
@@ -148,7 +150,7 @@ describe('GET /auth/login on a server that is not set up', () => {
   it('names every missing setting, and never a value', async () => {
     restore();
     restore = installEnv({ GOOGLE_OAUTH_CLIENT_ID: 'visible-id-value' });
-    const text = await GET(appRequest('GET', '/auth/login')).text();
+    const text = await (await GET(appRequest('GET', '/auth/login'))).text();
     expect(text).toContain('GOOGLE_OAUTH_CLIENT_SECRET, SESSION_SECRET');
     expect(text).not.toContain('visible-id-value');
   });

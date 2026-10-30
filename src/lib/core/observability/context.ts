@@ -34,39 +34,47 @@ interface ContextTracing {
 /** Longest text kept in one attribute; the rest is cut off. */
 const MAX_TEXT = 256;
 
-/**
- * The module's name sits in a variable on purpose: the app's bundlers cannot
- * resolve a `cloudflare:` module, and cannot see through a variable, so they
- * leave the import to the runtime, which has it.
- */
-const WORKERS_MODULE: string = 'cloudflare:workers';
-
 /** The tracing API once loaded; `null` where there is none. */
 let loaded: ContextTracing | null | undefined;
-let loading: Promise<ContextTracing | null> | undefined;
 
 /**
- * Load `cloudflare:workers` the first time it is wanted. It is loaded lazily,
- * and a failure is remembered, because the module only exists in the Workers
- * runtime.
+ * Load `cloudflare:workers`. Only the loaded module is remembered, never the
+ * promise: a promise started in one request must not be waited on in another,
+ * which the Workers runtime may never settle. The module is lazy because it
+ * exists only in the Workers runtime, and a failure is remembered. The ignore
+ * comments keep the app's bundlers from trying to resolve it.
  */
 function load(): Promise<ContextTracing | null> {
-  loading ??= import(
-    /* webpackIgnore: true */ /* turbopackIgnore: true */ WORKERS_MODULE
+  return import(
+    /* webpackIgnore: true */ /* turbopackIgnore: true */ 'cloudflare:workers'
   ).then(
-    (workers: { tracing: ContextTracing }) => (loaded = workers.tracing),
+    (workers) => (loaded = workers.tracing),
     () => (loaded = null),
   );
-  return loading;
 }
 
-/** The invocation's root span, or undefined where there is none. */
-async function activeSpan(): Promise<ContextSpan | undefined> {
-  try {
-    return (loaded === undefined ? await load() : loaded)?.getActiveSpan();
-  } catch {
-    return undefined;
+/**
+ * Run `apply` on the invocation's root span, if there is one. Once the runtime
+ * module has loaded this happens at once, before the call returns, so that
+ * context set in a handler that does not wait is still on the span when the
+ * invocation ends. Never rejects.
+ */
+function withActiveSpan(apply: (span: ContextSpan) => void): Promise<void> {
+  const run = (tracing: ContextTracing | null): void => {
+    try {
+      const span = tracing?.getActiveSpan();
+      if (span) {
+        apply(span);
+      }
+    } catch {
+      // Context is a convenience: it must never fail a request.
+    }
+  };
+  if (loaded !== undefined) {
+    run(loaded);
+    return Promise.resolve();
   }
+  return load().then(run, () => undefined);
 }
 
 /** The attributes worth keeping: defined, and a string, a finite number or a boolean. */
@@ -87,24 +95,23 @@ function accepted(attributes: ContextAttributes): [string, ContextValue][] {
 /**
  * Attach attributes to the current invocation so an error in it shows them.
  * Safe to call anywhere, any number of times (a later call for the same key
- * replaces the earlier value). Call it with `await` where the caller is async
- * (the first call has to load the runtime module); the returned promise never
- * rejects.
+ * replaces the earlier value). The first call has to load the runtime module,
+ * so where the caller is async it should wait for the result; the returned
+ * promise never rejects.
  */
-export async function setErrorContext(
-  attributes: ContextAttributes,
-): Promise<void> {
+export function setErrorContext(attributes: ContextAttributes): Promise<void> {
   try {
     const kept = accepted(attributes);
     if (kept.length === 0) {
-      return;
+      return Promise.resolve();
     }
-    const span = await activeSpan();
-    for (const [key, value] of kept) {
-      span?.setAttribute(key, value);
-    }
+    return withActiveSpan((span) => {
+      for (const [key, value] of kept) {
+        span.setAttribute(key, value);
+      }
+    });
   } catch {
-    // Context is a convenience: it must never fail a request.
+    return Promise.resolve();
   }
 }
 
@@ -113,16 +120,14 @@ export async function setErrorContext(
  * `name`. Only the two fixed words are sent, never text that came from a
  * request, a person or a provider.
  */
-export async function recordErrorOnSpan(
+export function recordErrorOnSpan(
   name: string,
   message: string,
 ): Promise<void> {
-  try {
-    (await activeSpan())?.recordException({
+  return withActiveSpan((span) =>
+    span.recordException({
       name: name.slice(0, MAX_TEXT),
       message: message.slice(0, MAX_TEXT),
-    });
-  } catch {
-    // As above.
-  }
+    }),
+  );
 }

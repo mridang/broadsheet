@@ -25,6 +25,12 @@ describe('setErrorContext', () => {
     });
   });
 
+  it('sets the attributes before it returns once the runtime has loaded', async () => {
+    await setErrorContext({ warm: true });
+    void setErrorContext({ at: 'once' });
+    expect(fake.attributes['at']).toBe('once');
+  });
+
   it('drops undefined values and anything that is not a plain value', async () => {
     await setErrorContext({
       gone: undefined,

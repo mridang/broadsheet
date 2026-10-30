@@ -26,9 +26,32 @@ import { getCurrentUser } from './current-user';
 import type { FlowContext, OtherFlow } from '@/domain/auth/sign-in';
 import type { User } from '@/domain/auth/store';
 import { problem } from '@/lib/core/api';
+import { setErrorContext } from '@/lib/core/observability/context';
 import { getEnv } from '@/lib/core/runtime';
 import { appOrigin } from '@/lib/core/origin';
 import { logError, logWarn } from '@/utils/logging';
+
+/**
+ * Why a round trip failed, as shown next to an error in Workers Issues. A fixed
+ * list of words: never text from Google, and never a code, state or token.
+ */
+type SignInFailure =
+  | 'not_configured'
+  | 'state_mismatch'
+  | 'denied'
+  | 'no_code'
+  | 'token_exchange_failed'
+  | 'userinfo_failed'
+  | 'finish_failed';
+
+/** The part of the round trip that was under way when it failed. */
+type CallbackStep = 'exchange' | 'userinfo' | 'finish';
+
+const FAILURE_AT: Readonly<Record<CallbackStep, SignInFailure>> = {
+  exchange: 'token_exchange_failed',
+  userinfo: 'userinfo_failed',
+  finish: 'finish_failed',
+};
 
 /** Everything the kit needs from the app to run a Google sign-in. */
 export interface GoogleAuthKitConfig {
@@ -82,11 +105,17 @@ export class GoogleAuthKit {
   }
 
   /** `GET /auth/login`: send the browser to Google to sign in. */
-  loginHandler(): (request: NextRequest) => Response {
-    return (request) => {
+  loginHandler(): (request: NextRequest) => Promise<Response> {
+    return async (request) => {
+      await setErrorContext({
+        'auth.provider': 'google',
+        'auth.flow': 'login',
+        'auth.step': 'start',
+      });
       const env = getEnv();
       const missing = this.#config.missingSignInSettings(env);
       if (missing.length > 0) {
+        await setErrorContext({ 'auth.failure': 'not_configured' });
         logError({ event: 'auth.login.not_configured', missing });
         return problem(
           503,
@@ -125,9 +154,15 @@ export class GoogleAuthKit {
         this.#config.stateCookie,
       )?.value;
       const oauthError = url.searchParams.get('error');
+      await setErrorContext({
+        'auth.provider': 'google',
+        'auth.flow': 'callback',
+        'auth.step': 'state',
+      });
 
       const checked = checkState(state, expectedState, this.#config.purposes);
       if (!checked.ok) {
+        await setErrorContext({ 'auth.failure': 'state_mismatch' });
         logError({
           event: 'auth.callback.state_check_failed',
           hasState: Boolean(state),
@@ -143,12 +178,22 @@ export class GoogleAuthKit {
         );
       }
       const { purpose } = checked;
+      // Sign-in is the callback itself; the other asks are named by their purpose.
+      await setErrorContext({
+        'auth.flow':
+          purpose === this.#config.signInPurpose ? 'callback' : purpose,
+        'auth.step': 'consent',
+      });
       if (!code) {
+        await setErrorContext({
+          'auth.failure': oauthError ? 'denied' : 'no_code',
+        });
         logWarn({ event: 'auth.callback.no_code', purpose, oauthError });
         return finishFlow(origin, this.#failurePath(purpose, 'denied'));
       }
       const missing = this.#config.missingSignInSettings(env);
       if (missing.length > 0) {
+        await setErrorContext({ 'auth.failure': 'not_configured' });
         logError({ event: 'auth.callback.not_configured', missing });
         return finishFlow(origin, this.#failurePath(purpose, 'error'));
       }
@@ -161,36 +206,49 @@ export class GoogleAuthKit {
           request.cookies.get(this.#config.returnCookie)?.value,
         ),
       };
+      let step: CallbackStep = 'exchange';
       try {
+        await setErrorContext({ 'auth.step': step });
         const client = this.#client();
         const tokens = await client.exchangeCode({
           code,
           redirectUri: `${origin}/auth/callback`,
         });
         if (!tokens.ok) {
+          await setErrorContext({ 'auth.failure': FAILURE_AT[step] });
           logError({
             event: 'auth.callback.failed',
             error: `token exchange: http ${tokens.status}`,
           });
           return finishFlow(origin, this.#failurePath(purpose, 'error'));
         }
+        step = 'userinfo';
+        await setErrorContext({ 'auth.step': step });
         const info = await client.getUserInfo(tokens.value.access_token);
         if (!info.ok) {
+          await setErrorContext({ 'auth.failure': FAILURE_AT[step] });
           logError({
             event: 'auth.callback.failed',
             error: `userinfo: http ${info.status}`,
           });
           return finishFlow(origin, this.#failurePath(purpose, 'error'));
         }
+        step = 'finish';
+        await setErrorContext({ 'auth.step': step });
         if (purpose === this.#config.signInPurpose) {
-          return await this.#config.completeSignIn(context, info.value);
+          const done = await this.#config.completeSignIn(context, info.value);
+          await setErrorContext({ 'auth.step': 'done' });
+          return done;
         }
         const other = this.#config.otherFlows[purpose];
         if (!other) {
           throw new Error(`No flow is registered for "${purpose}"`);
         }
-        return await other.complete(context, info.value, tokens.value);
+        const done = await other.complete(context, info.value, tokens.value);
+        await setErrorContext({ 'auth.step': 'done' });
+        return done;
       } catch (err) {
+        await setErrorContext({ 'auth.failure': FAILURE_AT[step] });
         logError({
           event: 'auth.callback.failed',
           error:
