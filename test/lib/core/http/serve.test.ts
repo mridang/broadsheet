@@ -1,7 +1,11 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { nonceOf, genericLimits } from '@/lib/core/http';
-import { serve, serverTiming, type ServeApp } from '@/lib/core/http';
+import { installFakeTracing } from '../observability/fake-tracing';
+
+const tracing = installFakeTracing();
+const { nonceOf, genericLimits, serve, serverTiming } =
+  await import('@/lib/core/http');
+import type { ServeApp } from '@/lib/core/http';
 
 /** What is rate limited in these tests: the classes every app has, with sessions in `app_session`. */
 const limits = genericLimits('app_session');
@@ -217,6 +221,21 @@ describe('serve — flow id', () => {
     );
     expect(response.status).toBe(429);
     expect(response.headers.get('x-flow-id')).toBe('f1');
+  });
+
+  it('is put on the error context, for a refusal too', async () => {
+    await serve(get('/app', { 'x-flow-id': 'f2' }), {}, ctx().context, {
+      app: appAnswering(html),
+      limits,
+    });
+    expect(tracing.attributes['flow.id']).toBe('f2');
+    await serve(
+      get('/app', { 'x-flow-id': 'f3' }),
+      { RL_SITE: refusing() },
+      ctx().context,
+      { app: appAnswering(html), limits },
+    );
+    expect(tracing.attributes['flow.id']).toBe('f3');
   });
 });
 

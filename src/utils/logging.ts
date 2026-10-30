@@ -7,6 +7,8 @@
  * can query e.g. `event = "torrent.lookup" status:error` later.
  */
 
+import { recordErrorOnSpan } from '@/lib/core/observability/context';
+
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 /**
@@ -51,4 +53,7 @@ export function logWarn(fields: LogFields): void {
 /** Emit an error-level structured log. @public */
 export function logError(fields: LogFields): void {
   emit('error', fields);
+  // Issues groups errors by this name. Only the event name is sent: the
+  // fields can carry text from requests and providers.
+  void recordErrorOnSpan('LoggedError', fields.event);
 }

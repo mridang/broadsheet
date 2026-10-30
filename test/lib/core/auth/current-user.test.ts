@@ -15,6 +15,9 @@ import {
   jar,
   tokenFor,
 } from '../../../domain/auth/auth-test-kit';
+import { installFakeTracing } from '../observability/fake-tracing';
+
+const tracing = installFakeTracing();
 
 jest.unstable_mockModule('next/headers', () => ({ cookies: fakeCookies }));
 
@@ -62,6 +65,28 @@ async function signIn(
 ): Promise<void> {
   jar.set(SESSION_COOKIE, await tokenFor(user, options));
 }
+
+describe('getSession', () => {
+  it('puts only the internal user number and the method on the error context', async () => {
+    delete tracing.attributes['user.id'];
+    delete tracing.attributes['auth.method'];
+    await signIn({ id: 9 });
+    await getSession();
+    expect(tracing.attributes).toEqual({
+      'user.id': 9,
+      'auth.method': 'session',
+    });
+  });
+
+  it('puts nothing on it when the cookie does not verify', async () => {
+    for (const key of Object.keys(tracing.attributes)) {
+      delete tracing.attributes[key];
+    }
+    jar.set(SESSION_COOKIE, 'not-a-token');
+    await getSession();
+    expect(tracing.attributes).toEqual({});
+  });
+});
 
 describe('getCurrentUser', () => {
   it('is null without a cookie', async () => {

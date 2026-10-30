@@ -16,6 +16,7 @@ import {
   type SessionPayload,
 } from '@/lib/session';
 import { getSessionEpoch, getUserById, type User } from '@/domain/auth/store';
+import { setErrorContext } from '@/lib/core/observability/context';
 import { getEnv } from '@/lib/core/runtime';
 
 /**
@@ -47,7 +48,12 @@ export async function getSession(): Promise<SessionPayload | null> {
   if (!token || !secret) {
     return null;
   }
-  return new SessionTokens(secret).verify(token);
+  const payload = await new SessionTokens(secret).verify(token);
+  if (payload) {
+    // Only the internal number: an error in this request shows who it was for.
+    await setErrorContext({ 'user.id': payload.uid, 'auth.method': 'session' });
+  }
+  return payload;
 }
 
 /**

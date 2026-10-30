@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
 
-import { errorMessage, logError, logInfo, logWarn } from '@/utils/logging';
+import { installFakeTracing } from '../lib/core/observability/fake-tracing';
+
+const tracing = installFakeTracing();
+const { errorMessage, logError, logInfo, logWarn } =
+  await import('@/utils/logging');
 
 type ConsoleSpy = jest.SpiedFunction<typeof console.log>;
 
@@ -17,6 +21,27 @@ function firstRecord(spy: ConsoleSpy): Record<string, unknown> {
 
 afterEach(() => {
   jest.restoreAllMocks();
+  tracing.exceptions.length = 0;
+});
+
+describe('error context', () => {
+  it('logError records the event name, and nothing else, on the active span', async () => {
+    jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    logError({ event: 'auth.callback.failed', error: 'secret-ish text' });
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(tracing.exceptions).toEqual([
+      { name: 'LoggedError', message: 'auth.callback.failed' },
+    ]);
+  });
+
+  it('logWarn and logInfo record nothing', async () => {
+    jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    jest.spyOn(console, 'log').mockImplementation(() => undefined);
+    logWarn({ event: 'a' });
+    logInfo({ event: 'b' });
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(tracing.exceptions).toEqual([]);
+  });
 });
 
 describe('structured logging', () => {

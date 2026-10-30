@@ -31,6 +31,7 @@ import {
   type EdgeLimitEnv,
   type EdgeLimits,
 } from './edge-limits';
+import { setErrorContext } from '../observability/context';
 import { EDGE_LIMITS } from './extras';
 import { applyResponseHeaders, replacingHeaders } from './headers';
 import { CACHED_QUERY_PARAMS, EDGE_CACHED_PAGES } from './site';
@@ -110,6 +111,8 @@ export async function serve(
   const sent = request.headers.get('X-Flow-ID');
   const flowId =
     sent !== null && FLOW_ID.test(sent) ? sent : crypto.randomUUID();
+  // An error in this invocation is shown with the flow it belongs to.
+  await setErrorContext({ 'flow.id': flowId });
   const tagged = new Request(request, {
     headers: replacingHeaders(request.headers, { 'X-Flow-ID': flowId }),
   });
