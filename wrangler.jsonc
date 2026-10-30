@@ -120,6 +120,16 @@
     // 06:00 UTC — daily fetch + scrape of every feed.
     "crons": ["0 6 * * *"],
   },
-  // GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET, SESSION_SECRET
-  // are Worker secrets (set via `wrangler secret put`), not plaintext vars.
+  // Worker secrets (set via `wrangler secret put`), not plaintext vars. A deploy
+  // fails if one is missing, and only these names are typed and loaded from .env.
+  "secrets": {
+    "required": [
+      "GOOGLE_OAUTH_CLIENT_ID",
+      "GOOGLE_OAUTH_CLIENT_SECRET",
+      "SESSION_SECRET",
+    ],
+  },
+  // Uploads source maps with the Worker so stack traces in logs and traces
+  // point at the original source.
+  "upload_source_maps": true,
 }
