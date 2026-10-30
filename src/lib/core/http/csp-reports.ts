@@ -67,8 +67,7 @@ function field(
 ): string {
   return (
     (keys.map((key) => body[key]).find((v) => typeof v === 'string') as
-      | string
-      | undefined) ?? ''
+      string | undefined) ?? ''
   );
 }
 

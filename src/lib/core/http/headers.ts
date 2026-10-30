@@ -122,14 +122,10 @@ export function applyResponseHeaders(
   const present = response.headers;
   const leftAlone = PUBLIC_PAGES.has(pathname) || OPEN_FILES.test(pathname);
   const candidates: HeaderPair[] = [
-    ...Object.entries(SECURITY_HEADERS).map(
-      ([name, value]): HeaderPair => [
-        name,
-        name === 'Cross-Origin-Opener-Policy'
-          ? openerPolicyFor(pathname)
-          : value,
-      ],
-    ),
+    ...Object.entries(SECURITY_HEADERS).map(([name, value]): HeaderPair => [
+      name,
+      name === 'Cross-Origin-Opener-Policy' ? openerPolicyFor(pathname) : value,
+    ]),
     ['Cross-Origin-Resource-Policy', resourcePolicyFor(pathname)],
     // Tells the browser where the policies' `report-to csp-endpoint` reports go.
     ['Reporting-Endpoints', REPORTING_ENDPOINTS],

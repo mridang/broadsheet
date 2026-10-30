@@ -150,7 +150,7 @@ declare abstract class WorkerGlobalScope extends EventTarget<WorkerGlobalScopeEv
  * [MDN Reference](https://developer.mozilla.org/docs/Web/API/console)
  */
 interface Console {
-  'assert'(condition?: boolean, ...data: any[]): void;
+  assert(condition?: boolean, ...data: any[]): void;
   /**
    * The **`console.clear()`** static method clears the console if possible.
    *
@@ -284,13 +284,7 @@ declare namespace WebAssembly {
     constructor(message?: string);
   }
   type ValueType =
-    | 'anyfunc'
-    | 'externref'
-    | 'f32'
-    | 'f64'
-    | 'i32'
-    | 'i64'
-    | 'v128';
+    'anyfunc' | 'externref' | 'f32' | 'f64' | 'i32' | 'i64' | 'v128';
   interface GlobalDescriptor {
     value: ValueType;
     mutable?: boolean;
@@ -865,8 +859,7 @@ interface DurableObjectFacets {
   get<T extends Rpc.DurableObjectBranded | undefined = undefined>(
     name: string,
     getStartupOptions: () =>
-      | FacetStartupOptions<T>
-      | Promise<FacetStartupOptions<T>>,
+      FacetStartupOptions<T> | Promise<FacetStartupOptions<T>>,
   ): Fetcher<T>;
   abort(name: string, reason: any): void;
   delete(name: string): void;
@@ -1022,8 +1015,7 @@ interface EventListenerObject<EventType extends Event = Event> {
   handleEvent(event: EventType): void;
 }
 type EventListenerOrEventListenerObject<EventType extends Event = Event> =
-  | EventListener<EventType>
-  | EventListenerObject<EventType>;
+  EventListener<EventType> | EventListenerObject<EventType>;
 /**
  * The **`EventTarget`** interface is implemented by objects that can receive events and may have listeners for them. In other words, any target of events implements the three methods associated with this interface.
  *
@@ -2008,9 +2000,7 @@ declare abstract class FetchEvent extends ExtendableEvent {
   passThroughOnException(): void;
 }
 type HeadersInit =
-  | Headers
-  | Iterable<Iterable<string>>
-  | Record<string, string>;
+  Headers | Iterable<Iterable<string>> | Record<string, string>;
 /**
  * The **`Headers`** interface of the Fetch API allows you to perform various actions on HTTP request and response headers. These actions include retrieving, setting, adding to, and removing headers from the list of the request's headers.
  *
@@ -2170,8 +2160,7 @@ interface ResponseInit {
   encodeBody?: 'automatic' | 'manual';
 }
 type RequestInfo<CfHostMetadata = unknown, Cf = CfProperties<CfHostMetadata>> =
-  | Request<CfHostMetadata, Cf>
-  | string;
+  Request<CfHostMetadata, Cf> | string;
 /**
  * The **`Request`** interface of the Fetch API represents a resource request.
  *
@@ -2550,12 +2539,7 @@ interface R2Bucket {
   put(
     key: string,
     value:
-      | ReadableStream
-      | ArrayBuffer
-      | ArrayBufferView
-      | string
-      | null
-      | Blob,
+      ReadableStream | ArrayBuffer | ArrayBufferView | string | null | Blob,
     options?: R2PutOptions & {
       onlyIf: R2Conditional | Headers;
     },
@@ -2563,12 +2547,7 @@ interface R2Bucket {
   put(
     key: string,
     value:
-      | ReadableStream
-      | ArrayBuffer
-      | ArrayBufferView
-      | string
-      | null
-      | Blob,
+      ReadableStream | ArrayBuffer | ArrayBufferView | string | null | Blob,
     options?: R2PutOptions,
   ): Promise<R2Object>;
   createMultipartUpload(
@@ -4867,10 +4846,7 @@ type AiSearchInstanceInfo = {
   max_num_results?: number;
   cache?: boolean;
   cache_threshold?:
-    | 'super_strict_match'
-    | 'close_enough'
-    | 'flexible_friend'
-    | 'anything_goes';
+    'super_strict_match' | 'close_enough' | 'flexible_friend' | 'anything_goes';
   custom_metadata?: Array<{
     field_name: string;
     data_type: 'text' | 'number' | 'boolean' | 'datetime';
@@ -4948,10 +4924,7 @@ type AiSearchConfig = {
   cache?: boolean;
   /** Similarity threshold for cache hits. Stricter = fewer cache hits but higher relevance. */
   cache_threshold?:
-    | 'super_strict_match'
-    | 'close_enough'
-    | 'flexible_friend'
-    | 'anything_goes';
+    'super_strict_match' | 'close_enough' | 'flexible_friend' | 'anything_goes';
   custom_metadata?: Array<{
     field_name: string;
     data_type: 'text' | 'number' | 'boolean' | 'datetime';
@@ -4997,12 +4970,7 @@ type AiSearchListItemsParams = {
   sort_by?: 'status' | 'modified_at';
   /** Filter items by processing status. */
   status?:
-    | 'queued'
-    | 'running'
-    | 'completed'
-    | 'error'
-    | 'skipped'
-    | 'outdated';
+    'queued' | 'running' | 'completed' | 'error' | 'skipped' | 'outdated';
   /** Filter items by source (e.g. "builtin" or "web-crawler:https://example.com"). */
   source?: string;
   /** JSON-encoded Vectorize filter for metadata filtering. */
@@ -5547,11 +5515,7 @@ declare abstract class BaseAiTextEmbeddings {
 }
 type RoleScopedChatInput = {
   role:
-    | 'user'
-    | 'assistant'
-    | 'system'
-    | 'tool'
-    | (string & NonNullable<unknown>);
+    'user' | 'assistant' | 'system' | 'tool' | (string & NonNullable<unknown>);
   content: string;
   name?: string;
 };
@@ -5746,8 +5710,7 @@ type ChatCompletionCustomToolTextFormat = {
   type: 'text';
 };
 type ChatCompletionCustomToolFormat =
-  | ChatCompletionCustomToolTextFormat
-  | ChatCompletionCustomToolGrammarFormat;
+  ChatCompletionCustomToolTextFormat | ChatCompletionCustomToolGrammarFormat;
 type ChatCompletionCustomTool = {
   type: 'custom';
   custom: {
@@ -5775,8 +5738,7 @@ type ChatCompletionMessageCustomToolCall = {
   };
 };
 type ChatCompletionMessageToolCall =
-  | ChatCompletionMessageFunctionToolCall
-  | ChatCompletionMessageCustomToolCall;
+  ChatCompletionMessageFunctionToolCall | ChatCompletionMessageCustomToolCall;
 type ChatCompletionToolChoiceFunction = {
   type: 'function';
   function: {
@@ -6061,11 +6023,7 @@ type ChatCompletionChoice = {
   index: number;
   message: ChatCompletionResponseMessage;
   finish_reason:
-    | 'stop'
-    | 'length'
-    | 'tool_calls'
-    | 'content_filter'
-    | 'function_call';
+    'stop' | 'length' | 'tool_calls' | 'content_filter' | 'function_call';
   logprobs: ChatCompletionLogprobs | null;
 };
 type ChatCompletionsMessagesInput = {
@@ -6260,8 +6218,7 @@ type ResponseFunctionCallArgumentsDoneEvent = {
   type: 'response.function_call_arguments.done';
 };
 type ResponseFunctionCallOutputItem =
-  | ResponseInputTextContent
-  | ResponseInputImageContent;
+  ResponseInputTextContent | ResponseInputImageContent;
 type ResponseFunctionCallOutputItemList = Array<ResponseFunctionCallOutputItem>;
 type ResponseFunctionToolCall = {
   arguments: string;
@@ -6282,8 +6239,7 @@ type ResponseFunctionToolCallOutputItem = {
   status?: 'in_progress' | 'completed' | 'incomplete';
 };
 type ResponseIncludable =
-  | 'message.input_image.image_url'
-  | 'message.output_text.logprobs';
+  'message.input_image.image_url' | 'message.output_text.logprobs';
 type ResponseIncompleteEvent = {
   response: Response;
   sequence_number: number;
@@ -6349,9 +6305,7 @@ type ResponseItem =
   | ResponseFunctionToolCallItem
   | ResponseFunctionToolCallOutputItem;
 type ResponseOutputItem =
-  | ResponseOutputMessage
-  | ResponseFunctionToolCall
-  | ResponseReasoningItem;
+  ResponseOutputMessage | ResponseFunctionToolCall | ResponseReasoningItem;
 type ResponseOutputItemAddedEvent = {
   item: ResponseOutputItem;
   output_index: number;
@@ -7985,8 +7939,7 @@ declare abstract class Base_Ai_Cf_Qwen_Qwen2_5_Coder_32B_Instruct {
   postProcessedOutputs: Ai_Cf_Qwen_Qwen2_5_Coder_32B_Instruct_Output;
 }
 type Ai_Cf_Qwen_Qwq_32B_Input =
-  | Ai_Cf_Qwen_Qwq_32B_Prompt
-  | Ai_Cf_Qwen_Qwq_32B_Messages;
+  Ai_Cf_Qwen_Qwq_32B_Prompt | Ai_Cf_Qwen_Qwq_32B_Messages;
 interface Ai_Cf_Qwen_Qwq_32B_Prompt {
   /**
    * The input text prompt for the model to generate a response.
@@ -8533,8 +8486,7 @@ declare abstract class Base_Ai_Cf_Mistralai_Mistral_Small_3_1_24B_Instruct {
   postProcessedOutputs: Ai_Cf_Mistralai_Mistral_Small_3_1_24B_Instruct_Output;
 }
 type Ai_Cf_Google_Gemma_3_12B_It_Input =
-  | Ai_Cf_Google_Gemma_3_12B_It_Prompt
-  | Ai_Cf_Google_Gemma_3_12B_It_Messages;
+  Ai_Cf_Google_Gemma_3_12B_It_Prompt | Ai_Cf_Google_Gemma_3_12B_It_Messages;
 interface Ai_Cf_Google_Gemma_3_12B_It_Prompt {
   /**
    * The input text prompt for the model to generate a response.
@@ -11131,11 +11083,7 @@ interface Ai_Cf_Deepgram_Flux_Output {
    * The type of event being reported.
    */
   event?:
-    | 'Update'
-    | 'StartOfTurn'
-    | 'EagerEndOfTurn'
-    | 'TurnResumed'
-    | 'EndOfTurn';
+    'Update' | 'StartOfTurn' | 'EagerEndOfTurn' | 'TurnResumed' | 'EndOfTurn';
   /**
    * The index of the current turn
    */
@@ -12098,8 +12046,7 @@ type AIGatewayProviders =
   | 'adobe-firefly';
 type AIGatewayHeaders = {
   'cf-aig-metadata':
-    | Record<string, number | string | boolean | null | bigint>
-    | string;
+    Record<string, number | string | boolean | null | bigint> | string;
   'cf-aig-custom-cost':
     | {
         per_token_in?: number;
@@ -12662,10 +12609,7 @@ declare abstract class AutoRAG {
   ): Promise<AutoRagAiSearchResponse | Response>;
 }
 type BrowserRunLifecycleEvent =
-  | 'load'
-  | 'domcontentloaded'
-  | 'networkidle0'
-  | 'networkidle2';
+  'load' | 'domcontentloaded' | 'networkidle0' | 'networkidle2';
 type BrowserRunResourceType =
   | 'document'
   | 'stylesheet'
@@ -12890,10 +12834,7 @@ type BrowserRunLinksOptions = BrowserRunCommonOptions & {
   excludeExternalLinks?: boolean;
 };
 type BrowserRunSnapshotFormat =
-  | 'content'
-  | 'screenshot'
-  | 'markdown'
-  | 'accessibilityTree';
+  'content' | 'screenshot' | 'markdown' | 'accessibilityTree';
 type BrowserRunSnapshotOptions = BrowserRunCommonOptions & {
   /** Which representations of the page to return. At least two distinct formats
    * are required; request a single format from its dedicated action instead.
@@ -13914,7 +13855,8 @@ interface RequestInitCfPropertiesImageDraw extends BasicImageTransformations {
   /**
    * How to combine the foreground and backdrop pixels to create the result
    */
-  composite?: /** Foreground drawn on top of backdrop (default) */
+  composite?:
+    /** Foreground drawn on top of backdrop (default) */
     | 'over'
     /** Foreground shown only where backdrop is opaque */
     | 'in'
@@ -14721,8 +14663,7 @@ declare type Iso3166Alpha2Code =
 /** The 2-letter continent codes Cloudflare uses */
 declare type ContinentCode = 'AF' | 'AN' | 'AS' | 'EU' | 'NA' | 'OC' | 'SA';
 type CfProperties<HostMetadata = unknown> =
-  | IncomingRequestCfProperties<HostMetadata>
-  | RequestInitCfProperties;
+  IncomingRequestCfProperties<HostMetadata> | RequestInitCfProperties;
 interface D1Meta {
   duration: number;
   size_after: number;
@@ -15483,10 +15424,7 @@ type ImageMetadataFilterOperators = {
   lte?: number;
 };
 type ImageMetadataFilterValue =
-  | string
-  | number
-  | boolean
-  | ImageMetadataFilterOperators;
+  string | number | boolean | ImageMetadataFilterOperators;
 interface ImageListFilter {
   metadata?: Record<string, ImageMetadataFilterValue>;
 }
@@ -15976,9 +15914,7 @@ declare namespace Rpc {
     [__WORKFLOW_ENTRYPOINT_BRAND]: never;
   }
   export type EntrypointBranded =
-    | WorkerEntrypointBranded
-    | DurableObjectBranded
-    | WorkflowEntrypointBranded;
+    WorkerEntrypointBranded | DurableObjectBranded | WorkflowEntrypointBranded;
   // Types that can be used through `Stub`s
   export type Stubable = RpcTargetBranded | ((...args: any[]) => any);
   // Types that can be passed over RPC
@@ -16196,16 +16132,9 @@ declare namespace CloudflareWorkersModule {
     webSocketError?(ws: WebSocket, error: unknown): void | Promise<void>;
   }
   export type WorkflowDurationLabel =
-    | 'second'
-    | 'minute'
-    | 'hour'
-    | 'day'
-    | 'week'
-    | 'month'
-    | 'year';
+    'second' | 'minute' | 'hour' | 'day' | 'week' | 'month' | 'year';
   export type WorkflowSleepDuration =
-    | `${number} ${WorkflowDurationLabel}${'s' | ''}`
-    | number;
+    `${number} ${WorkflowDurationLabel}${'s' | ''}` | number;
   export type WorkflowDelayDuration = WorkflowSleepDuration;
   export type WorkflowDynamicDelayContext = {
     ctx: WorkflowStepContext<WorkflowDelayFunction>;
@@ -17012,11 +16941,7 @@ type StreamDownloadGetResponse = {
   default?: StreamDownload;
 };
 type StreamWatermarkPosition =
-  | 'upperRight'
-  | 'upperLeft'
-  | 'lowerLeft'
-  | 'lowerRight'
-  | 'center';
+  'upperRight' | 'upperLeft' | 'lowerLeft' | 'lowerRight' | 'center';
 type StreamWatermark = {
   /**
    * The unique identifier for a watermark profile.
@@ -17523,8 +17448,7 @@ type VectorizeVectorMetadataValue = string | number | boolean | string[];
  * Additional information to associate with a vector.
  */
 type VectorizeVectorMetadata =
-  | VectorizeVectorMetadataValue
-  | Record<string, VectorizeVectorMetadataValue>;
+  VectorizeVectorMetadataValue | Record<string, VectorizeVectorMetadataValue>;
 type VectorFloatArray = Float32Array | Float64Array;
 interface VectorizeError {
   code?: number;
@@ -17536,12 +17460,7 @@ interface VectorizeError {
  * This list is expected to grow as support for more operations are released.
  */
 type VectorizeVectorMetadataFilterOp =
-  | '$eq'
-  | '$ne'
-  | '$lt'
-  | '$lte'
-  | '$gt'
-  | '$gte';
+  '$eq' | '$ne' | '$lt' | '$lte' | '$gt' | '$gte';
 type VectorizeVectorMetadataFilterCollectionOp = '$in' | '$nin';
 /**
  * Filter criteria for vector metadata used to limit the retrieved query result set.
@@ -18014,16 +17933,9 @@ type WorkflowBatchDeleteResult = {
   }[];
 };
 type WorkflowDurationLabel =
-  | 'second'
-  | 'minute'
-  | 'hour'
-  | 'day'
-  | 'week'
-  | 'month'
-  | 'year';
+  'second' | 'minute' | 'hour' | 'day' | 'week' | 'month' | 'year';
 type WorkflowSleepDuration =
-  | `${number} ${WorkflowDurationLabel}${'s' | ''}`
-  | number;
+  `${number} ${WorkflowDurationLabel}${'s' | ''}` | number;
 type WorkflowRetentionDuration = WorkflowSleepDuration;
 /** Geographic regions supported when creating a Workflow instance.
  * Location hints are best-effort placement preferences. */

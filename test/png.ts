@@ -14,7 +14,7 @@ export function pngSize(file: string): { width: number; height: number } {
 function imageData(bytes: Buffer): Buffer {
   const parts: Buffer[] = [];
   // Chunks follow the 8-byte signature: 4 length, 4 type, data, 4 checksum.
-  for (let at = 8; at < bytes.length; ) {
+  for (let at = 8; at < bytes.length;) {
     const length = bytes.readUInt32BE(at);
     if (bytes.toString('ascii', at + 4, at + 8) === 'IDAT') {
       parts.push(bytes.subarray(at + 8, at + 8 + length));
