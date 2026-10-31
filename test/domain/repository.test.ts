@@ -504,3 +504,72 @@ describe('feedStatistics', () => {
     expect(await new Repository(db).feedStatistics(2, feed.id)).toBeUndefined();
   });
 });
+
+describe('clusters and issues', () => {
+  const quake = (n: number): ScrapedItem => ({
+    url: `https://s${n}.test/q`,
+    title: 'Quake',
+    source: `S${n}`,
+    favicon: '',
+    summary: '',
+    image: '',
+    published_at: '',
+    points: 0,
+  });
+
+  it('lists every article of an edition, from every source', async () => {
+    const repo = new Repository(db);
+    await repo.writeEdition(1, '2026-11-01', [quake(1)]);
+    await repo.writeEdition(2, '2026-11-01', [quake(2)]);
+    await repo.writeEdition(2, '2026-10-31', [quake(3)]);
+    expect(
+      (await repo.editionArticles('2026-11-01')).map((a) => a.source_id),
+    ).toEqual([1, 2]);
+  });
+
+  it('replaces an edition’s clusters', async () => {
+    const repo = new Repository(db);
+    await repo.writeEdition(1, '2026-11-01', [quake(1)]);
+    await repo.writeEdition(2, '2026-11-01', [quake(2)]);
+    const ids = (await repo.editionArticles('2026-11-01')).map((a) => a.id);
+    await repo.writeClusters('2026-11-01', [ids]);
+    const first = await repo.articlesByIds(ids);
+    expect(new Set(first.map((a) => a.cluster_id)).size).toBe(1);
+    await repo.writeClusters('2026-11-01', []);
+    expect(
+      (await repo.articlesByIds(ids)).every((a) => a.cluster_id === null),
+    ).toBe(true);
+  });
+
+  it('reads articles by more ids than one query can bind', async () => {
+    const repo = new Repository(db);
+    await repo.writeEdition(
+      1,
+      '2026-11-01',
+      Array.from({ length: 120 }, (_, n) => ({
+        ...quake(n),
+        url: `https://x/${n}`,
+      })),
+    );
+    const ids = (await repo.editionArticles('2026-11-01')).map((a) => a.id);
+    expect(await repo.articlesByIds([...ids, ...ids])).toHaveLength(120);
+  });
+
+  it('lists the people who follow a feed', async () => {
+    const a = await upsertUser(db, { sub: 'a', email: 'a@b.c' });
+    await upsertUser(db, { sub: 'b', email: 'b@b.c' });
+    await addFeed(db, a.id, 'https://x.test/rss');
+    expect(await new Repository(db).readerIds()).toEqual([a.id]);
+  });
+
+  it('stores and replaces a person’s issue for a day', async () => {
+    const repo = new Repository(db);
+    await repo.saveIssue(1, '2026-11-01', '{"groups":[]}', 'One');
+    await repo.saveIssue(1, '2026-11-01', '{"groups":[]}', null);
+    expect(await repo.getIssue(1, '2026-11-01')).toMatchObject({
+      layout: '{"groups":[]}',
+      briefing: null,
+    });
+    expect(await repo.getIssue(2, '2026-11-01')).toBeUndefined();
+  });
+});

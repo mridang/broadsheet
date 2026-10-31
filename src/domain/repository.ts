@@ -24,6 +24,8 @@ import { type Database } from '@/domain/db/database';
 import {
   articles,
   classifiers,
+  clusters,
+  issues,
   reads,
   saves,
   sections,
@@ -127,6 +129,28 @@ export interface SavedStory {
 export interface ReadState {
   readonly ids: ReadonlySet<number>;
   readonly urls: ReadonlySet<string>;
+}
+
+/** An article of one edition as clustering compares it. */
+export interface Clusterable {
+  readonly id: number;
+  readonly source_id: number;
+  readonly title: string | null;
+  readonly summary: string | null;
+}
+/** A person's stored paper for one day; `layout` is JSON. */
+export type StoredIssue = typeof issues.$inferSelect;
+
+/** Rows per IN list, below D1's limit of 100 bound parameters. */
+const IN_CHUNK = 90;
+
+/** `list` cut into runs of at most `size`. */
+function chunks<T>(list: readonly T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < list.length; i += size) {
+    out.push(list.slice(i, i + size));
+  }
+  return out;
 }
 
 /** A stored tag list, or none when it is not a JSON array of strings. */
@@ -752,5 +776,96 @@ export class Repository {
         count: Number(r.count),
       })),
     };
+  }
+
+  /** Every article of one edition, from every source, for clustering. */
+  editionArticles(edition: string): Promise<Clusterable[]> {
+    return this.#db
+      .select({
+        id: articles.id,
+        source_id: articles.source_id,
+        title: articles.title,
+        summary: articles.summary,
+      })
+      .from(articles)
+      .where(eq(articles.edition, edition))
+      .orderBy(asc(articles.id));
+  }
+
+  /**
+   * Replace one edition's clusters: each group of article ids becomes a
+   * cluster its members point at, and every other article of the edition
+   * belongs to none.
+   */
+  async writeClusters(
+    edition: string,
+    groups: readonly (readonly number[])[],
+  ): Promise<void> {
+    await this.#db.batch([
+      this.#db
+        .update(articles)
+        .set({ cluster_id: null })
+        .where(eq(articles.edition, edition)),
+      this.#db.delete(clusters).where(eq(clusters.edition, edition)),
+    ]);
+    for (const group of groups) {
+      const [cluster] = await this.#db
+        .insert(clusters)
+        .values({ edition })
+        .returning({ id: clusters.id });
+      if (!cluster) continue;
+      for (const ids of chunks(group, IN_CHUNK)) {
+        await this.#db
+          .update(articles)
+          .set({ cluster_id: cluster.id })
+          .where(inArray(articles.id, ids));
+      }
+    }
+  }
+
+  /** The articles with these ids, in no particular order. */
+  async articlesByIds(ids: readonly number[]): Promise<Article[]> {
+    const rows: Article[] = [];
+    for (const part of chunks([...new Set(ids)], IN_CHUNK)) {
+      rows.push(
+        ...(await this.#db
+          .select()
+          .from(articles)
+          .where(inArray(articles.id, part))),
+      );
+    }
+    return rows;
+  }
+
+  /** The ids of everyone who follows at least one feed. */
+  async readerIds(): Promise<number[]> {
+    const rows = await this.#db
+      .selectDistinct({ id: subscriptions.user_id })
+      .from(subscriptions)
+      .orderBy(asc(subscriptions.user_id));
+    return rows.map((r) => r.id);
+  }
+
+  /** Store (or replace) a person's paper for one day. */
+  async saveIssue(
+    userId: number,
+    date: string,
+    layout: string,
+    briefing: string | null,
+  ): Promise<void> {
+    await this.#db
+      .insert(issues)
+      .values({ user_id: userId, date, layout, briefing })
+      .onConflictDoUpdate({
+        target: [issues.user_id, issues.date],
+        set: { layout, briefing, created_at: sql`(datetime('now'))` },
+      });
+  }
+
+  /** A person's stored paper for one day, if one was laid out. */
+  getIssue(userId: number, date: string): Promise<StoredIssue | undefined> {
+    return this.#db.query.issues.findFirst({
+      where: and(eq(issues.user_id, userId), eq(issues.date, date)),
+    });
   }
 }

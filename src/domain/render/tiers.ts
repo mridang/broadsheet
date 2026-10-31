@@ -6,7 +6,8 @@
  * fixes the lane span and excerpt budget, and the excerpt is copyfit to
  * that budget. Different content ⇒ a different page, with no code change.
  * A person's training shapes the order: liked stories go to the top, where
- * the lead and features are, and disliked ones leave the paper.
+ * the lead and features are, and disliked ones leave the paper. A story many
+ * sources covered (its cluster's size) weighs more.
  */
 import type { Article } from '@/domain/repository';
 
@@ -91,15 +92,31 @@ export function verdict(
 }
 
 /**
+ * What a story's coverage adds to its weight: nothing when one source carried
+ * it, the log of the number of sources when several did.
+ */
+export function coverageBoost(sources: number): number {
+  return Math.log(Math.max(1, sources));
+}
+
+/**
  * A section's stories in the order tiers are assigned: disliked ones dropped,
- * liked ones first, each group by weight (highest first).
+ * liked ones first, each group by weight (highest first). `coverage` gives the
+ * number of sources that covered each cluster, keyed by cluster id.
  */
 export function rank<T extends Article>(
   arts: readonly T[],
   training: readonly Training[] = [],
+  coverage: ReadonlyMap<number, number> = new Map(),
 ): T[] {
+  const covered = (a: T): number =>
+    a.cluster_id === null ? 1 : (coverage.get(a.cluster_id) ?? 1);
   return arts
-    .map((a) => ({ a, v: verdict(a, training), w: weight(a) }))
+    .map((a) => ({
+      a,
+      v: verdict(a, training),
+      w: weight(a) + coverageBoost(covered(a)),
+    }))
     .filter((x) => x.v >= 0)
     .sort((x, y) => y.v - x.v || y.w - x.w)
     .map((x) => x.a);

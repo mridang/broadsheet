@@ -109,12 +109,15 @@ export const articles = sqliteTable(
     body_text: text('body_text'),
     /** The day this row was scraped (YYYY-MM-DD, UTC) — one edition per day. */
     edition: text('edition'),
+    /** The cluster of near-duplicates from other sources, when there is one. */
+    cluster_id: integer('cluster_id'),
     fetched_at: text('fetched_at').default(sql`(datetime('now'))`),
   },
   (table) => [
     unique().on(table.source_id, table.url, table.edition),
     index('idx_articles_source_edition').on(table.source_id, table.edition),
     index('idx_articles_edition').on(table.edition),
+    index('idx_articles_cluster').on(table.cluster_id),
   ],
 );
 
@@ -165,4 +168,27 @@ export const reads = sqliteTable(
     created_at: text('created_at').default(sql`(datetime('now'))`),
   },
   (table) => [primaryKey({ columns: [table.user_id, table.article_id] })],
+);
+
+/** One story as several sources covered it in one edition (migration 0008). */
+export const clusters = sqliteTable('clusters', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  edition: text('edition').notNull(),
+  created_at: text('created_at').default(sql`(datetime('now'))`),
+});
+
+/**
+ * The paper a person was given on `date`: `layout` is the laid-out front page
+ * as JSON and `briefing` the editor's note, when one was written.
+ */
+export const issues = sqliteTable(
+  'issues',
+  {
+    user_id: integer('user_id').notNull(),
+    date: text('date').notNull(),
+    layout: text('layout').notNull(),
+    briefing: text('briefing'),
+    created_at: text('created_at').default(sql`(datetime('now'))`),
+  },
+  (table) => [primaryKey({ columns: [table.user_id, table.date] })],
 );

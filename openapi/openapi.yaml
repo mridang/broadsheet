@@ -19,6 +19,7 @@ security:
 tags:
   - name: articles
   - name: classifiers
+  - name: editions
   - name: feeds
   - name: sections
   - name: reads
@@ -30,6 +31,8 @@ paths:
     $ref: './paths/articles.yaml#/collection'
   /api/articles/{id}:
     $ref: './paths/articles.yaml#/item'
+  /api/editions/self/issues/{date}:
+    $ref: './paths/editions.yaml#/issue'
   /api/feeds:
     $ref: './paths/feeds.yaml#/collection'
   /api/feeds/{id}:

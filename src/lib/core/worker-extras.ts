@@ -13,7 +13,9 @@ import {
   type WorkflowStep,
 } from 'cloudflare:workers';
 
+import { clusterEdition } from '@/domain/clustering';
 import { databaseFrom } from '@/domain/db/database';
+import { publishIssue } from '@/domain/issues';
 import { Repository } from '@/domain/repository';
 import {
   FETCH_FAILED,
@@ -29,10 +31,18 @@ const FETCH_STEP = {
   timeout: '5 minutes',
 } as const;
 
+/** How the steps that call Workers AI or Vectorize are retried. */
+const AI_STEP = {
+  retries: { limit: 2, delay: '1 minute', backoff: 'exponential' },
+  timeout: '10 minutes',
+} as const;
+
 /**
  * The daily scrape, as a Workflow: list the sources somebody follows, fetch
  * each as its own step (retried on its own, so one slow or broken feed neither
- * holds up nor reruns the others), then backfill the recent HN editions. A
+ * holds up nor reruns the others), cluster the edition's near-duplicates,
+ * backfill the recent HN editions, then lay out and store each reader's issue
+ * as its own step. A
  * source that still fails after its retries has the failure recorded on it and
  * the run moves on. The edition is the day the run was started, so a step
  * replayed after midnight still writes the same day.
@@ -67,15 +77,38 @@ export class DailyScrape extends WorkflowEntrypoint<CloudflareEnv> {
         });
       }
     }
+    const clustered = await step.do('cluster edition', AI_STEP, () =>
+      clusterEdition(db, this.env, edition),
+    );
     await step.do('backfill recent editions', async () => {
       await backfillRecent(db, this.env, 7);
     });
+    const readers = await step.do('list readers', () =>
+      new Repository(db).readerIds(),
+    );
+    let issues = 0;
+    for (const reader of readers) {
+      try {
+        await step.do(`lay out issue for user ${reader}`, AI_STEP, () =>
+          publishIssue(db, this.env, reader, edition),
+        );
+        issues++;
+      } catch (error) {
+        logError({
+          event: 'issue.failed',
+          user: reader,
+          error: errorMessage(error),
+        });
+      }
+    }
     logInfo({
       event: 'scrape.completed',
       edition,
       sources: sources.length,
       ok,
       articles,
+      clusters: clustered.clusters,
+      issues,
     });
     return { sources: sources.length, ok, articles };
   }

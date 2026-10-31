@@ -1,0 +1,169 @@
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+
+import {
+  clusterEdition,
+  cosine,
+  embeddingText,
+  groupNearDuplicates,
+} from '@/domain/clustering';
+import { databaseFrom, type Database } from '@/domain/db/database';
+import { Repository } from '@/domain/repository';
+import { APP_MIGRATIONS } from '../lib/core/db/migrations';
+import { sqliteD1 } from '../lib/core/db/sqlite-d1';
+
+describe('cosine', () => {
+  it('is 1 for the same direction', () => {
+    expect(cosine([1, 2], [2, 4])).toBeCloseTo(1);
+  });
+
+  it('is 0 for orthogonal vectors', () => {
+    expect(cosine([1, 0], [0, 1])).toBe(0);
+  });
+
+  it('is 0 when a vector is all zeros', () => {
+    expect(cosine([0, 0], [1, 1])).toBe(0);
+  });
+});
+
+describe('groupNearDuplicates', () => {
+  it('groups close vectors from different sources', () => {
+    expect(
+      groupNearDuplicates([
+        { id: 1, source_id: 1, vector: [1, 0] },
+        { id: 2, source_id: 2, vector: [0.99, 0.05] },
+        { id: 3, source_id: 3, vector: [0, 1] },
+      ]),
+    ).toEqual([[1, 2]]);
+  });
+
+  it('keeps two stories from the same source apart', () => {
+    expect(
+      groupNearDuplicates([
+        { id: 1, source_id: 1, vector: [1, 0] },
+        { id: 2, source_id: 1, vector: [1, 0] },
+      ]),
+    ).toEqual([]);
+  });
+
+  it('honours the threshold given', () => {
+    const items = [
+      { id: 1, source_id: 1, vector: [1, 0] },
+      { id: 2, source_id: 2, vector: [1, 1] },
+    ];
+    expect(groupNearDuplicates(items, 0.9)).toEqual([]);
+    expect(groupNearDuplicates(items, 0.7)).toEqual([[1, 2]]);
+  });
+});
+
+describe('embeddingText', () => {
+  it('joins the title and the start of the summary', () => {
+    expect(
+      embeddingText({
+        id: 1,
+        source_id: 1,
+        title: 'T',
+        summary: 'x'.repeat(500),
+      }),
+    ).toBe(`T\n${'x'.repeat(400)}`);
+  });
+
+  it('copes with neither', () => {
+    expect(
+      embeddingText({ id: 1, source_id: 1, title: null, summary: null }),
+    ).toBe('');
+  });
+});
+
+describe('clusterEdition', () => {
+  let db: Database;
+  let repo: Repository;
+
+  beforeEach(async () => {
+    db = databaseFrom(sqliteD1(...APP_MIGRATIONS).d1);
+    repo = new Repository(db);
+    const user = await repo.upsertUser({ sub: 'g', email: 'a@b.c' });
+    for (const n of [1, 2]) {
+      const f = await repo.addFeed(user.id, `https://s${n}.test/rss`);
+      await repo.writeEdition(f!.source_id, '2026-11-01', [
+        {
+          url: `https://s${n}.test/quake`,
+          title: 'Earthquake hits city',
+          source: `S${n}`,
+          favicon: '',
+          summary: '',
+          image: '',
+          published_at: '',
+          points: 0,
+        },
+        {
+          url: `https://s${n}.test/other${n}`,
+          title: `Other ${n}`,
+          source: `S${n}`,
+          favicon: '',
+          summary: '',
+          image: '',
+          published_at: '',
+          points: 0,
+        },
+      ]);
+    }
+  });
+
+  /** An env whose model embeds by title and whose index starts empty. */
+  function env(stored: Map<string, number[]> = new Map()) {
+    const upsert = jest.fn(
+      async (vectors: { id: string; values: number[] }[]) => {
+        vectors.forEach((v) => stored.set(v.id, v.values));
+        return { ids: [], count: vectors.length };
+      },
+    );
+    const run = jest.fn(async (_model: string, input: { text: string[] }) => ({
+      data: input.text.map((t) =>
+        t.startsWith('Earthquake')
+          ? [1, 0, 0]
+          : t.endsWith('1')
+            ? [0, 1, 0]
+            : [0, 0, 1],
+      ),
+    }));
+    const getByIds = jest.fn(async (ids: string[]) =>
+      ids.flatMap((id) => {
+        const values = stored.get(id);
+        return values ? [{ id, values }] : [];
+      }),
+    );
+    return {
+      upsert,
+      run,
+      env: {
+        AI: { run },
+        VECTORIZE: { upsert, getByIds },
+      } as unknown as CloudflareEnv,
+    };
+  }
+
+  it('clusters the same story from two sources and leaves the rest alone', async () => {
+    jest.spyOn(console, 'log').mockImplementation(() => undefined);
+    const { env: e } = env();
+    expect(await clusterEdition(db, e, '2026-11-01')).toEqual({
+      articles: 4,
+      clusters: 1,
+    });
+    const rows = await repo.articlesByIds(
+      (await repo.editionArticles('2026-11-01')).map((a) => a.id),
+    );
+    const quakes = rows.filter((a) => a.title === 'Earthquake hits city');
+    expect(new Set(quakes.map((a) => a.cluster_id)).size).toBe(1);
+    expect(quakes[0]?.cluster_id).not.toBeNull();
+    expect(rows.filter((a) => a.cluster_id === null)).toHaveLength(2);
+  });
+
+  it('embeds only the articles the index does not hold yet', async () => {
+    jest.spyOn(console, 'log').mockImplementation(() => undefined);
+    const stored = new Map<string, number[]>();
+    await clusterEdition(db, env(stored).env, '2026-11-01');
+    const again = env(stored);
+    await clusterEdition(db, again.env, '2026-11-01');
+    expect(again.run).not.toHaveBeenCalled();
+  });
+});

@@ -76,7 +76,7 @@ export default async function ArticlePage({
           Read the original ↗
         </a>
         {article.edition ? (
-          <a className="more focus-ring" href={`/?date=${article.edition}`}>
+          <a className="more focus-ring" href={`/edition/${article.edition}`}>
             Back to the {article.edition} edition
           </a>
         ) : null}

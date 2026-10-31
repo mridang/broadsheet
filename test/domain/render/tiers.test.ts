@@ -1,7 +1,13 @@
 import { describe, expect, it } from '@jest/globals';
 
 import type { Article } from '@/domain/repository';
-import { assignTiers, excerpt, rank, verdict } from '@/domain/render/tiers';
+import {
+  assignTiers,
+  coverageBoost,
+  excerpt,
+  rank,
+  verdict,
+} from '@/domain/render/tiers';
 
 function article(over: Partial<Article>): Article {
   return {
@@ -17,6 +23,7 @@ function article(over: Partial<Article>): Article {
     points: 0,
     body_text: null,
     edition: '',
+    cluster_id: null,
     fetched_at: '',
     ...over,
   };
@@ -128,5 +135,37 @@ describe('rank', () => {
     const kept = article({ id: 2, title: 'Go' });
     const training = [{ kind: 'title', value: 'crypto', score: -1 }];
     expect(rank([gone, kept], training).map((a) => a.id)).toEqual([2]);
+  });
+
+  it('raises a story many sources covered above a heavier lone one', () => {
+    const covered = article({ id: 1, points: 10, cluster_id: 4 });
+    const lone = article({ id: 2, points: 30 });
+    const coverage = new Map([[4, 5]]);
+    expect(rank([lone, covered], [], coverage).map((a) => a.id)).toEqual([
+      1, 2,
+    ]);
+  });
+
+  it('lets a like win over coverage', () => {
+    const covered = article({ id: 1, cluster_id: 4 });
+    const liked = article({ id: 2, title: 'Rust' });
+    const training = [{ kind: 'title', value: 'rust', score: 1 }];
+    expect(
+      rank([covered, liked], training, new Map([[4, 9]])).map((a) => a.id),
+    ).toEqual([2, 1]);
+  });
+});
+
+describe('coverageBoost', () => {
+  it('adds nothing for a story one source carried', () => {
+    expect(coverageBoost(1)).toBe(0);
+  });
+
+  it('adds the log of the number of sources', () => {
+    expect(coverageBoost(3)).toBeCloseTo(Math.log(3));
+  });
+
+  it('treats no sources as one', () => {
+    expect(coverageBoost(0)).toBe(0);
   });
 });

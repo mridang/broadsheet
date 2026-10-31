@@ -682,6 +682,31 @@ header.mast {
   margin: 0 0 8px;
   text-align: justify;
 }
+.also {
+  font-size: 11px;
+  font-style: italic;
+  color: var(--muted);
+  margin: 0 0 8px;
+}
+.editors-note {
+  border-top: 1px solid var(--ink);
+  border-bottom: 3px double var(--ink);
+  margin: 0 0 18px;
+  padding: 10px 0;
+}
+.editors-note h2 {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin: 0 0 4px;
+}
+.editors-note p {
+  font-size: 14px;
+  font-style: italic;
+  line-height: 1.5;
+  margin: 0;
+}
 .sec-opinion .ex {
   font-style: italic;
 }

@@ -5,30 +5,26 @@ import { getCurrentUser } from '@/lib/core/auth';
 import { getDatabase } from '@/domain/db/database';
 import { Repository } from '@/domain/repository';
 import { todayEdition } from '@/domain/scraping/index';
-import { Section, type Personal } from '@/app/(site)/_components/section';
+import { issueArticles, issueFor, storedIssue } from '@/domain/issues';
+import { Paper } from '@/app/(site)/_components/paper';
+import { loadPersonal } from '@/app/(site)/_components/personal';
 import { ReadTracker } from '@/app/(site)/_components/read-tracker';
 import { EditionBar } from '@/app/(site)/_components/edition-bar';
 import { KeyboardShortcuts } from '@/app/(site)/_components/keyboard-shortcuts';
 import { TopicPicker } from '@/app/(site)/_components/topic-picker';
 import { TOPICS } from '@/domain/topics';
-import { LegalLinks } from '@/app/(site)/_components/legal-links';
 
 export const dynamic = 'force-dynamic';
 
 /**
  * The front page is the one public page: the title, description and social card
  * come from the root layout, and the page opts in to being indexed (the
- * Worker's `PUBLIC_PAGES` and robots.txt agree). It names no canonical address,
- * as `?date=` shows a different edition.
+ * Worker's `PUBLIC_PAGES` and robots.txt agree). Back issues live at
+ * `/edition/{date}`.
  */
 export const metadata: Metadata = { robots: { index: true, follow: true } };
 
-export default async function Home({
-  searchParams,
-}: {
-  searchParams: Promise<{ date?: string }>;
-}) {
-  const { date } = await searchParams;
+export default async function Home() {
   const user = await getCurrentUser();
   const repo = new Repository(getDatabase());
   // Logged-out visitors read the hidden public user's Hacker News edition.
@@ -58,86 +54,27 @@ export default async function Home({
     );
   }
 
-  // Every day's scrape is its own edition; all are kept. Pick the requested
-  // day if it exists, else the most recent.
+  // Today's stored issue when the daily run has laid it out; else the most
+  // recent edition, laid out live.
   const editions = await repo.listEditions(ownerId);
-  const selected =
-    date && editions.includes(date) ? date : (editions[0] ?? todayEdition());
-
-  // A signed-in reader's training, reads and saves shape their paper. A story
-  // they read in another edition is left out of this one.
-  const reads = user ? await repo.readState(user.id) : undefined;
-  const personal: Personal | undefined =
-    user && reads ? await loadPersonal(repo, user.id, reads.ids) : undefined;
-  const desks = await Promise.all(
-    feeds.map(async (feed) => ({
-      feed,
-      articles: (await repo.sourceArticles(feed.source_id, selected)).filter(
-        (a) => !reads || reads.ids.has(a.id) || !reads.urls.has(a.url),
-      ),
-    })),
-  );
-  // Feeds filed under a section print under its heading, in section order;
-  // the rest lead the paper with no heading of their own.
-  const sections = await repo.listSections(ownerId);
-  const groups = [
-    { id: null, name: null },
-    ...sections.map((s) => ({ id: s.id, name: s.name })),
-  ]
-    .map((group) => ({
-      ...group,
-      desks: desks.filter(({ feed }) =>
-        group.id === null
-          ? !sections.some((s) => s.id === feed.section_id)
-          : feed.section_id === group.id,
-      ),
-    }))
-    .filter((group) => group.desks.length);
+  const today = todayEdition();
+  const selected = (await storedIssue(repo, ownerId, today))
+    ? today
+    : (editions[0] ?? today);
+  const issue = await issueFor(repo, ownerId, selected, user?.id);
+  const personal = user ? await loadPersonal(repo, user.id) : undefined;
 
   return (
     <>
       <EditionBar selected={selected} editions={editions} />
       <KeyboardShortcuts />
       {user ? <ReadTracker /> : null}
-      {groups.map((group) => (
-        <div key={group.id ?? 'unfiled'}>
-          {group.name ? <h2 className="deskhead">{group.name}</h2> : null}
-          {group.desks.map(({ feed, articles }) => (
-            <Section
-              key={feed.id}
-              feed={feed}
-              articles={articles}
-              personal={personal}
-            />
-          ))}
-        </div>
-      ))}
-      <div className="foot">
-        THE HACKER TIMES — auto-generated from your feeds, refreshed daily.
-        Every day is archived.
-        <LegalLinks />
-      </div>
-      <div className="enginenote">
-        Generative layout: weight → tier → copyfit, with an In Brief rail for
-        the low-weight tail.
-      </div>
+      <Paper
+        layout={issue.layout}
+        articles={await issueArticles(repo, issue.layout)}
+        briefing={issue.briefing}
+        personal={personal}
+      />
     </>
   );
-}
-
-/** The reader's training and saves, beside the stories they opened. */
-async function loadPersonal(
-  repo: Repository,
-  userId: number,
-  read: ReadonlySet<number>,
-): Promise<Personal> {
-  const [training, saves] = await Promise.all([
-    repo.listClassifiers(userId),
-    repo.listSaves(userId),
-  ]);
-  return {
-    training,
-    read,
-    saved: new Set(saves.map((s) => s.article.id)),
-  };
 }

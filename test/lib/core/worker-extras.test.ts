@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, jest } from '@jest/globals';
 
 const calls: string[] = [];
 const failing = new Set<number>();
+const failingIssues = new Set<number>();
 
 jest.unstable_mockModule(
   'cloudflare:workers',
@@ -26,6 +27,7 @@ jest.unstable_mockModule('@/domain/repository', () => ({
       { id: 1, url: 'https://a.test/f', title: 'A' },
       { id: 2, url: 'https://b.test/f', title: 'B' },
     ];
+    readerIds = async () => [7, 8];
     recordFetch = async (id: number, error?: string) => {
       calls.push(`recordFetch:${id}:${error}`);
     };
@@ -46,6 +48,26 @@ jest.unstable_mockModule('@/domain/scraping/index', () => ({
   },
   backfillRecent: async (_db: unknown, _env: unknown, days: number) => {
     calls.push(`backfillRecent:${days}`);
+  },
+}));
+
+jest.unstable_mockModule('@/domain/clustering', () => ({
+  clusterEdition: async (_db: unknown, _env: unknown, edition: string) => {
+    calls.push(`cluster:${edition}`);
+    return { articles: 10, clusters: 1 };
+  },
+}));
+
+jest.unstable_mockModule('@/domain/issues', () => ({
+  publishIssue: async (
+    _db: unknown,
+    _env: unknown,
+    user: number,
+    date: string,
+  ) => {
+    calls.push(`issue:${user}:${date}`);
+    if (failingIssues.has(user)) throw new Error('model down');
+    return 3;
   },
 }));
 
@@ -71,11 +93,12 @@ const run = () =>
 afterEach(() => {
   calls.length = 0;
   failing.clear();
+  failingIssues.clear();
   jest.restoreAllMocks();
 });
 
 describe('DailyScrape', () => {
-  it('fetches each source as its own step, then backfills the last week', async () => {
+  it('fetches each source, clusters the edition, backfills, then lays out each issue', async () => {
     jest.spyOn(console, 'log').mockImplementation(() => undefined);
     expect(await run()).toEqual({ sources: 2, ok: 2, articles: 10 });
     expect(calls).toEqual([
@@ -84,8 +107,15 @@ describe('DailyScrape', () => {
       'scrape:1:2026-11-01',
       'step:fetch source 2',
       'scrape:2:2026-11-01',
+      'step:cluster edition',
+      'cluster:2026-11-01',
       'step:backfill recent editions',
       'backfillRecent:7',
+      'step:list readers',
+      'step:lay out issue for user 7',
+      'issue:7:2026-11-01',
+      'step:lay out issue for user 8',
+      'issue:8:2026-11-01',
     ]);
   });
 
@@ -96,6 +126,19 @@ describe('DailyScrape', () => {
     expect(calls).toContain('step:record failure of source 1');
     expect(calls).toContain('recordFetch:1:feed down');
     expect(calls).toContain('scrape:2:2026-11-01');
+  });
+});
+
+describe('DailyScrape issues', () => {
+  it('logs an issue that still fails and lays out the next reader', async () => {
+    jest.spyOn(console, 'log').mockImplementation(() => undefined);
+    const error = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    failingIssues.add(7);
+    await run();
+    expect(String(error.mock.calls[0]?.[0])).toContain('issue.failed');
+    expect(calls).toContain('issue:8:2026-11-01');
   });
 });
 

@@ -1,0 +1,58 @@
+Issue:
+  type: object
+  required: [date, sections]
+  properties:
+    date:
+      type: string
+      format: date
+    briefing:
+      type: string
+      description: The editor's note on the top stories, when one was written.
+    sections:
+      type: array
+      description: The paper's sections in print order; the desks filed under no section come first, in one with no name.
+      items:
+        $ref: '#/IssueSection'
+    created_at:
+      type: string
+      format: date-time
+IssueSection:
+  type: object
+  required: [desks]
+  properties:
+    name:
+      type: string
+    desks:
+      type: array
+      items:
+        $ref: '#/IssueDesk'
+IssueDesk:
+  type: object
+  required: [feed_id, title, url, stories]
+  properties:
+    feed_id:
+      type: string
+    title:
+      type: string
+    url:
+      type: string
+      format: uri
+    stories:
+      type: array
+      description: The desk's stories in print order.
+      items:
+        $ref: '#/IssueStory'
+IssueStory:
+  type: object
+  required: [article_id, tier, also_covered_by]
+  properties:
+    article_id:
+      type: string
+    tier:
+      type: string
+      enum: [lead, feature, standard, brief]
+    also_covered_by:
+      type: array
+      description: The other sources that covered the same story, which print once.
+      items:
+        type: string

@@ -54,6 +54,16 @@
   "ai": {
     "binding": "AI",
   },
+  // Article embeddings (768 dimensions, cosine, from @cf/baai/bge-base-en-v1.5),
+  // compared to group the same story from different sources into a cluster
+  // (src/domain/clustering.ts). Create with
+  // `wrangler vectorize create broadsheet-articles --dimensions=768 --metric=cosine`.
+  "vectorize": [
+    {
+      "binding": "VECTORIZE",
+      "index_name": "broadsheet-articles",
+    },
+  ],
   // Scales remote pictures down (and re-encodes them as WebP) in the Worker, for
   // the /api/img proxy. Needs no zone setting. Free monthly allowance; see
   // src/lib/images/proxy.ts.

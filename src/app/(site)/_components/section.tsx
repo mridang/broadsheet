@@ -1,11 +1,6 @@
-import type { Article, Feed } from '@/domain/repository';
-import {
-  assignTiers,
-  hostOf,
-  rank,
-  type Tier,
-  type Training,
-} from '@/domain/render/tiers';
+import type { Article } from '@/domain/repository';
+import type { LaidDesk } from '@/domain/render/layout';
+import { hostOf, type Training } from '@/domain/render/tiers';
 import { StoryCard } from '@/app/(site)/_components/story-card';
 import { BriefBlock } from '@/app/(site)/_components/brief-block';
 
@@ -17,30 +12,34 @@ export interface Personal {
 }
 
 /**
- * One feed = one desk: a section header plus the generative grid. With
- * `personal`, the reader's training orders the desk and their reads and saves
- * show on the cards.
+ * One feed = one desk: a section header plus the generative grid, printed in
+ * the order and at the tiers its layout gives. With `personal`, the reader's
+ * reads and saves show on the cards.
  */
 export function Section({
-  feed,
+  desk,
   articles,
   personal,
 }: {
-  feed: Feed;
-  articles: Article[];
+  desk: LaidDesk;
+  articles: ReadonlyMap<number, Article>;
   personal?: Personal;
 }) {
+  const stories = desk.stories.flatMap((s) => {
+    const a = articles.get(s.id);
+    return a ? [{ ...s, a }] : [];
+  });
   const head = (
     <div className="sechead">
-      <h3>{feed.title || hostOf(feed.url)}</h3>
-      <span className="secdesc">{hostOf(feed.url)}</span>
+      <h3>{desk.title}</h3>
+      <span className="secdesc">{hostOf(desk.url)}</span>
       <span className="seccount">
-        {articles.length} {articles.length === 1 ? 'item' : 'items'}
+        {stories.length} {stories.length === 1 ? 'item' : 'items'}
       </span>
     </div>
   );
 
-  if (!articles.length) {
+  if (!stories.length) {
     return (
       <section className="zone">
         {head}
@@ -51,28 +50,22 @@ export function Section({
     );
   }
 
-  // Rank liked stories first, then by prominence (points + image), so the lead
-  // is the top story; disliked ones leave. Then assign tiers down that order.
-  const ranked = rank(articles, personal?.training);
-  const tiers = assignTiers(ranked);
-  const tierOf = (i: number): Tier => tiers[i] ?? 'standard';
-  const main = ranked
-    .map((a, i) => ({ a, t: tierOf(i) }))
-    .filter((x) => x.t !== 'brief');
-  const briefs = ranked.filter((_, i) => tierOf(i) === 'brief');
+  const main = stories.filter((s) => s.tier !== 'brief');
+  const briefs = stories.filter((s) => s.tier === 'brief').map((s) => s.a);
 
   return (
     <section className="zone">
       {head}
       <div className="grid">
-        {main.map((x) => (
+        {main.map((s) => (
           <StoryCard
-            key={x.a.id}
-            article={x.a}
-            tier={x.t}
+            key={s.id}
+            article={s.a}
+            tier={s.tier}
+            also={s.also}
             personal={!!personal}
-            read={personal?.read.has(x.a.id)}
-            saved={personal?.saved.has(x.a.id)}
+            read={personal?.read.has(s.id)}
+            saved={personal?.saved.has(s.id)}
           />
         ))}
         {briefs.length ? <BriefBlock items={briefs} /> : null}

@@ -1,0 +1,27 @@
+issue:
+  get:
+    operationId: getIssue
+    tags: [editions]
+    summary: Read the paper the person was given on one day.
+    description: Rate limited by the `RL_API` binding. `self` is the person's default edition. Issues are laid out by the daily run; a day it laid out none, or a date that is not a calendar date, is a 404.
+    parameters:
+      - name: date
+        in: path
+        required: true
+        schema:
+          type: string
+          format: date
+          pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
+    responses:
+      '200':
+        description: The issue.
+        content:
+          application/json:
+            schema:
+              $ref: '../components/issue.yaml#/Issue'
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '404':
+        $ref: '../components/common.yaml#/responses/NotFound'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'

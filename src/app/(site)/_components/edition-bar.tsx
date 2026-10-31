@@ -2,7 +2,7 @@ import { formatEdition } from '@/domain/render/tiers';
 
 /**
  * Date navigation at the top of the paper: page to the previous/next day's
- * edition, with a calendar dropdown listing the full archive (all days kept).
+ * issue (`/edition/{date}`), with a calendar dropdown listing the full archive (all days kept).
  */
 export function EditionBar({
   selected,
@@ -18,7 +18,11 @@ export function EditionBar({
   return (
     <div className="editionbar">
       {older ? (
-        <a className="ednav" href={`/?date=${older}`} aria-label="Previous day">
+        <a
+          className="ednav"
+          href={`/edition/${older}`}
+          aria-label="Previous day"
+        >
           ◀
         </a>
       ) : (
@@ -30,7 +34,7 @@ export function EditionBar({
       <span className="eddate">{formatEdition(selected)}</span>
 
       {newer ? (
-        <a className="ednav" href={`/?date=${newer}`} aria-label="Next day">
+        <a className="ednav" href={`/edition/${newer}`} aria-label="Next day">
           ▶
         </a>
       ) : (
@@ -48,7 +52,7 @@ export function EditionBar({
             {editions.map((d) => (
               <a
                 key={d}
-                href={`/?date=${d}`}
+                href={`/edition/${d}`}
                 className={d === selected ? 'cur' : ''}
               >
                 {formatEdition(d)}
