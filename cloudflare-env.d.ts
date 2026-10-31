@@ -11,10 +11,13 @@ interface CloudflareEnv extends Cloudflare.Env {
   GOOGLE_OAUTH_CLIENT_SECRET: string;
   /** Secret that signs the session cookie. Required: with none, signing in is refused. */
   SESSION_SECRET: string;
-  /** The Web Push VAPID public key: the uncompressed P-256 point, base64url. */
-  VAPID_PUBLIC_KEY: string;
-  /** The Web Push VAPID private key: the P-256 scalar, base64url. */
-  VAPID_PRIVATE_KEY: string;
+  /**
+   * The Web Push VAPID public key: the uncompressed P-256 point, base64url.
+   * Optional: with no keys, push is off and its configuration answers 503.
+   */
+  VAPID_PUBLIC_KEY?: string;
+  /** The Web Push VAPID private key: the P-256 scalar, base64url. Optional. */
+  VAPID_PRIVATE_KEY?: string;
   /**
    * Cloudflare Email Sending, for emailing a story. Optional: until the domain
    * is onboarded and the `send_email` binding is added, the API answers 503
