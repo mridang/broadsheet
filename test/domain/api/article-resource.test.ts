@@ -4,6 +4,8 @@ import {
   articleDetailResource,
   articleResource,
   parseArticleQuery,
+  sqliteSince,
+  trendingArticleResource,
 } from '@/domain/api/article-resource';
 import type { Article } from '@/domain/repository';
 import { encodeCursor } from '@/lib/core/api';
@@ -80,5 +82,71 @@ describe('parseArticleQuery', () => {
         'limit: must be a whole number from 1 to 100.',
       ],
     });
+  });
+});
+
+describe('parseArticleQuery ranked', () => {
+  const NOW = new Date('2026-11-01T12:00:00Z');
+  const parse = (query: string) =>
+    parseArticleQuery(new URLSearchParams(query), NOW);
+
+  it('ranks by reads over the last week by default', () => {
+    expect(parse('order=reads')).toEqual({
+      ok: true,
+      query: { q: '', limit: 20 },
+      trending: { order: 'reads', since: '2026-10-25 12:00:00', limit: 20 },
+    });
+  });
+
+  it('ranks by saves over the window asked for', () => {
+    const input = parse('order=saves&window=day');
+    expect(input.ok && input.trending).toMatchObject({
+      order: 'saves',
+      since: '2026-10-31 12:00:00',
+    });
+  });
+
+  it('reads the count and id from a ranked cursor', () => {
+    const cursor = encodeCursor({ key: '3', id: '12' });
+    const input = parse(`order=reads&cursor=${cursor}`);
+    expect(input.ok && input.trending?.after).toEqual({ count: 3, id: 12 });
+  });
+
+  it.each([
+    ['order=popular', 'order: must be newest, reads or saves.'],
+    ['order=reads&window=year', 'window: must be day, week or month.'],
+    ['window=day', 'window: only with order reads or saves.'],
+    ['order=saves&q=rust', 'q: not with order reads or saves.'],
+    [
+      `order=reads&cursor=${encodeCursor({ key: 'x', id: '3' })}`,
+      'cursor: not a cursor of this list.',
+    ],
+  ])('refuses %s', (query, error) => {
+    expect(parse(query)).toEqual({ ok: false, errors: [error] });
+  });
+});
+
+describe('sqliteSince', () => {
+  it('writes the time days ago as SQLite does', () => {
+    expect(sqliteSince(new Date('2026-11-01T00:00:00Z'), 30)).toBe(
+      '2026-10-02 00:00:00',
+    );
+  });
+});
+
+describe('trendingArticleResource', () => {
+  it('shows how many read it, and nobody who did', () => {
+    const resource = trendingArticleResource(
+      { article: stored, count: 4 },
+      'reads',
+    );
+    expect(resource).toMatchObject({ id: '9', read_count: 4 });
+    expect(resource).not.toHaveProperty('save_count');
+  });
+
+  it('shows how many saved it for the saves order', () => {
+    expect(
+      trendingArticleResource({ article: stored, count: 2 }, 'saves'),
+    ).toMatchObject({ save_count: 2 });
   });
 });

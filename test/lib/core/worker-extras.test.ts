@@ -28,6 +28,7 @@ jest.unstable_mockModule('@/domain/repository', () => ({
       { id: 2, url: 'https://b.test/f', title: 'B' },
     ];
     readerIds = async () => [7, 8];
+    allCustomEditions = async () => [{ id: 30, user_id: 7 }];
     recordFetch = async (id: number, error?: string) => {
       calls.push(`recordFetch:${id}:${error}`);
     };
@@ -68,6 +69,16 @@ jest.unstable_mockModule('@/domain/issues', () => ({
     calls.push(`issue:${user}:${date}`);
     if (failingIssues.has(user)) throw new Error('model down');
     return 3;
+  },
+  publishEditionIssue: async (
+    _db: unknown,
+    _env: unknown,
+    edition: { id: number },
+    date: string,
+  ) => {
+    calls.push(`edition:${edition.id}:${date}`);
+    if (failingIssues.has(edition.id)) throw new Error('model down');
+    return 2;
   },
 }));
 
@@ -116,6 +127,9 @@ describe('DailyScrape', () => {
       'issue:7:2026-11-01',
       'step:lay out issue for user 8',
       'issue:8:2026-11-01',
+      'step:list custom editions',
+      'step:lay out issue for edition 30',
+      'edition:30:2026-11-01',
     ]);
   });
 
@@ -139,6 +153,18 @@ describe('DailyScrape issues', () => {
     await run();
     expect(String(error.mock.calls[0]?.[0])).toContain('issue.failed');
     expect(calls).toContain('issue:8:2026-11-01');
+  });
+});
+
+describe('DailyScrape custom editions', () => {
+  it('logs an edition issue that still fails', async () => {
+    jest.spyOn(console, 'log').mockImplementation(() => undefined);
+    const error = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    failingIssues.add(30);
+    await run();
+    expect(String(error.mock.calls[0]?.[0])).toContain('"edition":30');
   });
 });
 

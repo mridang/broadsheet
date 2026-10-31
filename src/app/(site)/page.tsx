@@ -5,11 +5,21 @@ import { getCurrentUser } from '@/lib/core/auth';
 import { getDatabase } from '@/domain/db/database';
 import { Repository } from '@/domain/repository';
 import { todayEdition } from '@/domain/scraping/index';
-import { issueArticles, issueFor, storedIssue } from '@/domain/issues';
+import { sqliteSince, WINDOWS } from '@/domain/api/article-resource';
+import { parseFeedId } from '@/domain/api/feed-resource';
+import {
+  editionIssueFor,
+  issueArticles,
+  issueFor,
+  storedEditionIssue,
+  storedIssue,
+} from '@/domain/issues';
 import { Paper } from '@/app/(site)/_components/paper';
 import { loadPersonal } from '@/app/(site)/_components/personal';
 import { ReadTracker } from '@/app/(site)/_components/read-tracker';
 import { EditionBar } from '@/app/(site)/_components/edition-bar';
+import { EditionSwitcher } from '@/app/(site)/_components/edition-switcher';
+import { MostRead } from '@/app/(site)/_components/most-read';
 import { KeyboardShortcuts } from '@/app/(site)/_components/keyboard-shortcuts';
 import { TopicPicker } from '@/app/(site)/_components/topic-picker';
 import { TOPICS } from '@/domain/topics';
@@ -20,11 +30,20 @@ export const dynamic = 'force-dynamic';
  * The front page is the one public page: the title, description and social card
  * come from the root layout, and the page opts in to being indexed (the
  * Worker's `PUBLIC_PAGES` and robots.txt agree). Back issues live at
- * `/edition/{date}`.
+ * `/edition/{date}`; `?edition={id}` shows one of the reader's custom editions
+ * instead of the daily paper.
  */
 export const metadata: Metadata = { robots: { index: true, follow: true } };
 
-export default async function Home() {
+/** How many stories the "Most read" column lists. */
+const MOST_READ = 5;
+
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ edition?: string }>;
+}) {
+  const { edition: editionParam } = await searchParams;
   const user = await getCurrentUser();
   const repo = new Repository(getDatabase());
   // Logged-out visitors read the hidden public user's Hacker News edition.
@@ -54,18 +73,39 @@ export default async function Home() {
     );
   }
 
+  // A custom edition the reader owns, when one is asked for.
+  const papers = user ? await repo.listCustomEditions(user.id) : [];
+  const paperId = parseFeedId(editionParam ?? '');
+  const paper = papers.find((p) => p.id === paperId);
+
   // Today's stored issue when the daily run has laid it out; else the most
   // recent edition, laid out live.
   const editions = await repo.listEditions(ownerId);
   const today = todayEdition();
-  const selected = (await storedIssue(repo, ownerId, today))
-    ? today
-    : (editions[0] ?? today);
-  const issue = await issueFor(repo, ownerId, selected, user?.id);
+  const stored = paper
+    ? await storedEditionIssue(repo, paper.id, today)
+    : await storedIssue(repo, ownerId, today);
+  const selected = stored ? today : (editions[0] ?? today);
+  const issue = paper
+    ? await editionIssueFor(repo, paper, selected)
+    : await issueFor(repo, ownerId, selected, user?.id);
   const personal = user ? await loadPersonal(repo, user.id) : undefined;
+  const mostRead = (
+    await repo.trendingArticles(ownerId, {
+      order: 'reads',
+      since: sqliteSince(new Date(), WINDOWS.week),
+      limit: MOST_READ,
+    })
+  ).slice(0, MOST_READ);
 
   return (
     <>
+      {user ? (
+        <EditionSwitcher
+          editions={papers.map((p) => ({ id: p.id, name: p.name }))}
+          selected={paper?.id}
+        />
+      ) : null}
       <EditionBar selected={selected} editions={editions} />
       <KeyboardShortcuts />
       {user ? <ReadTracker /> : null}
@@ -75,6 +115,7 @@ export default async function Home() {
         briefing={issue.briefing}
         personal={personal}
       />
+      <MostRead stories={mostRead} />
     </>
   );
 }

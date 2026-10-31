@@ -2,8 +2,8 @@ collection:
   get:
     operationId: searchArticles
     tags: [articles]
-    summary: Search the archive of articles from the feeds the person follows.
-    description: Rate limited by the `RL_API` binding. Every edition is searched, newest article first. Without `q` every article is listed.
+    summary: Search the archive of articles from the feeds the person follows, or list the most read or saved.
+    description: Rate limited by the `RL_API` binding. Every edition is searched, newest article first. Without `q` every article is listed. With `order=reads` or `order=saves` the articles are ranked by how many people, across everyone, read or saved each within the `window`, most first; only the counts are shown, never who, and `q` is refused.
     parameters:
       - name: q
         in: query
@@ -11,6 +11,20 @@ collection:
         schema:
           type: string
           maxLength: 200
+      - name: order
+        in: query
+        description: Newest first, or ranked by reads or saves.
+        schema:
+          type: string
+          enum: [newest, reads, saves]
+          default: newest
+      - name: window
+        in: query
+        description: How far back reads or saves count. Only with `order=reads` or `order=saves`.
+        schema:
+          type: string
+          enum: [day, week, month]
+          default: week
       - name: cursor
         in: query
         description: The opaque cursor from a previous page's `next`.

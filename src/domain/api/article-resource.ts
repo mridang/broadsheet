@@ -10,6 +10,8 @@ import type {
   Article,
   ArticleQuery,
   ArticleSummary,
+  TrendingArticle,
+  TrendingQuery,
 } from '@/domain/repository';
 import { decodeCursor, MAX_LIMIT, DEFAULT_LIMIT } from '@/lib/core/api';
 
@@ -27,6 +29,15 @@ export interface ArticleResource {
   readonly published_at?: string;
   readonly edition?: string;
   readonly points: number;
+}
+
+/**
+ * An article as the trending list shows it: how many people read or saved it
+ * in the window, never who.
+ */
+export interface TrendingArticleResource extends ArticleResource {
+  readonly read_count?: number;
+  readonly save_count?: number;
 }
 
 /** One article on its own, with the readable text of its page. */
@@ -59,6 +70,17 @@ export function articleResource(
   };
 }
 
+/** The API's view of a trending article, with its count for `order`. */
+export function trendingArticleResource(
+  { article, count }: Readonly<TrendingArticle>,
+  order: TrendingQuery['order'],
+): TrendingArticleResource {
+  return {
+    ...articleResource(article),
+    ...(order === 'reads' ? { read_count: count } : { save_count: count }),
+  };
+}
+
 /** The API's view of one stored article, with its body text. */
 export function articleDetailResource(
   article: Readonly<Article>,
@@ -69,30 +91,79 @@ export function articleDetailResource(
   };
 }
 
-/** A checked search query, or what was wrong with it. */
+/** How far back each trending window reaches, in days. */
+export const WINDOWS = { day: 1, week: 7, month: 30 } as const;
+
+/** A trending window the API accepts. */
+export type TrendingWindow = keyof typeof WINDOWS;
+
+/** What `order` may be: newest first, or most read or saved. */
+const ORDERS = new Set(['newest', 'reads', 'saves']);
+
+/** The parameters `GET /api/articles` takes. */
+const PARAMETERS = new Set(['q', 'cursor', 'limit', 'order', 'window']);
+
+/**
+ * A checked article query, or what was wrong with it. With `trending`, the
+ * list is ranked by reads or saves instead of searched newest first.
+ */
 export type ArticleQueryInput =
-  | { readonly ok: true; readonly query: ArticleQuery }
+  | {
+      readonly ok: true;
+      readonly query: ArticleQuery;
+      readonly trending?: TrendingQuery;
+    }
   | { readonly ok: false; readonly errors: readonly string[] };
+
+/** `days` before `now` as a SQLite time, as `datetime('now')` writes them. */
+export function sqliteSince(now: Date, days: number): string {
+  return new Date(now.getTime() - days * 86_400_000)
+    .toISOString()
+    .slice(0, 19)
+    .replace('T', ' ');
+}
 
 /**
  * Check the query of `GET /api/articles`: `q` at most
  * {@link MAX_QUERY_LENGTH} characters, `cursor` one this API issued, `limit` a
- * whole number from 1 to the page maximum. Other parameters are refused.
+ * whole number from 1 to the page maximum, `order` `newest` (the default),
+ * `reads` or `saves`, and `window` (`day`, `week` or `month`, a week by
+ * default) only with a ranked order, which takes no `q`. Other parameters are
+ * refused.
  */
-export function parseArticleQuery(params: URLSearchParams): ArticleQueryInput {
+export function parseArticleQuery(
+  params: URLSearchParams,
+  now: Date = new Date(),
+): ArticleQueryInput {
   const errors: string[] = [];
   for (const key of new Set(params.keys())) {
-    if (key !== 'q' && key !== 'cursor' && key !== 'limit') {
+    if (!PARAMETERS.has(key)) {
       errors.push(`${key}: not a parameter of this search.`);
+    }
+  }
+  const order = params.get('order') ?? 'newest';
+  if (!ORDERS.has(order)) errors.push('order: must be newest, reads or saves.');
+  const ranked = order === 'reads' || order === 'saves';
+  const window = params.get('window');
+  if (window !== null) {
+    if (!ranked) errors.push('window: only with order reads or saves.');
+    else if (!Object.hasOwn(WINDOWS, window)) {
+      errors.push('window: must be day, week or month.');
     }
   }
   const q = (params.get('q') ?? '').trim();
   if (q.length > MAX_QUERY_LENGTH) errors.push('q: too long.');
+  if (q && ranked) errors.push('q: not with order reads or saves.');
   let before: number | undefined;
+  let after: TrendingQuery['after'];
   const cursor = params.get('cursor');
   if (cursor !== null) {
-    before = parseFeedId(decodeCursor(cursor)?.id ?? '');
-    if (before === undefined) errors.push('cursor: not a cursor of this list.');
+    const position = decodeCursor(cursor);
+    before = parseFeedId(position?.id ?? '');
+    const count = Number(position?.key);
+    if (before === undefined || (ranked && !Number.isInteger(count))) {
+      errors.push('cursor: not a cursor of this list.');
+    } else if (ranked) after = { count, id: before };
   }
   let limit = DEFAULT_LIMIT;
   const rawLimit = params.get('limit');
@@ -102,7 +173,17 @@ export function parseArticleQuery(params: URLSearchParams): ArticleQueryInput {
       errors.push(`limit: must be a whole number from 1 to ${MAX_LIMIT}.`);
     }
   }
-  return errors.length
-    ? { ok: false, errors }
-    : { ok: true, query: { q, before, limit } };
+  if (errors.length) return { ok: false, errors };
+  if (!ranked) return { ok: true, query: { q, before, limit } };
+  const days = WINDOWS[(window ?? 'week') as TrendingWindow];
+  return {
+    ok: true,
+    query: { q, limit },
+    trending: {
+      order,
+      since: sqliteSince(now, days),
+      ...(after ? { after } : {}),
+      limit,
+    },
+  };
 }

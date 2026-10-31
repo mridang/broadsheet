@@ -156,6 +156,7 @@ export const saves = sqliteTable(
   (table) => [
     primaryKey({ columns: [table.user_id, table.article_id] }),
     index('idx_saves_article').on(table.article_id),
+    index('idx_saves_created').on(table.created_at),
   ],
 );
 
@@ -167,7 +168,10 @@ export const reads = sqliteTable(
     article_id: integer('article_id').notNull(),
     created_at: text('created_at').default(sql`(datetime('now'))`),
   },
-  (table) => [primaryKey({ columns: [table.user_id, table.article_id] })],
+  (table) => [
+    primaryKey({ columns: [table.user_id, table.article_id] }),
+    index('idx_reads_created').on(table.created_at),
+  ],
 );
 
 /** One story as several sources covered it in one edition (migration 0008). */
@@ -191,6 +195,39 @@ export const issues = sqliteTable(
     created_at: text('created_at').default(sql`(datetime('now'))`),
   },
   (table) => [primaryKey({ columns: [table.user_id, table.date] })],
+);
+
+/**
+ * A named paper a person keeps beside their default one (migration 0012).
+ * `section_ids` is a JSON array of the sections it prints (empty for every
+ * feed); `query` and `tag` narrow it to stories matching a search or saved
+ * under a tag.
+ */
+export const editions = sqliteTable(
+  'editions',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    user_id: integer('user_id').notNull(),
+    name: text('name').notNull(),
+    section_ids: text('section_ids').notNull().default('[]'),
+    query: text('query'),
+    tag: text('tag'),
+    created_at: text('created_at').default(sql`(datetime('now'))`),
+  },
+  (table) => [index('idx_editions_user').on(table.user_id)],
+);
+
+/** The paper a custom edition printed on `date`, as `issues` keeps it. */
+export const edition_issues = sqliteTable(
+  'edition_issues',
+  {
+    edition_id: integer('edition_id').notNull(),
+    date: text('date').notNull(),
+    layout: text('layout').notNull(),
+    briefing: text('briefing'),
+    created_at: text('created_at').default(sql`(datetime('now'))`),
+  },
+  (table) => [primaryKey({ columns: [table.edition_id, table.date] })],
 );
 
 /** One exchange a person has with the archive assistant. */

@@ -15,7 +15,7 @@ import {
 
 import { clusterEdition } from '@/domain/clustering';
 import { databaseFrom } from '@/domain/db/database';
-import { publishIssue } from '@/domain/issues';
+import { publishEditionIssue, publishIssue } from '@/domain/issues';
 import { Repository } from '@/domain/repository';
 import {
   FETCH_FAILED,
@@ -97,6 +97,23 @@ export class DailyScrape extends WorkflowEntrypoint<CloudflareEnv> {
         logError({
           event: 'issue.failed',
           user: reader,
+          error: errorMessage(error),
+        });
+      }
+    }
+    const papers = await step.do('list custom editions', () =>
+      new Repository(db).allCustomEditions(),
+    );
+    for (const paper of papers) {
+      try {
+        await step.do(`lay out issue for edition ${paper.id}`, AI_STEP, () =>
+          publishEditionIssue(db, this.env, paper, edition),
+        );
+        issues++;
+      } catch (error) {
+        logError({
+          event: 'issue.failed',
+          edition: paper.id,
           error: errorMessage(error),
         });
       }

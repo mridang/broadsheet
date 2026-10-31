@@ -719,3 +719,157 @@ describe('suggestSources', () => {
     expect(await new Repository(db).suggestSources(1)).toEqual([]);
   });
 });
+
+describe('custom editions', () => {
+  it('adds, changes and lists a person’s editions with their rules', async () => {
+    const repo = new Repository(db);
+    const added = await repo.addCustomEdition(1, {
+      name: 'Weekend',
+      section_ids: [3],
+      query: 'rust',
+    });
+    expect(added).toMatchObject({ section_ids: [3], query: 'rust', tag: null });
+    await repo.updateCustomEdition(1, added.id, { section_ids: [], tag: 't' });
+    expect(await repo.listCustomEditions(1)).toMatchObject([
+      { name: 'Weekend', section_ids: [], query: 'rust', tag: 't' },
+    ]);
+  });
+
+  it('never reads, changes or removes another person’s edition', async () => {
+    const repo = new Repository(db);
+    const { id } = await repo.addCustomEdition(1, { name: 'Mine' });
+    expect(await repo.getCustomEdition(2, id)).toBeUndefined();
+    expect(
+      await repo.updateCustomEdition(2, id, { name: 'Taken' }),
+    ).toBeUndefined();
+    expect(await repo.removeCustomEdition(2, id)).toBe(false);
+    expect((await repo.getCustomEdition(1, id))?.name).toBe('Mine');
+  });
+
+  it('removes an edition with the issues it printed', async () => {
+    const repo = new Repository(db);
+    const { id } = await repo.addCustomEdition(1, { name: 'Gone' });
+    await repo.saveEditionIssue(id, '2026-11-01', '{"groups":[]}', null);
+    expect(await repo.removeCustomEdition(1, id)).toBe(true);
+    expect(await repo.getEditionIssue(id, '2026-11-01')).toBeUndefined();
+  });
+
+  it('stores and replaces an edition’s issue for a day', async () => {
+    const repo = new Repository(db);
+    await repo.saveEditionIssue(4, '2026-11-01', '{"groups":[]}', 'One');
+    await repo.saveEditionIssue(4, '2026-11-01', '{"groups":[]}', 'Two');
+    expect(await repo.getEditionIssue(4, '2026-11-01')).toMatchObject({
+      briefing: 'Two',
+    });
+  });
+
+  it('lists every person’s editions for the daily run', async () => {
+    const repo = new Repository(db);
+    await repo.addCustomEdition(1, { name: 'A' });
+    await repo.addCustomEdition(2, { name: 'B' });
+    expect((await repo.allCustomEditions()).map((e) => e.name)).toEqual([
+      'A',
+      'B',
+    ]);
+  });
+});
+
+describe('trendingArticles', () => {
+  const story = (n: number) => ({
+    url: `https://t/${n}`,
+    title: `T${n}`,
+    source: '',
+    favicon: '',
+    summary: '',
+    image: '',
+    published_at: '',
+    points: 0,
+  });
+
+  /** Two readers following one feed with three stories; returns the ids. */
+  async function seed(): Promise<{ a: number; b: number; ids: number[] }> {
+    const repo = new Repository(db);
+    const a = (await upsertUser(db, { sub: 'a', email: 'a@b.c' })).id;
+    const b = (await upsertUser(db, { sub: 'b', email: 'b@b.c' })).id;
+    const feed = await addFeed(db, a, 'https://t/rss');
+    await addFeed(db, b, 'https://t/rss');
+    await repo.writeEdition(
+      feed!.source_id,
+      '2026-11-01',
+      [1, 2, 3].map(story),
+    );
+    const ids = (await repo.sourceArticles(feed!.source_id, '2026-11-01'))
+      .map((x) => x.id)
+      .toSorted((x, y) => x - y);
+    return { a, b, ids };
+  }
+
+  it('ranks by how many people read each story, then newest', async () => {
+    const repo = new Repository(db);
+    const { a, b, ids } = await seed();
+    await repo.markRead(a, ids[0]!);
+    await repo.markRead(b, ids[0]!);
+    await repo.markRead(a, ids[1]!);
+    await repo.markRead(b, ids[2]!);
+    const rows = await repo.trendingArticles(a, {
+      order: 'reads',
+      since: '2000-01-01 00:00:00',
+      limit: 10,
+    });
+    expect(rows.map((r) => [r.article.id, r.count])).toEqual([
+      [ids[0], 2],
+      [ids[2], 1],
+      [ids[1], 1],
+    ]);
+  });
+
+  it('pages after a count and id', async () => {
+    const repo = new Repository(db);
+    const { a, b, ids } = await seed();
+    await repo.markRead(a, ids[0]!);
+    await repo.markRead(b, ids[0]!);
+    await repo.markRead(a, ids[1]!);
+    await repo.markRead(b, ids[2]!);
+    const rows = await repo.trendingArticles(a, {
+      order: 'reads',
+      since: '2000-01-01 00:00:00',
+      after: { count: 1, id: ids[2]! },
+      limit: 10,
+    });
+    expect(rows.map((r) => r.article.id)).toEqual([ids[1]]);
+  });
+
+  it('ranks saves, and counts nothing before the window', async () => {
+    const repo = new Repository(db);
+    const { a, ids } = await seed();
+    await repo.saveArticle(a, ids[1]!, []);
+    expect(
+      await repo.trendingArticles(a, {
+        order: 'saves',
+        since: '2000-01-01 00:00:00',
+        limit: 10,
+      }),
+    ).toMatchObject([{ article: { id: ids[1] }, count: 1 }]);
+    expect(
+      await repo.trendingArticles(a, {
+        order: 'saves',
+        since: '2999-01-01 00:00:00',
+        limit: 10,
+      }),
+    ).toEqual([]);
+  });
+
+  it('leaves out stories from sources the person does not follow', async () => {
+    const repo = new Repository(db);
+    const { a, ids } = await seed();
+    await repo.markRead(a, ids[0]!);
+    const c = (await upsertUser(db, { sub: 'c', email: 'c@b.c' })).id;
+    expect(
+      await repo.trendingArticles(c, {
+        order: 'reads',
+        since: '2000-01-01 00:00:00',
+        limit: 10,
+      }),
+    ).toEqual([]);
+  });
+});

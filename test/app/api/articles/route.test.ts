@@ -11,6 +11,8 @@ import {
 import { SESSION_SECRET, tokenFor } from '../../../domain/auth/auth-test-kit';
 
 const { GET } = await import('@/app/api/articles/route');
+const { POST: READ } =
+  await import('@/app/api/users/self/reads/[article_id]/route');
 
 let restore: () => void;
 let auth: Record<string, string>;
@@ -86,5 +88,46 @@ describe('GET /api/articles', () => {
 
   it('refuses a caller who is not signed in', async () => {
     expect((await get('', {})).status).toBe(401);
+  });
+});
+
+describe('GET /api/articles?order=reads', () => {
+  it('ranks by reads with counts only, paging with a cursor', async () => {
+    const first = (await (await get('?limit=3')).json()) as {
+      items: { id: string }[];
+    };
+    const ids = first.items.map((a) => Number(a.id));
+    for (const id of ids.slice(0, 2)) {
+      expect(
+        (
+          await READ(
+            new Request(`https://app.test/api/users/self/reads/${id}`, {
+              method: 'POST',
+              headers: auth,
+            }),
+            { params: Promise.resolve({ article_id: String(id) }) },
+          )
+        ).status,
+      ).toBeLessThan(300);
+    }
+    const res = await get('?order=reads&window=day&limit=1');
+    expect(res.status).toBe(200);
+    const page = (await res.json()) as Page & {
+      items: Record<string, unknown>[];
+    };
+    expect(page.items).toHaveLength(1);
+    expect(Object.keys(page.items[0]!)).not.toContain('user_id');
+    expect(page.items[0]).toMatchObject({ read_count: 1 });
+    const next = (await (
+      await GET(new Request(page.next!, { headers: auth }))
+    ).json()) as Page;
+    expect(next.items).toHaveLength(1);
+    expect(next).not.toHaveProperty('next');
+  });
+
+  it('answers 400 for an order it does not know', async () => {
+    const res = await get('?order=popular');
+    expect(res.status).toBe(400);
+    expect(res.headers.get('content-type')).toBe('application/problem+json');
   });
 });

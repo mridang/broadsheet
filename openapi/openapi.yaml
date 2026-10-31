@@ -37,6 +37,12 @@ paths:
     $ref: './paths/articles.yaml#/collection'
   /api/articles/{id}:
     $ref: './paths/articles.yaml#/item'
+  /api/editions:
+    $ref: './paths/editions.yaml#/collection'
+  /api/editions/{id}:
+    $ref: './paths/editions.yaml#/item'
+  /api/editions/{id}/issues/{date}:
+    $ref: './paths/editions.yaml#/editionIssue'
   /api/editions/self/issues/{date}:
     $ref: './paths/editions.yaml#/issue'
   /api/articles/{id}/answers:

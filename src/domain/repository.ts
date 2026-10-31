@@ -29,6 +29,8 @@ import {
   clusters,
   issues,
   conversations,
+  edition_issues,
+  editions,
   messages,
   reads,
   saves,
@@ -145,6 +147,67 @@ export interface Clusterable {
 }
 /** A person's stored paper for one day; `layout` is JSON. */
 export type StoredIssue = typeof issues.$inferSelect;
+/** A custom edition's stored paper for one day; `layout` is JSON. */
+export type StoredEditionIssue = typeof edition_issues.$inferSelect;
+
+/**
+ * A named paper a person keeps beside their default one, with the rules that
+ * pick its stories: the sections it prints (none for every feed), a search
+ * its stories must match and a tag they must be saved under.
+ */
+export interface CustomEdition {
+  readonly id: number;
+  readonly user_id: number;
+  readonly name: string;
+  readonly section_ids: readonly number[];
+  readonly query: string | null;
+  readonly tag: string | null;
+  readonly created_at: string | null;
+}
+
+/** What adding or changing a custom edition may set. */
+export interface EditionChanges {
+  readonly name?: string;
+  readonly section_ids?: readonly number[];
+  readonly query?: string | null;
+  readonly tag?: string | null;
+}
+
+/** What trending ranks articles by. */
+export type TrendingOrder = 'reads' | 'saves';
+
+/** Where a page of {@link Repository.trendingArticles} starts and how long. */
+export interface TrendingQuery {
+  readonly order: TrendingOrder;
+  /** Only reads or saves at or after this SQLite time count. */
+  readonly since: string;
+  /** The count and id of the last article of the page before. */
+  readonly after?: { readonly count: number; readonly id: number };
+  readonly limit: number;
+}
+
+/** An article with how many people read or saved it in the window. */
+export interface TrendingArticle {
+  readonly article: ArticleSummary;
+  readonly count: number;
+}
+
+/** A stored section id list, or none when it is not a JSON array of ids. */
+function idsOf(stored: string): number[] {
+  try {
+    const parsed: unknown = JSON.parse(stored);
+    return Array.isArray(parsed)
+      ? parsed.filter((n): n is number => Number.isInteger(n))
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+/** A stored custom edition with its rules decoded. */
+function editionOf(row: typeof editions.$inferSelect): CustomEdition {
+  return { ...row, section_ids: idsOf(row.section_ids) };
+}
 
 /** Rows per IN list, below D1's limit of 100 bound parameters. */
 const IN_CHUNK = 90;
@@ -933,6 +996,181 @@ export class Repository {
     return this.#db.query.issues.findFirst({
       where: and(eq(issues.user_id, userId), eq(issues.date, date)),
     });
+  }
+
+  /** The person's custom editions, oldest first. */
+  async listCustomEditions(userId: number): Promise<CustomEdition[]> {
+    const rows = await this.#db
+      .select()
+      .from(editions)
+      .where(eq(editions.user_id, userId))
+      .orderBy(asc(editions.id));
+    return rows.map(editionOf);
+  }
+
+  /** Every custom edition, for the daily run to lay out. */
+  async allCustomEditions(): Promise<CustomEdition[]> {
+    const rows = await this.#db
+      .select()
+      .from(editions)
+      .orderBy(asc(editions.id));
+    return rows.map(editionOf);
+  }
+
+  /** The person's custom edition with this id, or undefined if not theirs. */
+  async getCustomEdition(
+    userId: number,
+    id: number,
+  ): Promise<CustomEdition | undefined> {
+    const row = await this.#db.query.editions.findFirst({
+      where: and(eq(editions.id, id), eq(editions.user_id, userId)),
+    });
+    return row ? editionOf(row) : undefined;
+  }
+
+  /** Add a custom edition. */
+  async addCustomEdition(
+    userId: number,
+    changes: EditionChanges & { readonly name: string },
+  ): Promise<CustomEdition> {
+    const rows = await this.#db
+      .insert(editions)
+      .values({
+        user_id: userId,
+        name: changes.name,
+        section_ids: JSON.stringify(changes.section_ids ?? []),
+        query: changes.query ?? null,
+        tag: changes.tag ?? null,
+      })
+      .returning();
+    return editionOf(rows[0]!);
+  }
+
+  /** Change a custom edition. Undefined when it is not the person's. */
+  async updateCustomEdition(
+    userId: number,
+    id: number,
+    { section_ids, ...rest }: EditionChanges,
+  ): Promise<CustomEdition | undefined> {
+    const set = {
+      ...rest,
+      ...(section_ids ? { section_ids: JSON.stringify(section_ids) } : {}),
+    };
+    if (Object.keys(set).length) {
+      await this.#db
+        .update(editions)
+        .set(set)
+        .where(and(eq(editions.id, id), eq(editions.user_id, userId)));
+    }
+    return this.getCustomEdition(userId, id);
+  }
+
+  /**
+   * Remove a custom edition and the issues it printed. True when there was
+   * one to remove.
+   */
+  async removeCustomEdition(userId: number, id: number): Promise<boolean> {
+    const removed = await this.#db
+      .delete(editions)
+      .where(and(eq(editions.id, id), eq(editions.user_id, userId)))
+      .returning({ id: editions.id });
+    if (!removed.length) return false;
+    await this.#db
+      .delete(edition_issues)
+      .where(eq(edition_issues.edition_id, id));
+    return true;
+  }
+
+  /** Store (or replace) a custom edition's paper for one day. */
+  async saveEditionIssue(
+    editionId: number,
+    date: string,
+    layout: string,
+    briefing: string | null,
+  ): Promise<void> {
+    await this.#db
+      .insert(edition_issues)
+      .values({ edition_id: editionId, date, layout, briefing })
+      .onConflictDoUpdate({
+        target: [edition_issues.edition_id, edition_issues.date],
+        set: { layout, briefing, created_at: sql`(datetime('now'))` },
+      });
+  }
+
+  /** A custom edition's stored paper for one day, if one was laid out. */
+  async getEditionIssue(
+    editionId: number,
+    date: string,
+  ): Promise<StoredEditionIssue | undefined> {
+    return this.#db.query.edition_issues.findFirst({
+      where: and(
+        eq(edition_issues.edition_id, editionId),
+        eq(edition_issues.date, date),
+      ),
+    });
+  }
+
+  /** The ids of the articles of `edition` whose text holds every word of `q`. */
+  async matchingArticleIds(edition: string, q: string): Promise<Set<number>> {
+    const match = ftsQuery(q);
+    if (!match) return new Set();
+    const rows = await this.#db
+      .select({ id: articles.id })
+      .from(articles)
+      .where(
+        and(
+          eq(articles.edition, edition),
+          sql`${articles.id} IN (SELECT rowid FROM articles_fts WHERE articles_fts MATCH ${match})`,
+        ),
+      );
+    return new Set(rows.map((r) => r.id));
+  }
+
+  /** The ids of the articles the person saved under `tag`. */
+  async taggedArticleIds(userId: number, tag: string): Promise<Set<number>> {
+    const rows = await this.#db
+      .select({ id: saves.article_id })
+      .from(saves)
+      .where(
+        and(
+          eq(saves.user_id, userId),
+          sql`exists (select 1 from json_each(${saves.tags}) where json_each.value = ${tag})`,
+        ),
+      );
+    return new Set(rows.map((r) => r.id));
+  }
+
+  /**
+   * The articles from sources the person follows that most people read (or
+   * saved) since `since`, most first, then newest. Only the counts leave the
+   * database, never who read or saved. Asks for one more than `limit`, so the
+   * caller can tell whether another page follows.
+   */
+  async trendingArticles(
+    userId: number,
+    { order, since, after, limit }: TrendingQuery,
+  ): Promise<TrendingArticle[]> {
+    const acts = order === 'reads' ? reads : saves;
+    const count = sql<number>`count(*)`;
+    const rows = await this.#db
+      .select({ article: summaryColumns, count })
+      .from(acts)
+      .innerJoin(articles, eq(acts.article_id, articles.id))
+      .where(
+        and(
+          sql`${acts.created_at} >= ${since}`,
+          inArray(articles.source_id, this.#followed(userId)),
+        ),
+      )
+      .groupBy(articles.id)
+      .having(
+        after
+          ? sql`${count} < ${after.count} OR (${count} = ${after.count} AND ${articles.id} < ${after.id})`
+          : undefined,
+      )
+      .orderBy(desc(count), desc(articles.id))
+      .limit(limit + 1);
+    return rows.map((r) => ({ article: r.article, count: Number(r.count) }));
   }
 
   /**

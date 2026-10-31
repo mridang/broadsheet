@@ -47,4 +47,16 @@ ArticlePage:
     items:
       type: array
       items:
-        $ref: '#/Article'
+        $ref: '#/TrendingArticle'
+TrendingArticle:
+  description: An article in a list. Ranked by `order=reads` or `order=saves`, it carries how many people read or saved it in the window; only the count, never who.
+  allOf:
+    - $ref: '#/Article'
+    - type: object
+      properties:
+        read_count:
+          type: integer
+          minimum: 1
+        save_count:
+          type: integer
+          minimum: 1

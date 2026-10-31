@@ -4,14 +4,22 @@ import { databaseFrom, type Database } from '@/domain/db/database';
 import {
   briefingPrompt,
   composeLayout,
+  editionIssueFor,
+  editionPick,
   isIssueDate,
   issueFor,
+  publishEditionIssue,
   publishIssue,
+  storedEditionIssue,
   storedIssue,
   writeBriefing,
 } from '@/domain/issues';
 import { storyIds } from '@/domain/render/layout';
-import { Repository, type Article } from '@/domain/repository';
+import {
+  Repository,
+  type Article,
+  type CustomEdition,
+} from '@/domain/repository';
 import type { ScrapedItem } from '@/lib/scraping';
 import { APP_MIGRATIONS } from '../lib/core/db/migrations';
 import { sqliteD1 } from '../lib/core/db/sqlite-d1';
@@ -177,4 +185,78 @@ describe('isIssueDate', () => {
       expect(isIssueDate(d)).toBe(false);
     },
   );
+});
+
+describe('custom editions', () => {
+  const edition = (over: Partial<CustomEdition> = {}): CustomEdition => ({
+    id: 1,
+    user_id: uid,
+    name: 'Weekend',
+    section_ids: [],
+    query: null,
+    tag: null,
+    created_at: null,
+    ...over,
+  });
+
+  it('prints every feed when the edition has no rules', async () => {
+    const pick = await editionPick(repo, edition(), DAY);
+    expect(pick.keep).toBeUndefined();
+    const layout = await composeLayout(repo, uid, DAY, uid, pick);
+    expect(storyIds(layout)).toHaveLength(2);
+  });
+
+  it('keeps only the stories matching its search', async () => {
+    const layout = await composeLayout(
+      repo,
+      uid,
+      DAY,
+      uid,
+      await editionPick(repo, edition({ query: 'story 2' }), DAY),
+    );
+    const ids = storyIds(layout);
+    expect(ids).toHaveLength(1);
+    expect((await repo.articlesByIds(ids))[0]?.title).toBe('Story 2');
+  });
+
+  it('keeps only the stories saved under its tag', async () => {
+    const [first] = await repo.sourceArticles(sourceId, DAY);
+    await repo.saveArticle(uid, first!.id, ['later']);
+    const layout = await composeLayout(
+      repo,
+      uid,
+      DAY,
+      uid,
+      await editionPick(repo, edition({ tag: 'later' }), DAY),
+    );
+    expect(storyIds(layout)).toEqual([first!.id]);
+  });
+
+  it('prints nothing from feeds outside its sections', async () => {
+    const section = await repo.addSection(uid, 'Tech');
+    const layout = await composeLayout(
+      repo,
+      uid,
+      DAY,
+      uid,
+      await editionPick(repo, edition({ section_ids: [section.id] }), DAY),
+    );
+    expect(storyIds(layout)).toEqual([]);
+  });
+
+  it('stores an issue with a note that reads back by edition', async () => {
+    const stored = await repo.addCustomEdition(uid, { name: 'Weekend' });
+    expect(await publishEditionIssue(db, envWith('Note.'), stored, DAY)).toBe(
+      2,
+    );
+    const issue = await storedEditionIssue(repo, stored.id, DAY);
+    expect(issue?.briefing).toBe('Note.');
+    expect(await storedIssue(repo, uid, DAY)).toBeUndefined();
+  });
+
+  it('lays a day out live when no issue of the edition was stored', async () => {
+    const issue = await editionIssueFor(repo, edition({ query: 'story' }), DAY);
+    expect(issue.created_at).toBeNull();
+    expect(storyIds(issue.layout)).toHaveLength(2);
+  });
 });

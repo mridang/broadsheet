@@ -7,7 +7,11 @@
  * day out live only when none was stored.
  */
 import type { Database } from '@/domain/db/database';
-import { Repository, type Article } from '@/domain/repository';
+import {
+  Repository,
+  type Article,
+  type CustomEdition,
+} from '@/domain/repository';
 import {
   layOut,
   parseLayout,
@@ -35,17 +39,33 @@ export interface Issue {
 }
 
 /**
+ * What a custom edition prints: the feeds of some sections (all of them when
+ * `sectionIds` is empty) and, with `keep`, only the stories it accepts.
+ */
+export interface IssuePick {
+  readonly sectionIds: readonly number[];
+  readonly keep?: (articleId: number) => boolean;
+}
+
+/**
  * Lay out `ownerId`'s paper for `date`. With a `readerId`, their training
  * orders it and the stories they read in other editions are left out. Muted
- * feeds stay out; feeds filed under a section print under its heading.
+ * feeds stay out; feeds filed under a section print under its heading. A
+ * `pick` narrows it to a custom edition's stories.
  */
 export async function composeLayout(
   repo: Repository,
   ownerId: number,
   date: string,
   readerId?: number,
+  pick?: IssuePick,
 ): Promise<Layout> {
-  const feeds = (await repo.listFeeds(ownerId)).filter((f) => !f.muted);
+  const feeds = (await repo.listFeeds(ownerId)).filter(
+    (f) =>
+      !f.muted &&
+      (!pick?.sectionIds.length ||
+        (f.section_id !== null && pick.sectionIds.includes(f.section_id))),
+  );
   const [reads, training, sections] = await Promise.all([
     readerId === undefined ? undefined : repo.readState(readerId),
     readerId === undefined ? [] : repo.listClassifiers(readerId),
@@ -55,7 +75,9 @@ export async function composeLayout(
     feeds.map(async (feed) => ({
       feed,
       articles: (await repo.sourceArticles(feed.source_id, date)).filter(
-        (a) => !reads || reads.ids.has(a.id) || !reads.urls.has(a.url),
+        (a) =>
+          (!reads || reads.ids.has(a.id) || !reads.urls.has(a.url)) &&
+          (!pick?.keep || pick.keep(a.id)),
       ),
     })),
   );
@@ -70,6 +92,10 @@ export async function composeLayout(
           ? !sections.some((s) => s.id === feed.section_id)
           : feed.section_id === group.id,
       ),
+    }))
+    .map((group) => ({
+      ...group,
+      desks: group.desks.filter((desk) => desk.articles.length || !pick?.keep),
     }))
     .filter((group) => group.desks.length);
   return layOut(groups, training);
@@ -121,6 +147,20 @@ export async function issueArticles(
   return new Map(rows.map((a) => [a.id, a]));
 }
 
+/** Lay out the editor's note on a layout's top stories. */
+async function briefingFor(
+  repo: Repository,
+  env: CloudflareEnv,
+  layout: Layout,
+): Promise<{ readonly briefing: string | null; readonly stories: number }> {
+  const byId = await issueArticles(repo, layout);
+  const top = topStories(layout, BRIEFED).flatMap((id) => {
+    const a = byId.get(id);
+    return a ? [a] : [];
+  });
+  return { briefing: await writeBriefing(env, top), stories: byId.size };
+}
+
 /**
  * Lay out and store a person's issue for `date`, with an editor's note on its
  * top stories. Returns how many stories it prints.
@@ -133,14 +173,62 @@ export async function publishIssue(
 ): Promise<number> {
   const repo = new Repository(db);
   const layout = await composeLayout(repo, userId, date, userId);
-  const byId = await issueArticles(repo, layout);
-  const top = topStories(layout, BRIEFED).flatMap((id) => {
-    const a = byId.get(id);
-    return a ? [a] : [];
-  });
-  const briefing = await writeBriefing(env, top);
+  const { briefing, stories } = await briefingFor(repo, env, layout);
   await repo.saveIssue(userId, date, JSON.stringify(layout), briefing);
-  return byId.size;
+  return stories;
+}
+
+/**
+ * What a custom edition's rules pick on `date`: its sections, and the stories
+ * that match its search and are saved under its tag.
+ */
+export async function editionPick(
+  repo: Repository,
+  edition: CustomEdition,
+  date: string,
+): Promise<IssuePick> {
+  const sets = await Promise.all([
+    edition.query ? repo.matchingArticleIds(date, edition.query) : undefined,
+    edition.tag
+      ? repo.taggedArticleIds(edition.user_id, edition.tag)
+      : undefined,
+  ]);
+  const filters = sets.filter((set): set is Set<number> => set !== undefined);
+  return {
+    sectionIds: edition.section_ids,
+    ...(filters.length
+      ? { keep: (id: number) => filters.every((set) => set.has(id)) }
+      : {}),
+  };
+}
+
+/**
+ * Lay out and store a custom edition's issue for `date`, as
+ * {@link publishIssue} does for the default one. Returns how many stories it
+ * prints.
+ */
+export async function publishEditionIssue(
+  db: Database,
+  env: CloudflareEnv,
+  edition: CustomEdition,
+  date: string,
+): Promise<number> {
+  const repo = new Repository(db);
+  const layout = await composeLayout(
+    repo,
+    edition.user_id,
+    date,
+    edition.user_id,
+    await editionPick(repo, edition, date),
+  );
+  const { briefing, stories } = await briefingFor(repo, env, layout);
+  await repo.saveEditionIssue(
+    edition.id,
+    date,
+    JSON.stringify(layout),
+    briefing,
+  );
+  return stories;
 }
 
 /** A person's stored issue for `date`, if one was laid out and still reads. */
@@ -154,6 +242,44 @@ export async function storedIssue(
   return row && layout
     ? { date, layout, briefing: row.briefing, created_at: row.created_at }
     : undefined;
+}
+
+/** A custom edition's stored issue for `date`, if one was laid out. */
+export async function storedEditionIssue(
+  repo: Repository,
+  editionId: number,
+  date: string,
+): Promise<Issue | undefined> {
+  const row = await repo.getEditionIssue(editionId, date);
+  const layout = row ? parseLayout(row.layout) : undefined;
+  return row && layout
+    ? { date, layout, briefing: row.briefing, created_at: row.created_at }
+    : undefined;
+}
+
+/**
+ * A custom edition's paper for `date`: the stored issue when there is one,
+ * else the day laid out live by its rules (with no editor's note).
+ */
+export async function editionIssueFor(
+  repo: Repository,
+  edition: CustomEdition,
+  date: string,
+): Promise<Issue> {
+  return (
+    (await storedEditionIssue(repo, edition.id, date)) ?? {
+      date,
+      layout: await composeLayout(
+        repo,
+        edition.user_id,
+        date,
+        edition.user_id,
+        await editionPick(repo, edition, date),
+      ),
+      briefing: null,
+      created_at: null,
+    }
+  );
 }
 
 /**
