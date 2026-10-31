@@ -35,6 +35,7 @@ describe('SiteHeader signed in', () => {
     expect(out).toContain('Personalised Edition');
     expect(out).toContain('Ada Lovelace');
     expect(out).toMatch(/<a class="navlink" href="\/feeds">Manage feeds<\/a>/);
+    expect(out).toMatch(/<a class="navlink" href="\/assistant">Assistant<\/a>/);
     expect(out).toContain(
       '<button type="button" class="navlink">Sign out</button>',
     );

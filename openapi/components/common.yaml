@@ -29,6 +29,12 @@ responses:
       application/problem+json:
         schema:
           $ref: '#/schemas/Problem'
+  BadGateway:
+    description: The model behind the assistant could not answer.
+    content:
+      application/problem+json:
+        schema:
+          $ref: '#/schemas/Problem'
   TooManyRequests:
     description: The platform rate limit was reached.
     headers:

@@ -10,6 +10,7 @@ interface __BaseEnv_Env {
   RL_DISCOVERY: RateLimit;
   RL_REPORTS: RateLimit;
   RL_SITE: RateLimit;
+  RL_AI: RateLimit;
   RL_ADDRESS: RateLimit;
   AI: Ai;
   IMAGES: ImagesBinding;

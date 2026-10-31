@@ -1,0 +1,91 @@
+collection:
+  post:
+    operationId: startConversation
+    tags: [conversations]
+    summary: Start a conversation with the archive assistant.
+    description: Rate limited by the `RL_API` binding. Takes no body.
+    responses:
+      '201':
+        description: The conversation, with no turns yet.
+        headers:
+          Location:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: '../components/conversation.yaml#/Conversation'
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '403':
+        $ref: '../components/common.yaml#/responses/Forbidden'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'
+item:
+  parameters:
+    - $ref: '#/ConversationId'
+  get:
+    operationId: getConversation
+    tags: [conversations]
+    summary: A conversation with its turns.
+    description: Rate limited by the `RL_API` binding. Another person's conversation is a 404.
+    responses:
+      '200':
+        description: The conversation.
+        content:
+          application/json:
+            schema:
+              $ref: '../components/conversation.yaml#/Conversation'
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '404':
+        $ref: '../components/common.yaml#/responses/NotFound'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'
+messages:
+  parameters:
+    - $ref: '#/ConversationId'
+  post:
+    operationId: askAssistant
+    tags: [conversations]
+    summary: Ask the archive assistant a question.
+    description: Rate limited by the `RL_AI` binding. The answer draws on articles from the person's followed sources, saves and reads that match the question in the full-text index, and cites the ones it used. The question and the answer are both kept as turns; when the model fails nothing is kept.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/conversation.yaml#/MessageInput'
+    responses:
+      '201':
+        description: The assistant's answer.
+        headers:
+          Location:
+            description: The conversation the answer was added to.
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: '../components/conversation.yaml#/Message'
+      '400':
+        $ref: '../components/common.yaml#/responses/BadRequest'
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '403':
+        $ref: '../components/common.yaml#/responses/Forbidden'
+      '404':
+        $ref: '../components/common.yaml#/responses/NotFound'
+      '415':
+        $ref: '../components/common.yaml#/responses/UnsupportedMediaType'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'
+      '502':
+        $ref: '../components/common.yaml#/responses/BadGateway'
+ConversationId:
+  name: id
+  in: path
+  required: true
+  schema:
+    type: string
+    pattern: '^[1-9][0-9]{0,14}$'

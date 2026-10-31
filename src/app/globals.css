@@ -1338,3 +1338,24 @@ button.navlink {
     overflow-wrap: anywhere;
   }
 }
+
+/* Asking about a story, and the archive assistant's turns. */
+.ask {
+  border-top: 1px solid var(--rule);
+  margin-top: 24px;
+  padding-top: 12px;
+}
+.ask .btn.small {
+  margin-right: 8px;
+}
+.turn {
+  border-top: 1px solid var(--rule);
+  padding: 12px 0;
+}
+.turn.mine {
+  color: var(--muted, inherit);
+}
+.citations {
+  font-size: 14px;
+  margin: 8px 0 0 20px;
+}

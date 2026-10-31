@@ -1,0 +1,71 @@
+Question:
+  type: object
+  required: [question]
+  additionalProperties: false
+  properties:
+    question:
+      type: string
+      minLength: 1
+      maxLength: 500
+Answer:
+  type: object
+  required: [article_id, question, answer]
+  properties:
+    article_id:
+      type: string
+    question:
+      type: string
+    answer:
+      type: string
+MessageInput:
+  type: object
+  required: [content]
+  additionalProperties: false
+  properties:
+    content:
+      type: string
+      minLength: 1
+      maxLength: 500
+Citation:
+  type: object
+  required: [article_id, href]
+  properties:
+    article_id:
+      type: string
+    title:
+      type: string
+    href:
+      type: string
+      description: The page that shows the article, `/article/{article_id}`.
+Message:
+  type: object
+  required: [id, role, content, citations]
+  properties:
+    id:
+      type: string
+    role:
+      type: string
+      enum: [user, assistant]
+    content:
+      type: string
+    citations:
+      type: array
+      items:
+        $ref: '#/Citation'
+    created_at:
+      type: string
+      format: date-time
+Conversation:
+  type: object
+  required: [id, messages]
+  properties:
+    id:
+      type: string
+    created_at:
+      type: string
+      format: date-time
+    messages:
+      type: array
+      description: The turns, oldest first.
+      items:
+        $ref: '#/Message'

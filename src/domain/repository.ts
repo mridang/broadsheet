@@ -16,7 +16,9 @@ import {
   getTableColumns,
   inArray,
   lt,
+  ne,
   notInArray,
+  or,
   sql,
 } from 'drizzle-orm';
 
@@ -26,6 +28,8 @@ import {
   classifiers,
   clusters,
   issues,
+  conversations,
+  messages,
   reads,
   saves,
   sections,
@@ -33,6 +37,7 @@ import {
   subscriptions,
   users,
 } from '@/domain/db/schema';
+import { alias } from 'drizzle-orm/sqlite-core';
 import type { ScrapedItem } from '@/lib/scraping';
 
 /** A signed-in person. */
@@ -159,6 +164,67 @@ function tagsOf(stored: string): string[] {
     const parsed: unknown = JSON.parse(stored);
     return Array.isArray(parsed)
       ? parsed.filter((t): t is string => typeof t === 'string')
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+/** One exchange a person has with the archive assistant. */
+export type Conversation = typeof conversations.$inferSelect;
+/** A turn of a conversation, with the ids of the articles it cites. */
+export interface Message {
+  readonly id: number;
+  readonly role: 'user' | 'assistant';
+  readonly content: string;
+  readonly citations: readonly number[];
+  readonly created_at: string | null;
+}
+/** An article the assistant may draw on: a summary and the start of its text. */
+export interface Passage {
+  readonly id: number;
+  readonly title: string | null;
+  readonly source: string | null;
+  readonly summary: string | null;
+  readonly text: string;
+}
+/** A source other readers like this person follow, and how many of them do. */
+export interface SourceSuggestion {
+  readonly id: number;
+  readonly url: string;
+  readonly title: string | null;
+  readonly followers: number;
+}
+
+/** Characters of an article's text a {@link Passage} carries. */
+const PASSAGE_LENGTH = 1500;
+
+/** Words too common to find anything with. */
+const STOPWORDS = new Set(
+  'a an and are as at be but by did do does for from had has have how i in is it its me my of on or so than that the their them then there these they this to was we were what when where which who why will with you your'.split(
+    ' ',
+  ),
+);
+
+/**
+ * A question as an FTS5 query that matches any of its words: each word of
+ * three or more letters that is not a {@link STOPWORDS} word, quoted, joined
+ * by OR. Empty when no word is left.
+ */
+export function anyWordQuery(question: string): string {
+  const words = question
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter((w) => w.length >= 3 && !STOPWORDS.has(w));
+  return [...new Set(words)].map((w) => `"${w}"`).join(' OR ');
+}
+
+/** A stored citation list, or none when it is not a JSON array of numbers. */
+function citationsOf(stored: string): number[] {
+  try {
+    const parsed: unknown = JSON.parse(stored);
+    return Array.isArray(parsed)
+      ? parsed.filter((n): n is number => Number.isInteger(n))
       : [];
   } catch {
     return [];
@@ -867,5 +933,158 @@ export class Repository {
     return this.#db.query.issues.findFirst({
       where: and(eq(issues.user_id, userId), eq(issues.date, date)),
     });
+  }
+
+  /**
+   * The articles a person may ask the assistant about (from sources they
+   * follow, or ones they saved or read) that hold any word of `question`,
+   * best match first, as passages.
+   */
+  async retrievePassages(
+    userId: number,
+    question: string,
+    limit = 6,
+  ): Promise<Passage[]> {
+    const match = anyWordQuery(question);
+    if (!match) return [];
+    const mine = (table: typeof saves | typeof reads) =>
+      this.#db
+        .select({ id: table.article_id })
+        .from(table)
+        .where(eq(table.user_id, userId));
+    return this.#db
+      .select({
+        id: articles.id,
+        title: articles.title,
+        source: articles.source,
+        summary: articles.summary,
+        text: sql<string>`substr(coalesce(${articles.body_text}, ''), 1, ${PASSAGE_LENGTH})`,
+      })
+      .from(articles)
+      .innerJoin(sql`articles_fts f`, sql`f.rowid = ${articles.id}`)
+      .where(
+        and(
+          sql`articles_fts MATCH ${match}`,
+          or(
+            inArray(articles.source_id, this.#followed(userId)),
+            inArray(articles.id, mine(saves)),
+            inArray(articles.id, mine(reads)),
+          ),
+        ),
+      )
+      .orderBy(sql`f.rank`, desc(articles.id))
+      .limit(limit);
+  }
+
+  /** The titles of these articles, by id; ids with no article are left out. */
+  async articleTitles(
+    ids: readonly number[],
+  ): Promise<Map<number, string | null>> {
+    if (!ids.length) return new Map();
+    const rows = await this.#db
+      .select({ id: articles.id, title: articles.title })
+      .from(articles)
+      .where(inArray(articles.id, [...new Set(ids)]));
+    return new Map(rows.map((r) => [r.id, r.title]));
+  }
+
+  /** Start a conversation with the assistant. */
+  async addConversation(userId: number): Promise<Conversation> {
+    const [row] = await this.#db
+      .insert(conversations)
+      .values({ user_id: userId })
+      .returning();
+    return row!;
+  }
+
+  /** The person's conversation with this id, or undefined when it is not theirs. */
+  async getConversation(
+    userId: number,
+    id: number,
+  ): Promise<Conversation | undefined> {
+    const [row] = await this.#db
+      .select()
+      .from(conversations)
+      .where(and(eq(conversations.id, id), eq(conversations.user_id, userId)))
+      .limit(1);
+    return row;
+  }
+
+  /** The turns of a conversation, oldest first. */
+  async listMessages(conversationId: number): Promise<Message[]> {
+    const rows = await this.#db
+      .select()
+      .from(messages)
+      .where(eq(messages.conversation_id, conversationId))
+      .orderBy(asc(messages.id));
+    return rows.map((row) => this.#message(row));
+  }
+
+  /** Add a turn to a conversation. */
+  async addMessage(
+    conversationId: number,
+    role: Message['role'],
+    content: string,
+    citations: readonly number[] = [],
+  ): Promise<Message> {
+    const [row] = await this.#db
+      .insert(messages)
+      .values({
+        conversation_id: conversationId,
+        role,
+        content,
+        citations: JSON.stringify(citations),
+      })
+      .returning();
+    return this.#message(row!);
+  }
+
+  #message(row: typeof messages.$inferSelect): Message {
+    return {
+      id: row.id,
+      role: row.role === 'assistant' ? 'assistant' : 'user',
+      content: row.content,
+      citations: citationsOf(row.citations),
+      created_at: row.created_at,
+    };
+  }
+
+  /**
+   * Sources that people who share a source with this person also follow, and
+   * this person does not, most shared first: co-subscription.
+   */
+  async suggestSources(
+    userId: number,
+    limit = 10,
+  ): Promise<SourceSuggestion[]> {
+    const peer = alias(subscriptions, 'peer');
+    const theirs = alias(subscriptions, 'theirs');
+    const rows = await this.#db
+      .select({
+        id: sources.id,
+        url: sources.url,
+        title: sources.title,
+        followers: sql<number>`count(distinct ${theirs.user_id})`,
+      })
+      .from(subscriptions)
+      .innerJoin(
+        peer,
+        and(
+          eq(peer.source_id, subscriptions.source_id),
+          ne(peer.user_id, userId),
+        ),
+      )
+      .innerJoin(theirs, eq(theirs.user_id, peer.user_id))
+      .innerJoin(sources, eq(sources.id, theirs.source_id))
+      .where(
+        and(
+          eq(subscriptions.user_id, userId),
+          notInArray(theirs.source_id, this.#followed(userId)),
+        ),
+      )
+      .groupBy(sources.id)
+      .orderBy(sql`count(distinct ${theirs.user_id}) desc`, asc(sources.id))
+      .limit(limit);
+    return rows.map((r) => ({ ...r, followers: Number(r.followers) }));
   }
 }

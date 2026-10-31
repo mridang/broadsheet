@@ -1,0 +1,40 @@
+collection:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[1-9][0-9]{0,14}$'
+  post:
+    operationId: askArticle
+    tags: [answers]
+    summary: Ask a question about an article, answered from its text by Workers AI.
+    description: Rate limited by the `RL_AI` binding. Only articles from sources the person follows can be asked about; any other is a 404. The answer is not kept.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/conversation.yaml#/Question'
+    responses:
+      '200':
+        description: The answer.
+        content:
+          application/json:
+            schema:
+              $ref: '../components/conversation.yaml#/Answer'
+      '400':
+        $ref: '../components/common.yaml#/responses/BadRequest'
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '403':
+        $ref: '../components/common.yaml#/responses/Forbidden'
+      '404':
+        $ref: '../components/common.yaml#/responses/NotFound'
+      '415':
+        $ref: '../components/common.yaml#/responses/UnsupportedMediaType'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'
+      '502':
+        $ref: '../components/common.yaml#/responses/BadGateway'

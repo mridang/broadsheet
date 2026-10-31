@@ -13,6 +13,7 @@ import { ExportFeedsButton } from '@/app/(site)/feeds/_components/export-feeds-b
 import { FeedHealth } from '@/app/(site)/feeds/_components/feed-health';
 import { RefreshFeedsButton } from '@/app/(site)/feeds/_components/refresh-feeds-button';
 import { RemoveFeedButton } from '@/app/(site)/feeds/_components/remove-feed-button';
+import { SuggestedFeeds } from '@/app/(site)/feeds/_components/suggested-feeds';
 import { RemoveSectionButton } from '@/app/(site)/feeds/_components/remove-section-button';
 
 export const dynamic = 'force-dynamic';
@@ -24,9 +25,10 @@ export default async function FeedsPage() {
   const user = await getCurrentUser();
   if (!user) redirect('/login');
   const repo = new Repository(getDatabase());
-  const [feeds, sections] = await Promise.all([
+  const [feeds, sections, suggestions] = await Promise.all([
     repo.listFeeds(user.id),
     repo.listSections(user.id),
+    repo.suggestSources(user.id),
   ]);
   const stats = new Map(
     await Promise.all(
@@ -67,6 +69,7 @@ export default async function FeedsPage() {
       ) : (
         <p className="muted">No feeds yet. Add an RSS/Atom feed URL above.</p>
       )}
+      <SuggestedFeeds feeds={suggestions} />
       <h2>Sections</h2>
       <p className="muted">
         Sections group feeds under their own headings on the front page.

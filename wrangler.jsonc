@@ -119,6 +119,12 @@
       "namespace_id": "7305",
       "simple": { "limit": 300, "period": 60 },
     },
+    // questions to Workers AI (article answers, assistant messages), per person
+    {
+      "name": "RL_AI",
+      "namespace_id": "7308",
+      "simple": { "limit": 10, "period": 60 },
+    },
     // everything, per address: bounds callers who make up session cookies
     {
       "name": "RL_ADDRESS",

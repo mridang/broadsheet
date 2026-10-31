@@ -79,3 +79,16 @@ ImportSummary:
             type: string
           reason:
             type: string
+FeedSuggestion:
+  type: object
+  required: [url, followers]
+  properties:
+    url:
+      type: string
+      format: uri
+    title:
+      type: string
+    followers:
+      type: integer
+      minimum: 1
+      description: How many people who share a source with the caller follow this one.

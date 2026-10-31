@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import type { ReactElement } from 'react';
 
+import { AskBox } from '@/app/(site)/article/[id]/_components/ask-box';
 import { ensurePublicUser } from '@/domain/account';
 import { parseFeedId } from '@/domain/api/feed-resource';
 import { getDatabase } from '@/domain/db/database';
@@ -34,6 +35,7 @@ function dateline(published: string | null, edition: string | null): string {
  * One story set in the paper's type: headline, dateline, standfirst and the
  * full text kept from its page, with the original a click away. Shows only
  * stories from the reader's own feeds (a visitor reads the public paper's).
+ * A signed-in reader can ask questions about it.
  */
 export default async function ArticlePage({
   params,
@@ -81,6 +83,7 @@ export default async function ArticlePage({
           </a>
         ) : null}
       </p>
+      {user ? <AskBox id={article.id} /> : null}
     </article>
   );
 }

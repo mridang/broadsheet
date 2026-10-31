@@ -192,3 +192,31 @@ export const issues = sqliteTable(
   },
   (table) => [primaryKey({ columns: [table.user_id, table.date] })],
 );
+
+/** One exchange a person has with the archive assistant. */
+export const conversations = sqliteTable(
+  'conversations',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    user_id: integer('user_id').notNull(),
+    created_at: text('created_at').default(sql`(datetime('now'))`),
+  },
+  (table) => [index('idx_conversations_user').on(table.user_id)],
+);
+
+/**
+ * A turn of a conversation: the person's question (`role` user) or the
+ * assistant's answer, with `citations` a JSON array of the article ids it drew on.
+ */
+export const messages = sqliteTable(
+  'messages',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    conversation_id: integer('conversation_id').notNull(),
+    role: text('role').notNull(),
+    content: text('content').notNull(),
+    citations: text('citations').notNull().default('[]'),
+    created_at: text('created_at').default(sql`(datetime('now'))`),
+  },
+  (table) => [index('idx_messages_conversation').on(table.conversation_id)],
+);

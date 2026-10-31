@@ -1,7 +1,13 @@
 import { beforeEach, describe, expect, it } from '@jest/globals';
+import { sql } from 'drizzle-orm';
 
 import { databaseFrom, type Database } from '@/domain/db/database';
-import { ftsQuery, Repository, type Profile } from '@/domain/repository';
+import {
+  anyWordQuery,
+  ftsQuery,
+  Repository,
+  type Profile,
+} from '@/domain/repository';
 import type { ScrapedItem } from '@/lib/scraping';
 import { APP_MIGRATIONS } from '../lib/core/db/migrations';
 import { sqliteD1 } from '../lib/core/db/sqlite-d1';
@@ -571,5 +577,145 @@ describe('clusters and issues', () => {
       briefing: null,
     });
     expect(await repo.getIssue(2, '2026-11-01')).toBeUndefined();
+  });
+});
+
+describe('anyWordQuery', () => {
+  it('matches any word that is not too short or too common', () => {
+    expect(anyWordQuery('What is the Rust borrow checker, and Rust?')).toBe(
+      '"rust" OR "borrow" OR "checker"',
+    );
+  });
+
+  it('is empty when no word is left', () => {
+    expect(anyWordQuery('is it the?')).toBe('');
+  });
+});
+
+describe('retrievePassages', () => {
+  /** Person 1 follows a source with a story about rust; person 2 follows another. */
+  async function setup(): Promise<{ mine: number; other: number }> {
+    const repo = new Repository(db);
+    const a = (await addFeed(db, 1, 'https://a.test/f'))!;
+    const b = (await addFeed(db, 2, 'https://b.test/f'))!;
+    await repo.writeEdition(a.source_id, '2026-10-20', [
+      story({ url: 'https://x/1', title: 'Rust', body_text: 'rust borrow' }),
+    ]);
+    await repo.writeEdition(b.source_id, '2026-10-20', [
+      story({
+        url: 'https://x/2',
+        title: 'Other',
+        body_text: 'rust collector',
+      }),
+    ]);
+    const [mine] = await repo.sourceArticles(a.source_id, '2026-10-20');
+    const [other] = await repo.sourceArticles(b.source_id, '2026-10-20');
+    return { mine: mine!.id, other: other!.id };
+  }
+
+  it('finds stories from followed sources by any word', async () => {
+    const { mine } = await setup();
+    const found = await new Repository(db).retrievePassages(1, 'borrow tips');
+    expect(found).toEqual([
+      expect.objectContaining({ id: mine, title: 'Rust', text: 'rust borrow' }),
+    ]);
+  });
+
+  it('leaves out stories the person neither follows, saved nor read', async () => {
+    await setup();
+    const found = await new Repository(db).retrievePassages(1, 'collector');
+    expect(found).toEqual([]);
+  });
+
+  it('includes a story the person read from a source they do not follow', async () => {
+    const { other } = await setup();
+    await db.run(
+      sql`INSERT INTO reads (user_id, article_id) VALUES (1, ${other})`,
+    );
+    const found = await new Repository(db).retrievePassages(1, 'collector');
+    expect(found.map((p) => p.id)).toEqual([other]);
+  });
+
+  it('includes a story the person saved', async () => {
+    const { other } = await setup();
+    await db.run(
+      sql`INSERT INTO saves (user_id, article_id) VALUES (1, ${other})`,
+    );
+    const found = await new Repository(db).retrievePassages(1, 'collector');
+    expect(found.map((p) => p.id)).toEqual([other]);
+  });
+
+  it('finds nothing for a question of only common words', async () => {
+    await setup();
+    expect(await new Repository(db).retrievePassages(1, 'what is it')).toEqual(
+      [],
+    );
+  });
+});
+
+describe('conversations and messages', () => {
+  it('keeps turns in order with their citations', async () => {
+    const repo = new Repository(db);
+    const c = await repo.addConversation(1);
+    await repo.addMessage(c.id, 'user', 'Q');
+    await repo.addMessage(c.id, 'assistant', 'A', [4, 5]);
+    expect(await repo.listMessages(c.id)).toEqual([
+      expect.objectContaining({ role: 'user', content: 'Q', citations: [] }),
+      expect.objectContaining({
+        role: 'assistant',
+        content: 'A',
+        citations: [4, 5],
+      }),
+    ]);
+  });
+
+  it('shows a conversation only to its owner', async () => {
+    const repo = new Repository(db);
+    const c = await repo.addConversation(1);
+    expect(await repo.getConversation(1, c.id)).toMatchObject({ id: c.id });
+    expect(await repo.getConversation(2, c.id)).toBeUndefined();
+  });
+});
+
+describe('articleTitles', () => {
+  it('maps ids to titles, leaving out unknown ids', async () => {
+    const repo = new Repository(db);
+    const { source_id } = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await repo.writeEdition(source_id, '2026-10-20', [story({ title: 'One' })]);
+    const [a] = await repo.sourceArticles(source_id, '2026-10-20');
+    expect(await repo.articleTitles([a!.id, 999])).toEqual(
+      new Map([[a!.id, 'One']]),
+    );
+    expect(await repo.articleTitles([])).toEqual(new Map());
+  });
+});
+
+describe('suggestSources', () => {
+  it('suggests what people sharing a source also follow, most shared first', async () => {
+    await addFeed(db, 1, 'https://shared.test/f');
+    for (const uid of [2, 3]) {
+      await addFeed(db, uid, 'https://shared.test/f');
+      await addFeed(db, uid, 'https://popular.test/f');
+    }
+    await addFeed(db, 3, 'https://niche.test/f');
+    await addFeed(db, 4, 'https://stranger.test/f');
+    const found = await new Repository(db).suggestSources(1);
+    expect(found.map((s) => [s.url, s.followers])).toEqual([
+      ['https://popular.test/f', 2],
+      ['https://niche.test/f', 1],
+    ]);
+  });
+
+  it('leaves out sources the person follows already', async () => {
+    await addFeed(db, 1, 'https://shared.test/f');
+    await addFeed(db, 1, 'https://popular.test/f');
+    await addFeed(db, 2, 'https://shared.test/f');
+    await addFeed(db, 2, 'https://popular.test/f');
+    expect(await new Repository(db).suggestSources(1)).toEqual([]);
+  });
+
+  it('suggests nothing to someone who follows nothing', async () => {
+    await addFeed(db, 2, 'https://popular.test/f');
+    expect(await new Repository(db).suggestSources(1)).toEqual([]);
   });
 });

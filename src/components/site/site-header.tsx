@@ -20,6 +20,9 @@ export function SiteHeader({ user }: { user: User | null }) {
       <a className="navlink" href="/saved">
         Saved
       </a>{' '}
+      <a className="navlink" href="/assistant">
+        Assistant
+      </a>{' '}
       <span className="navuser">{user.name || user.email}</span>{' '}
       <SignOutButton />
     </>

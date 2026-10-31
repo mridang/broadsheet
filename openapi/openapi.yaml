@@ -18,8 +18,10 @@ security:
   - session: []
 tags:
   - name: articles
+  - name: answers
   - name: classifiers
   - name: editions
+  - name: conversations
   - name: feeds
   - name: sections
   - name: reads
@@ -33,6 +35,14 @@ paths:
     $ref: './paths/articles.yaml#/item'
   /api/editions/self/issues/{date}:
     $ref: './paths/editions.yaml#/issue'
+  /api/articles/{id}/answers:
+    $ref: './paths/answers.yaml#/collection'
+  /api/conversations:
+    $ref: './paths/conversations.yaml#/collection'
+  /api/conversations/{id}:
+    $ref: './paths/conversations.yaml#/item'
+  /api/conversations/{id}/messages:
+    $ref: './paths/conversations.yaml#/messages'
   /api/feeds:
     $ref: './paths/feeds.yaml#/collection'
   /api/feeds/{id}:
@@ -41,6 +51,8 @@ paths:
     $ref: './paths/feeds.yaml#/imports'
   /api/feeds/{id}/statistics:
     $ref: './paths/feeds.yaml#/statistics'
+  /api/feeds/suggestions:
+    $ref: './paths/feeds.yaml#/suggestions'
   /api/feeds/refreshes:
     $ref: './paths/feeds.yaml#/refreshes'
   /api/sections:

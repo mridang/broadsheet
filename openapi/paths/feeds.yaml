@@ -264,3 +264,29 @@ statistics:
         $ref: '../components/common.yaml#/responses/NotFound'
       '429':
         $ref: '../components/common.yaml#/responses/TooManyRequests'
+suggestions:
+  get:
+    operationId: listFeedSuggestions
+    tags: [feeds]
+    summary: Sources other readers follow alongside the person's own.
+    description: Rate limited by the `RL_API` binding. Co-subscription, most shared first, leaving out sources the person follows already; at most ten, as one page. Follow one with `POST /api/feeds` and its `url`.
+    responses:
+      '200':
+        description: The suggestions.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [self, items]
+              properties:
+                self:
+                  type: string
+                items:
+                  type: array
+                  maxItems: 10
+                  items:
+                    $ref: '../components/feed.yaml#/FeedSuggestion'
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'
