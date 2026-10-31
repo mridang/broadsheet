@@ -48,6 +48,7 @@ async function keys() {
       VAPID_PRIVATE_KEY: (
         await crypto.subtle.exportKey('jwk', signing.privateKey)
       ).d!,
+      VAPID_SUBJECT: 'mailto:test@broadsheet.test',
     },
     p256dh: await raw(browser.publicKey),
     auth: base64Url(new Uint8Array(16)),

@@ -142,6 +142,11 @@
     // 06:00 UTC — starts the daily scrape Workflow.
     "crons": ["0 6 * * *"],
   },
+  "vars": {
+    // VAPID public key — not a secret; the browser needs it to subscribe.
+    "VAPID_PUBLIC_KEY": "BLoly_v2gChaSDDz4ME2oYcRPQOriMna6OcbtQicVKBVpUeIPURMZZmy9mC4GI7S91rXbado5QQ6eY7vTI2X88c",
+    "VAPID_SUBJECT": "mailto:mridang.agarwalla@gmail.com",
+  },
   // Worker secrets (set via `wrangler secret put`), not plaintext vars. A deploy
   // fails if one is missing, and only these names are typed and loaded from .env.
   "secrets": {
@@ -149,6 +154,7 @@
       "GOOGLE_OAUTH_CLIENT_ID",
       "GOOGLE_OAUTH_CLIENT_SECRET",
       "SESSION_SECRET",
+      "VAPID_PRIVATE_KEY",
     ],
   },
   // Uploads source maps with the Worker so stack traces in logs and traces

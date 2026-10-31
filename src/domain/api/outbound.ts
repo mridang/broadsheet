@@ -118,7 +118,7 @@ function pushUnavailable(): Response {
  * with. Public. 503 when the server has none.
  */
 export function createPushConfiguration(
-  environment: () => Partial<Pick<CloudflareEnv, 'VAPID_PUBLIC_KEY'>> = getEnv,
+  environment: () => { readonly VAPID_PUBLIC_KEY?: string } = getEnv,
 ): ApiController {
   return new ApiController().on<null, string | undefined>({
     method: 'GET',
