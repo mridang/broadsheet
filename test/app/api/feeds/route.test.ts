@@ -8,7 +8,6 @@ import {
 } from '@jest/globals';
 import type { DatabaseSync } from 'node:sqlite';
 
-import type { Feed } from '@/domain/repository';
 import { SESSION_COOKIE } from '@/domain/auth/app';
 import { APP_MIGRATIONS } from '../../../lib/core/db/migrations';
 import {
@@ -21,11 +20,11 @@ import { SESSION_SECRET, tokenFor } from '../../../domain/auth/auth-test-kit';
 // Identity is resolved from the signed session cookie on the request; the
 // resolver has its own tests (test/domain/api/auth). Here we sign a real
 // cookie for the caller so the feed endpoints run as that person.
-const refreshFeed = jest.fn<(...args: unknown[]) => Promise<unknown>>(
+const refreshSource = jest.fn<(...args: unknown[]) => Promise<unknown>>(
   async () => ({ ok: true, n: 0 }),
 );
 jest.unstable_mockModule('@/domain/scraping/index', () => ({
-  refreshFeed,
+  refreshSource,
 }));
 
 const { POST } = await import('@/app/api/feeds/route');
@@ -43,7 +42,7 @@ async function cookieFor(uid: number): Promise<Record<string, string>> {
 }
 
 beforeEach(async () => {
-  refreshFeed.mockClear();
+  refreshSource.mockClear();
   const made = sqliteD1(...APP_MIGRATIONS);
   raw = made.raw;
   restore = installCloudflareContext(made.d1, { SESSION_SECRET });
@@ -81,7 +80,7 @@ const follow = (url: string) => post(JSON.stringify({ url }));
 
 /** The feeds stored for a person. */
 const stored = (id: number) =>
-  raw.prepare('SELECT * FROM feeds WHERE user_id = ?').all(id) as Feed[];
+  raw.prepare('SELECT * FROM subscriptions WHERE user_id = ?').all(id);
 
 describe('POST /api/feeds', () => {
   it('answers 201 with the new feed and where to find it', async () => {
@@ -98,12 +97,12 @@ describe('POST /api/feeds', () => {
   it('fetches the first edition of a new feed in the background', async () => {
     await follow('https://a.test/feed.xml');
     await settleBackground();
-    expect(refreshFeed).toHaveBeenCalledTimes(1);
+    expect(refreshSource).toHaveBeenCalledTimes(1);
   });
 
   it('answers 200 with the same feed when they already follow it, adding nothing', async () => {
     const first = await body(await follow('https://a.test/feed.xml'));
-    refreshFeed.mockClear();
+    refreshSource.mockClear();
     const again = await follow('https://a.test/feed.xml');
     expect(again.status).toBe(200);
     expect(await again.json()).toEqual(first);
@@ -111,7 +110,7 @@ describe('POST /api/feeds', () => {
       `https://app.test/api/feeds/${first.id}`,
     );
     expect(stored(7)).toHaveLength(1);
-    expect(refreshFeed).not.toHaveBeenCalled();
+    expect(refreshSource).not.toHaveBeenCalled();
   });
 
   it('lets two people follow the same address', async () => {

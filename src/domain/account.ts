@@ -7,7 +7,7 @@
  * `auth/`.
  */
 import { Repository, type Feed } from '@/domain/repository';
-import { refreshFeed } from '@/domain/scraping/index';
+import { refreshSource } from '@/domain/scraping/index';
 import { getEnv, runInBackground } from '@/lib/core/runtime';
 import { getDatabase } from '@/domain/db/database';
 
@@ -60,7 +60,10 @@ function warm(feeds: Feed[]): void {
   runInBackground(
     Promise.all(
       feeds.map((f) =>
-        refreshFeed(getDatabase(), getEnv(), f).catch(() => undefined),
+        refreshSource(getDatabase(), getEnv(), {
+          id: f.source_id,
+          url: f.url,
+        }).catch(() => undefined),
       ),
     ),
   );

@@ -1,0 +1,27 @@
+Section:
+  type: object
+  required: [id, name, position]
+  properties:
+    id:
+      type: string
+    name:
+      type: string
+    position:
+      type: integer
+      minimum: 0
+      description: Sections go down the front page in this order.
+    created_at:
+      type: string
+      format: date-time
+SectionChanges:
+  type: object
+  additionalProperties: false
+  properties:
+    name:
+      type: string
+      minLength: 1
+      maxLength: 200
+    position:
+      type: integer
+      minimum: 0
+      maximum: 10000

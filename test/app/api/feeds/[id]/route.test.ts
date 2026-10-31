@@ -17,7 +17,7 @@ const addFeed = (d: Database, u: number, url: string, t?: string) =>
   new Repository(d).addFeed(u, url, t);
 const listFeeds = (d: Database, u: number) => new Repository(d).listFeeds(u);
 
-const { DELETE } = await import('@/app/api/feeds/[id]/route');
+const { PATCH, DELETE } = await import('@/app/api/feeds/[id]/route');
 
 let restore: () => void;
 let db: Database;
@@ -91,5 +91,77 @@ describe('DELETE /api/feeds/:id', () => {
     auth = {};
     expect((await remove(mine)).status).toBe(401);
     expect(await listFeeds(db, 7)).toHaveLength(1);
+  });
+});
+
+const patch = (id: string | number, body: string, headers = {}) =>
+  PATCH(
+    new Request(`https://app.test/api/feeds/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...auth, ...headers },
+      body,
+    }),
+    { params: Promise.resolve({ id: String(id) }) },
+  );
+
+describe('PATCH /api/feeds/:id', () => {
+  it('answers 200 with the renamed, muted feed', async () => {
+    const res = await patch(
+      mine,
+      JSON.stringify({ title: 'Mine', muted: true }),
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({
+      id: String(mine),
+      title: 'Mine',
+      muted: true,
+    });
+  });
+
+  it('files the feed under one of the caller’s sections', async () => {
+    const section = await new Repository(db).addSection(7, 'Tech');
+    const res = await patch(
+      mine,
+      JSON.stringify({ section_id: String(section.id) }),
+    );
+    expect(await res.json()).toMatchObject({ section_id: String(section.id) });
+  });
+
+  it('answers 400 naming section_id for another person’s section', async () => {
+    const section = await new Repository(db).addSection(8, 'Theirs');
+    const res = await patch(
+      mine,
+      JSON.stringify({ section_id: String(section.id) }),
+    );
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { errors: string[] }).errors).toEqual([
+      'section_id: no such section.',
+    ]);
+  });
+
+  it('answers 400 as a problem naming the bad field', async () => {
+    const res = await patch(mine, JSON.stringify({ muted: 'yes' }));
+    expect(res.status).toBe(400);
+    expect(res.headers.get('content-type')).toBe('application/problem+json');
+  });
+
+  it('answers 415 for a body that is not JSON', async () => {
+    const res = await patch(mine, 'muted=1', { 'Content-Type': 'text/plain' });
+    expect(res.status).toBe(415);
+  });
+
+  it('answers 404, changing nothing, for another person’s feed', async () => {
+    auth = await cookieFor(8);
+    expect((await patch(mine, '{"muted":true}')).status).toBe(404);
+    expect((await listFeeds(db, 7))[0]?.muted).toBe(false);
+  });
+
+  it('answers 404 for an id that cannot name a feed', async () => {
+    expect((await patch('abc', '{"muted":true}')).status).toBe(404);
+  });
+
+  it('answers 401 when nobody is signed in', async () => {
+    auth = {};
+    expect((await patch(mine, '{"muted":true}')).status).toBe(401);
   });
 });

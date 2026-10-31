@@ -1,0 +1,89 @@
+collection:
+  post:
+    operationId: addSection
+    tags: [sections]
+    summary: Add a section to group feeds under on the front page.
+    description: Rate limited by the `RL_API` binding. Without a position the section goes after the others.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '../components/section.yaml#/SectionChanges'
+              - required: [name]
+    responses:
+      '201':
+        description: The section is added.
+        headers:
+          Location:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: '../components/section.yaml#/Section'
+      '400':
+        $ref: '../components/common.yaml#/responses/BadRequest'
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '403':
+        $ref: '../components/common.yaml#/responses/Forbidden'
+      '415':
+        $ref: '../components/common.yaml#/responses/UnsupportedMediaType'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'
+item:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[1-9][0-9]{0,14}$'
+  patch:
+    operationId: changeSection
+    tags: [sections]
+    summary: Rename or move a section.
+    description: Rate limited by the `RL_API` binding. Only the members sent are changed. An id that cannot name a section is a 404.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/section.yaml#/SectionChanges'
+    responses:
+      '200':
+        description: The section as it is now.
+        content:
+          application/json:
+            schema:
+              $ref: '../components/section.yaml#/Section'
+      '400':
+        $ref: '../components/common.yaml#/responses/BadRequest'
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '403':
+        $ref: '../components/common.yaml#/responses/Forbidden'
+      '404':
+        $ref: '../components/common.yaml#/responses/NotFound'
+      '415':
+        $ref: '../components/common.yaml#/responses/UnsupportedMediaType'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'
+  delete:
+    operationId: removeSection
+    tags: [sections]
+    summary: Remove a section; its feeds stay, under no section.
+    description: Rate limited by the `RL_API` binding. An id that cannot name a section is a 404.
+    responses:
+      '204':
+        description: The section is gone.
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '403':
+        $ref: '../components/common.yaml#/responses/Forbidden'
+      '404':
+        $ref: '../components/common.yaml#/responses/NotFound'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'

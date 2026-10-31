@@ -6,7 +6,7 @@ import { assignTiers, excerpt } from '@/domain/render/tiers';
 function article(over: Partial<Article>): Article {
   return {
     id: 1,
-    feed_id: 1,
+    source_id: 1,
     url: 'https://example.com/a',
     title: 'A',
     source: 'Example',

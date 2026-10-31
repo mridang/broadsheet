@@ -1,13 +1,14 @@
 /**
  * @packageDocumentation
  *
- * Feed refresh orchestration: fetch each feed, parse it, enrich the newest
+ * Feed refresh orchestration: fetch each source once, however many people
+ * follow it, parse it, enrich the newest
  * items with og:image / description / site-name from the article page, and
  * replace that feed's stored articles. Optionally upgrades source names via
  * names via Workers AI (the `AI` binding).
  */
 import type { Database } from '@/domain/db/database';
-import { Repository, type Feed } from '@/domain/repository';
+import { Repository, type Source } from '@/domain/repository';
 import { logInfo, logWarn } from '@/utils/logging';
 import {
   domainClean,
@@ -111,18 +112,30 @@ async function enrich(items: ScrapedItem[]): Promise<void> {
 /** The current edition date (YYYY-MM-DD, UTC). */
 export const todayEdition = (): string => new Date().toISOString().slice(0, 10);
 
-export async function refreshFeed(
+/** The address of a source to fetch and the id its articles are stored under. */
+export type Fetchable = Pick<Source, 'id' | 'url'>;
+
+/**
+ * Fetch one source and write today's edition of it, noting on the source
+ * whether the fetch worked.
+ */
+export async function refreshSource(
   db: Database,
   env: CloudflareEnv,
-  feed: Feed,
+  source: Fetchable,
   edition: string = todayEdition(),
 ): Promise<{ ok: boolean; n: number }> {
-  const xml = await get(feed.url);
-  if (!xml) return { ok: false, n: 0 };
-  const { items } = parseFeed(xml, feed.url);
+  const repo = new Repository(db);
+  const xml = await get(source.url);
+  if (!xml) {
+    await repo.recordFetch(source.id, 'The feed could not be fetched.');
+    return { ok: false, n: 0 };
+  }
+  const { items } = parseFeed(xml, source.url);
   await enrich(items);
   await resolveNames(env, items);
-  await new Repository(db).writeEdition(feed.id, edition, items);
+  await repo.writeEdition(source.id, edition, items);
+  await repo.recordFetch(source.id);
   return { ok: true, n: items.length };
 }
 
@@ -183,10 +196,10 @@ export async function backfillRecent(
   days = 7,
 ): Promise<{ filled: number }> {
   const repo = new Repository(db);
-  const feeds = (await repo.allFeeds()).filter((f) => isHnFeed(f.url));
+  const sources = (await repo.allSources()).filter((s) => isHnFeed(s.url));
   let filled = 0;
-  for (const feed of feeds) {
-    const have = new Set(await repo.editionsForFeed(feed.id));
+  for (const source of sources) {
+    const have = new Set(await repo.editionsForSource(source.id));
     for (let i = 1; i <= days; i++) {
       const date = new Date(Date.now() - i * 86400000)
         .toISOString()
@@ -196,9 +209,14 @@ export async function backfillRecent(
       if (!items.length) continue;
       await enrich(items);
       await resolveNames(env, items);
-      await repo.writeEdition(feed.id, date, items);
+      await repo.writeEdition(source.id, date, items);
       filled++;
-      logInfo({ event: 'backfill.day', feed: feed.id, date, n: items.length });
+      logInfo({
+        event: 'backfill.day',
+        source: source.id,
+        date,
+        n: items.length,
+      });
     }
   }
   logInfo({ event: 'backfill.completed', filled });
@@ -208,15 +226,15 @@ export async function backfillRecent(
 export async function refreshAll(
   db: Database,
   env: CloudflareEnv,
-): Promise<{ feeds: number; ok: number; articles: number }> {
+): Promise<{ sources: number; ok: number; articles: number }> {
   const edition = todayEdition();
-  const feeds = await new Repository(db).allFeeds();
-  const q = [...feeds];
+  const sources = await new Repository(db).allSources();
+  const q = [...sources];
   let ok = 0;
   let articles = 0;
   const worker = async (): Promise<void> => {
     for (let f = q.shift(); f; f = q.shift()) {
-      const r = await refreshFeed(db, env, f, edition);
+      const r = await refreshSource(db, env, f, edition);
       if (r.ok) ok++;
       articles += r.n;
     }
@@ -226,9 +244,9 @@ export async function refreshAll(
   logInfo({
     event: 'scrape.completed',
     edition,
-    feeds: feeds.length,
+    sources: sources.length,
     ok,
     articles,
   });
-  return { feeds: feeds.length, ok, articles };
+  return { sources: sources.length, ok, articles };
 }

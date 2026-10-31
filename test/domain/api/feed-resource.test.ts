@@ -3,6 +3,7 @@ import { describe, expect, it } from '@jest/globals';
 import {
   MAX_FEED_URL_LENGTH,
   feedResource,
+  parseFeedChanges,
   parseFeedId,
   parseFeedInput,
   rfc3339,
@@ -12,6 +13,9 @@ import type { Feed } from '@/domain/repository';
 const stored = (over: Partial<Feed> = {}): Feed => ({
   id: 4,
   user_id: 9,
+  source_id: 2,
+  section_id: null,
+  muted: false,
   url: 'https://a.test/feed.xml',
   title: 'A feed',
   created_at: '2026-01-02 03:04:05',
@@ -24,6 +28,7 @@ describe('feedResource', () => {
       id: '4',
       url: 'https://a.test/feed.xml',
       title: 'A feed',
+      muted: false,
       created_at: '2026-01-02T03:04:05Z',
     });
   });
@@ -38,6 +43,7 @@ describe('feedResource', () => {
     expect(feedResource(stored({ title: null, created_at: null }))).toEqual({
       id: '4',
       url: 'https://a.test/feed.xml',
+      muted: false,
     });
   });
 });
@@ -90,4 +96,38 @@ describe('parseFeedId', () => {
       expect(parseFeedId(raw)).toBeUndefined();
     },
   );
+});
+
+describe('feedResource of a muted feed filed under a section', () => {
+  it('says it is muted and names the section as a string', () => {
+    expect(feedResource(stored({ muted: true, section_id: 3 }))).toMatchObject({
+      muted: true,
+      section_id: '3',
+    });
+  });
+});
+
+describe('parseFeedChanges', () => {
+  it.each([
+    [{ title: '  Mine  ' }, { title: 'Mine' }],
+    [{ title: '   ' }, { title: null }],
+    [{ title: null }, { title: null }],
+    [{ muted: true }, { muted: true }],
+    [{ section_id: '5' }, { section_id: 5 }],
+    [{ section_id: null }, { section_id: null }],
+    [{}, {}],
+  ])('accepts %j', (body, changes) => {
+    expect(parseFeedChanges(body)).toEqual({ ok: true, changes });
+  });
+
+  it.each([
+    [{ title: 3 }, 'title: must be a string.'],
+    [{ title: 'x'.repeat(201) }, 'title: too long.'],
+    [{ muted: 'yes' }, 'muted: must be true or false.'],
+    [{ section_id: 5 }, 'section_id: not a section id.'],
+    [{ section_id: 'abc' }, 'section_id: not a section id.'],
+    [{ url: 'https://x' }, 'url: not a member of a feed that can be changed.'],
+  ])('refuses %j, naming the field', (body, error) => {
+    expect(parseFeedChanges(body)).toEqual({ ok: false, errors: [error] });
+  });
 });

@@ -28,3 +28,37 @@ export async function unfollowFeed(id: number): Promise<void> {
 export async function refreshFeeds(): Promise<void> {
   await ensureOk(await fetch('/api/feeds/refreshes', { method: 'POST' }));
 }
+
+/** What can be changed about a feed; null clears the title or section. */
+export interface FeedEdit {
+  readonly title?: string | null;
+  readonly muted?: boolean;
+  readonly section_id?: string | null;
+}
+
+/** Rename, mute or file the feed with this id (`PATCH /api/feeds/:id`). */
+export async function editFeed(id: number, edit: FeedEdit): Promise<void> {
+  await ensureOk(
+    await fetch(`/api/feeds/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(edit),
+    }),
+  );
+}
+
+/** Add a section called `name` (`POST /api/sections`). */
+export async function addSection(name: string): Promise<void> {
+  await ensureOk(
+    await fetch('/api/sections', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    }),
+  );
+}
+
+/** Remove the section with this id (`DELETE /api/sections/:id`). */
+export async function removeSection(id: number): Promise<void> {
+  await ensureOk(await fetch(`/api/sections/${id}`, { method: 'DELETE' }));
+}

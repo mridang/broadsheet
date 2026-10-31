@@ -101,3 +101,137 @@ describe('getFeedByUrl and removeFeed', () => {
     expect(await listFeeds(db, 1)).toHaveLength(0);
   });
 });
+
+describe('addFeed', () => {
+  it('shares one source between everyone who follows an address', async () => {
+    const a = (await addFeed(db, 1, 'https://a.test/f', 'A'))!;
+    const b = (await addFeed(db, 2, 'https://a.test/f'))!;
+    expect(b.source_id).toBe(a.source_id);
+    expect(b.id).not.toBe(a.id);
+    expect(b.title).toBe('A');
+    expect(await new Repository(db).allSources()).toHaveLength(1);
+  });
+
+  it('starts a feed unmuted and under no section', async () => {
+    expect(await addFeed(db, 1, 'https://a.test/f')).toMatchObject({
+      muted: false,
+      section_id: null,
+    });
+  });
+});
+
+describe('updateFeed', () => {
+  it('renames, mutes and files only the caller’s feed', async () => {
+    const repo = new Repository(db);
+    const feed = (await addFeed(db, 1, 'https://a.test/f', 'A'))!;
+    const section = await repo.addSection(1, 'Tech');
+    expect(
+      await repo.updateFeed(1, feed.id, {
+        title: 'Mine',
+        muted: true,
+        section_id: section.id,
+      }),
+    ).toMatchObject({ title: 'Mine', muted: true, section_id: section.id });
+    expect(await repo.updateFeed(2, feed.id, { muted: false })).toBeUndefined();
+    expect((await repo.getFeed(1, feed.id))?.muted).toBe(true);
+  });
+
+  it('goes back to the source’s own title when the title is cleared', async () => {
+    const repo = new Repository(db);
+    const feed = (await addFeed(db, 1, 'https://a.test/f', 'A'))!;
+    await repo.updateFeed(1, feed.id, { title: 'Mine' });
+    expect((await repo.updateFeed(1, feed.id, { title: null }))?.title).toBe(
+      'A',
+    );
+  });
+});
+
+describe('sections', () => {
+  it('adds sections after the others and lists them in order', async () => {
+    const repo = new Repository(db);
+    await repo.addSection(1, 'B', 5);
+    await repo.addSection(1, 'A', 2);
+    await repo.addSection(1, 'C');
+    await repo.addSection(2, 'Other');
+    expect(
+      (await repo.listSections(1)).map((s) => [s.name, s.position]),
+    ).toEqual([
+      ['A', 2],
+      ['B', 5],
+      ['C', 6],
+    ]);
+  });
+
+  it('renames or moves only the caller’s section', async () => {
+    const repo = new Repository(db);
+    const s = await repo.addSection(1, 'A');
+    expect(
+      await repo.updateSection(1, s.id, { name: 'Z', position: 4 }),
+    ).toMatchObject({
+      name: 'Z',
+      position: 4,
+    });
+    expect(await repo.updateSection(2, s.id, { name: 'Q' })).toBeUndefined();
+  });
+
+  it('removes a section, leaving its feeds under no section', async () => {
+    const repo = new Repository(db);
+    const s = await repo.addSection(1, 'A');
+    const feed = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await repo.updateFeed(1, feed.id, { section_id: s.id });
+    expect(await repo.removeSection(2, s.id)).toBe(false);
+    expect(await repo.removeSection(1, s.id)).toBe(true);
+    expect(await repo.removeSection(1, s.id)).toBe(false);
+    expect((await repo.getFeed(1, feed.id))?.section_id).toBeNull();
+  });
+});
+
+describe('recordFetch', () => {
+  it('counts failures in a row and clears them on success', async () => {
+    const repo = new Repository(db);
+    const { source_id } = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await repo.recordFetch(source_id, 'down');
+    await repo.recordFetch(source_id, 'down');
+    expect((await repo.allSources())[0]).toMatchObject({
+      last_error: 'down',
+      fail_count: 2,
+      last_fetched_at: null,
+    });
+    await repo.recordFetch(source_id);
+    const [source] = await repo.allSources();
+    expect(source).toMatchObject({ last_error: null, fail_count: 0 });
+    expect(source?.last_fetched_at).toEqual(expect.any(String));
+  });
+});
+
+describe('allSources', () => {
+  it('leaves out a source nobody follows any more', async () => {
+    const feed = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await removeFeed(db, 1, feed.id);
+    expect(await new Repository(db).allSources()).toEqual([]);
+  });
+});
+
+describe('writeEdition, sourceArticles and listEditions', () => {
+  it('stores a source’s stories once and shows them to every follower', async () => {
+    const repo = new Repository(db);
+    const { source_id } = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await addFeed(db, 2, 'https://a.test/f');
+    await repo.writeEdition(source_id, '2026-10-20', [
+      {
+        url: 'https://x/1',
+        title: 'One',
+        source: '',
+        favicon: '',
+        summary: '',
+        image: '',
+        published_at: '',
+        points: 0,
+      },
+    ]);
+    expect(await repo.sourceArticles(source_id, '2026-10-20')).toHaveLength(1);
+    expect(await repo.listEditions(1)).toEqual(['2026-10-20']);
+    expect(await repo.listEditions(2)).toEqual(['2026-10-20']);
+    expect(await repo.editionsForSource(source_id)).toEqual(['2026-10-20']);
+  });
+});

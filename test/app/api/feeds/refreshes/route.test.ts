@@ -8,7 +8,6 @@ import {
 } from '@jest/globals';
 
 import { databaseFrom, type Database } from '@/domain/db/database';
-import type { Feed } from '@/domain/repository';
 import { Repository } from '@/domain/repository';
 import { SESSION_COOKIE } from '@/domain/auth/app';
 import { APP_MIGRATIONS } from '../../../../lib/core/db/migrations';
@@ -26,15 +25,17 @@ const addFeed = (d: Database, u: number, url: string, t?: string) =>
 
 /** What each refresh does, by feed address. */
 const outcome = new Map<string, 'ok' | 'empty' | 'throws'>();
-const refreshFeed = jest.fn(async (_db: unknown, _env: unknown, feed: Feed) => {
-  const how = outcome.get(feed.url) ?? 'ok';
-  if (how === 'throws') {
-    throw new Error('boom');
-  }
-  return { ok: how === 'ok', n: 0 };
-});
+const refreshSource = jest.fn(
+  async (_db: unknown, _env: unknown, source: { url: string }) => {
+    const how = outcome.get(source.url) ?? 'ok';
+    if (how === 'throws') {
+      throw new Error('boom');
+    }
+    return { ok: how === 'ok', n: 0 };
+  },
+);
 jest.unstable_mockModule('@/domain/scraping/index', () => ({
-  refreshFeed,
+  refreshSource,
 }));
 
 const { POST } = await import('@/app/api/feeds/refreshes/route');
@@ -52,7 +53,7 @@ async function cookieFor(uid: number): Promise<Record<string, string>> {
 
 beforeEach(async () => {
   outcome.clear();
-  refreshFeed.mockClear();
+  refreshSource.mockClear();
   const made = sqliteD1(...APP_MIGRATIONS);
   restore = installCloudflareContext(made.d1, { SESSION_SECRET });
   made.raw
@@ -82,7 +83,7 @@ describe('POST /api/feeds/refreshes', () => {
     const res = await refresh();
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ feeds: 2, refreshed: 2, failed: 0 });
-    expect(refreshFeed.mock.calls.map((c) => c[2].url).toSorted()).toEqual([
+    expect(refreshSource.mock.calls.map((c) => c[2].url).toSorted()).toEqual([
       'https://a.test/1',
       'https://a.test/2',
     ]);
@@ -101,6 +102,6 @@ describe('POST /api/feeds/refreshes', () => {
     const res = await refresh();
     expect(res.status).toBe(401);
     expect(res.headers.get('content-type')).toBe('application/problem+json');
-    expect(refreshFeed).not.toHaveBeenCalled();
+    expect(refreshSource).not.toHaveBeenCalled();
   });
 });

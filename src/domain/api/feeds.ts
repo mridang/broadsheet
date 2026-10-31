@@ -12,6 +12,7 @@
 
 import {
   feedResource,
+  parseFeedChanges,
   parseFeedId,
   parseFeedInput,
 } from '@/domain/api/feed-resource';
@@ -28,8 +29,8 @@ import {
   created,
   noContent,
 } from '@/lib/core/api';
-import { Repository, type Feed } from '@/domain/repository';
-import { refreshFeed } from '@/domain/scraping/index';
+import { Repository, type Feed, type FeedChanges } from '@/domain/repository';
+import { refreshSource } from '@/domain/scraping/index';
 import { getEnv, runInBackground } from '@/lib/core/runtime';
 import { getDatabase } from '@/domain/db/database';
 
@@ -86,7 +87,9 @@ export function createFeedsCollection(
       if (!feed) {
         throw problems.badRequest('The feed could not be added.');
       }
-      runInBackground(refreshFeed(db, getEnv(), feed).catch(() => undefined));
+      runInBackground(
+        refreshSource(db, getEnv(), sourceOf(feed)).catch(() => undefined),
+      );
       return { feed, created: true };
     },
     encode: ({ feed, created: isNew }) =>
@@ -103,9 +106,15 @@ export function createFeedsCollection(
 export const feedsCollection = createFeedsCollection();
 
 /**
- * `DELETE /api/feeds/:id`: stop following the feed. 204, 404 when there is no
- * such feed (or the id cannot name one), 401/403 when not signed in or
- * cross-site.
+ * `PATCH /api/feeds/:id`: rename, mute or file the feed under a section
+ * (`title`, `muted`, `section_id`; null clears the title or section). 200 with
+ * the feed, 400 for a body that is not a valid change or names a section that
+ * is not the person's, 415 for a non-JSON body.
+ *
+ * `DELETE /api/feeds/:id`: stop following the feed. 204.
+ *
+ * Both answer 404 when there is no such feed (or the id cannot name one), and
+ * 401/403 when not signed in or cross-site.
  */
 export function createFeedItem(
   resolver: CurrentUserResolver = requestCookieResolver,
@@ -115,25 +124,68 @@ export function createFeedItem(
       request,
       uid: await liveUid(request, resolver),
     }),
-  }).on<null, boolean>({
-    method: 'DELETE',
-    handle: async (_input, { request, uid }) => {
-      const id = parseFeedId(idOf(request));
-      return id !== undefined
-        ? new Repository(getDatabase()).removeFeed(uid, id)
-        : false;
-    },
-    encode: (removed) => (removed ? noContent() : problems.notFound('feed')),
-  });
+  })
+    .on<FeedChanges, Feed | undefined>({
+      method: 'PATCH',
+      decode: async (request) => {
+        const body = await readJsonObject(
+          request,
+          'The change must be a JSON object.',
+        );
+        if (!body.ok) {
+          throw body.response;
+        }
+        const input = parseFeedChanges(body.value);
+        if (!input.ok) {
+          throw problems.badRequest('The change is not valid.', input.errors);
+        }
+        return input.changes;
+      },
+      handle: async (changes, { request, uid }) => {
+        const id = parseFeedId(idOf(request));
+        if (id === undefined) return undefined;
+        const repo = new Repository(getDatabase());
+        if (
+          typeof changes.section_id === 'number' &&
+          !(await repo.getSection(uid, changes.section_id))
+        ) {
+          throw problems.badRequest('The change is not valid.', [
+            'section_id: no such section.',
+          ]);
+        }
+        return repo.updateFeed(uid, id, changes);
+      },
+      encode: (feed) =>
+        feed
+          ? ok(feedResource(feed), {
+              headers: { 'Cache-Control': 'no-store' },
+            })
+          : problems.notFound('feed'),
+    })
+    .on<null, boolean>({
+      method: 'DELETE',
+      handle: async (_input, { request, uid }) => {
+        const id = parseFeedId(idOf(request));
+        return id !== undefined
+          ? new Repository(getDatabase()).removeFeed(uid, id)
+          : false;
+      },
+      encode: (removed) => (removed ? noContent() : problems.notFound('feed')),
+    });
 }
 
 /** The feed-item controller bound to the production resolver. */
 export const feedItem = createFeedItem();
 
 /** The trailing path segment of `/api/feeds/:id`. */
-function idOf(request: Request): string {
+export function idOf(request: Request): string {
   const segments = new URL(request.url).pathname.split('/');
   return segments[segments.length - 1] ?? '';
+}
+
+/** The source a feed reads from, as the scraper fetches it. */
+function sourceOf(feed: Feed): { readonly id: number; readonly url: string } {
+  return { id: feed.source_id, url: feed.url };
 }
 
 /**
@@ -165,7 +217,7 @@ export function createFeedRefreshes(
       const feeds = await new Repository(db).listFeeds(uid);
       const outcomes = await Promise.all(
         feeds.map((feed) =>
-          refreshFeed(db, env, feed).then(
+          refreshSource(db, env, sourceOf(feed)).then(
             (result) => result.ok,
             () => false,
           ),

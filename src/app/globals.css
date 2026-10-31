@@ -387,6 +387,16 @@ header.mast {
 .zone {
   margin-top: 34px;
 }
+.deskhead {
+  font-family: Georgia, serif;
+  font-weight: 900;
+  font-size: 34px;
+  text-align: center;
+  border-top: 4px double var(--ink);
+  border-bottom: 4px double var(--ink);
+  padding: 6px 0;
+  margin: 28px 0 18px;
+}
 .sechead {
   display: flex;
   align-items: baseline;
@@ -887,6 +897,13 @@ button.navlink {
   align-items: center;
   padding: 12px 0;
   border-top: 1px solid var(--rule);
+}
+.feedsettings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 8px;
 }
 .feedrow .u {
   font-size: 12px;

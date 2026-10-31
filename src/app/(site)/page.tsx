@@ -31,7 +31,8 @@ export default async function Home({
   // Logged-out visitors read the hidden public user's Hacker News edition.
   const ownerId = user ? user.id : await ensurePublicUser();
 
-  const feeds = await repo.listFeeds(ownerId);
+  // Muted feeds stay followed but drop out of the paper.
+  const feeds = (await repo.listFeeds(ownerId)).filter((f) => !f.muted);
   if (!feeds.length) {
     return (
       <div className="panel">
@@ -52,19 +53,40 @@ export default async function Home({
   const selected =
     date && editions.includes(date) ? date : (editions[0] ?? todayEdition());
 
-  const sections = await Promise.all(
+  const desks = await Promise.all(
     feeds.map(async (feed) => ({
       feed,
-      articles: await repo.feedArticles(feed.id, selected),
+      articles: await repo.sourceArticles(feed.source_id, selected),
     })),
   );
+  // Feeds filed under a section print under its heading, in section order;
+  // the rest lead the paper with no heading of their own.
+  const sections = await repo.listSections(ownerId);
+  const groups = [
+    { id: null, name: null },
+    ...sections.map((s) => ({ id: s.id, name: s.name })),
+  ]
+    .map((group) => ({
+      ...group,
+      desks: desks.filter(({ feed }) =>
+        group.id === null
+          ? !sections.some((s) => s.id === feed.section_id)
+          : feed.section_id === group.id,
+      ),
+    }))
+    .filter((group) => group.desks.length);
 
   return (
     <>
       <EditionBar selected={selected} editions={editions} />
       <KeyboardShortcuts />
-      {sections.map(({ feed, articles }) => (
-        <Section key={feed.id} feed={feed} articles={articles} />
+      {groups.map((group) => (
+        <div key={group.id ?? 'unfiled'}>
+          {group.name ? <h2 className="deskhead">{group.name}</h2> : null}
+          {group.desks.map(({ feed, articles }) => (
+            <Section key={feed.id} feed={feed} articles={articles} />
+          ))}
+        </div>
       ))}
       <div className="foot">
         THE HACKER TIMES — auto-generated from your feeds, refreshed daily.

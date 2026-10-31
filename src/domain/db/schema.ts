@@ -33,32 +33,66 @@ export const users = sqliteTable('users', {
   created_at: text('created_at').default(sql`(datetime('now'))`),
 });
 
-/** A feed a user follows, unique per (user, URL). */
-export const feeds = sqliteTable(
-  'feeds',
+/**
+ * A feed address, shared by everyone who follows it so it is fetched once.
+ * `fail_count` counts the fetches that failed in a row.
+ */
+export const sources = sqliteTable('sources', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  url: text('url').notNull().unique(),
+  title: text('title'),
+  icon: text('icon'),
+  last_fetched_at: text('last_fetched_at'),
+  last_error: text('last_error'),
+  fail_count: integer('fail_count').notNull().default(0),
+  created_at: text('created_at').default(sql`(datetime('now'))`),
+});
+
+/** A heading a person groups their feeds under on the front page. */
+export const sections = sqliteTable(
+  'sections',
   {
     id: integer('id').primaryKey({ autoIncrement: true }),
     user_id: integer('user_id').notNull(),
-    url: text('url').notNull(),
-    title: text('title'),
+    name: text('name').notNull(),
+    position: integer('position').notNull().default(0),
+    created_at: text('created_at').default(sql`(datetime('now'))`),
+  },
+  (table) => [index('idx_sections_user').on(table.user_id)],
+);
+
+/**
+ * A person following a source: what the API calls a feed. Unique per
+ * (user, source); `muted` (0/1) keeps it out of the paper.
+ */
+export const subscriptions = sqliteTable(
+  'subscriptions',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    user_id: integer('user_id').notNull(),
+    source_id: integer('source_id').notNull(),
+    section_id: integer('section_id'),
+    title_override: text('title_override'),
+    muted: integer('muted').notNull().default(0),
     created_at: text('created_at').default(sql`(datetime('now'))`),
   },
   (table) => [
-    unique().on(table.user_id, table.url),
-    index('idx_feeds_user').on(table.user_id),
+    unique().on(table.user_id, table.source_id),
+    index('idx_subscriptions_user').on(table.user_id),
+    index('idx_subscriptions_source').on(table.source_id),
   ],
 );
 
 /**
- * An article scraped from a feed. The same URL can recur on different days, so
- * a row is unique per (feed, URL, edition) and each day's scrape is kept as
- * its own edition.
+ * An article scraped from a source. The same URL can recur on different days,
+ * so a row is unique per (source, URL, edition) and each day's scrape is kept
+ * as its own edition.
  */
 export const articles = sqliteTable(
   'articles',
   {
     id: integer('id').primaryKey({ autoIncrement: true }),
-    feed_id: integer('feed_id').notNull(),
+    source_id: integer('source_id').notNull(),
     url: text('url').notNull(),
     title: text('title'),
     source: text('source'),
@@ -73,8 +107,8 @@ export const articles = sqliteTable(
     fetched_at: text('fetched_at').default(sql`(datetime('now'))`),
   },
   (table) => [
-    unique().on(table.feed_id, table.url, table.edition),
-    index('idx_articles_feed_edition').on(table.feed_id, table.edition),
+    unique().on(table.source_id, table.url, table.edition),
+    index('idx_articles_source_edition').on(table.source_id, table.edition),
     index('idx_articles_edition').on(table.edition),
   ],
 );
