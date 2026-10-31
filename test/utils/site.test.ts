@@ -7,6 +7,7 @@ import {
   SITE_NAME,
   SITE_TITLE,
   SITE_URL,
+  SOURCE_URL,
   TERMS_LAST_UPDATED,
 } from '@/utils/site';
 
@@ -34,4 +35,10 @@ describe('site identity', () => {
       expect(day).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     },
   );
+});
+
+describe('the legal pages’ constants', () => {
+  it('points to the source on GitHub', () => {
+    expect(SOURCE_URL).toBe('https://github.com/mridang/broadsheet');
+  });
 });

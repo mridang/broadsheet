@@ -60,7 +60,9 @@ describe('PrivacyPage', () => {
   });
 
   it('links back home', () => {
-    expect(out).toMatch(/<a [^>]*href="\/"[^>]*>.*Back to the paper<\/a>/);
+    expect(out).toMatch(
+      /<a [^>]*href="\/"[^>]*>.*Back to The Hacker Times<\/a>/,
+    );
   });
 });
 

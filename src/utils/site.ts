@@ -17,6 +17,8 @@ export const SITE_TITLE = 'The Hacker Times';
 export const SITE_DESCRIPTION =
   'A personalised daily newspaper, generated fresh from the feeds you follow.';
 
+/** Where the source code lives. */
+export const SOURCE_URL = 'https://github.com/mridang/broadsheet';
 /** Where people write to about their data or these terms. */
 export const CONTACT_EMAIL = 'mridang.agarwalla@gmail.com';
 /** The day the privacy policy last changed, for the page and the sitemap. */

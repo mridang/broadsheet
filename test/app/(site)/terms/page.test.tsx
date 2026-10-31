@@ -20,6 +20,7 @@ describe('TermsPage', () => {
       'Using The Hacker Times',
       'The articles',
       'The service',
+      'Open source',
       'Your data',
       'Contact',
     ]) {
@@ -36,6 +37,12 @@ describe('TermsPage', () => {
     expect(out).toContain('without warranty of any');
   });
 
+  it('links the source in a new tab', () => {
+    expect(out).toMatch(
+      /<a href="https:\/\/github\.com\/mridang\/broadsheet" target="_blank"[^>]*>GitHub<\/a>/,
+    );
+  });
+
   it('points to the privacy policy for data', () => {
     expect(out).toMatch(/<a [^>]*href="\/privacy"[^>]*>privacy policy<\/a>/);
   });
@@ -45,7 +52,9 @@ describe('TermsPage', () => {
   });
 
   it('links back home', () => {
-    expect(out).toMatch(/<a [^>]*href="\/"[^>]*>.*Back to the paper<\/a>/);
+    expect(out).toMatch(
+      /<a [^>]*href="\/"[^>]*>.*Back to The Hacker Times<\/a>/,
+    );
   });
 });
 
