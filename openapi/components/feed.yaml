@@ -1,0 +1,13 @@
+Feed:
+  type: object
+  required: [id, url]
+  properties:
+    id:
+      type: string
+    url:
+      type: string
+    title:
+      type: string
+    created_at:
+      type: string
+      format: date-time

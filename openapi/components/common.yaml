@@ -1,0 +1,63 @@
+responses:
+  BadRequest:
+    description: The request is not valid. `errors` names the failing fields.
+    content:
+      application/problem+json:
+        schema:
+          $ref: '#/schemas/Problem'
+  Unauthorized:
+    description: Nobody is signed in, or the session has been ended.
+    content:
+      application/problem+json:
+        schema:
+          $ref: '#/schemas/Problem'
+  Forbidden:
+    description: The request came from another site.
+    content:
+      application/problem+json:
+        schema:
+          $ref: '#/schemas/Problem'
+  NotFound:
+    description: There is no such resource for this person.
+    content:
+      application/problem+json:
+        schema:
+          $ref: '#/schemas/Problem'
+  UnsupportedMediaType:
+    description: The request body is not JSON.
+    content:
+      application/problem+json:
+        schema:
+          $ref: '#/schemas/Problem'
+  TooManyRequests:
+    description: The platform rate limit was reached.
+    headers:
+      Retry-After:
+        description: Seconds to wait before trying again.
+        schema:
+          type: integer
+    content:
+      application/problem+json:
+        schema:
+          $ref: '#/schemas/Problem'
+schemas:
+  Problem:
+    type: object
+    description: An RFC 9457 problem document.
+    required: [type, title, status]
+    properties:
+      type:
+        type: string
+        description: A relative URI naming the kind of problem.
+        examples: [/problems/bad-request]
+      title:
+        type: string
+      status:
+        type: integer
+      detail:
+        type: string
+      errors:
+        type: array
+        description: Per-field validation messages.
+        items:
+          type: string

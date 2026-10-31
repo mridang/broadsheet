@@ -1,0 +1,99 @@
+collection:
+  post:
+    operationId: followFeed
+    tags: [feeds]
+    summary: Follow a feed.
+    description: Rate limited by the `RL_API` binding. The first edition of a new feed is fetched in the background.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [url]
+            properties:
+              url:
+                type: string
+                description: An http(s) address, at most 2048 characters.
+    responses:
+      '200':
+        description: The person already follows this address.
+        headers:
+          Location:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: '../components/feed.yaml#/Feed'
+      '201':
+        description: The feed is now followed.
+        headers:
+          Location:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: '../components/feed.yaml#/Feed'
+      '400':
+        $ref: '../components/common.yaml#/responses/BadRequest'
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '403':
+        $ref: '../components/common.yaml#/responses/Forbidden'
+      '415':
+        $ref: '../components/common.yaml#/responses/UnsupportedMediaType'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'
+item:
+  delete:
+    operationId: unfollowFeed
+    tags: [feeds]
+    summary: Stop following a feed.
+    description: Rate limited by the `RL_API` binding. An id that cannot name a feed is a 404.
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: '^[1-9][0-9]{0,14}$'
+    responses:
+      '204':
+        description: The feed is no longer followed.
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '403':
+        $ref: '../components/common.yaml#/responses/Forbidden'
+      '404':
+        $ref: '../components/common.yaml#/responses/NotFound'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'
+refreshes:
+  post:
+    operationId: refreshFeeds
+    tags: [feeds]
+    summary: Fetch every feed the person follows again now.
+    description: A refresh is not stored, so the result is the response and the answer is 200, not 201. Rate limited by the `RL_API` binding.
+    responses:
+      '200':
+        description: How many feeds there were and how many refreshed or failed.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [feeds, refreshed, failed]
+              properties:
+                feeds:
+                  type: integer
+                refreshed:
+                  type: integer
+                failed:
+                  type: integer
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '403':
+        $ref: '../components/common.yaml#/responses/Forbidden'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'
