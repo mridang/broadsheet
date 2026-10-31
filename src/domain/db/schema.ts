@@ -220,3 +220,57 @@ export const messages = sqliteTable(
   },
   (table) => [index('idx_messages_conversation').on(table.conversation_id)],
 );
+
+/**
+ * An assistant that registered itself to connect to `/mcp`. `redirect_uris`
+ * is a JSON array; clients are public and prove themselves with PKCE.
+ */
+export const oauth_clients = sqliteTable('oauth_clients', {
+  client_id: text('client_id').primaryKey(),
+  client_name: text('client_name').notNull(),
+  redirect_uris: text('redirect_uris').notNull(),
+  created_at: text('created_at')
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
+/** One person's approval of one client; revoking it ends its tokens. */
+export const oauth_grants = sqliteTable(
+  'oauth_grants',
+  {
+    id: text('id').primaryKey(),
+    user_id: integer('user_id').notNull(),
+    client_id: text('client_id').notNull(),
+    scope: text('scope').notNull(),
+    resource: text('resource').notNull(),
+    created_at: text('created_at')
+      .notNull()
+      .default(sql`(datetime('now'))`),
+    revoked_at: text('revoked_at'),
+  },
+  (table) => [index('idx_oauth_grants_user').on(table.user_id)],
+);
+
+/** A single-use authorization code, stored as its hash. */
+export const oauth_codes = sqliteTable('oauth_codes', {
+  code_hash: text('code_hash').primaryKey(),
+  client_id: text('client_id').notNull(),
+  user_id: integer('user_id').notNull(),
+  redirect_uri: text('redirect_uri').notNull(),
+  code_challenge: text('code_challenge').notNull(),
+  scope: text('scope').notNull(),
+  resource: text('resource').notNull(),
+  expires_at: integer('expires_at').notNull(),
+});
+
+/** An access or refresh token, stored as its hash; `kind` says which. */
+export const oauth_tokens = sqliteTable(
+  'oauth_tokens',
+  {
+    token_hash: text('token_hash').primaryKey(),
+    kind: text('kind').notNull(),
+    grant_id: text('grant_id').notNull(),
+    expires_at: integer('expires_at').notNull(),
+  },
+  (table) => [index('idx_oauth_tokens_grant').on(table.grant_id)],
+);

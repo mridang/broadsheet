@@ -18,19 +18,22 @@ The Hacker Times: a personalised daily newspaper that turns web feeds into a pri
 
 ## Routes
 
-| Route                           | What                                                                                    |
-| ------------------------------- | --------------------------------------------------------------------------------------- |
-| `/`                             | The front page: the Hacker News edition, or the signed-in user's paper                  |
-| `/feeds`                        | Manage feeds (signed in)                                                                |
-| `/login`                        | The sign-in page: one "Sign in with Google" button                                      |
-| `/auth/login`, `/auth/callback` | Google sign-in (identity only: `openid email profile`)                                  |
-| `/api/sessions/self`            | `DELETE` signs out                                                                      |
-| `/api/sessions`                 | `DELETE` signs out everywhere (ends every session of the signed-in person)              |
-| `/api/feeds`, `/api/feeds/{id}` | `POST` follows a feed (201 + `Location`), `DELETE` unfollows one (signed in)            |
-| `/api/feeds/refreshes`          | `POST` re-fetches the signed-in user's feeds and answers how many were refreshed        |
-| `/health`                       | Plain `ok`                                                                              |
-| `/img`                          | Image proxy: scales and caches remote pictures (`?url=&w=&sig=`), signed addresses only |
-| `/csp/reports`                  | Receives Content Security Policy violation reports                                      |
+| Route                           | What                                                                                       |
+| ------------------------------- | ------------------------------------------------------------------------------------------ |
+| `/`                             | The front page: the Hacker News edition, or the signed-in user's paper                     |
+| `/feeds`                        | Manage feeds (signed in)                                                                   |
+| `/login`                        | The sign-in page: one "Sign in with Google" button                                         |
+| `/auth/login`, `/auth/callback` | Google sign-in (identity only: `openid email profile`)                                     |
+| `/api/sessions/self`            | `DELETE` signs out                                                                         |
+| `/api/sessions`                 | `DELETE` signs out everywhere (ends every session of the signed-in person)                 |
+| `/api/feeds`, `/api/feeds/{id}` | `POST` follows a feed (201 + `Location`), `DELETE` unfollows one (signed in)               |
+| `/api/feeds/refreshes`          | `POST` re-fetches the signed-in user's feeds and answers how many were refreshed           |
+| `/mcp`                          | MCP server for assistants (Claude, ChatGPT): feeds, today's paper, search, saves, training |
+| `/oauth/*`                      | OAuth 2.1 for `/mcp`: register, authorize (Google sign-in, then approve), token, revoke    |
+| `/.well-known/oauth-*`          | Discovery documents that point an assistant at the OAuth endpoints                         |
+| `/health`                       | Plain `ok`                                                                                 |
+| `/img`                          | Image proxy: scales and caches remote pictures (`?url=&w=&sig=`), signed addresses only    |
+| `/csp/reports`                  | Receives Content Security Policy violation reports                                         |
 
 The security headers and the nonce-based Content Security Policy are added by the Worker itself (`src/lib/http`), not by Next.js.
 
