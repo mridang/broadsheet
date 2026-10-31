@@ -116,6 +116,12 @@ export interface CappedFetchOptions {
   readonly userAgent?: string;
   /** The function that fetches; the real `fetch` when left out. */
   readonly fetcher?: SafeFetcher;
+  /** The method to send (`GET` when left out). */
+  readonly method?: string;
+  /** Extra request headers (a webhook's signature, a push's encoding). */
+  readonly headers?: Readonly<Record<string, string>>;
+  /** The request body, for a `POST`. */
+  readonly body?: BodyInit;
 }
 
 /** Why a fetch gave nothing. */
@@ -237,10 +243,13 @@ async function fetchHop(
   }
   const fetcher = options.fetcher ?? realFetch;
   const response = await fetcher(url, {
+    method: options.method ?? 'GET',
     headers: {
+      ...options.headers,
       Accept: options.accept,
       'User-Agent': options.userAgent ?? DEFAULT_USER_AGENT,
     },
+    body: options.body,
     // Redirects are followed here, one at a time, so that every address we
     // end up at has been checked.
     redirect: 'manual',

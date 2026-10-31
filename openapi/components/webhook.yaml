@@ -1,0 +1,36 @@
+WebhookEvents:
+  type: array
+  minItems: 1
+  uniqueItems: true
+  items:
+    type: string
+    enum: [save, like]
+WebhookInput:
+  type: object
+  additionalProperties: false
+  required: [url, events]
+  properties:
+    url:
+      type: string
+      format: uri
+      pattern: '^https://'
+      maxLength: 2048
+    events:
+      $ref: '#/WebhookEvents'
+Webhook:
+  type: object
+  required: [id, url, events]
+  properties:
+    id:
+      type: string
+    url:
+      type: string
+      format: uri
+    events:
+      $ref: '#/WebhookEvents'
+    secret:
+      type: string
+      description: Signs each delivery. Only in the answer that made the webhook.
+    created_at:
+      type: string
+      format: date-time

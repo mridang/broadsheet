@@ -33,6 +33,7 @@ import {
   type ClassifierInput,
 } from '@/domain/repository';
 import { getDatabase } from '@/domain/db/database';
+import { fireWebhooks } from '@/domain/notify';
 
 /** The signed-in caller's id and the request, for a classifier endpoint. */
 interface UidContext {
@@ -93,8 +94,16 @@ export function createClassifiersCollection(
         }
         return input.input;
       },
-      handle: (input, { uid }) =>
-        new Repository(getDatabase()).addClassifier(uid, input),
+      handle: async (input, { uid }) => {
+        const result = await new Repository(getDatabase()).addClassifier(
+          uid,
+          input,
+        );
+        if (result.classifier.score > 0) {
+          fireWebhooks(uid, 'like', classifierResource(result.classifier));
+        }
+        return result;
+      },
       encode: (result) =>
         result.created
           ? created(

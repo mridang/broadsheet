@@ -1,0 +1,52 @@
+collection:
+  post:
+    operationId: addFeedToken
+    tags: [tokens]
+    summary: Make a token a feed reader can fetch `/feed.xml` with.
+    description: Rate limited by the `RL_API` binding. The answer carries the `token` and its `feed_url` once; only a hash is kept. `/feed.xml?token=` serves Atom for the saved stories (optionally one tag), one section, or the whole edition.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/token.yaml#/FeedTokenInput'
+    responses:
+      '201':
+        description: The token is made.
+        headers:
+          Location:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: '../components/token.yaml#/FeedToken'
+      '400':
+        $ref: '../components/common.yaml#/responses/BadRequest'
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '403':
+        $ref: '../components/common.yaml#/responses/Forbidden'
+      '415':
+        $ref: '../components/common.yaml#/responses/UnsupportedMediaType'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'
+item:
+  parameters:
+    - $ref: '../components/common.yaml#/parameters/Id'
+  delete:
+    operationId: revokeFeedToken
+    tags: [tokens]
+    summary: Revoke a feed token.
+    description: Rate limited by the `RL_API` binding.
+    responses:
+      '204':
+        description: The token no longer opens its feed.
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '403':
+        $ref: '../components/common.yaml#/responses/Forbidden'
+      '404':
+        $ref: '../components/common.yaml#/responses/NotFound'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'

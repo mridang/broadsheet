@@ -77,6 +77,8 @@ export const PRIVATE_PATHS: readonly string[] = [
   '/feeds',
   '/login',
   '/saved',
+  '/settings',
+  '/feed.xml',
   '/api/',
   '/auth/',
 ];

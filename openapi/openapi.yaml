@@ -6,7 +6,7 @@ info:
   description: |
     The REST contract under `/api` follows the [Zalando RESTful API Guidelines](https://opensource.zalando.com/restful-api-guidelines/) with the deviations in the `api-design` skill: JSON properties are snake_case, ids are opaque strings, timestamps are RFC 3339, and every error is `application/problem+json`.
 
-    Every route needs a signed-in session (the `broadsheet_session` cookie set by the browser sign-in flow) and acts for that person. A request that changes something must come from the app's own pages: a cross-site request is refused with `403`. Requests are rate limited by the platform, and a blocked request is answered with `429` and `Retry-After`.
+    Every route except `GET /api/push/configuration` needs a signed-in session (the `broadsheet_session` cookie set by the browser sign-in flow) and acts for that person. A request that changes something must come from the app's own pages: a cross-site request is refused with `403`. Requests are rate limited by the platform, and a blocked request is answered with `429` and `Retry-After`.
 
     Each resource lives in its own file under `paths/`, so new resources are added without touching the others. Add a path here that points at the new file.
   license:
@@ -22,12 +22,16 @@ tags:
   - name: classifiers
   - name: editions
   - name: conversations
+  - name: emails
   - name: feeds
+  - name: push
   - name: sections
   - name: reads
   - name: saves
   - name: sessions
+  - name: tokens
   - name: topics
+  - name: webhooks
 paths:
   /api/articles:
     $ref: './paths/articles.yaml#/collection'
@@ -43,6 +47,8 @@ paths:
     $ref: './paths/conversations.yaml#/item'
   /api/conversations/{id}/messages:
     $ref: './paths/conversations.yaml#/messages'
+  /api/articles/{id}/emails:
+    $ref: './paths/emails.yaml#/collection'
   /api/feeds:
     $ref: './paths/feeds.yaml#/collection'
   /api/feeds/{id}:
@@ -55,6 +61,8 @@ paths:
     $ref: './paths/feeds.yaml#/suggestions'
   /api/feeds/refreshes:
     $ref: './paths/feeds.yaml#/refreshes'
+  /api/push/configuration:
+    $ref: './paths/push.yaml#/configuration'
   /api/sections:
     $ref: './paths/sections.yaml#/collection'
   /api/sections/{id}:
@@ -75,6 +83,18 @@ paths:
     $ref: './paths/saves.yaml#/collection'
   /api/users/self/saves/{article_id}:
     $ref: './paths/saves.yaml#/item'
+  /api/users/self/push/subscriptions:
+    $ref: './paths/push.yaml#/subscriptions'
+  /api/users/self/push/subscriptions/{id}:
+    $ref: './paths/push.yaml#/subscription'
+  /api/users/self/tokens:
+    $ref: './paths/tokens.yaml#/collection'
+  /api/users/self/tokens/{id}:
+    $ref: './paths/tokens.yaml#/item'
+  /api/users/self/webhooks:
+    $ref: './paths/webhooks.yaml#/collection'
+  /api/users/self/webhooks/{id}:
+    $ref: './paths/webhooks.yaml#/item'
 components:
   securitySchemes:
     session:

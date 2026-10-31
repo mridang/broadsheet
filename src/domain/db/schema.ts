@@ -274,3 +274,56 @@ export const oauth_tokens = sqliteTable(
   },
   (table) => [index('idx_oauth_tokens_grant').on(table.grant_id)],
 );
+
+/**
+ * A browser that asked to be told when the day's issue is ready: the push
+ * service `endpoint` and the keys (`p256dh`, `auth`) its payloads are
+ * encrypted to.
+ */
+export const push_subscriptions = sqliteTable(
+  'push_subscriptions',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    user_id: integer('user_id').notNull(),
+    endpoint: text('endpoint').notNull().unique(),
+    p256dh: text('p256dh').notNull(),
+    auth: text('auth').notNull(),
+    created_at: text('created_at').default(sql`(datetime('now'))`),
+  },
+  (table) => [index('idx_push_subscriptions_user').on(table.user_id)],
+);
+
+/**
+ * An address told when the person saves or likes something. `events` is a
+ * JSON array; `secret` signs each delivery.
+ */
+export const webhooks = sqliteTable(
+  'webhooks',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    user_id: integer('user_id').notNull(),
+    url: text('url').notNull(),
+    events: text('events').notNull().default('[]'),
+    secret: text('secret').notNull(),
+    created_at: text('created_at').default(sql`(datetime('now'))`),
+  },
+  (table) => [index('idx_webhooks_user').on(table.user_id)],
+);
+
+/**
+ * A token a feed reader fetches `/feed.xml` with. Only its SHA-256 is kept.
+ * `scope` is saves (optionally one `tag`), section (`section_id`) or edition.
+ */
+export const feed_tokens = sqliteTable(
+  'feed_tokens',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    user_id: integer('user_id').notNull(),
+    token_hash: text('token_hash').notNull().unique(),
+    scope: text('scope').notNull(),
+    tag: text('tag'),
+    section_id: integer('section_id'),
+    created_at: text('created_at').default(sql`(datetime('now'))`),
+  },
+  (table) => [index('idx_feed_tokens_user').on(table.user_id)],
+);

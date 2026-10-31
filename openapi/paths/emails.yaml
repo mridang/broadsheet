@@ -1,0 +1,37 @@
+collection:
+  parameters:
+    - $ref: '../components/common.yaml#/parameters/Id'
+  post:
+    operationId: emailArticle
+    tags: [emails]
+    summary: Email a story to one address.
+    description: Rate limited by the `RL_API` binding. Sent through Cloudflare Email Sending; answers 503 until it is set up on the server.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/email.yaml#/EmailInput'
+    responses:
+      '202':
+        description: The mail service took the email.
+        content:
+          application/json:
+            schema:
+              $ref: '../components/email.yaml#/EmailAccepted'
+      '400':
+        $ref: '../components/common.yaml#/responses/BadRequest'
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '403':
+        $ref: '../components/common.yaml#/responses/Forbidden'
+      '404':
+        $ref: '../components/common.yaml#/responses/NotFound'
+      '415':
+        $ref: '../components/common.yaml#/responses/UnsupportedMediaType'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'
+      '502':
+        $ref: '../components/common.yaml#/responses/BadGateway'
+      '503':
+        $ref: '../components/common.yaml#/responses/ServiceUnavailable'

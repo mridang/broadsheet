@@ -26,6 +26,8 @@ function loadWorker(options: {
     skipped: 0,
     shown: [] as { title: string; options: Record<string, unknown> }[],
     opened: [] as string[],
+    fetched: [] as { url: string; init?: Record<string, unknown> }[],
+    subscribedWith: [] as Record<string, unknown>[],
   };
   const windows: { url: string; focus: jest.Mock; navigate: jest.Mock }[] = [];
   const self = {
@@ -54,6 +56,12 @@ function loadWorker(options: {
       ) => {
         calls.shown.push({ title, options: notification });
       },
+      pushManager: {
+        subscribe: async (subscribeOptions: Record<string, unknown>) => {
+          calls.subscribedWith.push(subscribeOptions);
+          return { toJSON: () => ({ endpoint: 'https://push.test/renewed' }) };
+        },
+      },
       navigationPreload: options.preload
         ? {
             enable: async () => {
@@ -70,7 +78,8 @@ function loadWorker(options: {
     URL,
     URLSearchParams,
     console,
-    fetch: async () => {
+    fetch: async (url: string, init?: Record<string, unknown>) => {
+      calls.fetched.push({ url, init });
       if (!options.online) {
         throw new TypeError('offline');
       }
@@ -109,6 +118,7 @@ describe('public/sw.js', () => {
       'install',
       'notificationclick',
       'push',
+      'pushsubscriptionchange',
     ]);
   });
 
@@ -337,4 +347,69 @@ describe('public/sw.js: tapping a notification', () => {
     expect(navigate).toHaveBeenCalledWith('https://app.example/x');
     expect(worker.calls.opened).toEqual([]);
   });
+});
+
+/** Fires a `pushsubscriptionchange` and waits for the worker to finish with it. */
+async function renew(
+  worker: ReturnType<typeof loadWorker>,
+  event: Record<string, unknown>,
+): Promise<void> {
+  const waited: Promise<unknown>[] = [];
+  worker.listeners.get('pushsubscriptionchange')?.({
+    ...event,
+    waitUntil: (p: Promise<unknown>) => waited.push(p),
+  } as never);
+  await Promise.all(waited);
+}
+
+describe('public/sw.js: pushsubscriptionchange', () => {
+  const query = '?push=%2Fapi%2Fusers%2Fself%2Fpush%2Fsubscriptions';
+
+  it('posts the new subscription the browser hands over to the push path', async () => {
+    const worker = loadWorker({ online: true, preload: false, query });
+    await renew(worker, {
+      newSubscription: {
+        toJSON: () => ({ endpoint: 'https://push.test/new' }),
+      },
+    });
+    expect(worker.calls.fetched).toEqual([
+      {
+        url: '/api/users/self/push/subscriptions',
+        init: expect.objectContaining({
+          method: 'POST',
+          body: '{"endpoint":"https://push.test/new"}',
+        }),
+      },
+    ]);
+  });
+
+  it('subscribes again with the old key when the browser hands over none', async () => {
+    const worker = loadWorker({ online: true, preload: false, query });
+    await renew(worker, {
+      oldSubscription: { options: { applicationServerKey: 'key' } },
+    });
+    expect(worker.calls.subscribedWith).toEqual([
+      { userVisibleOnly: true, applicationServerKey: 'key' },
+    ]);
+    expect(worker.calls.fetched[0]?.init?.['body']).toBe(
+      '{"endpoint":"https://push.test/renewed"}',
+    );
+  });
+
+  it('does nothing without a subscription to post', async () => {
+    const worker = loadWorker({ online: true, preload: false, query });
+    await renew(worker, {});
+    expect(worker.calls.fetched).toEqual([]);
+  });
+
+  it.each(['', '?push=https%3A%2F%2Fevil.test%2Fx', '?push=%2F%2Fevil.test'])(
+    'posts nowhere when the push path %s is not on this site',
+    async (q) => {
+      const worker = loadWorker({ online: true, preload: false, query: q });
+      await renew(worker, {
+        newSubscription: { toJSON: () => ({}) },
+      });
+      expect(worker.calls.fetched).toEqual([]);
+    },
+  );
 });

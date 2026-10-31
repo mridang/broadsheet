@@ -1,0 +1,15 @@
+EmailInput:
+  type: object
+  additionalProperties: false
+  required: [to]
+  properties:
+    to:
+      type: string
+      format: email
+EmailAccepted:
+  type: object
+  required: [status]
+  properties:
+    status:
+      type: string
+      enum: [accepted]

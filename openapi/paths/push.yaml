@@ -1,0 +1,80 @@
+configuration:
+  get:
+    operationId: getPushConfiguration
+    tags: [push]
+    summary: The VAPID public key a browser subscribes to pushes with.
+    description: Public. Rate limited by the `RL_API` binding.
+    security: []
+    responses:
+      '200':
+        description: The push configuration.
+        content:
+          application/json:
+            schema:
+              $ref: '../components/push.yaml#/PushConfiguration'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'
+      '503':
+        $ref: '../components/common.yaml#/responses/ServiceUnavailable'
+subscriptions:
+  post:
+    operationId: subscribeToPush
+    tags: [push]
+    summary: Notify this browser when the day's issue is ready.
+    description: Rate limited by the `RL_API` binding. The body is what the browser's `PushSubscription.toJSON()` gives. Posting an endpoint already known moves it to the caller with the keys sent and answers 200.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/push.yaml#/PushSubscriptionInput'
+    responses:
+      '200':
+        description: The endpoint was known; it is now the caller's.
+        headers:
+          Location:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: '../components/push.yaml#/PushSubscription'
+      '201':
+        description: The browser will be notified.
+        headers:
+          Location:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: '../components/push.yaml#/PushSubscription'
+      '400':
+        $ref: '../components/common.yaml#/responses/BadRequest'
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '403':
+        $ref: '../components/common.yaml#/responses/Forbidden'
+      '415':
+        $ref: '../components/common.yaml#/responses/UnsupportedMediaType'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'
+subscription:
+  parameters:
+    - $ref: '../components/common.yaml#/parameters/Id'
+  delete:
+    operationId: unsubscribeFromPush
+    tags: [push]
+    summary: Stop notifying a browser.
+    description: Rate limited by the `RL_API` binding.
+    responses:
+      '204':
+        description: The browser will no longer be notified.
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '403':
+        $ref: '../components/common.yaml#/responses/Forbidden'
+      '404':
+        $ref: '../components/common.yaml#/responses/NotFound'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'

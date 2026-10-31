@@ -1,0 +1,115 @@
+import { beforeEach, describe, expect, it } from '@jest/globals';
+
+import { databaseFrom, type Database } from '@/domain/db/database';
+import { serveFeed } from '@/domain/feed-out';
+import { OutboundRepository, type FeedTokenInput } from '@/domain/outbound';
+import { Repository } from '@/domain/repository';
+import { sha256Hex } from '@/lib/outbound/tokens';
+import type { ScrapedItem } from '@/lib/scraping';
+import { APP_MIGRATIONS } from '../lib/core/db/migrations';
+import { sqliteD1 } from '../lib/core/db/sqlite-d1';
+
+let db: Database;
+const ORIGIN = 'https://paper.test';
+
+beforeEach(() => {
+  db = databaseFrom(sqliteD1(...APP_MIGRATIONS).d1);
+});
+
+const story = (url: string, title: string): ScrapedItem => ({
+  url,
+  title,
+  source: 'Src',
+  favicon: '',
+  summary: '',
+  image: '',
+  published_at: '',
+  points: 0,
+});
+
+/** A token for person 1 with this scope; the token text. */
+async function token(input: FeedTokenInput): Promise<string> {
+  await new OutboundRepository(db).addFeedToken(1, await sha256Hex('t'), input);
+  return 't';
+}
+
+const fetchFeed = (query: string) =>
+  serveFeed(
+    new Request(`${ORIGIN}/feed.xml${query}`),
+    db,
+    ORIGIN,
+    new Date('2026-10-03T00:00:00Z'),
+  );
+
+/** Person 1 follows two feeds, one in a section, with today's stories. */
+async function paper(): Promise<{ sectionId: number; articleId: number }> {
+  const repo = new Repository(db);
+  const section = await repo.addSection(1, 'Tech');
+  const a = (await repo.addFeed(1, 'https://a.test/f'))!;
+  const b = (await repo.addFeed(1, 'https://b.test/f'))!;
+  await repo.updateFeed(1, a.id, { section_id: section.id });
+  await repo.writeEdition(a.source_id, '2026-10-02', [
+    story('https://x/a', 'Alpha'),
+  ]);
+  await repo.writeEdition(b.source_id, '2026-10-02', [
+    story('https://x/b', 'Beta'),
+  ]);
+  const [article] = await repo.sourceArticles(a.source_id, '2026-10-02');
+  return { sectionId: section.id, articleId: article!.id };
+}
+
+describe('serveFeed', () => {
+  it('serves the saves with one tag as Atom', async () => {
+    const { articleId } = await paper();
+    const repo = new Repository(db);
+    await repo.saveArticle(1, articleId, ['rust']);
+    const res = await fetchFeed(
+      `?token=${await token({ scope: 'saves', tag: 'rust' })}`,
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe(
+      'application/atom+xml; charset=utf-8',
+    );
+    const xml = await res.text();
+    expect(xml).toContain('Saved: rust');
+    expect(xml).toContain('<title>Alpha</title>');
+  });
+
+  it('serves one section', async () => {
+    const { sectionId } = await paper();
+    const xml = await (
+      await fetchFeed(
+        `?token=${await token({ scope: 'section', section_id: sectionId })}`,
+      )
+    ).text();
+    expect(xml).toContain('<title>Alpha</title>');
+    expect(xml).not.toContain('<title>Beta</title>');
+  });
+
+  it('serves the whole edition', async () => {
+    await paper();
+    const xml = await (
+      await fetchFeed(`?token=${await token({ scope: 'edition' })}`)
+    ).text();
+    expect(xml).toContain('<title>Alpha</title>');
+    expect(xml).toContain('<title>Beta</title>');
+    expect(xml).toContain('<updated>2026-10-02T00:00:00Z</updated>');
+  });
+
+  it('refuses a request without a token in plain text', async () => {
+    const res = await fetchFeed('');
+    expect(res.status).toBe(400);
+    expect(res.headers.get('content-type')).toBe('text/plain; charset=utf-8');
+  });
+
+  it('answers 404 for an unknown token', async () => {
+    expect((await fetchFeed('?token=nope')).status).toBe(404);
+  });
+
+  it('answers 404 when the section has gone', async () => {
+    const { sectionId } = await paper();
+    const t = await token({ scope: 'section', section_id: sectionId });
+    await new Repository(db).removeSection(1, sectionId);
+    expect((await fetchFeed(`?token=${t}`)).status).toBe(404);
+  });
+});

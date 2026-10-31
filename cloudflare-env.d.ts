@@ -11,6 +11,18 @@ interface CloudflareEnv extends Cloudflare.Env {
   GOOGLE_OAUTH_CLIENT_SECRET: string;
   /** Secret that signs the session cookie. Required: with none, signing in is refused. */
   SESSION_SECRET: string;
+  /** The Web Push VAPID public key: the uncompressed P-256 point, base64url. */
+  VAPID_PUBLIC_KEY: string;
+  /** The Web Push VAPID private key: the P-256 scalar, base64url. */
+  VAPID_PRIVATE_KEY: string;
+  /**
+   * Cloudflare Email Sending, for emailing a story. Optional: until the domain
+   * is onboarded and the `send_email` binding is added, the API answers 503
+   * and the app offers a mailto link instead.
+   */
+  EMAIL?: SendEmail;
+  /** The address stories are emailed from, on the onboarded domain. */
+  EMAIL_FROM?: string;
   /**
    * Public origin, e.g. https://broadsheet.apps.mrida.ng. Optional; derived
    * from the request when unset (local dev).

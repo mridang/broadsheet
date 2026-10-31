@@ -8,7 +8,8 @@
  * What differs from app to app (its name and colours) arrives in the query
  * string of the address it is registered at: `/sw.js?name=...&theme=...&background=...`
  * (see `components/site/service-worker.tsx`). A worker cannot import the app's
- * own modules, and this keeps one file for every app.
+ * own modules, and this keeps one file for every app. An app that sends pushes
+ * also passes `push=<path>`, where a renewed push subscription is posted.
  */
 
 const PARAMS = new URL(self.location.href).searchParams;
@@ -156,5 +157,45 @@ self.addEventListener('notificationclick', (event) => {
         }
         return self.clients.openWindow(url);
       }),
+  );
+});
+
+/*
+ * The browser may replace a push subscription (its keys expired or were
+ * rotated). The new one is posted to the app's `push` path, so pushes keep
+ * arriving; the old one is forgotten the next time the push service says it
+ * is gone.
+ */
+const PUSH_PATH = PARAMS.get('push');
+
+async function resubscribe(event) {
+  const key = event.oldSubscription?.options?.applicationServerKey;
+  const renewed =
+    event.newSubscription ??
+    (key
+      ? await self.registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: key,
+        })
+      : null);
+  if (!renewed) {
+    return;
+  }
+  await fetch(PUSH_PATH, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(renewed.toJSON()),
+  });
+}
+
+self.addEventListener('pushsubscriptionchange', (event) => {
+  if (!PUSH_PATH || !PUSH_PATH.startsWith('/') || PUSH_PATH.startsWith('//')) {
+    return;
+  }
+  event.waitUntil(
+    resubscribe(event).catch((error) =>
+      console.error('[sw] resubscribing failed:', error),
+    ),
   );
 });

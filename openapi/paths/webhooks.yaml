@@ -1,0 +1,55 @@
+collection:
+  post:
+    operationId: addWebhook
+    tags: [webhooks]
+    summary: Tell an https address whenever the person saves or likes a story.
+    description: |
+      Rate limited by the `RL_API` binding. The answer carries the `secret` once; it is never shown again.
+
+      Each delivery is a `POST` of `{event, occurred_at, data}` as JSON, where `data` is the save or the classifier. It carries `Webhook-Timestamp` (seconds since the epoch) and `Webhook-Signature: sha256=<hex>`, the HMAC-SHA256 of `<timestamp>.<body>` under the secret. Redirects are not followed.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/webhook.yaml#/WebhookInput'
+    responses:
+      '201':
+        description: The webhook is added.
+        headers:
+          Location:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: '../components/webhook.yaml#/Webhook'
+      '400':
+        $ref: '../components/common.yaml#/responses/BadRequest'
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '403':
+        $ref: '../components/common.yaml#/responses/Forbidden'
+      '415':
+        $ref: '../components/common.yaml#/responses/UnsupportedMediaType'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'
+item:
+  parameters:
+    - $ref: '../components/common.yaml#/parameters/Id'
+  delete:
+    operationId: removeWebhook
+    tags: [webhooks]
+    summary: Stop delivering to a webhook.
+    description: Rate limited by the `RL_API` binding.
+    responses:
+      '204':
+        description: The webhook is gone.
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '403':
+        $ref: '../components/common.yaml#/responses/Forbidden'
+      '404':
+        $ref: '../components/common.yaml#/responses/NotFound'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'

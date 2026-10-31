@@ -153,6 +153,21 @@ describe('fetchCapped', () => {
     expect(init?.cf).toEqual({ cacheEverything: true, cacheTtl: 60 });
   });
 
+  it('sends the method, headers and body it is given', async () => {
+    const { fetcher, calls } = serving(new Response('x'));
+    await fetchCapped('https://a.com/x', {
+      ...OPTIONS,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+      fetcher,
+    });
+    const init = calls[0]?.init;
+    expect(init?.method).toBe('POST');
+    expect(init?.body).toBe('{}');
+    expect(init?.headers).toMatchObject({ 'Content-Type': 'application/json' });
+  });
+
   it('sends nothing for an address it will not fetch', async () => {
     const { fetcher, calls } = serving(new Response('x'));
     const result = await fetchCapped('http://127.0.0.1:8080/', {

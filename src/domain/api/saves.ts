@@ -26,6 +26,7 @@ import {
 } from '@/lib/core/api';
 import { Repository, type SavedStory } from '@/domain/repository';
 import { getDatabase } from '@/domain/db/database';
+import { fireWebhooks } from '@/domain/notify';
 
 /** The signed-in caller's id and the request, for a save endpoint. */
 interface UidContext {
@@ -120,9 +121,12 @@ export function createSaveItem(
         },
         handle: async (tags, { request, uid }) => {
           const id = parseFeedId(idOf(request));
-          return id !== undefined
-            ? new Repository(getDatabase()).saveArticle(uid, id, tags)
-            : undefined;
+          const result =
+            id !== undefined
+              ? await new Repository(getDatabase()).saveArticle(uid, id, tags)
+              : undefined;
+          if (result) fireWebhooks(uid, 'save', saveResource(result.story));
+          return result;
         },
         encode: (result) => {
           if (!result) return problems.notFound('article');

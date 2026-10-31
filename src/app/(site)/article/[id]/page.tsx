@@ -9,6 +9,7 @@ import { getDatabase } from '@/domain/db/database';
 import { hostOf } from '@/domain/render/tiers';
 import { Repository } from '@/domain/repository';
 import { getCurrentUser } from '@/lib/core/auth';
+import { mailtoLink } from '@/domain/api/emails';
 
 export const dynamic = 'force-dynamic';
 
@@ -76,6 +77,9 @@ export default async function ArticlePage({
           rel="noopener noreferrer"
         >
           Read the original ↗
+        </a>
+        <a className="more focus-ring" href={mailtoLink(article)}>
+          Email this story
         </a>
         {article.edition ? (
           <a className="more focus-ring" href={`/edition/${article.edition}`}>
