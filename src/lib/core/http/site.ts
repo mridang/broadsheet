@@ -11,7 +11,11 @@
  */
 
 /** The pages search engines may index. Everything else is private. */
-export const PUBLIC_PAGES: ReadonlySet<string> = new Set(['/']);
+export const PUBLIC_PAGES: ReadonlySet<string> = new Set([
+  '/',
+  '/privacy',
+  '/terms',
+]);
 
 /**
  * The pages the Worker may keep a copy of at the edge and answer without waking

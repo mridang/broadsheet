@@ -28,9 +28,13 @@ describe('the brand', () => {
 });
 
 describe('what crawlers may read', () => {
-  it('is the front page and nothing else', () => {
-    expect(CRAWLABLE_PATHS).toEqual(['/$']);
-    expect(SITEMAP_PAGES).toEqual([{ path: '/' }]);
+  it('is the front page and the legal pages', () => {
+    expect(CRAWLABLE_PATHS).toEqual(['/$', '/privacy', '/terms']);
+    expect(SITEMAP_PAGES).toEqual([
+      { path: '/' },
+      { path: '/privacy', lastModified: '2026-11-01' },
+      { path: '/terms', lastModified: '2026-11-01' },
+    ]);
   });
 
   it('keeps them out of the feed manager, the sign-in flow and the API', () => {

@@ -18,7 +18,15 @@ describe('LoginPage', () => {
     expect(out).toMatch(
       /<a class="gsi" href="\/auth\/login">[\s\S]*Sign in with Google<\/a>/,
     );
-    expect(out.match(/<a /g)).toHaveLength(1);
+    expect(out.match(/href="\/auth\//g)).toHaveLength(1);
+  });
+
+  it('links the privacy policy and the terms under the button', async () => {
+    const out = await page();
+    expect(out.indexOf('href="/privacy"')).toBeGreaterThan(
+      out.indexOf('Sign in with Google'),
+    );
+    expect(out).toContain('href="/terms"');
   });
 
   it('has no passwordless or email sign-in', async () => {

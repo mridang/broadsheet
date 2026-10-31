@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 
+import { LegalLinks } from '@/app/(site)/_components/legal-links';
+
 export const dynamic = 'force-dynamic';
 
 /** The tab title of the sign-in page. */
@@ -48,6 +50,9 @@ export default async function LoginPage({
           </svg>
           Sign in with Google
         </a>
+      </div>
+      <div className="muted">
+        <LegalLinks />
       </div>
     </div>
   );

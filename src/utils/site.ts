@@ -16,3 +16,10 @@ export const SITE_TITLE = 'The Hacker Times';
 /** The site's default description, for page metadata and structured data. */
 export const SITE_DESCRIPTION =
   'A personalised daily newspaper, generated fresh from the feeds you follow.';
+
+/** Where people write to about their data or these terms. */
+export const CONTACT_EMAIL = 'mridang.agarwalla@gmail.com';
+/** The day the privacy policy last changed, for the page and the sitemap. */
+export const PRIVACY_LAST_UPDATED = '2026-11-01';
+/** The day the terms of service last changed, for the page and the sitemap. */
+export const TERMS_LAST_UPDATED = '2026-11-01';

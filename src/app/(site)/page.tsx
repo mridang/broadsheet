@@ -7,6 +7,7 @@ import { Repository } from '@/domain/repository';
 import { todayEdition } from '@/domain/scraping/index';
 import { Section } from '@/app/(site)/_components/section';
 import { EditionBar } from '@/app/(site)/_components/edition-bar';
+import { LegalLinks } from '@/app/(site)/_components/legal-links';
 
 export const dynamic = 'force-dynamic';
 
@@ -66,6 +67,7 @@ export default async function Home({
       <div className="foot">
         THE HACKER TIMES — auto-generated from your feeds, refreshed daily.
         Every day is archived.
+        <LegalLinks />
       </div>
       <div className="enginenote">
         Generative layout: weight → tier → copyfit, with an In Brief rail for
