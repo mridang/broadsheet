@@ -100,6 +100,14 @@ describe('articleText', () => {
     );
   });
 
+  it.each([
+    '<h2><a href="#overview">#</a>Overview</h2>',
+    '<h2>Overview <a href="#overview">¶</a></h2>',
+    '<h2><a class="anchor" href="#o">§</a> Overview</h2>',
+  ])('drops the permalink glyph from a heading: %s', (heading) => {
+    expect(articleText(`<article>${heading}</article>`)).toBe('Overview');
+  });
+
   it('falls back to the main element, then the body', () => {
     expect(
       articleText('<main><p>Words from the main element here.</p></main>'),

@@ -220,6 +220,9 @@ const numericEntities = (s: string): string =>
     return n > 0 && n <= 0x10ffff ? String.fromCodePoint(n) : whole;
   });
 
+/** The permalink glyph many sites put at either end of a heading (`#`, `¶`, `§`). */
+const PERMALINK = /^[#¶§]+\s*|\s*[#¶§]+$/g;
+
 /** The inside of the first `<name>` element, or undefined when there is none. */
 function region(html: string, name: string): string | undefined {
   return html.match(
@@ -244,8 +247,9 @@ export function articleText(html: string): string {
   for (const m of body.matchAll(
     /<(p|h[2-4]|li|blockquote)\b[^>]*>([\s\S]*?)<\/\1>/gi,
   )) {
-    const text = decode(numericEntities(m[2] ?? ''));
     const heading = /^h/i.test(m[1] ?? '');
+    const raw = decode(numericEntities(m[2] ?? ''));
+    const text = heading ? raw.replace(PERMALINK, '').trim() : raw;
     if (heading ? text : text.split(' ').length >= 4) blocks.push(text);
   }
   return blocks.join('\n\n').slice(0, MAX_BODY);
