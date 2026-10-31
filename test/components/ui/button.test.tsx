@@ -4,7 +4,7 @@ import {
   Button,
   buttonClass,
   ButtonLink,
-  isApiHref,
+  isServerHref,
 } from '@/components/ui/button';
 import { classOf, html } from '../render';
 
@@ -52,12 +52,11 @@ describe('Button', () => {
   });
 });
 
-describe('isApiHref', () => {
+describe('isServerHref', () => {
   it('is true only for our own API routes', () => {
-    expect(isApiHref('/api/x')).toBe(true);
-    expect(isApiHref('/auth/login')).toBe(true);
-    expect(isApiHref('/app')).toBe(false);
-    expect(isApiHref('https://example.com/api/x')).toBe(false);
+    expect(isServerHref('/auth/login')).toBe(true);
+    expect(isServerHref('/app')).toBe(false);
+    expect(isServerHref('https://example.com/api/x')).toBe(false);
   });
 });
 
