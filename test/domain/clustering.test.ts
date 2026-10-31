@@ -166,4 +166,14 @@ describe('clusterEdition', () => {
     await clusterEdition(db, again.env, '2026-11-01');
     expect(again.run).not.toHaveBeenCalled();
   });
+
+  it('skips clustering without embedding anything when no index is bound', async () => {
+    const { run, env: e } = env();
+    const unbound = { ...e, VECTORIZE: undefined } as CloudflareEnv;
+    expect(await clusterEdition(db, unbound, '2026-11-01')).toEqual({
+      articles: 0,
+      clusters: 0,
+    });
+    expect(run).not.toHaveBeenCalled();
+  });
 });

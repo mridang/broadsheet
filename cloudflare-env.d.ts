@@ -21,6 +21,12 @@ interface CloudflareEnv extends Cloudflare.Env {
    * and the app offers a mailto link instead.
    */
   EMAIL?: SendEmail;
+  /**
+   * Article embeddings, for clustering the same story from different sources.
+   * Optional and off by default: until the index is created and the
+   * `vectorize` binding is added to wrangler.jsonc, clustering is skipped.
+   */
+  VECTORIZE?: VectorizeIndex;
   /** The address stories are emailed from, on the onboarded domain. */
   EMAIL_FROM?: string;
   /**

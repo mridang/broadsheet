@@ -98,6 +98,7 @@ async function storedVectors(
 /** Embed articles with Workers AI and store their vectors in Vectorize. */
 async function embedAll(
   env: CloudflareEnv,
+  index: VectorizeIndex,
   articles: readonly Clusterable[],
   edition: string,
 ): Promise<Map<number, number[]>> {
@@ -112,7 +113,7 @@ async function embedAll(
       return values ? [{ a, values }] : [];
     });
     if (!vectors.length) continue;
-    await env.VECTORIZE.upsert(
+    await index.upsert(
       vectors.map(({ a, values }) => ({
         id: String(a.id),
         values,
@@ -127,21 +128,27 @@ async function embedAll(
 /**
  * Cluster one edition: embed the articles Vectorize does not hold yet, then
  * group the whole edition and store the clusters. Returns how many articles
- * were compared and how many clusters were found.
+ * were compared and how many clusters were found. Clustering is off until the
+ * Vectorize binding is added: with none, nothing is embedded or compared.
  */
 export async function clusterEdition(
   db: Database,
   env: CloudflareEnv,
   edition: string,
 ): Promise<{ articles: number; clusters: number }> {
+  const index = env.VECTORIZE;
+  if (!index) {
+    logInfo({ event: 'cluster.skipped', edition, reason: 'no index' });
+    return { articles: 0, clusters: 0 };
+  }
   const repo = new Repository(db);
   const articles = await repo.editionArticles(edition);
   const vectors = await storedVectors(
-    env.VECTORIZE,
+    index,
     articles.map((a) => a.id),
   );
   const fresh = articles.filter((a) => !vectors.has(a.id));
-  for (const [id, values] of await embedAll(env, fresh, edition)) {
+  for (const [id, values] of await embedAll(env, index, fresh, edition)) {
     vectors.set(id, values);
   }
   const groups = groupNearDuplicates(
