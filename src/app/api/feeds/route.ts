@@ -1,6 +1,7 @@
 /**
  * The feeds the signed-in person follows.
  *
+ *   GET  /api/feeds → a page of JSON, or OPML for `Accept: text/x-opml`
  *   POST /api/feeds {url} → 201 + Location (200 + Location when they
  *                           already follow it)
  *
@@ -12,4 +13,4 @@ import { feedsCollection } from '@/domain/api/feeds';
 
 export const dynamic = 'force-dynamic';
 
-export const { POST } = feedsCollection.handlers();
+export const { GET, POST } = feedsCollection.handlers();

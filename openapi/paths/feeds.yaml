@@ -1,4 +1,53 @@
 collection:
+  get:
+    operationId: listFeeds
+    tags: [feeds]
+    summary: List the feeds the person follows, as JSON or OPML.
+    description: Answers JSON by default and OPML when the request sends `Accept` `text/x-opml`, with sections as folders. The OPML form is the whole list; the JSON form is a cursor page. Rate limited by the `RL_API` binding.
+    parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: cursor
+        in: query
+        schema:
+          type: string
+    responses:
+      '200':
+        description: The feeds.
+        headers:
+          Vary:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [self, items]
+              properties:
+                self:
+                  type: string
+                next:
+                  type: string
+                items:
+                  type: array
+                  items:
+                    $ref: '../components/feed.yaml#/Feed'
+          text/x-opml:
+            schema:
+              type: string
+      '400':
+        $ref: '../components/common.yaml#/responses/BadRequest'
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '403':
+        $ref: '../components/common.yaml#/responses/Forbidden'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'
   post:
     operationId: followFeed
     tags: [feeds]
@@ -132,5 +181,86 @@ refreshes:
         $ref: '../components/common.yaml#/responses/Unauthorized'
       '403':
         $ref: '../components/common.yaml#/responses/Forbidden'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'
+imports:
+  post:
+    operationId: importFeeds
+    tags: [feeds]
+    summary: Follow many feeds at once from an OPML file or from topics.
+    description: Folders in an OPML file become sections, as do the topics. Feeds already followed are skipped and invalid ones rejected, neither failing the request. Rate limited by the `RL_API` binding.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [topic_ids]
+            properties:
+              topic_ids:
+                type: array
+                minItems: 1
+                maxItems: 50
+                items:
+                  type: string
+        text/x-opml:
+          schema:
+            type: string
+            maxLength: 1048576
+            description: An OPML document of at most 1 MiB and 500 feeds. `text/xml` and `application/xml` are accepted too.
+    responses:
+      '201':
+        description: The import ran.
+        headers:
+          Location:
+            description: The feeds list.
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: '../components/feed.yaml#/ImportSummary'
+      '400':
+        $ref: '../components/common.yaml#/responses/BadRequest'
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '403':
+        $ref: '../components/common.yaml#/responses/Forbidden'
+      '413':
+        description: The body is over the size limit.
+        content:
+          application/problem+json:
+            schema:
+              $ref: '../components/common.yaml#/schemas/Problem'
+      '415':
+        $ref: '../components/common.yaml#/responses/UnsupportedMediaType'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'
+statistics:
+  get:
+    operationId: getFeedStatistics
+    tags: [feeds]
+    summary: How a feed is doing.
+    description: Rate limited by the `RL_API` binding. An id that cannot name a feed is a 404.
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: '^[1-9][0-9]{0,14}$'
+    responses:
+      '200':
+        description: The feed's last fetch, last error, failures in a row and recent output.
+        content:
+          application/json:
+            schema:
+              $ref: '../components/feed.yaml#/FeedStatistics'
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '403':
+        $ref: '../components/common.yaml#/responses/Forbidden'
+      '404':
+        $ref: '../components/common.yaml#/responses/NotFound'
       '429':
         $ref: '../components/common.yaml#/responses/TooManyRequests'

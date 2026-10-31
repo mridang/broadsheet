@@ -53,6 +53,18 @@ export interface Feed {
   readonly muted: boolean;
   readonly created_at: string | null;
 }
+/** How a feed's source is doing: its last fetch and recent output. */
+export interface FeedStatistics {
+  readonly last_fetched_at: string | null;
+  readonly last_error: string | null;
+  readonly fail_count: number;
+  /** Stories per edition day, newest first. */
+  readonly stories_per_day: readonly {
+    readonly date: string;
+    readonly count: number;
+  }[];
+}
+
 /** The parts of a feed a person can change; null clears the title or section. */
 export interface FeedChanges {
   readonly title?: string | null;
@@ -701,6 +713,44 @@ export class Repository {
     return {
       ids: new Set(rows.map((r) => r.id)),
       urls: new Set(rows.map((r) => r.url)),
+    };
+  }
+
+  /**
+   * Fetch health and recent output of one of the person's feeds, or undefined
+   * when it is not theirs. `days` bounds how many editions are counted.
+   */
+  async feedStatistics(
+    userId: number,
+    id: number,
+    days = 14,
+  ): Promise<FeedStatistics | undefined> {
+    const feed = await this.getFeed(userId, id);
+    if (!feed) return undefined;
+    const source = await this.#db.query.sources.findFirst({
+      where: eq(sources.id, feed.source_id),
+    });
+    if (!source) return undefined;
+    const rows = await this.#db
+      .select({ date: articles.edition, count: sql<number>`count(*)` })
+      .from(articles)
+      .where(
+        and(
+          eq(articles.source_id, source.id),
+          sql`${articles.edition} is not null`,
+        ),
+      )
+      .groupBy(articles.edition)
+      .orderBy(desc(articles.edition))
+      .limit(days);
+    return {
+      last_fetched_at: source.last_fetched_at,
+      last_error: source.last_error,
+      fail_count: source.fail_count,
+      stories_per_day: rows.map((r) => ({
+        date: r.date ?? '',
+        count: Number(r.count),
+      })),
     };
   }
 }

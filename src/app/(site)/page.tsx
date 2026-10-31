@@ -9,6 +9,8 @@ import { Section, type Personal } from '@/app/(site)/_components/section';
 import { ReadTracker } from '@/app/(site)/_components/read-tracker';
 import { EditionBar } from '@/app/(site)/_components/edition-bar';
 import { KeyboardShortcuts } from '@/app/(site)/_components/keyboard-shortcuts';
+import { TopicPicker } from '@/app/(site)/_components/topic-picker';
+import { TOPICS } from '@/domain/topics';
 import { LegalLinks } from '@/app/(site)/_components/legal-links';
 
 export const dynamic = 'force-dynamic';
@@ -35,6 +37,14 @@ export default async function Home({
   // Muted feeds stay followed but drop out of the paper.
   const feeds = (await repo.listFeeds(ownerId)).filter((f) => !f.muted);
   if (!feeds.length) {
+    if (user && !(await repo.listFeeds(user.id)).length) {
+      return (
+        <div className="panel">
+          <h2>Welcome</h2>
+          <TopicPicker topics={TOPICS} />
+        </div>
+      );
+    }
     return (
       <div className="panel">
         <h2>No feeds yet</h2>

@@ -24,6 +24,7 @@ tags:
   - name: reads
   - name: saves
   - name: sessions
+  - name: topics
 paths:
   /api/articles:
     $ref: './paths/articles.yaml#/collection'
@@ -33,12 +34,18 @@ paths:
     $ref: './paths/feeds.yaml#/collection'
   /api/feeds/{id}:
     $ref: './paths/feeds.yaml#/item'
+  /api/feeds/imports:
+    $ref: './paths/feeds.yaml#/imports'
+  /api/feeds/{id}/statistics:
+    $ref: './paths/feeds.yaml#/statistics'
   /api/feeds/refreshes:
     $ref: './paths/feeds.yaml#/refreshes'
   /api/sections:
     $ref: './paths/sections.yaml#/collection'
   /api/sections/{id}:
     $ref: './paths/sections.yaml#/item'
+  /api/topics:
+    $ref: './paths/topics.yaml#/collection'
   /api/sessions:
     $ref: './paths/sessions.yaml#/collection'
   /api/sessions/self:

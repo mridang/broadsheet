@@ -1,0 +1,37 @@
+import type { ReactElement } from 'react';
+
+import type { FeedStatistics } from '@/domain/repository';
+
+/** Failures in a row from which a feed counts as broken. */
+export const BROKEN_AFTER = 3;
+
+/** Whether a feed has failed enough fetches in a row to be flagged. */
+export function isBroken(
+  statistics: Pick<FeedStatistics, 'fail_count'>,
+): boolean {
+  return statistics.fail_count >= BROKEN_AFTER;
+}
+
+/** A feed's last fetch and recent output, flagged when it keeps failing. */
+export function FeedHealth({
+  statistics,
+}: {
+  readonly statistics: FeedStatistics | undefined;
+}): ReactElement | null {
+  if (!statistics) return null;
+  const stories = statistics.stories_per_day.reduce((n, d) => n + d.count, 0);
+  return (
+    <div className="u">
+      {isBroken(statistics) ? (
+        <strong role="alert">
+          Broken: {statistics.fail_count} fetches failed
+          {statistics.last_error ? ` (${statistics.last_error})` : ''}.{' '}
+        </strong>
+      ) : null}
+      {statistics.last_fetched_at
+        ? `Last fetched ${statistics.last_fetched_at} UTC`
+        : 'Not fetched yet'}
+      {` · ${stories} ${stories === 1 ? 'story' : 'stories'} in the last 7 editions`}
+    </div>
+  );
+}

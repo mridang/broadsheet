@@ -466,3 +466,41 @@ describe('reads', () => {
     expect(await new Repository(db).markRead(1, 999)).toBeUndefined();
   });
 });
+
+describe('feedStatistics', () => {
+  const story = (n: number) => ({
+    url: `https://x/${n}`,
+    title: 'T',
+    source: '',
+    favicon: '',
+    summary: '',
+    image: '',
+    published_at: '',
+    points: 0,
+  });
+
+  it('reports fetch health and stories per day, newest first', async () => {
+    const repo = new Repository(db);
+    const feed = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await repo.writeEdition(feed.source_id, '2026-10-19', [story(1)]);
+    await repo.writeEdition(feed.source_id, '2026-10-20', [story(2), story(3)]);
+    await repo.recordFetch(feed.source_id, 'boom');
+    expect(await repo.feedStatistics(1, feed.id)).toEqual({
+      last_fetched_at: null,
+      last_error: 'boom',
+      fail_count: 1,
+      stories_per_day: [
+        { date: '2026-10-20', count: 2 },
+        { date: '2026-10-19', count: 1 },
+      ],
+    });
+    expect(
+      (await repo.feedStatistics(1, feed.id, 1))?.stories_per_day,
+    ).toHaveLength(1);
+  });
+
+  it('is undefined for a feed that is not theirs', async () => {
+    const feed = (await addFeed(db, 1, 'https://a.test/f'))!;
+    expect(await new Repository(db).feedStatistics(2, feed.id)).toBeUndefined();
+  });
+});

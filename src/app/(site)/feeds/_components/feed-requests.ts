@@ -62,3 +62,23 @@ export async function addSection(name: string): Promise<void> {
 export async function removeSection(id: number): Promise<void> {
   await ensureOk(await fetch(`/api/sections/${id}`, { method: 'DELETE' }));
 }
+
+/** Follow the feeds of these topics (`POST /api/feeds/imports`). */
+export async function importTopics(topicIds: readonly string[]): Promise<void> {
+  await ensureOk(
+    await fetch('/api/feeds/imports', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ topic_ids: topicIds }),
+    }),
+  );
+}
+
+/** The feeds as an OPML document (`GET /api/feeds` asking for OPML). */
+export async function fetchOpml(): Promise<Blob> {
+  const res = await fetch('/api/feeds', {
+    headers: { Accept: 'text/x-opml' },
+  });
+  await ensureOk(res);
+  return res.blob();
+}

@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, jest } from '@jest/globals';
 import {
   addSection,
   editFeed,
+  fetchOpml,
+  importTopics,
   followFeed,
   removeSection,
   refreshFeeds,
@@ -118,5 +120,39 @@ describe('removeSection', () => {
   it('throws when the section was not there', async () => {
     answer(new Response('{"detail":"No such section."}', { status: 404 }));
     await expect(removeSection(4)).rejects.toBeInstanceOf(ProblemError);
+  });
+});
+
+describe('importTopics', () => {
+  it('posts the topic ids as JSON to the imports', async () => {
+    const spy = answer(new Response('{}', { status: 201 }));
+    await importTopics(['design']);
+    const [url, init] = spy.mock.calls[0]!;
+    expect(url).toBe('/api/feeds/imports');
+    expect(init).toMatchObject({
+      method: 'POST',
+      body: '{"topic_ids":["design"]}',
+    });
+  });
+
+  it('throws the server’s words when refused', async () => {
+    answer(refusal('No such topic.'));
+    await expect(importTopics(['x'])).rejects.toBeInstanceOf(ProblemError);
+  });
+});
+
+describe('fetchOpml', () => {
+  it('asks the feeds collection for OPML', async () => {
+    const spy = answer(new Response('<opml/>'));
+    expect(await (await fetchOpml()).text()).toBe('<opml/>');
+    expect(spy.mock.calls[0]).toEqual([
+      '/api/feeds',
+      { headers: { Accept: 'text/x-opml' } },
+    ]);
+  });
+
+  it('throws when refused', async () => {
+    answer(refusal('No.'));
+    await expect(fetchOpml()).rejects.toBeInstanceOf(ProblemError);
   });
 });

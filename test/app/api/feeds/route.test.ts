@@ -27,7 +27,7 @@ jest.unstable_mockModule('@/domain/scraping/index', () => ({
   refreshSource,
 }));
 
-const { POST } = await import('@/app/api/feeds/route');
+const { GET, POST } = await import('@/app/api/feeds/route');
 
 let raw: DatabaseSync;
 let restore: () => void;
@@ -147,5 +147,74 @@ describe('POST /api/feeds', () => {
     });
     expect(res.status).toBe(415);
     expect(stored(7)).toHaveLength(0);
+  });
+});
+
+const list = (query = '', headers: Record<string, string> = {}) =>
+  GET(new Request(`${URL}${query}`, { headers: { ...auth, ...headers } }));
+
+describe('GET /api/feeds', () => {
+  it('lists the person’s feeds as a JSON page by default', async () => {
+    await follow('https://a.test/1');
+    await follow('https://a.test/2');
+    const res = await list();
+    expect(res.status).toBe(200);
+    expect(res.headers.get('vary')).toBe('Accept');
+    const page = (await res.json()) as {
+      self: string;
+      items: { url: string }[];
+    };
+    expect(page.items.map((f) => f.url)).toEqual([
+      'https://a.test/1',
+      'https://a.test/2',
+    ]);
+  });
+
+  it('pages with a cursor and refuses a bad cursor or limit', async () => {
+    await follow('https://a.test/1');
+    await follow('https://a.test/2');
+    const first = (await (await list('?limit=1')).json()) as {
+      next: string;
+      items: unknown[];
+    };
+    expect(first.items).toHaveLength(1);
+    const second = (await (
+      await list(
+        `?limit=1&cursor=${new globalThis.URL(first.next).searchParams.get('cursor')}`,
+      )
+    ).json()) as { items: { url: string }[] };
+    expect(second.items.map((f) => f.url)).toEqual(['https://a.test/2']);
+    expect((await list('?cursor=!!')).status).toBe(400);
+    expect((await list('?limit=0')).status).toBe(400);
+  });
+
+  it('answers OPML for Accept: text/x-opml, sections as folders', async () => {
+    await follow('https://a.test/1');
+    const feedId = (stored(7)[0] as { id: number }).id;
+    raw
+      .prepare(
+        "INSERT INTO sections (id, user_id, name) VALUES (1, 7, 'Tech & Co')",
+      )
+      .run();
+    raw
+      .prepare('UPDATE subscriptions SET section_id = 1 WHERE id = ?')
+      .run(feedId);
+    await follow('https://a.test/2');
+    const res = await list('', { accept: 'text/x-opml' });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('text/x-opml; charset=utf-8');
+    expect(res.headers.get('vary')).toBe('Accept');
+    const xml = await res.text();
+    expect(xml).toContain('<outline text="Tech &amp; Co">');
+    expect(xml).toContain('xmlUrl="https://a.test/2"');
+  });
+
+  it('prefers JSON when the client ranks it first', async () => {
+    const res = await list('', { accept: 'application/json, text/x-opml' });
+    expect(res.headers.get('content-type')).toContain('application/json');
+  });
+
+  it('answers 401 when nobody is signed in', async () => {
+    expect((await GET(new Request(URL))).status).toBe(401);
   });
 });

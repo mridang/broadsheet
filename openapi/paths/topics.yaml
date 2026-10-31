@@ -1,0 +1,27 @@
+collection:
+  get:
+    operationId: listTopics
+    tags: [topics]
+    summary: List the curated topics with their starter feeds.
+    description: The list is short and fixed, so it is always one page. Rate limited by the `RL_API` binding.
+    responses:
+      '200':
+        description: The topics.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [self, items]
+              properties:
+                self:
+                  type: string
+                items:
+                  type: array
+                  items:
+                    $ref: '../components/topic.yaml#/Topic'
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '403':
+        $ref: '../components/common.yaml#/responses/Forbidden'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'

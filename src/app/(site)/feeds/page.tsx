@@ -9,6 +9,8 @@ import { hostOf } from '@/domain/render/tiers';
 import { AddFeedForm } from '@/app/(site)/feeds/_components/add-feed-form';
 import { AddSectionForm } from '@/app/(site)/feeds/_components/add-section-form';
 import { FeedSettingsForm } from '@/app/(site)/feeds/_components/feed-settings-form';
+import { ExportFeedsButton } from '@/app/(site)/feeds/_components/export-feeds-button';
+import { FeedHealth } from '@/app/(site)/feeds/_components/feed-health';
 import { RefreshFeedsButton } from '@/app/(site)/feeds/_components/refresh-feeds-button';
 import { RemoveFeedButton } from '@/app/(site)/feeds/_components/remove-feed-button';
 import { RemoveSectionButton } from '@/app/(site)/feeds/_components/remove-section-button';
@@ -26,6 +28,14 @@ export default async function FeedsPage() {
     repo.listFeeds(user.id),
     repo.listSections(user.id),
   ]);
+  const stats = new Map(
+    await Promise.all(
+      feeds.map(
+        async (f) =>
+          [f.id, await repo.feedStatistics(user.id, f.id, 7)] as const,
+      ),
+    ),
+  );
   const options = sections.map((s) => ({ id: s.id, name: s.name }));
 
   return (
@@ -34,7 +44,7 @@ export default async function FeedsPage() {
       <AddFeedForm />
       <p className="muted">
         Feeds are fetched &amp; scraped automatically every day.{' '}
-        <RefreshFeedsButton />
+        <RefreshFeedsButton /> <ExportFeedsButton />
       </p>
       {feeds.length ? (
         feeds.map((f) => (
@@ -42,6 +52,7 @@ export default async function FeedsPage() {
             <div>
               <strong>{f.title || hostOf(f.url)}</strong>
               <div className="u">{f.url}</div>
+              <FeedHealth statistics={stats.get(f.id)} />
               <FeedSettingsForm
                 id={f.id}
                 title={f.title ?? ''}

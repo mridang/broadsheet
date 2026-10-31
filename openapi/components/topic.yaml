@@ -1,0 +1,18 @@
+Topic:
+  type: object
+  required: [id, name, feeds]
+  properties:
+    id:
+      type: string
+    name:
+      type: string
+    feeds:
+      type: array
+      items:
+        type: object
+        required: [title, url]
+        properties:
+          title:
+            type: string
+          url:
+            type: string
