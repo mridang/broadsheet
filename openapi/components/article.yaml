@@ -1,0 +1,50 @@
+Article:
+  type: object
+  required: [id, url, points]
+  properties:
+    id:
+      type: string
+    url:
+      type: string
+      description: The original article.
+    title:
+      type: string
+    source:
+      type: string
+      description: The publisher's name.
+    image:
+      type: string
+    summary:
+      type: string
+    published_at:
+      type: string
+      format: date-time
+    edition:
+      type: string
+      format: date
+      description: The day the article was scraped. Every edition is kept.
+    points:
+      type: integer
+      minimum: 0
+ArticleDetail:
+  allOf:
+    - $ref: '#/Article'
+    - type: object
+      properties:
+        body_text:
+          type: string
+          description: The readable text of the article's page, blocks separated by a blank line. Absent when the page was not fetched or held no text.
+ArticlePage:
+  type: object
+  required: [self, items]
+  properties:
+    self:
+      type: string
+      description: This page.
+    next:
+      type: string
+      description: The following page. Absent on the last page.
+    items:
+      type: array
+      items:
+        $ref: '#/Article'

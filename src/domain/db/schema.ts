@@ -86,7 +86,9 @@ export const subscriptions = sqliteTable(
 /**
  * An article scraped from a source. The same URL can recur on different days,
  * so a row is unique per (source, URL, edition) and each day's scrape is kept
- * as its own edition.
+ * as its own edition. Editions are never pruned. `articles_fts` (migration
+ * 0006, an FTS5 table Drizzle cannot describe) indexes the title, summary and
+ * body text, kept in step by triggers.
  */
 export const articles = sqliteTable(
   'articles',
@@ -102,6 +104,8 @@ export const articles = sqliteTable(
     published_at: text('published_at'),
     /** HN points/upvotes (0 for generic feeds without a score). */
     points: integer('points').default(0),
+    /** The article's readable text, when its page was fetched. */
+    body_text: text('body_text'),
     /** The day this row was scraped (YYYY-MM-DD, UTC) — one edition per day. */
     edition: text('edition'),
     fetched_at: text('fetched_at').default(sql`(datetime('now'))`),

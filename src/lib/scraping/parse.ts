@@ -202,3 +202,51 @@ export function parseFeed(
   }
   return { title, items: items.slice(0, MAX_PER_FEED) };
 }
+
+/** Longest body text kept for one article, in characters. */
+const MAX_BODY = 60_000;
+
+/** Elements that never hold the story: code, chrome, navigation and forms. */
+const NOT_STORY =
+  /<(script|style|noscript|svg|template|nav|header|footer|aside|form|iframe|button)\b[\s\S]*?<\/\1>/gi;
+
+/** Decode numeric character references (`&#8217;`, `&#x2019;`). */
+const numericEntities = (s: string): string =>
+  s.replace(/&#(x[0-9a-f]+|\d+);/gi, (whole, code: string) => {
+    const n =
+      code[0] === 'x' || code[0] === 'X'
+        ? parseInt(code.slice(1), 16)
+        : Number(code);
+    return n > 0 && n <= 0x10ffff ? String.fromCodePoint(n) : whole;
+  });
+
+/** The inside of the first `<name>` element, or undefined when there is none. */
+function region(html: string, name: string): string | undefined {
+  return html.match(
+    new RegExp(`<${name}\\b[^>]*>([\\s\\S]*)</${name}>`, 'i'),
+  )?.[1];
+}
+
+/**
+ * The readable text of an article page: its paragraphs, subheadings, list
+ * items and quotes, from the `<article>` (else `<main>`, else `<body>`), as
+ * plain text with a blank line between blocks. Navigation, scripts and other
+ * page furniture are dropped. Empty when the page has no paragraphs.
+ */
+export function articleText(html: string): string {
+  const clean = html.replace(/<!--[\s\S]*?-->/g, '').replace(NOT_STORY, '');
+  const body =
+    region(clean, 'article') ??
+    region(clean, 'main') ??
+    region(clean, 'body') ??
+    clean;
+  const blocks: string[] = [];
+  for (const m of body.matchAll(
+    /<(p|h[2-4]|li|blockquote)\b[^>]*>([\s\S]*?)<\/\1>/gi,
+  )) {
+    const text = decode(numericEntities(m[2] ?? ''));
+    const heading = /^h/i.test(m[1] ?? '');
+    if (heading ? text : text.split(' ').length >= 4) blocks.push(text);
+  }
+  return blocks.join('\n\n').slice(0, MAX_BODY);
+}

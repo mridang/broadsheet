@@ -1,6 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 
 import {
+  articleText,
   domainClean,
   isBoilerplate,
   pageDescription,
@@ -79,5 +80,43 @@ describe('parseFeed', () => {
     </channel></rss>`;
     const { items } = parseFeed(hn, 'https://hnrss.org/frontpage');
     expect(items[0]?.summary).toBe('');
+  });
+});
+
+describe('articleText', () => {
+  const page = `<html><head><script>var x = "<p>not this one at all</p>";</script></head>
+    <body><nav><p>Home About Contact Subscribe today</p></nav>
+    <article><h2>The lede</h2>
+      <p>The first paragraph has <a href="#">a link</a> in it.</p>
+      <!-- <p>a commented out paragraph here</p> -->
+      <p>Short one.</p>
+      <p>It&#8217;s the second paragraph &amp; it&#x2019;s fine.</p>
+    </article>
+    <footer><p>Copyright the publisher all rights reserved</p></footer></body></html>`;
+
+  it('keeps the article blocks as plain text, a blank line apart', () => {
+    expect(articleText(page)).toBe(
+      'The lede\n\nThe first paragraph has a link in it.\n\nIt\u2019s the second paragraph & it\u2019s fine.',
+    );
+  });
+
+  it('falls back to the main element, then the body', () => {
+    expect(
+      articleText('<main><p>Words from the main element here.</p></main>'),
+    ).toBe('Words from the main element here.');
+    expect(
+      articleText('<body><p>Words straight from the body here.</p></body>'),
+    ).toBe('Words straight from the body here.');
+  });
+
+  it('is empty for a page with no paragraphs', () => {
+    expect(articleText('<html><body><div>Nothing</div></body></html>')).toBe(
+      '',
+    );
+  });
+
+  it('caps very long text', () => {
+    const long = `<p>${'word '.repeat(20_000)}</p>`;
+    expect(articleText(long)).toHaveLength(60_000);
   });
 });

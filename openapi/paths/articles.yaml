@@ -1,0 +1,64 @@
+collection:
+  get:
+    operationId: searchArticles
+    tags: [articles]
+    summary: Search the archive of articles from the feeds the person follows.
+    description: Rate limited by the `RL_API` binding. Every edition is searched, newest article first. Without `q` every article is listed.
+    parameters:
+      - name: q
+        in: query
+        description: Words every article must hold in its title, summary or text.
+        schema:
+          type: string
+          maxLength: 200
+      - name: cursor
+        in: query
+        description: The opaque cursor from a previous page's `next`.
+        schema:
+          type: string
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+    responses:
+      '200':
+        description: One page of articles.
+        content:
+          application/json:
+            schema:
+              $ref: '../components/article.yaml#/ArticlePage'
+      '400':
+        $ref: '../components/common.yaml#/responses/BadRequest'
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'
+item:
+  get:
+    operationId: getArticle
+    tags: [articles]
+    summary: Read one article with its text.
+    description: Rate limited by the `RL_API` binding. An article from a source the person does not follow, or an id that cannot name one, is a 404.
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: '^[1-9][0-9]{0,14}$'
+    responses:
+      '200':
+        description: The article.
+        content:
+          application/json:
+            schema:
+              $ref: '../components/article.yaml#/ArticleDetail'
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '404':
+        $ref: '../components/common.yaml#/responses/NotFound'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'

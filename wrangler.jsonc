@@ -116,8 +116,17 @@
       "simple": { "limit": 900, "period": 60 },
     },
   ],
+  // The daily scrape: the cron starts a run, which fetches each source as its
+  // own retried step (src/lib/core/worker-extras.ts).
+  "workflows": [
+    {
+      "name": "broadsheet-daily-scrape",
+      "binding": "DAILY_SCRAPE",
+      "class_name": "DailyScrape",
+    },
+  ],
   "triggers": {
-    // 06:00 UTC — daily fetch + scrape of every feed.
+    // 06:00 UTC — starts the daily scrape Workflow.
     "crons": ["0 6 * * *"],
   },
   // Worker secrets (set via `wrangler secret put`), not plaintext vars. A deploy

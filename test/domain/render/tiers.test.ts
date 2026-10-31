@@ -15,6 +15,7 @@ function article(over: Partial<Article>): Article {
     summary: '',
     published_at: '',
     points: 0,
+    body_text: null,
     edition: '',
     fetched_at: '',
     ...over,

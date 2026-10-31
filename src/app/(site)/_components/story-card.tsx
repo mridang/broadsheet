@@ -63,6 +63,14 @@ export async function StoryCard({
         {ex ? <p className="ex">{ex}</p> : null}
         <div className="storyfoot">
           <span className="more">Read full story ↗</span>
+          {article.body_text ? (
+            <a
+              className="more textlink focus-ring"
+              href={`/article/${article.id}`}
+            >
+              Full text
+            </a>
+          ) : null}
           <ListenButton
             title={article.title ?? ''}
             text={spokenText(article.title ?? '', ex)}

@@ -17,10 +17,15 @@ servers:
 security:
   - session: []
 tags:
+  - name: articles
   - name: feeds
   - name: sections
   - name: sessions
 paths:
+  /api/articles:
+    $ref: './paths/articles.yaml#/collection'
+  /api/articles/{id}:
+    $ref: './paths/articles.yaml#/item'
   /api/feeds:
     $ref: './paths/feeds.yaml#/collection'
   /api/feeds/{id}:

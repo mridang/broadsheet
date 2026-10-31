@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it } from '@jest/globals';
 
 import { databaseFrom, type Database } from '@/domain/db/database';
-import { Repository, type Profile } from '@/domain/repository';
+import { ftsQuery, Repository, type Profile } from '@/domain/repository';
+import type { ScrapedItem } from '@/lib/scraping';
 import { APP_MIGRATIONS } from '../lib/core/db/migrations';
 import { sqliteD1 } from '../lib/core/db/sqlite-d1';
 
@@ -233,5 +234,108 @@ describe('writeEdition, sourceArticles and listEditions', () => {
     expect(await repo.listEditions(1)).toEqual(['2026-10-20']);
     expect(await repo.listEditions(2)).toEqual(['2026-10-20']);
     expect(await repo.editionsForSource(source_id)).toEqual(['2026-10-20']);
+  });
+});
+
+/** A scraped story with only what a case cares about filled in. */
+const story = (over: Partial<ScrapedItem>): ScrapedItem => ({
+  url: 'https://x/1',
+  title: 'Untitled',
+  source: '',
+  favicon: '',
+  summary: '',
+  image: '',
+  published_at: '',
+  points: 0,
+  ...over,
+});
+
+describe('ftsQuery', () => {
+  it('quotes every word so FTS5 syntax is matched as text', () => {
+    expect(ftsQuery('  rust  "async" OR -x ')).toBe(
+      '"rust" """async""" "OR" "-x"',
+    );
+    expect(ftsQuery('   ')).toBe('');
+  });
+});
+
+describe('searchArticles and getArticle', () => {
+  it('search the title, summary and body text of every edition', async () => {
+    const repo = new Repository(db);
+    const { source_id } = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await repo.writeEdition(source_id, '2026-10-01', [
+      story({ url: 'https://x/1', title: 'Rust in the kernel' }),
+    ]);
+    await repo.writeEdition(source_id, '2026-10-02', [
+      story({ url: 'https://x/2', summary: 'Why rust compiles slowly' }),
+      story({ url: 'https://x/3', body_text: 'A long piece on Rust.' }),
+      story({ url: 'https://x/4', title: 'Go generics' }),
+    ]);
+    const found = await repo.searchArticles(1, { q: 'rust', limit: 10 });
+    expect(found.map((a) => a.url)).toEqual([
+      'https://x/3',
+      'https://x/2',
+      'https://x/1',
+    ]);
+    expect(found[0]).not.toHaveProperty('body_text');
+  });
+
+  it('need every word, and list everything without any', async () => {
+    const repo = new Repository(db);
+    const { source_id } = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await repo.writeEdition(source_id, '2026-10-01', [
+      story({ url: 'https://x/1', title: 'Rust kernel' }),
+      story({ url: 'https://x/2', title: 'Rust compiler' }),
+    ]);
+    expect(
+      (await repo.searchArticles(1, { q: 'rust kernel', limit: 10 })).map(
+        (a) => a.url,
+      ),
+    ).toEqual(['https://x/1']);
+    expect(await repo.searchArticles(1, { limit: 10 })).toHaveLength(2);
+  });
+
+  it('page by id, asking for one more than the limit', async () => {
+    const repo = new Repository(db);
+    const { source_id } = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await repo.writeEdition(
+      source_id,
+      '2026-10-01',
+      [1, 2, 3].map((n) => story({ url: `https://x/${n}` })),
+    );
+    const first = await repo.searchArticles(1, { limit: 2 });
+    expect(first).toHaveLength(3);
+    const rest = await repo.searchArticles(1, {
+      limit: 2,
+      before: first[1]!.id,
+    });
+    expect(rest.map((a) => a.id)).toEqual([first[2]!.id]);
+  });
+
+  it('show only articles from sources the person follows', async () => {
+    const repo = new Repository(db);
+    const { source_id } = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await repo.writeEdition(source_id, '2026-10-01', [
+      story({ title: 'Rust', body_text: 'The text.' }),
+    ]);
+    const [article] = await repo.searchArticles(1, { q: 'rust', limit: 10 });
+    expect(await repo.searchArticles(2, { q: 'rust', limit: 10 })).toEqual([]);
+    expect((await repo.getArticle(1, article!.id))?.body_text).toBe(
+      'The text.',
+    );
+    expect(await repo.getArticle(2, article!.id)).toBeUndefined();
+  });
+
+  it('forget the old text when an edition is written again', async () => {
+    const repo = new Repository(db);
+    const { source_id } = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await repo.writeEdition(source_id, '2026-10-01', [
+      story({ title: 'Rust' }),
+    ]);
+    await repo.writeEdition(source_id, '2026-10-01', [story({ title: 'Go' })]);
+    expect(await repo.searchArticles(1, { q: 'rust', limit: 10 })).toEqual([]);
+    expect(await repo.searchArticles(1, { q: 'go', limit: 10 })).toHaveLength(
+      1,
+    );
   });
 });

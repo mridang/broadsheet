@@ -11,6 +11,7 @@ import type { Database } from '@/domain/db/database';
 import { Repository, type Source } from '@/domain/repository';
 import { logInfo, logWarn } from '@/utils/logging';
 import {
+  articleText,
   domainClean,
   hostOf,
   ogImage,
@@ -24,8 +25,7 @@ export type { ScrapedItem } from '@/lib/scraping';
 
 const UA =
   'Mozilla/5.0 (compatible; HackerTimesBot/1.0; +https://broadsheet.apps.mrida.ng)';
-const ENRICH = 10; // article pages fetched per feed for og:image + site name
-const FEED_CONCURRENCY = 6;
+const ENRICH = 10; // article pages fetched per feed for og:image, site name and text
 
 async function get(url: string, ms = 15000): Promise<string> {
   const c = new AbortController();
@@ -91,7 +91,10 @@ async function resolveNames(
   }
 }
 
-/** Enrich the newest items in place: og:image, fallback summary, site name. */
+/**
+ * Enrich the newest items in place: og:image, fallback summary, site name and
+ * the article's readable text.
+ */
 async function enrich(items: ScrapedItem[]): Promise<void> {
   await Promise.all(
     items.slice(0, ENRICH).map(async (it) => {
@@ -105,6 +108,8 @@ async function enrich(items: ScrapedItem[]): Promise<void> {
       }
       const name = siteName(page);
       if (name) it.source = name;
+      const text = articleText(page);
+      if (text) it.body_text = text;
     }),
   );
 }
@@ -115,8 +120,33 @@ export const todayEdition = (): string => new Date().toISOString().slice(0, 10);
 /** The address of a source to fetch and the id its articles are stored under. */
 export type Fetchable = Pick<Source, 'id' | 'url'>;
 
+/** Why a source's fetch failed, as recorded on the source. */
+export const FETCH_FAILED = 'The feed could not be fetched.';
+
 /**
- * Fetch one source and write today's edition of it, noting on the source
+ * Fetch one source and write today's edition of it, recording the success on
+ * the source. Throws {@link FETCH_FAILED} when the feed cannot be fetched, so a
+ * caller that retries can try again before recording the failure.
+ */
+export async function scrapeSource(
+  db: Database,
+  env: CloudflareEnv,
+  source: Fetchable,
+  edition: string = todayEdition(),
+): Promise<number> {
+  const repo = new Repository(db);
+  const xml = await get(source.url);
+  if (!xml) throw new Error(FETCH_FAILED);
+  const { items } = parseFeed(xml, source.url);
+  await enrich(items);
+  await resolveNames(env, items);
+  await repo.writeEdition(source.id, edition, items);
+  await repo.recordFetch(source.id);
+  return items.length;
+}
+
+/**
+ * Fetch one source once and write today's edition of it, noting on the source
  * whether the fetch worked.
  */
 export async function refreshSource(
@@ -125,18 +155,15 @@ export async function refreshSource(
   source: Fetchable,
   edition: string = todayEdition(),
 ): Promise<{ ok: boolean; n: number }> {
-  const repo = new Repository(db);
-  const xml = await get(source.url);
-  if (!xml) {
-    await repo.recordFetch(source.id, 'The feed could not be fetched.');
+  try {
+    return { ok: true, n: await scrapeSource(db, env, source, edition) };
+  } catch (error) {
+    await new Repository(db).recordFetch(
+      source.id,
+      error instanceof Error ? error.message : FETCH_FAILED,
+    );
     return { ok: false, n: 0 };
   }
-  const { items } = parseFeed(xml, source.url);
-  await enrich(items);
-  await resolveNames(env, items);
-  await repo.writeEdition(source.id, edition, items);
-  await repo.recordFetch(source.id);
-  return { ok: true, n: items.length };
 }
 
 // ---- historical backfill via the HN Algolia API (hnrss only serves today) ----
@@ -221,32 +248,4 @@ export async function backfillRecent(
   }
   logInfo({ event: 'backfill.completed', filled });
   return { filled };
-}
-
-export async function refreshAll(
-  db: Database,
-  env: CloudflareEnv,
-): Promise<{ sources: number; ok: number; articles: number }> {
-  const edition = todayEdition();
-  const sources = await new Repository(db).allSources();
-  const q = [...sources];
-  let ok = 0;
-  let articles = 0;
-  const worker = async (): Promise<void> => {
-    for (let f = q.shift(); f; f = q.shift()) {
-      const r = await refreshSource(db, env, f, edition);
-      if (r.ok) ok++;
-      articles += r.n;
-    }
-  };
-  await Promise.all(Array.from({ length: FEED_CONCURRENCY }, () => worker()));
-  // History is kept indefinitely — no pruning of past editions.
-  logInfo({
-    event: 'scrape.completed',
-    edition,
-    sources: sources.length,
-    ok,
-    articles,
-  });
-  return { sources: sources.length, ok, articles };
 }

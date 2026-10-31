@@ -8,4 +8,6 @@ export interface ScrapedItem {
   summary: string;
   published_at: string;
   points: number;
+  /** The article's readable text, when its page was fetched. */
+  body_text?: string;
 }

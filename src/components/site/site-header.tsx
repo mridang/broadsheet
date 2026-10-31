@@ -6,8 +6,14 @@ import { ThemeSwitcher } from '@/components/site/theme-switcher';
 
 /** The paper's masthead: the nameplate, the theme switcher, install and the account links. */
 export function SiteHeader({ user }: { user: User | null }) {
+  const search = (
+    <a className="navlink" href="/search">
+      Search
+    </a>
+  );
   const nav = user ? (
     <>
+      {search}{' '}
       <a className="navlink" href="/feeds">
         Manage feeds
       </a>{' '}
@@ -15,9 +21,12 @@ export function SiteHeader({ user }: { user: User | null }) {
       <SignOutButton />
     </>
   ) : (
-    <a className="navlink" href="/login">
-      Sign in
-    </a>
+    <>
+      {search}{' '}
+      <a className="navlink" href="/login">
+        Sign in
+      </a>
+    </>
   );
 
   return (

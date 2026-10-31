@@ -1091,6 +1091,93 @@ button.navlink {
   color: var(--accent);
 }
 
+/* The full text kept in the archive: above the covering link like Listen. */
+.textlink {
+  position: relative;
+  z-index: 4;
+  margin-left: auto;
+  text-decoration: none;
+}
+
+/* ===== One story in full, and the archive search ===== */
+.story,
+.searchpage {
+  max-width: 680px;
+  margin: 28px auto 40px;
+}
+.story-hl {
+  font-size: clamp(30px, 5vw, 46px);
+  line-height: 1.08;
+  font-weight: 700;
+  margin: 6px 0 12px;
+  overflow-wrap: anywhere;
+}
+.story-dek {
+  font-size: 19px;
+  font-style: italic;
+  line-height: 1.45;
+  color: var(--muted);
+  margin: 0 0 18px;
+}
+.story-body {
+  border-top: 1px solid var(--rule);
+  padding-top: 16px;
+}
+.story-body p {
+  font-size: 18px;
+  line-height: 1.65;
+  margin: 0 0 1em;
+  text-align: justify;
+  overflow-wrap: anywhere;
+}
+.story-body p:first-child::first-letter {
+  float: left;
+  font-size: 3.4em;
+  line-height: 0.9;
+  font-weight: 700;
+  padding: 4px 8px 0 0;
+}
+.story-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--rule);
+  padding-top: 12px;
+}
+.searchform {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.searchform input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 17px;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--rule);
+  padding: 6px 10px;
+}
+.results {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.result {
+  border-top: 1px solid var(--rule);
+  padding: 12px 0;
+}
+.result .hl {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+.result .hl:hover {
+  color: var(--accent);
+}
+
 /* ===== Keyboard shortcut help ===== */
 .keyhelp {
   background: var(--paper);

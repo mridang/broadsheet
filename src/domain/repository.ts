@@ -7,7 +7,16 @@
  * built with a Drizzle client the app or the Worker hands in (see
  * `core/db/client`); it never reaches for the binding itself.
  */
-import { and, asc, desc, eq, sql } from 'drizzle-orm';
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  getTableColumns,
+  inArray,
+  lt,
+  sql,
+} from 'drizzle-orm';
 
 import { type Database } from '@/domain/db/database';
 import {
@@ -52,6 +61,37 @@ export interface SectionChanges {
 }
 /** An article scraped from a source. */
 export type Article = typeof articles.$inferSelect;
+
+/** An article as a list shows it: everything but its body text. */
+export type ArticleSummary = Omit<Article, 'body_text'>;
+/** Where a page of {@link Repository.searchArticles} starts and how long it is. */
+export interface ArticleQuery {
+  /** Words every article must contain; blank lists every article. */
+  readonly q?: string;
+  /** Only articles with a smaller id than this: the last one already shown. */
+  readonly before?: number;
+  readonly limit: number;
+}
+
+/**
+ * A person's search words as an FTS5 query: each word a quoted phrase, so the
+ * operators and punctuation of FTS5 syntax are matched as text, never run.
+ * Every word must appear. Empty when there are no words.
+ */
+export function ftsQuery(q: string): string {
+  return q
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => `"${word.replace(/"/g, '""')}"`)
+    .join(' ');
+}
+
+/** Every column of an article but its body text: what a list selects. */
+const summaryColumns = Object.fromEntries(
+  Object.entries(getTableColumns(articles)).filter(
+    ([name]) => name !== 'body_text',
+  ),
+) as Omit<ReturnType<typeof getTableColumns<typeof articles>>, 'body_text'>;
 
 /** What is known about a person from their Google account. */
 export interface Profile {
@@ -362,6 +402,7 @@ export class Repository {
           summary: a.summary || '',
           published_at: a.published_at || '',
           points: a.points || 0,
+          body_text: a.body_text || null,
           edition,
         })
         .onConflictDoNothing({
@@ -399,5 +440,58 @@ export class Repository {
       .from(articles)
       .where(eq(articles.source_id, sourceId));
     return rows.map((r) => r.edition).filter((e): e is string => !!e);
+  }
+
+  /** The ids of the sources a person follows, as a subquery. */
+  #followed(userId: number) {
+    return this.#db
+      .select({ id: subscriptions.source_id })
+      .from(subscriptions)
+      .where(eq(subscriptions.user_id, userId));
+  }
+
+  /**
+   * Articles from the sources a person follows, from every edition, newest
+   * first. With `q`, only those whose title, summary or body text holds every
+   * word. Asks for one more than `limit`, so the caller can tell whether
+   * another page follows.
+   */
+  searchArticles(
+    userId: number,
+    { q = '', before, limit }: ArticleQuery,
+  ): Promise<ArticleSummary[]> {
+    const match = ftsQuery(q);
+    return this.#db
+      .select(summaryColumns)
+      .from(articles)
+      .where(
+        and(
+          inArray(articles.source_id, this.#followed(userId)),
+          match
+            ? sql`${articles.id} IN (SELECT rowid FROM articles_fts WHERE articles_fts MATCH ${match})`
+            : undefined,
+          before !== undefined ? lt(articles.id, before) : undefined,
+        ),
+      )
+      .orderBy(desc(articles.id))
+      .limit(limit + 1);
+  }
+
+  /**
+   * One article with its body text, or undefined when there is none or it is
+   * from a source the person does not follow.
+   */
+  async getArticle(userId: number, id: number): Promise<Article | undefined> {
+    const [row] = await this.#db
+      .select()
+      .from(articles)
+      .where(
+        and(
+          eq(articles.id, id),
+          inArray(articles.source_id, this.#followed(userId)),
+        ),
+      )
+      .limit(1);
+    return row;
   }
 }
