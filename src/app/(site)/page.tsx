@@ -7,6 +7,7 @@ import { Repository } from '@/domain/repository';
 import { todayEdition } from '@/domain/scraping/index';
 import { Section } from '@/app/(site)/_components/section';
 import { EditionBar } from '@/app/(site)/_components/edition-bar';
+import { KeyboardShortcuts } from '@/app/(site)/_components/keyboard-shortcuts';
 import { LegalLinks } from '@/app/(site)/_components/legal-links';
 
 export const dynamic = 'force-dynamic';
@@ -61,6 +62,7 @@ export default async function Home({
   return (
     <>
       <EditionBar selected={selected} editions={editions} />
+      <KeyboardShortcuts />
       {sections.map(({ feed, articles }) => (
         <Section key={feed.id} feed={feed} articles={articles} />
       ))}

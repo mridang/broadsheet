@@ -27,3 +27,18 @@ describe('globals.css', () => {
     });
   });
 });
+
+describe('globals.css print', () => {
+  const print = css.slice(css.lastIndexOf('@media print'));
+
+  it('hides the controls and the Listen button on paper', () => {
+    ['.switcher', '.appnav', '.editionbar', '.listen', 'button'].forEach(
+      (selector) => expect(print).toContain(selector),
+    );
+  });
+
+  it('prints where each story lives', () => {
+    expect(print).toContain('content: attr(data-url)');
+    expect(print).toContain("content: ' (' attr(href) ')'");
+  });
+});

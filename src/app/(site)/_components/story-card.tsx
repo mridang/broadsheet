@@ -1,5 +1,7 @@
 import type { Article } from '@/domain/repository';
 import { pictureSrc } from '@/domain/render/pictures';
+import { ListenButton } from '@/app/(site)/_components/listen-button';
+import { spokenText } from '@/app/(site)/_components/read-aloud';
 import { imageSigner } from '@/lib/cloudflare/images/server';
 import {
   IMG_WIDTH,
@@ -33,9 +35,9 @@ export async function StoryCard({
   const cls = `card t-${tier} w${span}${photo ? '' : ' noimg'}`;
 
   return (
-    <article className={cls}>
+    <article className={cls} data-url={article.url}>
       <a
-        className="hit"
+        className="hit focus-ring-flush"
         href={article.url}
         target="_blank"
         rel="noopener noreferrer"
@@ -59,7 +61,13 @@ export async function StoryCard({
           </figure>
         ) : null}
         {ex ? <p className="ex">{ex}</p> : null}
-        <span className="more">Read full story ↗</span>
+        <div className="storyfoot">
+          <span className="more">Read full story ↗</span>
+          <ListenButton
+            title={article.title ?? ''}
+            text={spokenText(article.title ?? '', ex)}
+          />
+        </div>
       </div>
     </article>
   );
