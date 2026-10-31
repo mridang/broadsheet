@@ -1,0 +1,46 @@
+Save:
+  type: object
+  required: [article_id, url, tags]
+  properties:
+    article_id:
+      type: string
+    url:
+      type: string
+      format: uri
+    title:
+      type: string
+    source:
+      type: string
+    tags:
+      type: array
+      items:
+        type: string
+    saved_at:
+      type: string
+      format: date-time
+SaveInput:
+  type: object
+  additionalProperties: false
+  properties:
+    tags:
+      type: array
+      maxItems: 20
+      uniqueItems: true
+      items:
+        type: string
+        minLength: 1
+        maxLength: 50
+SavePage:
+  type: object
+  required: [self, items]
+  properties:
+    self:
+      type: string
+      format: uri
+    next:
+      type: string
+      format: uri
+    items:
+      type: array
+      items:
+        $ref: '#/Save'

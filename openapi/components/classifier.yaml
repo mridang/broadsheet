@@ -1,0 +1,50 @@
+Classifier:
+  type: object
+  required: [id, kind, value, score]
+  properties:
+    id:
+      type: string
+    kind:
+      $ref: '#/ClassifierKind'
+    value:
+      type: string
+      description: The author, source (the site a story is from), phrase in the title, or tag to match, ignoring case.
+    score:
+      $ref: '#/ClassifierScore'
+    created_at:
+      type: string
+      format: date-time
+ClassifierKind:
+  type: string
+  enum: [author, source, title, tag]
+ClassifierScore:
+  type: string
+  enum: [like, dislike]
+  description: Liked stories are promoted toward the lead and features; disliked ones leave the paper. A like wins over a dislike.
+ClassifierInput:
+  type: object
+  additionalProperties: false
+  required: [kind, value, score]
+  properties:
+    kind:
+      $ref: '#/ClassifierKind'
+    value:
+      type: string
+      minLength: 1
+      maxLength: 200
+    score:
+      $ref: '#/ClassifierScore'
+ClassifierPage:
+  type: object
+  required: [self, items]
+  properties:
+    self:
+      type: string
+      format: uri
+    next:
+      type: string
+      format: uri
+    items:
+      type: array
+      items:
+        $ref: '#/Classifier'

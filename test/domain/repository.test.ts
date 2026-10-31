@@ -339,3 +339,130 @@ describe('searchArticles and getArticle', () => {
     );
   });
 });
+
+/** Person 1 follows a source with one story on 2026-10-20; its article id. */
+async function oneStory(): Promise<{ source_id: number; id: number }> {
+  const repo = new Repository(db);
+  const { source_id } = (await addFeed(db, 1, 'https://a.test/f'))!;
+  await repo.writeEdition(source_id, '2026-10-20', [
+    story({ url: 'https://x/1' }),
+  ]);
+  const [a] = await repo.sourceArticles(source_id, '2026-10-20');
+  return { source_id, id: a!.id };
+}
+
+describe('classifiers', () => {
+  it('adds a classifier and lists it for its owner only', async () => {
+    const repo = new Repository(db);
+    const { created } = await repo.addClassifier(1, {
+      kind: 'source',
+      value: 'a.test',
+      score: 1,
+    });
+    expect(created).toBe(true);
+    expect(await repo.listClassifiers(1)).toMatchObject([
+      { kind: 'source', value: 'a.test', score: 1 },
+    ]);
+    expect(await repo.listClassifiers(2)).toEqual([]);
+  });
+
+  it('replaces the score of a classifier for the same kind and value', async () => {
+    const repo = new Repository(db);
+    const input = { kind: 'title', value: 'rust', score: 1 };
+    const first = await repo.addClassifier(1, input);
+    const again = await repo.addClassifier(1, { ...input, score: -1 });
+    expect(again).toMatchObject({
+      created: false,
+      classifier: { id: first.classifier.id, score: -1 },
+    });
+  });
+
+  it('removes only the owner’s classifier', async () => {
+    const repo = new Repository(db);
+    const { classifier } = await repo.addClassifier(1, {
+      kind: 'tag',
+      value: 'x',
+      score: 1,
+    });
+    expect(await repo.removeClassifier(2, classifier.id)).toBe(false);
+    expect(await repo.removeClassifier(1, classifier.id)).toBe(true);
+    expect(await repo.listClassifiers(1)).toEqual([]);
+  });
+});
+
+describe('saves', () => {
+  it('saves a story with tags and replaces them on a second save', async () => {
+    const repo = new Repository(db);
+    const { id } = await oneStory();
+    expect(await repo.saveArticle(1, id, ['a'])).toMatchObject({
+      created: true,
+      story: { tags: ['a'] },
+    });
+    expect(await repo.saveArticle(1, id, ['b'])).toMatchObject({
+      created: false,
+      story: { tags: ['b'] },
+    });
+  });
+
+  it('refuses to save an article that does not exist', async () => {
+    expect(await new Repository(db).saveArticle(1, 999, [])).toBeUndefined();
+  });
+
+  it('lists only the saves carrying a tag when asked', async () => {
+    const repo = new Repository(db);
+    const { id } = await oneStory();
+    await repo.saveArticle(1, id, ['keep']);
+    expect(await repo.listSaves(1, 'keep')).toHaveLength(1);
+    expect(await repo.listSaves(1, 'other')).toEqual([]);
+    expect(await repo.listSaves(2)).toEqual([]);
+  });
+
+  it('unsaves a story once', async () => {
+    const repo = new Repository(db);
+    const { id } = await oneStory();
+    await repo.saveArticle(1, id, []);
+    expect(await repo.unsaveArticle(1, id)).toBe(true);
+    expect(await repo.unsaveArticle(1, id)).toBe(false);
+  });
+
+  it('keeps a saved story when its edition is written again', async () => {
+    const repo = new Repository(db);
+    const { source_id, id } = await oneStory();
+    await repo.saveArticle(1, id, []);
+    await repo.writeEdition(source_id, '2026-10-20', [
+      story({ url: 'https://x/2' }),
+    ]);
+    expect(
+      (await repo.sourceArticles(source_id, '2026-10-20')).map((a) => a.id),
+    ).toContain(id);
+    expect(await repo.listSaves(1)).toHaveLength(1);
+  });
+
+  it('drops an unsaved story when its edition is written again', async () => {
+    const repo = new Repository(db);
+    const { source_id, id } = await oneStory();
+    await repo.writeEdition(source_id, '2026-10-20', [
+      story({ url: 'https://x/2' }),
+    ]);
+    expect(
+      (await repo.sourceArticles(source_id, '2026-10-20')).map((a) => a.id),
+    ).not.toContain(id);
+  });
+});
+
+describe('reads', () => {
+  it('notes a read once and reports its id and address', async () => {
+    const repo = new Repository(db);
+    const { id } = await oneStory();
+    expect(await repo.markRead(1, id)).toBe(true);
+    expect(await repo.markRead(1, id)).toBe(false);
+    const state = await repo.readState(1);
+    expect([...state.ids]).toEqual([id]);
+    expect([...state.urls]).toEqual(['https://x/1']);
+    expect((await repo.readState(2)).ids.size).toBe(0);
+  });
+
+  it('refuses to note an article that does not exist', async () => {
+    expect(await new Repository(db).markRead(1, 999)).toBeUndefined();
+  });
+});

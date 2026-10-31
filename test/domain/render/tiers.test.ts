@@ -1,7 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 
 import type { Article } from '@/domain/repository';
-import { assignTiers, excerpt } from '@/domain/render/tiers';
+import { assignTiers, excerpt, rank, verdict } from '@/domain/render/tiers';
 
 function article(over: Partial<Article>): Article {
   return {
@@ -59,5 +59,74 @@ describe('assignTiers', () => {
       article({ id: 6, summary: '' }),
     ];
     expect(assignTiers(arts).at(-1)).toBe('brief');
+  });
+});
+
+describe('verdict', () => {
+  const like = (kind: string, value: string) => ({ kind, value, score: 1 });
+  const dislike = (kind: string, value: string) => ({ kind, value, score: -1 });
+
+  it.each([
+    ['source', 'example'],
+    ['title', 'rust'],
+    ['author', 'ada'],
+    ['tag', 'lang'],
+  ])('likes a story whose %s matches %j, ignoring case', (kind, value) => {
+    const story = {
+      title: 'Why Rust wins',
+      source: 'Example',
+      author: 'Ada',
+      tags: ['Lang'],
+    };
+    expect(verdict(story, [like(kind, value)])).toBe(1);
+  });
+
+  it('is neutral when nothing matches', () => {
+    expect(verdict(article({}), [like('title', 'zig')])).toBe(0);
+  });
+
+  it('never matches an author or tag the story does not carry', () => {
+    expect(
+      verdict(article({}), [dislike('author', 'a'), dislike('tag', 'a')]),
+    ).toBe(0);
+  });
+
+  it('lets a like win over a dislike', () => {
+    expect(
+      verdict(article({ title: 'Rust' }), [
+        dislike('source', 'example'),
+        like('title', 'rust'),
+      ]),
+    ).toBe(1);
+  });
+
+  it('dislikes a story only a dislike matches', () => {
+    expect(verdict(article({}), [dislike('source', 'example')])).toBe(-1);
+  });
+
+  it('ignores a kind it does not know', () => {
+    expect(verdict(article({}), [like('colour', 'example')])).toBe(0);
+  });
+});
+
+describe('rank', () => {
+  it('orders by weight when untrained', () => {
+    const low = article({ id: 1, points: 1 });
+    const high = article({ id: 2, points: 100 });
+    expect(rank([low, high]).map((a) => a.id)).toEqual([2, 1]);
+  });
+
+  it('puts a liked story first, ahead of heavier ones', () => {
+    const liked = article({ id: 1, title: 'Rust', points: 1 });
+    const heavy = article({ id: 2, title: 'Go', points: 100 });
+    const training = [{ kind: 'title', value: 'rust', score: 1 }];
+    expect(rank([heavy, liked], training).map((a) => a.id)).toEqual([1, 2]);
+  });
+
+  it('leaves out a disliked story', () => {
+    const gone = article({ id: 1, title: 'Crypto' });
+    const kept = article({ id: 2, title: 'Go' });
+    const training = [{ kind: 'title', value: 'crypto', score: -1 }];
+    expect(rank([gone, kept], training).map((a) => a.id)).toEqual([2]);
   });
 });

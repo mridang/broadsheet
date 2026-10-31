@@ -21,6 +21,7 @@ describe('shortcutFor', () => {
     ['k', 'prev'],
     ['o', 'open'],
     ['Enter', 'open'],
+    ['s', 'save'],
     ['?', 'help'],
   ])('maps %s to %s', (key, shortcut) => {
     expect(shortcutFor(press(key))).toBe(shortcut);
@@ -80,6 +81,7 @@ describe('SHORTCUTS', () => {
       'j',
       'k',
       'o or Enter',
+      's',
       '?',
     ]);
   });

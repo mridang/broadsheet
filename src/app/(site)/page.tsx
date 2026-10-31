@@ -5,7 +5,8 @@ import { getCurrentUser } from '@/lib/core/auth';
 import { getDatabase } from '@/domain/db/database';
 import { Repository } from '@/domain/repository';
 import { todayEdition } from '@/domain/scraping/index';
-import { Section } from '@/app/(site)/_components/section';
+import { Section, type Personal } from '@/app/(site)/_components/section';
+import { ReadTracker } from '@/app/(site)/_components/read-tracker';
 import { EditionBar } from '@/app/(site)/_components/edition-bar';
 import { KeyboardShortcuts } from '@/app/(site)/_components/keyboard-shortcuts';
 import { LegalLinks } from '@/app/(site)/_components/legal-links';
@@ -53,10 +54,17 @@ export default async function Home({
   const selected =
     date && editions.includes(date) ? date : (editions[0] ?? todayEdition());
 
+  // A signed-in reader's training, reads and saves shape their paper. A story
+  // they read in another edition is left out of this one.
+  const reads = user ? await repo.readState(user.id) : undefined;
+  const personal: Personal | undefined =
+    user && reads ? await loadPersonal(repo, user.id, reads.ids) : undefined;
   const desks = await Promise.all(
     feeds.map(async (feed) => ({
       feed,
-      articles: await repo.sourceArticles(feed.source_id, selected),
+      articles: (await repo.sourceArticles(feed.source_id, selected)).filter(
+        (a) => !reads || reads.ids.has(a.id) || !reads.urls.has(a.url),
+      ),
     })),
   );
   // Feeds filed under a section print under its heading, in section order;
@@ -80,11 +88,17 @@ export default async function Home({
     <>
       <EditionBar selected={selected} editions={editions} />
       <KeyboardShortcuts />
+      {user ? <ReadTracker /> : null}
       {groups.map((group) => (
         <div key={group.id ?? 'unfiled'}>
           {group.name ? <h2 className="deskhead">{group.name}</h2> : null}
           {group.desks.map(({ feed, articles }) => (
-            <Section key={feed.id} feed={feed} articles={articles} />
+            <Section
+              key={feed.id}
+              feed={feed}
+              articles={articles}
+              personal={personal}
+            />
           ))}
         </div>
       ))}
@@ -99,4 +113,21 @@ export default async function Home({
       </div>
     </>
   );
+}
+
+/** The reader's training and saves, beside the stories they opened. */
+async function loadPersonal(
+  repo: Repository,
+  userId: number,
+  read: ReadonlySet<number>,
+): Promise<Personal> {
+  const [training, saves] = await Promise.all([
+    repo.listClassifiers(userId),
+    repo.listSaves(userId),
+  ]);
+  return {
+    training,
+    read,
+    saved: new Set(saves.map((s) => s.article.id)),
+  };
 }

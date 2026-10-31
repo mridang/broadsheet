@@ -1,0 +1,90 @@
+collection:
+  get:
+    operationId: listSaves
+    tags: [saves]
+    summary: List the saved stories, newest save first.
+    description: Rate limited by the `RL_API` binding.
+    parameters:
+      - name: tag
+        in: query
+        description: Only the stories saved with this tag.
+        schema:
+          type: string
+      - $ref: '../components/common.yaml#/parameters/Limit'
+      - $ref: '../components/common.yaml#/parameters/Cursor'
+    responses:
+      '200':
+        description: One page of saved stories.
+        content:
+          application/json:
+            schema:
+              $ref: '../components/save.yaml#/SavePage'
+      '400':
+        $ref: '../components/common.yaml#/responses/BadRequest'
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'
+item:
+  parameters:
+    - $ref: '../components/common.yaml#/parameters/ArticleId'
+  post:
+    operationId: saveStory
+    tags: [saves]
+    summary: Save a story, keeping it after its edition is replaced.
+    description: Rate limited by the `RL_API` binding. The body may be left out. Saving a story again replaces its tags and answers 200.
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            $ref: '../components/save.yaml#/SaveInput'
+    responses:
+      '200':
+        description: The story was saved already; its tags are now the ones sent.
+        headers:
+          Location:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: '../components/save.yaml#/Save'
+      '201':
+        description: The story is saved.
+        headers:
+          Location:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: '../components/save.yaml#/Save'
+      '400':
+        $ref: '../components/common.yaml#/responses/BadRequest'
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '403':
+        $ref: '../components/common.yaml#/responses/Forbidden'
+      '404':
+        $ref: '../components/common.yaml#/responses/NotFound'
+      '415':
+        $ref: '../components/common.yaml#/responses/UnsupportedMediaType'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'
+  delete:
+    operationId: unsaveStory
+    tags: [saves]
+    summary: Stop keeping a saved story.
+    description: Rate limited by the `RL_API` binding.
+    responses:
+      '204':
+        description: The save is gone.
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '403':
+        $ref: '../components/common.yaml#/responses/Forbidden'
+      '404':
+        $ref: '../components/common.yaml#/responses/NotFound'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'

@@ -1086,6 +1086,43 @@ button.navlink {
   color: var(--accent);
   border-color: var(--accent);
 }
+/* ===== Training and saving: thumbs up and down, and Save ===== */
+.actions {
+  position: relative;
+  z-index: 4;
+  display: inline-flex;
+  gap: 4px;
+  align-items: baseline;
+}
+.act {
+  font-family: var(--serif);
+  font-size: 11px;
+  color: var(--muted);
+  background: none;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+.act[aria-pressed='true'] {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.act-error {
+  font-size: 11px;
+  color: var(--accent);
+}
+/* A story the person has opened recedes. */
+.card.read {
+  opacity: 0.55;
+}
+.saved .tag {
+  margin-left: 6px;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+.saved .actions {
+  margin-left: 8px;
+}
 /* The focused story, as j and k move it: its headline takes the accent too. */
 .hit:focus-visible ~ .meat .hl {
   color: var(--accent);
@@ -1236,6 +1273,7 @@ button.navlink {
   .editionbar,
   .archive,
   .listen,
+  .actions,
   .keyhelp,
   .enginenote,
   button {

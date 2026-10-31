@@ -5,6 +5,8 @@
  * in its section's own weight order (recency + image + length), the tier
  * fixes the lane span and excerpt budget, and the excerpt is copyfit to
  * that budget. Different content ⇒ a different page, with no code change.
+ * A person's training shapes the order: liked stories go to the top, where
+ * the lead and features are, and disliked ones leave the paper.
  */
 import type { Article } from '@/domain/repository';
 
@@ -35,6 +37,72 @@ export function weight(a: Article): number {
   if (a.image) w += 0.6;
   if ((a.summary ?? '').length < 300) w *= 0.6;
   return w;
+}
+
+/** A trained like (1) or dislike (-1). */
+export interface Training {
+  readonly kind: string;
+  readonly value: string;
+  readonly score: number;
+}
+
+/**
+ * The parts of a story training matches. Authors and tags are matched only
+ * once the scrape records them.
+ */
+export interface Classifiable {
+  readonly title: string | null;
+  readonly source: string | null;
+  readonly author?: string | null;
+  readonly tags?: readonly string[];
+}
+
+const same = (a: string, b: string): boolean =>
+  a.localeCompare(b, undefined, { sensitivity: 'base' }) === 0;
+
+/** Whether one classifier matches the story (case-insensitively). */
+function matches(story: Classifiable, c: Training): boolean {
+  switch (c.kind) {
+    case 'author':
+      return !!story.author && same(story.author, c.value);
+    case 'source':
+      return !!story.source && same(story.source, c.value);
+    case 'title':
+      return (story.title ?? '').toLowerCase().includes(c.value.toLowerCase());
+    case 'tag':
+      return (story.tags ?? []).some((t) => same(t, c.value));
+    default:
+      return false;
+  }
+}
+
+/**
+ * The person's verdict on a story: 1 when any classifier likes it (a like
+ * wins over a dislike), -1 when one dislikes it, 0 when none match.
+ */
+export function verdict(
+  story: Classifiable,
+  training: readonly Training[],
+): -1 | 0 | 1 {
+  const hits = training.filter((c) => matches(story, c));
+  if (hits.some((c) => c.score > 0)) return 1;
+  if (hits.some((c) => c.score < 0)) return -1;
+  return 0;
+}
+
+/**
+ * A section's stories in the order tiers are assigned: disliked ones dropped,
+ * liked ones first, each group by weight (highest first).
+ */
+export function rank<T extends Article>(
+  arts: readonly T[],
+  training: readonly Training[] = [],
+): T[] {
+  return arts
+    .map((a) => ({ a, v: verdict(a, training), w: weight(a) }))
+    .filter((x) => x.v >= 0)
+    .sort((x, y) => y.v - x.v || y.w - x.w)
+    .map((x) => x.a);
 }
 
 /** Tiers emerge from the section's own order (highest weight first). */

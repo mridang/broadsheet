@@ -18,8 +18,11 @@ security:
   - session: []
 tags:
   - name: articles
+  - name: classifiers
   - name: feeds
   - name: sections
+  - name: reads
+  - name: saves
   - name: sessions
 paths:
   /api/articles:
@@ -40,6 +43,16 @@ paths:
     $ref: './paths/sessions.yaml#/collection'
   /api/sessions/self:
     $ref: './paths/sessions.yaml#/self'
+  /api/users/self/classifiers:
+    $ref: './paths/classifiers.yaml#/collection'
+  /api/users/self/classifiers/{id}:
+    $ref: './paths/classifiers.yaml#/item'
+  /api/users/self/reads/{article_id}:
+    $ref: './paths/reads.yaml#/item'
+  /api/users/self/saves:
+    $ref: './paths/saves.yaml#/collection'
+  /api/users/self/saves/{article_id}:
+    $ref: './paths/saves.yaml#/item'
 components:
   securitySchemes:
     session:

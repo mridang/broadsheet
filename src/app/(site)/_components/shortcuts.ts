@@ -1,11 +1,12 @@
 /** What a key on the front page does; `null` leaves the key to the browser. */
-export type Shortcut = 'next' | 'prev' | 'open' | 'help';
+export type Shortcut = 'next' | 'prev' | 'open' | 'save' | 'help';
 
 /** The keys, as the help overlay lists them. */
 export const SHORTCUTS: ReadonlyArray<readonly [keys: string, does: string]> = [
   ['j', 'Next story'],
   ['k', 'Previous story'],
   ['o or Enter', 'Open the focused story'],
+  ['s', 'Save or unsave the focused story'],
   ['?', 'Show or hide these shortcuts'],
 ];
 
@@ -31,6 +32,8 @@ export function shortcutFor(press: KeyPress): Shortcut | null {
     case 'o':
     case 'Enter':
       return 'open';
+    case 's':
+      return 'save';
     case '?':
       return 'help';
     default:

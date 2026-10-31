@@ -2,7 +2,8 @@
  * @packageDocumentation
  *
  * Data access over Drizzle/D1: users, sources, the subscriptions (feeds) and
- * sections people keep, and articles. Every query the
+ * sections people keep, articles, and what people do with them (training,
+ * saving and reading). Every query the
  * app and scrape pipeline need, in one place. The handle is {@link Repository},
  * built with a Drizzle client the app or the Worker hands in (see
  * `core/db/client`); it never reaches for the binding itself.
@@ -15,12 +16,16 @@ import {
   getTableColumns,
   inArray,
   lt,
+  notInArray,
   sql,
 } from 'drizzle-orm';
 
 import { type Database } from '@/domain/db/database';
 import {
   articles,
+  classifiers,
+  reads,
+  saves,
   sections,
   sources,
   subscriptions,
@@ -92,6 +97,37 @@ const summaryColumns = Object.fromEntries(
     ([name]) => name !== 'body_text',
   ),
 ) as Omit<ReturnType<typeof getTableColumns<typeof articles>>, 'body_text'>;
+/** A like or dislike a person trained the paper with. */
+export type Classifier = typeof classifiers.$inferSelect;
+/** What a classifier matches on, and whether it likes (1) or dislikes (-1). */
+export interface ClassifierInput {
+  readonly kind: string;
+  readonly value: string;
+  readonly score: number;
+}
+/** A story a person kept: the article, their tags and when they saved it. */
+export interface SavedStory {
+  readonly article: ArticleSummary;
+  readonly tags: readonly string[];
+  readonly saved_at: string | null;
+}
+/** The stories a person has opened, by article id and by address. */
+export interface ReadState {
+  readonly ids: ReadonlySet<number>;
+  readonly urls: ReadonlySet<string>;
+}
+
+/** A stored tag list, or none when it is not a JSON array of strings. */
+function tagsOf(stored: string): string[] {
+  try {
+    const parsed: unknown = JSON.parse(stored);
+    return Array.isArray(parsed)
+      ? parsed.filter((t): t is string => typeof t === 'string')
+      : [];
+  } catch {
+    return [];
+  }
+}
 
 /** What is known about a person from their Google account. */
 export interface Profile {
@@ -370,7 +406,7 @@ export class Repository {
 
   /**
    * Write one day's edition for a source: replace just THIS edition's rows (so a
-   * same-day re-run is idempotent) and insert the current items dated to
+   * same-day re-run is idempotent, saved stories excepted) and insert the current items dated to
    * `edition`. Past editions are never touched — history is kept indefinitely.
    */
   async writeEdition(
@@ -378,10 +414,18 @@ export class Repository {
     edition: string,
     items: ScrapedItem[],
   ): Promise<void> {
+    // A saved story outlives its edition being rewritten.
     const del = this.#db
       .delete(articles)
       .where(
-        and(eq(articles.source_id, sourceId), eq(articles.edition, edition)),
+        and(
+          eq(articles.source_id, sourceId),
+          eq(articles.edition, edition),
+          notInArray(
+            articles.id,
+            this.#db.select({ id: saves.article_id }).from(saves),
+          ),
+        ),
       );
     if (!items.length) {
       await del;
@@ -493,5 +537,170 @@ export class Repository {
       )
       .limit(1);
     return row;
+  }
+
+  /** The person's classifiers, newest first. */
+  listClassifiers(userId: number): Promise<Classifier[]> {
+    return this.#db
+      .select()
+      .from(classifiers)
+      .where(eq(classifiers.user_id, userId))
+      .orderBy(desc(classifiers.created_at), desc(classifiers.id));
+  }
+
+  /**
+   * Train the paper. A classifier for the same kind and value replaces the
+   * score of the one already there; `created` says whether it is new.
+   */
+  async addClassifier(
+    userId: number,
+    input: ClassifierInput,
+  ): Promise<{ readonly classifier: Classifier; readonly created: boolean }> {
+    const existing = await this.#db.query.classifiers.findFirst({
+      where: and(
+        eq(classifiers.user_id, userId),
+        eq(classifiers.kind, input.kind),
+        eq(classifiers.value, input.value),
+      ),
+    });
+    if (existing) {
+      const [row] = await this.#db
+        .update(classifiers)
+        .set({ score: input.score })
+        .where(eq(classifiers.id, existing.id))
+        .returning();
+      return { classifier: row!, created: false };
+    }
+    const [row] = await this.#db
+      .insert(classifiers)
+      .values({ user_id: userId, ...input })
+      .returning();
+    return { classifier: row!, created: true };
+  }
+
+  /** Forget a classifier. True when the person had one with this id. */
+  async removeClassifier(userId: number, id: number): Promise<boolean> {
+    const removed = await this.#db
+      .delete(classifiers)
+      .where(and(eq(classifiers.id, id), eq(classifiers.user_id, userId)))
+      .returning({ id: classifiers.id });
+    return removed.length > 0;
+  }
+
+  /**
+   * Keep a story with these tags, replacing the tags of an earlier save.
+   * Undefined when there is no such article in the person's feeds; `created` says whether it is new.
+   */
+  async saveArticle(
+    userId: number,
+    articleId: number,
+    tags: readonly string[],
+  ): Promise<
+    { readonly story: SavedStory; readonly created: boolean } | undefined
+  > {
+    if (!(await this.getArticle(userId, articleId))) return undefined;
+    const before = await this.getSave(userId, articleId);
+    await this.#db
+      .insert(saves)
+      .values({
+        user_id: userId,
+        article_id: articleId,
+        tags: JSON.stringify(tags),
+      })
+      .onConflictDoUpdate({
+        target: [saves.user_id, saves.article_id],
+        set: { tags: JSON.stringify(tags) },
+      });
+    const story = await this.getSave(userId, articleId);
+    return { story: story!, created: !before };
+  }
+
+  /** The person's save of this article, or undefined when they have none. */
+  async getSave(
+    userId: number,
+    articleId: number,
+  ): Promise<SavedStory | undefined> {
+    const [row] = await this.#saved()
+      .where(and(eq(saves.user_id, userId), eq(saves.article_id, articleId)))
+      .limit(1);
+    return row ? this.#story(row) : undefined;
+  }
+
+  /** Stop keeping a story. True when the person had saved it. */
+  async unsaveArticle(userId: number, articleId: number): Promise<boolean> {
+    const removed = await this.#db
+      .delete(saves)
+      .where(and(eq(saves.user_id, userId), eq(saves.article_id, articleId)))
+      .returning({ id: saves.article_id });
+    return removed.length > 0;
+  }
+
+  /** The person's saved stories, newest save first, optionally with one tag. */
+  async listSaves(userId: number, tag?: string): Promise<SavedStory[]> {
+    const rows = await this.#saved()
+      .where(
+        and(
+          eq(saves.user_id, userId),
+          tag === undefined
+            ? undefined
+            : sql`exists (select 1 from json_each(${saves.tags}) where json_each.value = ${tag})`,
+        ),
+      )
+      .orderBy(desc(saves.created_at), desc(saves.article_id));
+    return rows.map((row) => this.#story(row));
+  }
+
+  /** Saves joined to their articles. */
+  #saved() {
+    return this.#db
+      .select({
+        article: summaryColumns,
+        tags: saves.tags,
+        saved_at: saves.created_at,
+      })
+      .from(saves)
+      .innerJoin(articles, eq(saves.article_id, articles.id));
+  }
+
+  #story(row: {
+    article: ArticleSummary;
+    tags: string;
+    saved_at: string | null;
+  }): SavedStory {
+    return {
+      article: row.article,
+      tags: tagsOf(row.tags),
+      saved_at: row.saved_at,
+    };
+  }
+
+  /**
+   * Note that the person opened a story. Undefined when there is no such
+   * article in their feeds, else whether this is the first time.
+   */
+  async markRead(
+    userId: number,
+    articleId: number,
+  ): Promise<boolean | undefined> {
+    if (!(await this.getArticle(userId, articleId))) return undefined;
+    const added = await this.#db
+      .insert(reads)
+      .values({ user_id: userId, article_id: articleId })
+      .onConflictDoNothing()
+      .returning({ id: reads.article_id });
+    return added.length > 0;
+  }
+
+  /** The stories the person has opened, by id and by address. */
+  async readState(userId: number): Promise<ReadState> {
+    const rows = await this.#db
+      .select({ id: articles.id, url: articles.url })
+      .from(reads)
+      .innerJoin(articles, eq(reads.article_id, articles.id))
+      .where(eq(reads.user_id, userId));
+    return {
+      ids: new Set(rows.map((r) => r.id)),
+      urls: new Set(rows.map((r) => r.url)),
+    };
   }
 }

@@ -1,5 +1,6 @@
 import type { Article } from '@/domain/repository';
 import { pictureSrc } from '@/domain/render/pictures';
+import { StoryActions } from '@/app/(site)/_components/story-actions';
 import { ListenButton } from '@/app/(site)/_components/listen-button';
 import { spokenText } from '@/app/(site)/_components/read-aloud';
 import { imageSigner } from '@/lib/cloudflare/images/server';
@@ -18,13 +19,21 @@ const FAVICON_WIDTH = 64;
 /**
  * One story. Tier fixes the lane span and excerpt budget; lead/feature
  * photos float (alternating side by id) so the body copy wraps around them.
+ * A story the person has read is dimmed; a signed-in person (`personal`) gets
+ * the training and save controls.
  */
 export async function StoryCard({
   article,
   tier,
+  read = false,
+  saved = false,
+  personal = false,
 }: {
   article: Article;
   tier: Tier;
+  read?: boolean;
+  saved?: boolean;
+  personal?: boolean;
 }) {
   const [span, budget] = TIER[tier];
   const side = article.id % 2 ? 'ph-l' : 'ph-r';
@@ -32,10 +41,14 @@ export async function StoryCard({
   const signer = imageSigner();
   const photo = await pictureSrc(article.image ?? '', IMG_WIDTH[tier], signer);
   const icon = await pictureSrc(article.favicon ?? '', FAVICON_WIDTH, signer);
-  const cls = `card t-${tier} w${span}${photo ? '' : ' noimg'}`;
+  const cls = `card t-${tier} w${span}${photo ? '' : ' noimg'}${read ? ' read' : ''}`;
 
   return (
-    <article className={cls} data-url={article.url}>
+    <article
+      className={cls}
+      data-url={article.url}
+      data-article-id={personal ? article.id : undefined}
+    >
       <a
         className="hit focus-ring-flush"
         href={article.url}
@@ -75,6 +88,13 @@ export async function StoryCard({
             title={article.title ?? ''}
             text={spokenText(article.title ?? '', ex)}
           />
+          {personal ? (
+            <StoryActions
+              articleId={article.id}
+              source={article.source || hostOf(article.url)}
+              saved={saved}
+            />
+          ) : null}
         </div>
       </div>
     </article>

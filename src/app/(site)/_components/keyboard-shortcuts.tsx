@@ -13,8 +13,8 @@ import {
 const STORY = 'article.card > a.hit';
 
 /**
- * j/k move focus between the stories, o (or Enter) opens the focused one and
- * ? toggles a list of the keys. Keys typed into a field are left alone. The
+ * j/k move focus between the stories, o (or Enter) opens the focused one, s
+ * saves it (when the person can save) and ? toggles a list of the keys. Keys typed into a field are left alone. The
  * stories' links take the focus, so Tab, the focus ring and a screen reader
  * all follow the same place j and k do.
  */
@@ -43,6 +43,18 @@ export function KeyboardShortcuts(): ReactElement {
         if (current >= 0) {
           event.preventDefault();
           stories[current]?.click();
+        }
+        return;
+      }
+      if (shortcut === 'save') {
+        const save = stories[
+          current
+        ]?.parentElement?.querySelector<HTMLButtonElement>(
+          'button[data-action="save"]',
+        );
+        if (save) {
+          event.preventDefault();
+          save.click();
         }
         return;
       }

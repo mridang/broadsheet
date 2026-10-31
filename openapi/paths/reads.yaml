@@ -1,0 +1,43 @@
+item:
+  parameters:
+    - $ref: '../components/common.yaml#/parameters/ArticleId'
+  post:
+    operationId: markRead
+    tags: [reads]
+    summary: Note that a story was opened.
+    description: Rate limited by the `RL_API` binding. A read story is dimmed in its edition and left out of later ones. Noting it again answers 200.
+    responses:
+      '200':
+        description: The story was read already.
+        headers:
+          Location:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: '#/Read'
+      '201':
+        description: The story is noted as read.
+        headers:
+          Location:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: '#/Read'
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '403':
+        $ref: '../components/common.yaml#/responses/Forbidden'
+      '404':
+        $ref: '../components/common.yaml#/responses/NotFound'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'
+Read:
+  type: object
+  required: [article_id]
+  properties:
+    article_id:
+      type: string

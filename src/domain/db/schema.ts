@@ -14,6 +14,7 @@ import { sql } from 'drizzle-orm';
 import {
   index,
   integer,
+  primaryKey,
   sqliteTable,
   text,
   unique,
@@ -115,4 +116,53 @@ export const articles = sqliteTable(
     index('idx_articles_source_edition').on(table.source_id, table.edition),
     index('idx_articles_edition').on(table.edition),
   ],
+);
+
+/**
+ * A person training the paper: `score` 1 likes and -1 dislikes stories whose
+ * `kind` (author, source, title or tag) matches `value`.
+ */
+export const classifiers = sqliteTable(
+  'classifiers',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    user_id: integer('user_id').notNull(),
+    kind: text('kind').notNull(),
+    value: text('value').notNull(),
+    score: integer('score').notNull(),
+    created_at: text('created_at').default(sql`(datetime('now'))`),
+  },
+  (table) => [
+    unique().on(table.user_id, table.kind, table.value),
+    index('idx_classifiers_user').on(table.user_id),
+  ],
+);
+
+/**
+ * A story a person kept. Its article row outlives the edition being rewritten;
+ * `tags` is a JSON array of the person's own labels.
+ */
+export const saves = sqliteTable(
+  'saves',
+  {
+    user_id: integer('user_id').notNull(),
+    article_id: integer('article_id').notNull(),
+    tags: text('tags').notNull().default('[]'),
+    created_at: text('created_at').default(sql`(datetime('now'))`),
+  },
+  (table) => [
+    primaryKey({ columns: [table.user_id, table.article_id] }),
+    index('idx_saves_article').on(table.article_id),
+  ],
+);
+
+/** A story a person has opened: dimmed today, left out of later editions. */
+export const reads = sqliteTable(
+  'reads',
+  {
+    user_id: integer('user_id').notNull(),
+    article_id: integer('article_id').notNull(),
+    created_at: text('created_at').default(sql`(datetime('now'))`),
+  },
+  (table) => [primaryKey({ columns: [table.user_id, table.article_id] })],
 );

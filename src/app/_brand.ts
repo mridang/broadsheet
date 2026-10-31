@@ -72,10 +72,11 @@ export const INDEX_BY_DEFAULT = false;
 /** The pages a crawler may read: the front page and the legal pages. Everything else is private. */
 export const CRAWLABLE_PATHS: readonly string[] = ['/$', '/privacy', '/terms'];
 
-/** The paths crawlers must stay out of: the feed manager, the sign-in flow and the API. */
+/** The paths crawlers must stay out of: the feed manager, the sign-in flow, saved stories and the API. */
 export const PRIVATE_PATHS: readonly string[] = [
   '/feeds',
   '/login',
+  '/saved',
   '/api/',
   '/auth/',
 ];
