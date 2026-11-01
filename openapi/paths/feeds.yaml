@@ -330,3 +330,93 @@ retries:
           application/problem+json:
             schema:
               $ref: '../components/common.yaml#/schemas/Problem'
+moves:
+  post:
+    operationId: moveFeeds
+    tags: [feeds]
+    summary: File several feeds under one section at once.
+    description: As NewsBlur moves a selection of feeds into a folder. Their other sections stay. Ids that are not the person's are skipped. A move is not stored, so the result is the response and the answer is 200. Rate limited by the `RL_API` binding.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [feed_ids, section_id]
+            properties:
+              feed_ids:
+                type: array
+                minItems: 1
+                maxItems: 500
+                items:
+                  type: string
+                  pattern: '^[1-9][0-9]{0,14}$'
+              section_id:
+                type: [string, 'null']
+                pattern: '^[1-9][0-9]{0,14}$'
+                description: One of the person's sections, or null for none.
+    responses:
+      '200':
+        description: How many feeds moved.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [moved]
+              properties:
+                moved:
+                  type: integer
+      '400':
+        $ref: '../components/common.yaml#/responses/BadRequest'
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '403':
+        $ref: '../components/common.yaml#/responses/Forbidden'
+      '415':
+        $ref: '../components/common.yaml#/responses/UnsupportedMediaType'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'
+removals:
+  post:
+    operationId: removeFeeds
+    tags: [feeds]
+    summary: Stop following several feeds at once.
+    description: Ids that are not the person's are skipped. A removal is not stored, so the result is the response and the answer is 200. Rate limited by the `RL_API` binding.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [feed_ids]
+            properties:
+              feed_ids:
+                type: array
+                minItems: 1
+                maxItems: 500
+                items:
+                  type: string
+                  pattern: '^[1-9][0-9]{0,14}$'
+    responses:
+      '200':
+        description: How many feeds were removed.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [removed]
+              properties:
+                removed:
+                  type: integer
+      '400':
+        $ref: '../components/common.yaml#/responses/BadRequest'
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '403':
+        $ref: '../components/common.yaml#/responses/Forbidden'
+      '415':
+        $ref: '../components/common.yaml#/responses/UnsupportedMediaType'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'

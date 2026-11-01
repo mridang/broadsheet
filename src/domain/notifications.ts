@@ -21,6 +21,7 @@ import {
   subscriptions,
   user_activity,
 } from '@/domain/db/schema';
+import { notMuted } from '@/domain/repository';
 
 /** How a feed may notify: a web push, an email, or a webhook `story` event. */
 export const NOTIFICATION_CHANNELS = ['web', 'email', 'webhook'] as const;
@@ -225,9 +226,7 @@ export class NotificationRepository {
         eq(feed_notifications.subscription_id, subscriptions.id),
       )
       .innerJoin(sources, eq(subscriptions.source_id, sources.id))
-      .where(
-        and(eq(feed_notifications.user_id, userId), eq(subscriptions.muted, 0)),
-      )
+      .where(and(eq(feed_notifications.user_id, userId), notMuted))
       .orderBy(subscriptions.id);
     return rows.map((r) => ({
       feed_id: r.feed_id,

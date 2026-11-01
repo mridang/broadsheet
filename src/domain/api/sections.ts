@@ -57,6 +57,20 @@ async function decodeSection(
   return input.changes;
 }
 
+/**
+ * Whether a `DELETE` asks to unfollow the section's feeds too
+ * (`?feeds=unfollow`), as deleting a NewsBlur folder does. Any other value of
+ * `feeds` is refused.
+ */
+function unfollowsFeeds(request: Request): boolean {
+  const feeds = new URL(request.url).searchParams.get('feeds');
+  if (feeds === null || feeds === 'keep') return false;
+  if (feeds === 'unfollow') return true;
+  throw problems.badRequest('The removal is not valid.', [
+    'feeds: must be keep or unfollow.',
+  ]);
+}
+
 /** The refusal of a parent that is not the person's, or would make a loop. */
 function noSuchParent(): Response {
   return problems.badRequest('The section is not valid.', [
@@ -81,7 +95,10 @@ export function createSectionsCollection(
   }).on<SectionChanges, Section>({
     method: 'POST',
     decode: (request) => decodeSection(request, true),
-    handle: async ({ name, position, parent_id: parent }, { uid }) => {
+    handle: async (
+      { name, position, parent_id: parent, ...settings },
+      { uid },
+    ) => {
       const repo = new Repository(getDatabase());
       if (
         parent != null &&
@@ -89,7 +106,15 @@ export function createSectionsCollection(
       ) {
         throw noSuchParent();
       }
-      return repo.addSection(uid, name!, position, parent ?? null);
+      const section = await repo.addSection(
+        uid,
+        name!,
+        position,
+        parent ?? null,
+      );
+      return Object.keys(settings).length
+        ? ((await repo.updateSection(uid, section.id, settings)) ?? section)
+        : section;
     },
     encode: (section) =>
       created(sectionResource(section), `/api/sections/${section.id}`),
@@ -106,8 +131,10 @@ export const sectionsCollection = createSectionsCollection();
  * 200 with it, 400 for a body that is not a valid change, 415 for a non-JSON
  * body.
  *
- * `DELETE /api/sections/:id`: remove the section; its feeds stay, under no
- * section, and the sections in it move up to its parent. 204.
+ * `DELETE /api/sections/:id`: remove the section; its feeds stay, under their
+ * other sections or none, and the sections in it move up to its parent. With
+ * `?feeds=unfollow` the sections in it go too, with every feed filed only
+ * inside them. 204, 400 for another `feeds` value.
  *
  * Both answer 404 when there is no such section (or the id cannot name one),
  * and 401/403 when not signed in or cross-site.
@@ -150,7 +177,11 @@ export function createSectionItem(
       handle: async (_input, { request, uid }) => {
         const id = parseFeedId(idOf(request));
         return id !== undefined
-          ? new Repository(getDatabase()).removeSection(uid, id)
+          ? new Repository(getDatabase()).removeSection(
+              uid,
+              id,
+              unfollowsFeeds(request),
+            )
           : false;
       },
       encode: (removed) =>

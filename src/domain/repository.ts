@@ -42,6 +42,7 @@ import {
   savedSearches,
   sections,
   sources,
+  subscription_sections,
   subscriptions,
   users,
 } from '@/domain/db/schema';
@@ -70,6 +71,12 @@ export interface Feed {
   /** When a timed mute runs out (SQLite UTC); null when there is none. */
   readonly muted_until: string | null;
   readonly position: number;
+  /** Every section the feed sits in, the one it prints under first. */
+  readonly section_ids: readonly number[];
+  /** The person's own icon for the feed as stored JSON, or null. */
+  readonly custom_icon: string | null;
+  /** Days until its stories count as read: null inherits, 0 never. */
+  readonly auto_mark_read_days: number | null;
   readonly created_at: string | null;
   readonly icon: string | null;
   readonly format: string | null;
@@ -132,15 +139,23 @@ export interface FeedChanges {
   /** When the mute runs out (SQLite UTC), or null to mute for good. */
   readonly muted_until?: string | null;
   readonly section_id?: number | null;
+  /** Every section to file the feed in, the one it prints under first. */
+  readonly section_ids?: readonly number[];
   readonly position?: number;
   /** A new address for the feed: follow another source in its place. */
   readonly url?: string;
+  /** The icon as stored JSON, or null for the feed's own. */
+  readonly custom_icon?: string | null;
+  readonly auto_mark_read_days?: number | null;
 }
 /** The parts of a section a person can change; a null parent is top level. */
 export interface SectionChanges {
   readonly name?: string;
   readonly position?: number;
   readonly parent_id?: number | null;
+  /** The icon as stored JSON, or null for none. */
+  readonly icon?: string | null;
+  readonly auto_mark_read_days?: number | null;
 }
 /** An article scraped from a source. */
 export type Article = typeof articles.$inferSelect;
@@ -486,6 +501,11 @@ export class Repository {
           ),
         muted_until: subscriptions.muted_until,
         position: subscriptions.position,
+        extra_sections: sql<
+          string | null
+        >`(select group_concat(${subscription_sections.section_id}) from ${subscription_sections} where ${subscription_sections.subscription_id} = ${subscriptions.id})`,
+        custom_icon: subscriptions.custom_icon,
+        auto_mark_read_days: subscriptions.auto_mark_read_days,
         created_at: subscriptions.created_at,
         icon: sources.icon,
         format: sources.format,
@@ -501,14 +521,15 @@ export class Repository {
       .innerJoin(sources, eq(subscriptions.source_id, sources.id));
   }
 
-  listFeeds(userId: number): Promise<Feed[]> {
-    return this.#feeds()
+  async listFeeds(userId: number): Promise<Feed[]> {
+    const rows = await this.#feeds()
       .where(eq(subscriptions.user_id, userId))
       .orderBy(
         asc(subscriptions.position),
         asc(subscriptions.created_at),
         asc(subscriptions.id),
       );
+    return rows.map(feedOf);
   }
 
   /** The person's feed with this id, or undefined when it is not theirs. */
@@ -516,7 +537,7 @@ export class Repository {
     const [row] = await this.#feeds()
       .where(and(eq(subscriptions.id, id), eq(subscriptions.user_id, userId)))
       .limit(1);
-    return row;
+    return row && feedOf(row);
   }
 
   /**
@@ -550,7 +571,7 @@ export class Repository {
     const [row] = await this.#feeds()
       .where(and(eq(sources.url, url), eq(subscriptions.user_id, userId)))
       .limit(1);
-    return row;
+    return row && feedOf(row);
   }
 
   /**
@@ -571,6 +592,9 @@ export class Repository {
     }
     if (changes.muted === false) set.muted_until = null;
     if (changes.section_id !== undefined) set.section_id = changes.section_id;
+    if (changes.section_ids !== undefined) {
+      set.section_id = changes.section_ids[0] ?? null;
+    }
     if (changes.position !== undefined) set.position = changes.position;
     if (changes.url !== undefined) {
       await this.#db
@@ -581,6 +605,33 @@ export class Repository {
         where: eq(sources.url, changes.url),
       });
       if (target) set.source_id = target.id;
+    }
+    if (changes.custom_icon !== undefined) {
+      set.custom_icon = changes.custom_icon;
+    }
+    if (changes.auto_mark_read_days !== undefined) {
+      set.auto_mark_read_days = changes.auto_mark_read_days;
+    }
+    if (
+      (changes.section_ids !== undefined || changes.section_id !== undefined) &&
+      (await this.getFeed(userId, id))
+    ) {
+      // A new set of sections replaces the old; a new print section alone
+      // keeps the others, but not twice.
+      const extra =
+        changes.section_ids?.slice(1) ??
+        (await this.getFeed(userId, id))!.section_ids.filter(
+          (s, i) => i > 0 && s !== changes.section_id,
+        );
+      await this.#db
+        .delete(subscription_sections)
+        .where(eq(subscription_sections.subscription_id, id));
+      for (const sectionId of new Set(extra)) {
+        await this.#db
+          .insert(subscription_sections)
+          .values({ subscription_id: id, section_id: sectionId })
+          .onConflictDoNothing();
+      }
     }
     if (Object.keys(set).length) {
       await this.#db
@@ -599,7 +650,45 @@ export class Repository {
       .delete(subscriptions)
       .where(and(eq(subscriptions.id, id), eq(subscriptions.user_id, userId)))
       .returning({ id: subscriptions.id });
+    if (removed.length) {
+      await this.#db
+        .delete(subscription_sections)
+        .where(eq(subscription_sections.subscription_id, id));
+    }
     return removed.length > 0;
+  }
+
+  /**
+   * File several of the person's feeds under one section (null for none) at
+   * once, as NewsBlur moves a selection of feeds into a folder. Their other
+   * sections stay. The ids that were not theirs are skipped; the count says
+   * how many moved.
+   */
+  async moveFeeds(
+    userId: number,
+    ids: readonly number[],
+    sectionId: number | null,
+  ): Promise<number> {
+    let moved = 0;
+    for (const id of new Set(ids)) {
+      if (await this.getFeed(userId, id)) {
+        await this.updateFeed(userId, id, { section_id: sectionId });
+        moved++;
+      }
+    }
+    return moved;
+  }
+
+  /**
+   * Stop following several of the person's feeds at once. Returns how many
+   * there were to remove.
+   */
+  async removeFeeds(userId: number, ids: readonly number[]): Promise<number> {
+    let removed = 0;
+    for (const id of new Set(ids)) {
+      if (await this.removeFeed(userId, id)) removed++;
+    }
+    return removed;
   }
 
   /** Every source somebody follows: what the daily scrape fetches. */
@@ -802,29 +891,61 @@ export class Repository {
   }
 
   /**
-   * Remove a section; its feeds stay, under no section, and the sections
-   * nested in it move up to its parent. True when there was one to remove.
+   * Remove a section. By default its feeds stay, filed under their other
+   * sections or none, and the sections nested in it move up to its parent.
+   * With `unfollowFeeds`, as NewsBlur deletes a folder, the sections nested in
+   * it go too, and so does every feed filed only inside them; a feed also
+   * filed elsewhere stays there. True when there was one to remove.
    */
-  async removeSection(userId: number, id: number): Promise<boolean> {
+  async removeSection(
+    userId: number,
+    id: number,
+    unfollowFeeds = false,
+  ): Promise<boolean> {
+    const all = await this.listSections(userId);
+    if (!all.some((s) => s.id === id)) return false;
+    if (!unfollowFeeds) {
+      await this.#dropSection(userId, id);
+      return true;
+    }
+    const doomed = sectionAndDescendants(all, id);
+    for (const feed of await this.listFeeds(userId)) {
+      if (
+        feed.section_ids.length &&
+        feed.section_ids.every((s) => doomed.has(s))
+      ) {
+        await this.removeFeed(userId, feed.id);
+      }
+    }
+    // Deepest first, so no section is lifted into one about to go.
+    for (const section of all.filter((s) => doomed.has(s.id)).toReversed()) {
+      await this.#dropSection(userId, section.id);
+    }
+    return true;
+  }
+
+  /**
+   * Delete one section: the sections in it move up to its parent, feeds
+   * printed under it move to their next section (or none), and the editions
+   * that printed it stop naming it.
+   */
+  async #dropSection(userId: number, id: number): Promise<void> {
     const removed = await this.#db
       .delete(sections)
       .where(and(eq(sections.id, id), eq(sections.user_id, userId)))
-      .returning({ id: sections.id, parent_id: sections.parent_id });
-    if (!removed.length) return false;
+      .returning({ parent_id: sections.parent_id });
+    if (!removed.length) return;
     await this.#db
       .update(sections)
       .set({ parent_id: removed[0]!.parent_id })
       .where(and(eq(sections.user_id, userId), eq(sections.parent_id, id)));
-    await this.#db
-      .update(subscriptions)
-      .set({ section_id: null })
-      .where(
-        and(
-          eq(subscriptions.user_id, userId),
-          eq(subscriptions.section_id, id),
-        ),
-      );
-    // An edition that printed the section stops naming it.
+    for (const feed of await this.listFeeds(userId)) {
+      if (feed.section_ids.includes(id)) {
+        await this.updateFeed(userId, feed.id, {
+          section_ids: feed.section_ids.filter((s) => s !== id),
+        });
+      }
+    }
     for (const edition of await this.listCustomEditions(userId)) {
       if (edition.section_ids.includes(id)) {
         await this.updateCustomEdition(userId, edition.id, {
@@ -832,7 +953,6 @@ export class Repository {
         });
       }
     }
-    return true;
   }
 
   /**
@@ -915,7 +1035,7 @@ export class Repository {
       .selectDistinct({ edition: articles.edition })
       .from(articles)
       .innerJoin(subscriptions, eq(articles.source_id, subscriptions.source_id))
-      .where(and(eq(subscriptions.user_id, userId), eq(subscriptions.muted, 0)))
+      .where(and(eq(subscriptions.user_id, userId), notMuted))
       .orderBy(desc(articles.edition));
     return rows.map((r) => r.edition).filter((e): e is string => !!e);
   }
@@ -2015,8 +2135,11 @@ export function sectionAndDescendants(
   return found;
 }
 
-/** A section's heading: its name after the names of the sections it is in. */
-export function sectionPath(all: readonly Section[], id: number): string {
+/**
+ * The names of a section and the sections it is in, outermost first. A loop
+ * stops where it comes back round.
+ */
+export function sectionNames(all: readonly Section[], id: number): string[] {
   const byId = new Map(all.map((s) => [s.id, s]));
   const names: string[] = [];
   const seen = new Set<number>();
@@ -2025,5 +2148,66 @@ export function sectionPath(all: readonly Section[], id: number): string {
     names.unshift(at.name);
     at = at.parent_id === null ? undefined : byId.get(at.parent_id);
   }
-  return names.join(' · ');
+  return names;
+}
+
+/** A section's heading: its name after the names of the sections it is in. */
+export function sectionPath(all: readonly Section[], id: number): string {
+  return sectionNames(all, id).join(' · ');
+}
+
+/**
+ * The SQL condition that a subscription is in the paper: not muted, or muted
+ * for a time that has run out.
+ */
+export const notMuted = sql`(${subscriptions.muted} = 0 or (${subscriptions.muted_until} is not null and ${subscriptions.muted_until} <= datetime('now')))`;
+
+/** A feed row as the repository selects it, before its sections are listed. */
+type FeedRow = Omit<Feed, 'section_ids'> & {
+  readonly extra_sections: string | null;
+};
+
+/** A selected feed row as a {@link Feed}: the print section, then the rest. */
+function feedOf({ extra_sections: extra, ...row }: FeedRow): Feed {
+  const others = (extra ?? '')
+    .split(',')
+    .filter(Boolean)
+    .map(Number)
+    .filter((s) => s !== row.section_id)
+    .toSorted((a, b) => a - b);
+  return {
+    ...row,
+    section_ids: row.section_id === null ? others : [row.section_id, ...others],
+  };
+}
+
+/** Whether the feed is filed in any of these sections. */
+export function filedIn(feed: Feed, ids: ReadonlySet<number>): boolean {
+  return feed.section_ids.some((s) => ids.has(s));
+}
+
+/**
+ * After how many days the feed's stories count as read, or undefined for
+ * never: its own setting, else that of the section it prints under or the
+ * nearest one above it that has one. 0 at any level means never.
+ */
+export function autoMarkReadDays(
+  feed: Feed,
+  all: readonly Section[],
+): number | undefined {
+  if (feed.auto_mark_read_days !== null) {
+    return feed.auto_mark_read_days || undefined;
+  }
+  const byId = new Map(all.map((s) => [s.id, s]));
+  const seen = new Set<number>();
+  for (
+    let at = feed.section_id === null ? undefined : byId.get(feed.section_id);
+    at && !seen.has(at.id);
+    at = at.parent_id === null ? undefined : byId.get(at.parent_id)
+  ) {
+    seen.add(at.id);
+    if (at.auto_mark_read_days !== null)
+      return at.auto_mark_read_days || undefined;
+  }
+  return undefined;
 }

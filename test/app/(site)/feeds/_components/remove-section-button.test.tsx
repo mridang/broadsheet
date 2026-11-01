@@ -4,9 +4,9 @@ import { RemoveSectionButton } from '@/app/(site)/feeds/_components/remove-secti
 import { html } from '../../../../components/render';
 
 describe('RemoveSectionButton', () => {
-  it('removes a section with a plain button, not a form', () => {
+  it('removes a section, or it and its feeds, with plain buttons, not a form', () => {
     expect(html(<RemoveSectionButton id={3} />)).toMatch(
-      /^<div><button type="button" class="[^"]*">Remove<\/button><\/div>$/,
+      /^<div><button type="button" class="[^"]*">Remove<\/button><button type="button" class="[^"]*">Remove with feeds<\/button><\/div>$/,
     );
   });
 });

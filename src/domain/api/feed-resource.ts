@@ -7,6 +7,12 @@
 
 import type { Feed, FeedChanges } from '@/domain/repository';
 import type { FeedElement } from '@/lib/scraping';
+import {
+  iconResource,
+  isAutoMarkReadDays,
+  parseIcon,
+  type IconResource,
+} from '@/domain/api/icon-resource';
 
 /** Longest feed address accepted, in characters. */
 export const MAX_FEED_URL_LENGTH = 2048;
@@ -21,6 +27,12 @@ export interface FeedResource {
   readonly muted_until?: string;
   readonly position: number;
   readonly section_id?: string;
+  /** Every section the feed is filed in, the one it prints under first. */
+  readonly section_ids: readonly string[];
+  /** The person's own icon for the feed, when they gave one. */
+  readonly custom_icon?: IconResource;
+  /** Days until its stories count as read; absent inherits, 0 never. */
+  readonly auto_mark_read_days?: number;
   readonly created_at?: string;
   /** What the feed says about itself, from its header; absent until fetched. */
   readonly format?: string;
@@ -45,6 +57,9 @@ function storedHeader(json: string | null): FeedElement[] {
     return [];
   }
 }
+
+/** Most sections one feed may be filed in. */
+const MAX_FEED_SECTIONS = 50;
 
 /** Highest position a feed may take. */
 const MAX_FEED_POSITION = 10_000;
@@ -95,6 +110,13 @@ export function feedResource(feed: Readonly<Feed>): FeedResource {
       ? { muted_until: rfc3339(feed.muted_until) }
       : {}),
     position: feed.position,
+    section_ids: feed.section_ids.map(String),
+    ...(iconResource(feed.custom_icon)
+      ? { custom_icon: iconResource(feed.custom_icon) }
+      : {}),
+    ...(feed.auto_mark_read_days !== null
+      ? { auto_mark_read_days: feed.auto_mark_read_days }
+      : {}),
     ...(feed.section_id !== null
       ? { section_id: String(feed.section_id) }
       : {}),
@@ -168,7 +190,10 @@ export function parseFeedChanges(
         'muted',
         'muted_until',
         'section_id',
+        'section_ids',
         'position',
+        'custom_icon',
+        'auto_mark_read_days',
       ].includes(key)
     ) {
       errors.push(`${key}: not a member of a feed that can be changed.`);
@@ -221,6 +246,39 @@ export function parseFeedChanges(
     if (raw === null) changes.section_id = null;
     else if (id === undefined) errors.push('section_id: not a section id.');
     else changes.section_id = id;
+  }
+  if ('section_ids' in body) {
+    const raw = body['section_ids'];
+    const ids = Array.isArray(raw)
+      ? raw.map((r) => (typeof r === 'string' ? parseFeedId(r) : undefined))
+      : undefined;
+    if ('section_id' in body) {
+      errors.push('section_ids: send either section_id or section_ids.');
+    } else if (
+      !ids ||
+      ids.some((id) => id === undefined) ||
+      new Set(ids).size !== ids.length ||
+      ids.length > MAX_FEED_SECTIONS
+    ) {
+      errors.push(
+        `section_ids: a list of up to ${MAX_FEED_SECTIONS} different section ids.`,
+      );
+    } else changes.section_ids = ids as number[];
+  }
+  if ('custom_icon' in body) {
+    const icon = parseIcon(body['custom_icon'], 'custom_icon');
+    if (!icon.ok) errors.push(...icon.errors);
+    else changes.custom_icon = icon.icon && JSON.stringify(icon.icon);
+  }
+  if ('auto_mark_read_days' in body) {
+    const days = body['auto_mark_read_days'];
+    if (days === null || isAutoMarkReadDays(days)) {
+      changes.auto_mark_read_days = days;
+    } else {
+      errors.push(
+        'auto_mark_read_days: a whole number from 0 to 365, or null.',
+      );
+    }
   }
   return errors.length ? { ok: false, errors } : { ok: true, changes };
 }

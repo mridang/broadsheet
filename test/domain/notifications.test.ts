@@ -85,6 +85,20 @@ describe('setFeedNotification and feedNotifications', () => {
     expect(await repo.feedNotifications(1)).toEqual([]);
   });
 
+  it('notifies again once a timed mute has run out', async () => {
+    const main = new Repository(db);
+    const feed = (await main.addFeed(1, 'https://a.test/f'))!;
+    await repo.setFeedNotification(1, feed.id, {
+      filter: 'unread',
+      channels: ['web'],
+    });
+    await main.updateFeed(1, feed.id, {
+      muted: true,
+      muted_until: '2000-01-01 00:00:00',
+    });
+    expect(await repo.feedNotifications(1)).toHaveLength(1);
+  });
+
   it('removes a setting once, then says there was none', async () => {
     const feed = (await new Repository(db).addFeed(1, 'https://a.test/f'))!;
     await repo.setFeedNotification(1, feed.id, {

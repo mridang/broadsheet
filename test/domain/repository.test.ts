@@ -9,7 +9,10 @@ import {
   ftsQuery,
   MAX_BACKOFF_MINUTES,
   Repository,
+  autoMarkReadDays,
+  filedIn,
   sectionAndDescendants,
+  sectionNames,
   sectionPath,
   treeOrder,
   type Profile,
@@ -1369,6 +1372,8 @@ const section = (
   name,
   position: 0,
   parent_id,
+  icon: null,
+  auto_mark_read_days: null,
   created_at: null,
 });
 
@@ -1526,5 +1531,201 @@ describe('cluster siblings, issue lists and source counts', () => {
     const [row] = await repo.editionArticles('2026-11-01');
     await repo.markRead(user.id, row!.id);
     expect([...(await repo.readSourceIds(user.id))]).toEqual([a!.source_id]);
+  });
+});
+
+describe('feeds in several sections', () => {
+  it('files a feed in several sections, printing under the first', async () => {
+    const repo = new Repository(db);
+    const a = await repo.addSection(1, 'A');
+    const b = await repo.addSection(1, 'B');
+    const feed = (await addFeed(db, 1, 'https://a.test/f'))!;
+    expect(
+      await repo.updateFeed(1, feed.id, { section_ids: [b.id, a.id] }),
+    ).toMatchObject({ section_id: b.id, section_ids: [b.id, a.id] });
+    expect(
+      (await repo.updateFeed(1, feed.id, { section_ids: [] }))?.section_ids,
+    ).toEqual([]);
+  });
+
+  it('keeps the other sections when only the print section changes', async () => {
+    const repo = new Repository(db);
+    const a = await repo.addSection(1, 'A');
+    const b = await repo.addSection(1, 'B');
+    const c = await repo.addSection(1, 'C');
+    const feed = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await repo.updateFeed(1, feed.id, { section_ids: [a.id, b.id] });
+    expect(
+      (await repo.updateFeed(1, feed.id, { section_id: c.id }))?.section_ids,
+    ).toEqual([c.id, b.id]);
+    expect(
+      (await repo.updateFeed(1, feed.id, { section_id: b.id }))?.section_ids,
+    ).toEqual([b.id]);
+  });
+
+  it('moves a feed to its next section when its print section is removed', async () => {
+    const repo = new Repository(db);
+    const a = await repo.addSection(1, 'A');
+    const b = await repo.addSection(1, 'B');
+    const feed = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await repo.updateFeed(1, feed.id, { section_ids: [a.id, b.id] });
+    await repo.removeSection(1, a.id);
+    expect((await repo.getFeed(1, feed.id))?.section_ids).toEqual([b.id]);
+  });
+
+  it('forgets the sections of a feed that is unfollowed', async () => {
+    const repo = new Repository(db);
+    const a = await repo.addSection(1, 'A');
+    const b = await repo.addSection(1, 'B');
+    const feed = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await repo.updateFeed(1, feed.id, { section_ids: [a.id, b.id] });
+    await repo.removeFeed(1, feed.id);
+    expect((await addFeed(db, 1, 'https://a.test/f'))?.section_ids).toEqual([]);
+  });
+});
+
+describe('moveFeeds and removeFeeds', () => {
+  it('moves only the caller’s feeds and counts them', async () => {
+    const repo = new Repository(db);
+    const s = await repo.addSection(1, 'S');
+    const a = (await addFeed(db, 1, 'https://a.test/a'))!;
+    const theirs = (await addFeed(db, 2, 'https://a.test/b'))!;
+    expect(await repo.moveFeeds(1, [a.id, a.id, theirs.id, 999], s.id)).toBe(1);
+    expect((await repo.getFeed(1, a.id))?.section_id).toBe(s.id);
+    expect((await repo.getFeed(2, theirs.id))?.section_id).toBeNull();
+  });
+
+  it('removes only the caller’s feeds and counts them', async () => {
+    const repo = new Repository(db);
+    const a = (await addFeed(db, 1, 'https://a.test/a'))!;
+    const theirs = (await addFeed(db, 2, 'https://a.test/b'))!;
+    expect(await repo.removeFeeds(1, [a.id, theirs.id])).toBe(1);
+    expect(await listFeeds(db, 1)).toEqual([]);
+    expect(await listFeeds(db, 2)).toHaveLength(1);
+  });
+});
+
+describe('removeSection with its feeds', () => {
+  it('unfollows the feeds only inside it and removes the sections in it', async () => {
+    const repo = new Repository(db);
+    const top = await repo.addSection(1, 'Top');
+    const inner = await repo.addSection(1, 'Inner', undefined, top.id);
+    const other = await repo.addSection(1, 'Other');
+    const only = (await addFeed(db, 1, 'https://a.test/only'))!;
+    const deep = (await addFeed(db, 1, 'https://a.test/deep'))!;
+    const shared = (await addFeed(db, 1, 'https://a.test/shared'))!;
+    const loose = (await addFeed(db, 1, 'https://a.test/loose'))!;
+    await repo.updateFeed(1, only.id, { section_id: top.id });
+    await repo.updateFeed(1, deep.id, { section_id: inner.id });
+    await repo.updateFeed(1, shared.id, { section_ids: [top.id, other.id] });
+    expect(await repo.removeSection(1, top.id, true)).toBe(true);
+    expect((await repo.listSections(1)).map((s) => s.name)).toEqual(['Other']);
+    expect((await listFeeds(db, 1)).map((f) => [f.id, f.section_ids])).toEqual([
+      [shared.id, [other.id]],
+      [loose.id, []],
+    ]);
+  });
+
+  it('removes nothing of another person’s', async () => {
+    const repo = new Repository(db);
+    const s = await repo.addSection(1, 'S');
+    expect(await repo.removeSection(2, s.id, true)).toBe(false);
+    expect(await repo.listSections(1)).toHaveLength(1);
+  });
+});
+
+describe('section icons and days', () => {
+  it('stores an icon and the days, and clears them', async () => {
+    const repo = new Repository(db);
+    const s = await repo.addSection(1, 'S');
+    expect(
+      await repo.updateSection(1, s.id, {
+        icon: '{"type":"emoji","data":"📰"}',
+        auto_mark_read_days: 3,
+      }),
+    ).toMatchObject({
+      icon: '{"type":"emoji","data":"📰"}',
+      auto_mark_read_days: 3,
+    });
+    expect(
+      await repo.updateSection(1, s.id, {
+        icon: null,
+        auto_mark_read_days: null,
+      }),
+    ).toMatchObject({ icon: null, auto_mark_read_days: null });
+  });
+});
+
+describe('listEditions with a timed mute', () => {
+  it('counts a feed whose mute has run out', async () => {
+    const repo = new Repository(db);
+    const feed = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await repo.writeEdition(feed.source_id, '2026-10-20', [
+      {
+        url: 'https://x/1',
+        title: 'One',
+        source: '',
+        favicon: '',
+        summary: '',
+        image: '',
+        published_at: '',
+        points: 0,
+      },
+    ]);
+    await repo.updateFeed(1, feed.id, {
+      muted: true,
+      muted_until: '2000-01-01 00:00:00',
+    });
+    expect(await repo.listEditions(1)).toEqual(['2026-10-20']);
+  });
+});
+
+const filed = (section_id: number | null, days: number | null = null) =>
+  ({
+    section_id,
+    section_ids: section_id === null ? [] : [section_id],
+    auto_mark_read_days: days,
+  }) as unknown as Parameters<typeof autoMarkReadDays>[0];
+
+describe('autoMarkReadDays', () => {
+  const sections = [
+    { ...section(1, 'Top', null), auto_mark_read_days: 30 },
+    section(2, 'Mid', 1),
+    { ...section(3, 'Off', 1), auto_mark_read_days: 0 },
+  ];
+
+  it('takes the feed’s own setting first', () => {
+    expect(autoMarkReadDays(filed(2, 5), sections)).toBe(5);
+    expect(autoMarkReadDays(filed(2, 0), sections)).toBeUndefined();
+  });
+
+  it('inherits from the nearest section above that has one', () => {
+    expect(autoMarkReadDays(filed(2), sections)).toBe(30);
+  });
+
+  it('reads 0 on a section as never', () => {
+    expect(autoMarkReadDays(filed(3), sections)).toBeUndefined();
+  });
+
+  it('marks nothing read for a feed under no section', () => {
+    expect(autoMarkReadDays(filed(null), sections)).toBeUndefined();
+  });
+});
+
+describe('filedIn', () => {
+  it('matches a feed filed in any of the sections', () => {
+    const feed = { ...filed(1), section_ids: [1, 4] } as Parameters<
+      typeof filedIn
+    >[0];
+    expect(filedIn(feed, new Set([4]))).toBe(true);
+    expect(filedIn(feed, new Set([2]))).toBe(false);
+  });
+});
+
+describe('sectionNames', () => {
+  it('lists the names from the outermost section in', () => {
+    expect(
+      sectionNames([section(1, 'Tech', null), section(2, 'AI', 1)], 2),
+    ).toEqual(['Tech', 'AI']);
   });
 });

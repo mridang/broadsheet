@@ -66,6 +66,8 @@ export async function importFeeds(
   );
   const rejected: { url: string; reason: string }[] = [];
   const feeds: Feed[] = [];
+  /** The feeds this import followed, by comparable address. */
+  const added = new Map<string, Feed>();
   let skipped = 0;
   let sectionsAdded = 0;
   const sectionFor = async (
@@ -97,6 +99,21 @@ export async function importFeeds(
     }
     const address = comparable(checked.url);
     const site = comparable(entry.site_url);
+    // The same feed again in this file, under another folder, is filed in
+    // that section too, as a NewsBlur feed can sit in several folders.
+    const again = added.get(address);
+    if (again) {
+      const sectionId = await sectionFor(entry.sections ?? []);
+      if (sectionId !== null && !again.section_ids.includes(sectionId)) {
+        const filed =
+          (await repo.updateFeed(uid, again.id, {
+            section_ids: [...again.section_ids, sectionId],
+          })) ?? again;
+        added.set(address, filed);
+        feeds[feeds.indexOf(again)] = filed;
+      }
+      continue;
+    }
     const name = entry.title?.trim().toLowerCase() ?? '';
     if (
       addresses.has(address) ||
@@ -122,11 +139,11 @@ export async function importFeeds(
       // The person's own name for a feed the source already names otherwise.
       ...(title && feed.title !== title ? { title } : {}),
     };
-    feeds.push(
-      Object.keys(changes).length
-        ? ((await repo.updateFeed(uid, feed.id, changes)) ?? feed)
-        : feed,
-    );
+    const filed = Object.keys(changes).length
+      ? ((await repo.updateFeed(uid, feed.id, changes)) ?? feed)
+      : feed;
+    feeds.push(filed);
+    added.set(address, filed);
   }
   return {
     added: feeds.length,

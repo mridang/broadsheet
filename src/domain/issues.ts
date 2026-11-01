@@ -12,6 +12,8 @@ import {
   type Article,
   type CustomEdition,
   type Preferences,
+  autoMarkReadDays,
+  filedIn,
   sectionAndDescendants,
   sectionPath,
 } from '@/domain/repository';
@@ -78,19 +80,28 @@ export async function composeLayout(
     ]),
   );
   const feeds = all.filter(
-    (f) =>
-      !f.muted &&
-      (!picked.size || (f.section_id !== null && picked.has(f.section_id))),
+    (f) => !f.muted && (!picked.size || filedIn(f, picked)),
   );
   const desks = await Promise.all(
-    feeds.map(async (feed) => ({
-      feed,
-      articles: (await repo.sourceArticles(feed.source_id, date)).filter(
-        (a) =>
-          (!reads || reads.ids.has(a.id) || !reads.urls.has(a.url)) &&
-          (!pick?.keep || pick.keep(a.id)),
-      ),
-    })),
+    feeds.map(async (feed) => {
+      // For a reader, a feed or section that marks stories read after some
+      // days leaves out the editions older than that.
+      const days =
+        readerId === undefined ? undefined : autoMarkReadDays(feed, sections);
+      const oldest =
+        days === undefined
+          ? undefined
+          : new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
+      return {
+        feed,
+        articles: (await repo.sourceArticles(feed.source_id, date)).filter(
+          (a) =>
+            (!reads || reads.ids.has(a.id) || !reads.urls.has(a.url)) &&
+            (!oldest || !a.edition || a.edition >= oldest) &&
+            (!pick?.keep || pick.keep(a.id)),
+        ),
+      };
+    }),
   );
   const groups: DeskGroup[] = [
     { id: null, name: null },

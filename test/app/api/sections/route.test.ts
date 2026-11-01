@@ -71,6 +71,21 @@ describe('POST /api/sections', () => {
     expect(await new Repository(db).listSections(7)).toHaveLength(0);
   });
 
+  it('adds a section with its icon and days in one go', async () => {
+    const res = await post(
+      JSON.stringify({
+        name: 'Lab',
+        icon: { type: 'emoji', data: '🧪' },
+        auto_mark_read_days: 7,
+      }),
+    );
+    expect(res.status).toBe(201);
+    expect(await res.json()).toMatchObject({
+      icon: { type: 'emoji', data: '🧪' },
+      auto_mark_read_days: 7,
+    });
+  });
+
   it('answers 400 as a problem naming the missing name', async () => {
     const res = await post('{}');
     expect(res.status).toBe(400);

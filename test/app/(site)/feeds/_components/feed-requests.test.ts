@@ -129,6 +129,14 @@ describe('removeSection', () => {
     expect(spy).toHaveBeenCalledWith('/api/sections/4', { method: 'DELETE' });
   });
 
+  it('asks to unfollow the section’s feeds too when told to', async () => {
+    const spy = answer(new Response(null, { status: 204 }));
+    await removeSection(4, true);
+    expect(spy).toHaveBeenCalledWith('/api/sections/4?feeds=unfollow', {
+      method: 'DELETE',
+    });
+  });
+
   it('throws when the section was not there', async () => {
     answer(new Response('{"detail":"No such section."}', { status: 404 }));
     await expect(removeSection(4)).rejects.toBeInstanceOf(ProblemError);

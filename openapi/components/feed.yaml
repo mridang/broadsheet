@@ -1,6 +1,6 @@
 Feed:
   type: object
-  required: [id, url, muted, position, metadata]
+  required: [id, url, muted, position, section_ids, metadata]
   properties:
     id:
       type: string
@@ -20,6 +20,15 @@ Feed:
       type: integer
       minimum: 0
       description: Where the feed sits in the person's order; ties go by when it was followed.
+    section_ids:
+      type: array
+      items:
+        type: string
+      description: Every section the feed is filed in, the one it prints under (`section_id`) first. A feed can sit in several, as in several NewsBlur folders; the paper prints it once.
+    custom_icon:
+      $ref: './icon.yaml#/Icon'
+    auto_mark_read_days:
+      $ref: './icon.yaml#/AutoMarkReadDays'
     section_id:
       type: string
       description: The section the feed is filed under; absent when none.
@@ -98,7 +107,24 @@ FeedChanges:
     section_id:
       type: [string, 'null']
       pattern: '^[1-9][0-9]{0,14}$'
-      description: One of the person's sections, or null for none.
+      description: One of the person's sections to print under, or null for none. The feed's other sections stay. Send either this or `section_ids`.
+    section_ids:
+      type: array
+      maxItems: 50
+      uniqueItems: true
+      items:
+        type: string
+        pattern: '^[1-9][0-9]{0,14}$'
+      description: Every section to file the feed in, replacing the old ones; it prints under the first. An empty list files it nowhere.
+    custom_icon:
+      oneOf:
+        - $ref: './icon.yaml#/Icon'
+        - type: 'null'
+      description: The person's own icon for the feed, or null for the feed's own.
+    auto_mark_read_days:
+      oneOf:
+        - $ref: './icon.yaml#/AutoMarkReadDays'
+        - type: 'null'
 FeedStatistics:
   type: object
   required:

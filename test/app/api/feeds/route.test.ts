@@ -241,6 +241,26 @@ describe('GET /api/feeds', () => {
     expect(xml).toContain('xmlUrl="https://a.test/2"');
   });
 
+  it('lists a feed filed in two sections under both folders in the OPML', async () => {
+    await follow('https://a.test/1');
+    const feedId = (stored(7)[0] as { id: number }).id;
+    raw
+      .prepare(
+        "INSERT INTO sections (id, user_id, name) VALUES (1, 7, 'Tech'), (2, 7, 'News')",
+      )
+      .run();
+    raw
+      .prepare('UPDATE subscriptions SET section_id = 1 WHERE id = ?')
+      .run(feedId);
+    raw
+      .prepare(
+        'INSERT INTO subscription_sections (subscription_id, section_id) VALUES (?, 2)',
+      )
+      .run(feedId);
+    const xml = await (await list('', { accept: 'text/x-opml' })).text();
+    expect(xml.match(/xmlUrl="https:\/\/a\.test\/1"/g)).toHaveLength(2);
+  });
+
   it('carries each feed’s stored title and website in the OPML', async () => {
     await follow('https://a.test/1');
     raw

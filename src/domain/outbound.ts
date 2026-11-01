@@ -7,17 +7,23 @@
  * from {@link Repository} so it grows without touching the reading side.
  */
 
-import { and, desc, eq, getTableColumns, inArray } from 'drizzle-orm';
+import { and, desc, eq, getTableColumns, inArray, or } from 'drizzle-orm';
 
 import { type Database } from '@/domain/db/database';
 import {
   articles,
   feed_tokens,
   push_subscriptions,
+  sections,
+  subscription_sections,
   subscriptions,
   webhooks,
 } from '@/domain/db/schema';
-import type { ArticleSummary } from '@/domain/repository';
+import {
+  notMuted,
+  sectionAndDescendants,
+  type ArticleSummary,
+} from '@/domain/repository';
 
 /** A browser told when the day's issue is ready. */
 export type PushSubscription = typeof push_subscriptions.$inferSelect;
@@ -281,12 +287,35 @@ export class OutboundRepository {
     userId: number,
     sectionId?: number,
   ): Promise<ArticleSummary[]> {
-    const followed = and(
-      eq(subscriptions.user_id, userId),
-      eq(subscriptions.muted, 0),
+    // A section takes in the sections nested in it, and a feed counts when
+    // it is filed in any of them.
+    const ids =
       sectionId === undefined
         ? undefined
-        : eq(subscriptions.section_id, sectionId),
+        : [
+            ...sectionAndDescendants(
+              await this.#db
+                .select()
+                .from(sections)
+                .where(eq(sections.user_id, userId)),
+              sectionId,
+            ),
+          ];
+    const followed = and(
+      eq(subscriptions.user_id, userId),
+      notMuted,
+      ids === undefined
+        ? undefined
+        : or(
+            inArray(subscriptions.section_id, ids),
+            inArray(
+              subscriptions.id,
+              this.#db
+                .select({ id: subscription_sections.subscription_id })
+                .from(subscription_sections)
+                .where(inArray(subscription_sections.section_id, ids)),
+            ),
+          ),
     );
     const [newest] = await this.#db
       .select({ edition: articles.edition })

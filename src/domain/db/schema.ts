@@ -75,6 +75,10 @@ export const sections = sqliteTable(
     name: text('name').notNull(),
     position: integer('position').notNull().default(0),
     parent_id: integer('parent_id'),
+    /** A custom icon as JSON (type, data, color, set); null for none. */
+    icon: text('icon'),
+    /** Days until stories count as read: null inherits, 0 never. */
+    auto_mark_read_days: integer('auto_mark_read_days'),
     created_at: text('created_at').default(sql`(datetime('now'))`),
   },
   (table) => [index('idx_sections_user').on(table.user_id)],
@@ -96,12 +100,33 @@ export const subscriptions = sqliteTable(
     muted: integer('muted').notNull().default(0),
     muted_until: text('muted_until'),
     position: integer('position').notNull().default(0),
+    /** The person's own icon for the feed as JSON; null for the feed's own. */
+    custom_icon: text('custom_icon'),
+    /** Days until stories count as read: null inherits, 0 never. */
+    auto_mark_read_days: integer('auto_mark_read_days'),
     created_at: text('created_at').default(sql`(datetime('now'))`),
   },
   (table) => [
     unique().on(table.user_id, table.source_id),
     index('idx_subscriptions_user').on(table.user_id),
     index('idx_subscriptions_source').on(table.source_id),
+  ],
+);
+
+/**
+ * The sections a feed sits in besides its own `section_id` (where the paper
+ * prints it): a feed can be filed in several, as a NewsBlur feed can sit in
+ * several folders.
+ */
+export const subscription_sections = sqliteTable(
+  'subscription_sections',
+  {
+    subscription_id: integer('subscription_id').notNull(),
+    section_id: integer('section_id').notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.subscription_id, table.section_id] }),
+    index('idx_subscription_sections_section').on(table.section_id),
   ],
 );
 

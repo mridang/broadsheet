@@ -114,6 +114,43 @@ describe('composeLayout', () => {
     expect(layout.groups.map((g) => g.name)).toEqual(['Tech · AI']);
   });
 
+  it('leaves out, for the reader, stories older than a section marks read after', async () => {
+    const section = await repo.addSection(uid, 'Tech');
+    await repo.updateSection(uid, section.id, { auto_mark_read_days: 1 });
+    const [feed] = await repo.listFeeds(uid);
+    await repo.updateFeed(uid, feed!.id, { section_id: section.id });
+    await repo.writeEdition(sourceId, '2000-01-01', [item(3)]);
+    expect(storyIds(await composeLayout(repo, uid, '2000-01-01', uid))).toEqual(
+      [],
+    );
+    expect(storyIds(await composeLayout(repo, uid, '2000-01-01'))).toHaveLength(
+      1,
+    );
+  });
+
+  it('lets a feed set to never mark read override its section', async () => {
+    const section = await repo.addSection(uid, 'Tech');
+    await repo.updateSection(uid, section.id, { auto_mark_read_days: 1 });
+    const [feed] = await repo.listFeeds(uid);
+    await repo.updateFeed(uid, feed!.id, {
+      section_id: section.id,
+      auto_mark_read_days: 0,
+    });
+    await repo.writeEdition(sourceId, '2000-01-01', [item(3)]);
+    expect(
+      storyIds(await composeLayout(repo, uid, '2000-01-01', uid)),
+    ).toHaveLength(1);
+  });
+
+  it('prints a feed filed in two sections once, under its print section', async () => {
+    const tech = await repo.addSection(uid, 'Tech');
+    const news = await repo.addSection(uid, 'News');
+    const [feed] = await repo.listFeeds(uid);
+    await repo.updateFeed(uid, feed!.id, { section_ids: [news.id, tech.id] });
+    const layout = await composeLayout(repo, uid, DAY);
+    expect(layout.groups.map((g) => g.name)).toEqual(['News']);
+  });
+
   it('prints a feed again once its timed mute has run out', async () => {
     const [feed] = await repo.listFeeds(uid);
     await repo.updateFeed(uid, feed!.id, {
@@ -338,6 +375,21 @@ describe('custom editions', () => {
     const ai = await repo.addSection(uid, 'AI', undefined, tech.id);
     const [feed] = await repo.listFeeds(uid);
     await repo.updateFeed(uid, feed!.id, { section_id: ai.id });
+    const layout = await composeLayout(
+      repo,
+      uid,
+      DAY,
+      uid,
+      await editionPick(repo, edition({ section_ids: [tech.id] }), DAY),
+    );
+    expect(storyIds(layout)).toHaveLength(2);
+  });
+
+  it('prints a feed filed in its section among others', async () => {
+    const tech = await repo.addSection(uid, 'Tech');
+    const news = await repo.addSection(uid, 'News');
+    const [feed] = await repo.listFeeds(uid);
+    await repo.updateFeed(uid, feed!.id, { section_ids: [news.id, tech.id] });
     const layout = await composeLayout(
       repo,
       uid,

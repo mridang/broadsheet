@@ -10,6 +10,12 @@ import {
   parseFeedId,
   rfc3339,
 } from '@/domain/api/feed-resource';
+import {
+  iconResource,
+  isAutoMarkReadDays,
+  parseIcon,
+  type IconResource,
+} from '@/domain/api/icon-resource';
 import type { Section, SectionChanges } from '@/domain/repository';
 
 /** Highest position a section may take. */
@@ -22,6 +28,9 @@ export interface SectionResource {
   readonly position: number;
   /** The section this one nests under; absent at the top level. */
   readonly parent_id?: string;
+  readonly icon?: IconResource;
+  /** Days until its feeds' stories count as read; absent inherits, 0 never. */
+  readonly auto_mark_read_days?: number;
   readonly created_at?: string;
 }
 
@@ -34,6 +43,10 @@ export function sectionResource(section: Readonly<Section>): SectionResource {
     position: section.position,
     ...(section.parent_id !== null
       ? { parent_id: String(section.parent_id) }
+      : {}),
+    ...(iconResource(section.icon) ? { icon: iconResource(section.icon) } : {}),
+    ...(section.auto_mark_read_days !== null
+      ? { auto_mark_read_days: section.auto_mark_read_days }
       : {}),
     ...(created ? { created_at: created } : {}),
   };
@@ -57,7 +70,15 @@ export function parseSectionInput(
   const changes: { -readonly [K in keyof SectionChanges]: SectionChanges[K] } =
     {};
   for (const key of Object.keys(body)) {
-    if (!['name', 'position', 'parent_id'].includes(key)) {
+    if (
+      ![
+        'name',
+        'position',
+        'parent_id',
+        'icon',
+        'auto_mark_read_days',
+      ].includes(key)
+    ) {
       errors.push(`${key}: not a member of a section.`);
     }
   }
@@ -89,6 +110,21 @@ export function parseSectionInput(
     if (raw === null) changes.parent_id = null;
     else if (id === undefined) errors.push('parent_id: not a section id.');
     else changes.parent_id = id;
+  }
+  if ('icon' in body) {
+    const icon = parseIcon(body['icon'], 'icon');
+    if (!icon.ok) errors.push(...icon.errors);
+    else changes.icon = icon.icon && JSON.stringify(icon.icon);
+  }
+  if ('auto_mark_read_days' in body) {
+    const days = body['auto_mark_read_days'];
+    if (days === null || isAutoMarkReadDays(days)) {
+      changes.auto_mark_read_days = days;
+    } else {
+      errors.push(
+        'auto_mark_read_days: a whole number from 0 to 365, or null.',
+      );
+    }
   }
   return errors.length ? { ok: false, errors } : { ok: true, changes };
 }

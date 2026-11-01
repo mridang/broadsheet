@@ -121,4 +121,19 @@ describe('comparable', () => {
     expect(comparable('HTTPS://www.A.test/x/#f')).toBe('a.test/x');
     expect(comparable('https://a.test/x?y=1')).toBe('a.test/x?y=1');
   });
+
+  it('files a feed listed under two folders in both sections', async () => {
+    const summary = await importFeeds(repo, 1, [
+      { url: 'https://a.test/1', sections: ['Tech'] },
+      { url: 'https://a.test/1', sections: ['News'] },
+      { url: 'https://a.test/1', sections: ['News'] },
+    ]);
+    expect(summary).toMatchObject({ added: 1, skipped: 0, sections_added: 2 });
+    const [tech, news] = await repo.listSections(1);
+    expect((await repo.listFeeds(1))[0]?.section_ids).toEqual([
+      tech!.id,
+      news!.id,
+    ]);
+    expect(summary.feeds[0]?.section_ids).toEqual([tech!.id, news!.id]);
+  });
 });

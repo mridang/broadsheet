@@ -173,6 +173,60 @@ describe('PATCH /api/feeds/:id', () => {
     ]);
   });
 
+  it('files the feed in several of the caller’s sections', async () => {
+    const repo = new Repository(db);
+    const a = await repo.addSection(7, 'A');
+    const b = await repo.addSection(7, 'B');
+    const res = await patch(
+      mine,
+      JSON.stringify({ section_ids: [String(b.id), String(a.id)] }),
+    );
+    expect(await res.json()).toMatchObject({
+      section_id: String(b.id),
+      section_ids: [String(b.id), String(a.id)],
+    });
+  });
+
+  it('answers 400 naming section_ids when one is another person’s', async () => {
+    const repo = new Repository(db);
+    const a = await repo.addSection(7, 'A');
+    const theirs = await repo.addSection(8, 'Theirs');
+    const res = await patch(
+      mine,
+      JSON.stringify({ section_ids: [String(a.id), String(theirs.id)] }),
+    );
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { errors: string[] }).errors).toEqual([
+      'section_ids: no such section.',
+    ]);
+  });
+
+  it('gives the feed its own icon and auto mark-read days', async () => {
+    const res = await patch(
+      mine,
+      JSON.stringify({
+        custom_icon: { type: 'preset', data: 'rss', color: '#ff5722' },
+        auto_mark_read_days: 3,
+      }),
+    );
+    expect(await res.json()).toMatchObject({
+      custom_icon: {
+        type: 'preset',
+        data: 'rss',
+        color: '#ff5722',
+        set: 'lucide',
+      },
+      auto_mark_read_days: 3,
+    });
+  });
+
+  it('answers 404 rather than 400 for another person’s feed with a bad section', async () => {
+    auth = await cookieFor(8);
+    expect(
+      (await patch(mine, JSON.stringify({ section_id: '999' }))).status,
+    ).toBe(404);
+  });
+
   it('answers 400 as a problem naming the bad field', async () => {
     const res = await patch(mine, JSON.stringify({ muted: 'yes' }));
     expect(res.status).toBe(400);

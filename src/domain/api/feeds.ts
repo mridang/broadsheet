@@ -51,6 +51,7 @@ import {
   buildOpml,
   OPML_TYPE,
   parseOpml,
+  type OpmlEntry,
   type OpmlFeed,
 } from '@/domain/api/opml';
 import { importFeeds, MAX_IMPORT_FEEDS } from '@/domain/feed-import';
@@ -88,14 +89,19 @@ export function wantsOpml(request: Request): boolean {
 
 /** The feeds as an OPML download, folders being the sections. */
 function opmlResponse({ feeds, sections }: FeedList): Response {
+  // A feed filed in several sections is listed in each, as NewsBlur does.
   const xml = buildOpml(
     'Broadsheet feeds',
-    feeds.map((f) => ({
-      url: f.url,
-      title: f.title ?? f.url,
-      ...(f.site_url ? { site_url: f.site_url } : {}),
-      section_id: f.section_id,
-    })),
+    feeds.flatMap((f) => {
+      const entry = {
+        url: f.url,
+        title: f.title ?? f.url,
+        ...(f.site_url ? { site_url: f.site_url } : {}),
+      };
+      return f.section_ids.length
+        ? f.section_ids.map((id): OpmlEntry => ({ ...entry, section_id: id }))
+        : [{ ...entry, section_id: null }];
+    }),
     sections,
   );
   return new Response(xml, {
@@ -225,10 +231,11 @@ export function createFeedsCollection(
 export const feedsCollection = createFeedsCollection();
 
 /**
- * `PATCH /api/feeds/:id`: rename, mute or file the feed under a section
- * (`title`, `muted`, `section_id`; null clears the title or section). 200 with
- * the feed, 400 for a body that is not a valid change or names a section that
- * is not the person's, 415 for a non-JSON body.
+ * `PATCH /api/feeds/:id`: rename, mute (for good or `muted_until` a time),
+ * reorder, give an icon or auto mark-read days, or file the feed under one
+ * section (`section_id`) or several (`section_ids`). 200 with the feed, 400
+ * for a body that is not a valid change or names a section that is not the
+ * person's, 415 for a non-JSON body.
  *
  * `DELETE /api/feeds/:id`: stop following the feed. 204.
  *
@@ -264,14 +271,8 @@ export function createFeedItem(
         const id = parseFeedId(idOf(request));
         if (id === undefined) return undefined;
         const repo = new Repository(getDatabase());
-        if (
-          typeof changes.section_id === 'number' &&
-          !(await repo.getSection(uid, changes.section_id))
-        ) {
-          throw problems.badRequest('The change is not valid.', [
-            'section_id: no such section.',
-          ]);
-        }
+        if (!(await repo.getFeed(uid, id))) return undefined;
+        await checkSections(repo, uid, changes);
         if (changes.url !== undefined) {
           const current = await repo.getFeed(uid, id);
           if (!current) return undefined;
@@ -335,6 +336,28 @@ export function createFeedItem(
 
 /** The feed-item controller bound to the production resolver. */
 export const feedItem = createFeedItem();
+
+/**
+ * Refuse a change that files a feed under a section that is not the
+ * person's, naming the member that did.
+ */
+async function checkSections(
+  repo: Repository,
+  uid: number,
+  changes: FeedChanges,
+): Promise<void> {
+  const mine = new Set((await repo.listSections(uid)).map((s) => s.id));
+  if (typeof changes.section_id === 'number' && !mine.has(changes.section_id)) {
+    throw problems.badRequest('The change is not valid.', [
+      'section_id: no such section.',
+    ]);
+  }
+  if (changes.section_ids?.some((s) => !mine.has(s))) {
+    throw problems.badRequest('The change is not valid.', [
+      'section_ids: no such section.',
+    ]);
+  }
+}
 
 /** The trailing path segment of `/api/feeds/:id`. */
 export function idOf(request: Request): string {
@@ -644,3 +667,123 @@ export function createFeedRetries(
 
 /** The retry controller bound to the production resolver. */
 export const feedRetries = createFeedRetries();
+/** Most feeds one move or removal may name. */
+const MAX_BATCH = 500;
+
+/** A checked list of feed ids from the member `feed_ids` of a body. */
+function feedIdsOf(body: Readonly<Record<string, unknown>>): number[] | string {
+  const raw = body['feed_ids'];
+  const ids = Array.isArray(raw)
+    ? raw.map((r) => (typeof r === 'string' ? parseFeedId(r) : undefined))
+    : undefined;
+  return ids &&
+    ids.length &&
+    ids.length <= MAX_BATCH &&
+    ids.every((id) => id !== undefined)
+    ? (ids as number[])
+    : `feed_ids: a list of 1 to ${MAX_BATCH} feed ids.`;
+}
+
+/** What a move asks: these feeds, under this section (null for none). */
+interface FeedMove {
+  readonly feed_ids: readonly number[];
+  readonly section_id: number | null;
+}
+
+/**
+ * `POST /api/feeds/moves` {feed_ids, section_id}: file several feeds under one
+ * section (null for none) at once, as NewsBlur moves a selection of feeds into
+ * a folder. Their other sections stay. 200 with how many moved (ids that are
+ * not the person's are skipped), 400 for a body that is not a valid move or a
+ * section that is not theirs, 415 for a non-JSON body, 401/403 when not signed
+ * in or cross-site. A move is not stored, so the result is the response.
+ */
+export function createFeedMoves(
+  resolver: CurrentUserResolver = requestCookieResolver,
+): ApiController<UidContext> {
+  return new ApiController<UidContext>({
+    context: async (request) => ({
+      request,
+      uid: await liveUid(request, resolver),
+    }),
+  }).on<FeedMove, { readonly moved: number }>({
+    method: 'POST',
+    decode: async (request) => {
+      const body = await readJsonObject(
+        request,
+        'The move must be a JSON object.',
+      );
+      if (!body.ok) throw body.response;
+      const errors: string[] = [];
+      for (const key of Object.keys(body.value)) {
+        if (key !== 'feed_ids' && key !== 'section_id') {
+          errors.push(`${key}: not a member of a move.`);
+        }
+      }
+      const ids = feedIdsOf(body.value);
+      if (typeof ids === 'string') errors.push(ids);
+      const raw = body.value['section_id'];
+      const section = typeof raw === 'string' ? parseFeedId(raw) : undefined;
+      if (raw !== null && section === undefined) {
+        errors.push('section_id: a section id, or null for none.');
+      }
+      if (errors.length || typeof ids === 'string') {
+        throw problems.badRequest('The move is not valid.', errors);
+      }
+      return { feed_ids: ids, section_id: section ?? null };
+    },
+    handle: async ({ feed_ids: ids, section_id: section }, { uid }) => {
+      const repo = new Repository(getDatabase());
+      await checkSections(repo, uid, { section_id: section });
+      return { moved: await repo.moveFeeds(uid, ids, section) };
+    },
+    encode: (body) => ok(body, { headers: { 'Cache-Control': 'no-store' } }),
+  });
+}
+
+/** The feed-moves controller bound to the production resolver. */
+export const feedMoves = createFeedMoves();
+
+/**
+ * `POST /api/feeds/removals` {feed_ids}: stop following several feeds at once.
+ * 200 with how many there were to remove (ids that are not the person's are
+ * skipped), 400 for a body that is not a valid list, 415 for a non-JSON body,
+ * 401/403 when not signed in or cross-site.
+ */
+export function createFeedRemovals(
+  resolver: CurrentUserResolver = requestCookieResolver,
+): ApiController<UidContext> {
+  return new ApiController<UidContext>({
+    context: async (request) => ({
+      request,
+      uid: await liveUid(request, resolver),
+    }),
+  }).on<readonly number[], { readonly removed: number }>({
+    method: 'POST',
+    decode: async (request) => {
+      const body = await readJsonObject(
+        request,
+        'The removal must be a JSON object.',
+      );
+      if (!body.ok) throw body.response;
+      const extra = Object.keys(body.value)
+        .filter((key) => key !== 'feed_ids')
+        .map((key) => `${key}: not a member of a removal.`);
+      const ids = feedIdsOf(body.value);
+      if (extra.length || typeof ids === 'string') {
+        throw problems.badRequest('The removal is not valid.', [
+          ...extra,
+          ...(typeof ids === 'string' ? [ids] : []),
+        ]);
+      }
+      return ids;
+    },
+    handle: async (ids, { uid }) => ({
+      removed: await new Repository(getDatabase()).removeFeeds(uid, ids),
+    }),
+    encode: (body) => ok(body, { headers: { 'Cache-Control': 'no-store' } }),
+  });
+}
+
+/** The feed-removals controller bound to the production resolver. */
+export const feedRemovals = createFeedRemovals();

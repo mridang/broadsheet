@@ -53,9 +53,9 @@ const patch = (id: string | number, body: string, headers = {}) =>
     { params: Promise.resolve({ id: String(id) }) },
   );
 
-const remove = (id: string | number) =>
+const remove = (id: string | number, query = '') =>
   DELETE(
-    new Request(`https://app.test/api/sections/${id}`, {
+    new Request(`https://app.test/api/sections/${id}${query}`, {
       method: 'DELETE',
       headers: { ...auth },
     }),
@@ -134,6 +134,31 @@ describe('PATCH /api/sections/:id', () => {
 });
 
 describe('DELETE /api/sections/:id', () => {
+  it('keeps the section’s feeds by default, under no section', async () => {
+    const repo = new Repository(db);
+    const feed = (await repo.addFeed(7, 'https://a.test/f'))!;
+    await repo.updateFeed(7, feed.id, { section_id: mine });
+    expect((await remove(mine, '?feeds=keep')).status).toBe(204);
+    expect((await repo.getFeed(7, feed.id))?.section_ids).toEqual([]);
+  });
+
+  it('unfollows the feeds only in the section with ?feeds=unfollow', async () => {
+    const repo = new Repository(db);
+    const feed = (await repo.addFeed(7, 'https://a.test/f'))!;
+    await repo.updateFeed(7, feed.id, { section_id: mine });
+    expect((await remove(mine, '?feeds=unfollow')).status).toBe(204);
+    expect(await repo.listFeeds(7)).toEqual([]);
+  });
+
+  it('answers 400 naming feeds for another value, removing nothing', async () => {
+    const res = await remove(mine, '?feeds=all');
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { errors: string[] }).errors).toEqual([
+      'feeds: must be keep or unfollow.',
+    ]);
+    expect(await sections()).toHaveLength(1);
+  });
+
   it('answers 204 and the section is gone', async () => {
     const res = await remove(mine);
     expect(res.status).toBe(204);

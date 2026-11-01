@@ -120,6 +120,40 @@ describe('editionStories', () => {
     ).toEqual(['https://x/a']);
     expect(await repo.editionStories(2)).toEqual([]);
   });
+
+  it('takes in the sections nested in a section, and feeds filed there among others', async () => {
+    const main = new Repository(db);
+    const tech = await main.addSection(1, 'Tech');
+    const ai = await main.addSection(1, 'AI', undefined, tech.id);
+    const news = await main.addSection(1, 'News');
+    const nested = (await main.addFeed(1, 'https://a.test/f'))!;
+    const both = (await main.addFeed(1, 'https://b.test/f'))!;
+    await main.updateFeed(1, nested.id, { section_id: ai.id });
+    await main.updateFeed(1, both.id, { section_ids: [news.id, tech.id] });
+    await main.writeEdition(nested.source_id, '2026-10-02', [
+      story({ url: 'https://x/a', points: 2 }),
+    ]);
+    await main.writeEdition(both.source_id, '2026-10-02', [
+      story({ url: 'https://x/b', points: 1 }),
+    ]);
+    expect((await repo.editionStories(1, tech.id)).map((s) => s.url)).toEqual([
+      'https://x/a',
+      'https://x/b',
+    ]);
+  });
+
+  it('lists a feed again once its timed mute has run out', async () => {
+    const main = new Repository(db);
+    const feed = (await main.addFeed(1, 'https://a.test/f'))!;
+    await main.updateFeed(1, feed.id, {
+      muted: true,
+      muted_until: '2000-01-01 00:00:00',
+    });
+    await main.writeEdition(feed.source_id, '2026-10-02', [
+      story({ url: 'https://x/a' }),
+    ]);
+    expect(await repo.editionStories(1)).toHaveLength(1);
+  });
 });
 
 describe('bodies', () => {

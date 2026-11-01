@@ -14,6 +14,8 @@ describe('sectionResource', () => {
         name: 'Tech',
         position: 2,
         parent_id: null,
+        icon: null,
+        auto_mark_read_days: null,
         created_at: '2026-01-02 03:04:05',
       }),
     ).toEqual({
@@ -32,6 +34,8 @@ describe('sectionResource', () => {
         name: 'Tech',
         position: 0,
         parent_id: null,
+        icon: null,
+        auto_mark_read_days: null,
         created_at: null,
       }),
     ).toEqual({ id: '4', name: 'Tech', position: 0 });
@@ -46,6 +50,14 @@ describe('parseSectionInput', () => {
     [{}, false, {}],
     [{ parent_id: '3' }, false, { parent_id: 3 }],
     [{ parent_id: null }, false, { parent_id: null }],
+    [
+      { icon: { type: 'emoji', data: '🧪' } },
+      false,
+      { icon: '{"type":"emoji","data":"🧪"}' },
+    ],
+    [{ icon: null }, false, { icon: null }],
+    [{ auto_mark_read_days: 30 }, false, { auto_mark_read_days: 30 }],
+    [{ auto_mark_read_days: null }, false, { auto_mark_read_days: null }],
   ])('accepts %j (name required: %s)', (body, required, changes) => {
     expect(parseSectionInput(body, required)).toEqual({ ok: true, changes });
   });
@@ -68,6 +80,16 @@ describe('parseSectionInput', () => {
     [{ name: 'a', colour: 'red' }, true, 'colour: not a member of a section.'],
     [{ parent_id: 3 }, false, 'parent_id: not a section id.'],
     [{ parent_id: 'top' }, false, 'parent_id: not a section id.'],
+    [
+      { icon: { type: 'gif', data: 'x' } },
+      false,
+      'icon.type: must be one of emoji, preset, upload.',
+    ],
+    [
+      { auto_mark_read_days: -1 },
+      false,
+      'auto_mark_read_days: a whole number from 0 to 365, or null.',
+    ],
   ])(
     'refuses %j (name required: %s), naming the field',
     (body, required, error) => {
@@ -88,8 +110,30 @@ describe('sectionResource of a nested section', () => {
         name: 'AI',
         position: 0,
         parent_id: 2,
+        icon: null,
+        auto_mark_read_days: null,
         created_at: null,
       }),
     ).toMatchObject({ parent_id: '2' });
+  });
+});
+
+describe('sectionResource with an icon and days', () => {
+  it('shows the icon and how many days until stories count as read', () => {
+    expect(
+      sectionResource({
+        id: 4,
+        user_id: 9,
+        name: 'Lab',
+        position: 0,
+        parent_id: null,
+        icon: '{"type":"emoji","data":"🧪"}',
+        auto_mark_read_days: 14,
+        created_at: null,
+      }),
+    ).toMatchObject({
+      icon: { type: 'emoji', data: '🧪' },
+      auto_mark_read_days: 14,
+    });
   });
 });

@@ -19,6 +19,9 @@ const stored = (over: Partial<Feed> = {}): Feed => ({
   muted: false,
   muted_until: null,
   position: 0,
+  section_ids: [],
+  custom_icon: null,
+  auto_mark_read_days: null,
   url: 'https://a.test/feed.xml',
   title: 'A feed',
   created_at: '2026-01-02 03:04:05',
@@ -42,6 +45,7 @@ describe('feedResource', () => {
       title: 'A feed',
       muted: false,
       position: 0,
+      section_ids: [],
       created_at: '2026-01-02T03:04:05Z',
       metadata: [],
     });
@@ -94,6 +98,7 @@ describe('feedResource', () => {
       url: 'https://a.test/feed.xml',
       muted: false,
       position: 0,
+      section_ids: [],
       metadata: [],
     });
   });
@@ -172,6 +177,15 @@ describe('parseFeedChanges', () => {
     ],
     [{ muted_until: null }, { muted_until: null }],
     [{ position: 4 }, { position: 4 }],
+    [{ section_ids: ['2', '5'] }, { section_ids: [2, 5] }],
+    [{ section_ids: [] }, { section_ids: [] }],
+    [
+      { custom_icon: { type: 'emoji', data: '📰' } },
+      { custom_icon: '{"type":"emoji","data":"📰"}' },
+    ],
+    [{ custom_icon: null }, { custom_icon: null }],
+    [{ auto_mark_read_days: 7 }, { auto_mark_read_days: 7 }],
+    [{ auto_mark_read_days: null }, { auto_mark_read_days: null }],
     [{}, {}],
   ])('accepts %j', (body, changes) => {
     expect(parseFeedChanges(body)).toEqual({ ok: true, changes });
@@ -195,6 +209,27 @@ describe('parseFeedChanges', () => {
       'muted_until: must be an RFC 3339 date-time.',
     ],
     [{ position: -1 }, 'position: must be a whole number from 0 to 10000.'],
+    [
+      { section_ids: ['2', '2'] },
+      'section_ids: a list of up to 50 different section ids.',
+    ],
+    [
+      { section_ids: [2] },
+      'section_ids: a list of up to 50 different section ids.',
+    ],
+    [
+      { section_ids: '2' },
+      'section_ids: a list of up to 50 different section ids.',
+    ],
+    [
+      { section_id: '2', section_ids: ['3'] },
+      'section_ids: send either section_id or section_ids.',
+    ],
+    [{ custom_icon: 'x' }, 'custom_icon: must be an object or null.'],
+    [
+      { auto_mark_read_days: 400 },
+      'auto_mark_read_days: a whole number from 0 to 365, or null.',
+    ],
     [{ position: 2.5 }, 'position: must be a whole number from 0 to 10000.'],
   ])('refuses %j, naming the field', (body, error) => {
     expect(parseFeedChanges(body)).toEqual({ ok: false, errors: [error] });
@@ -247,4 +282,24 @@ describe('sqliteTime', () => {
       expect(sqliteTime(text)).toBeUndefined();
     },
   );
+});
+
+describe('feedResource of a feed in several sections with its own settings', () => {
+  it('lists every section, the print one first, and shows the icon and days', () => {
+    expect(
+      feedResource(
+        stored({
+          section_id: 3,
+          section_ids: [3, 5],
+          custom_icon: '{"type":"emoji","data":"📰"}',
+          auto_mark_read_days: 0,
+        }),
+      ),
+    ).toMatchObject({
+      section_id: '3',
+      section_ids: ['3', '5'],
+      custom_icon: { type: 'emoji', data: '📰' },
+      auto_mark_read_days: 0,
+    });
+  });
 });

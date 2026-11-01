@@ -75,10 +75,20 @@ item:
     operationId: removeSection
     tags: [sections]
     summary: Remove a section; its feeds stay, under no section, and the sections inside it move up to its parent.
-    description: Rate limited by the `RL_API` binding. An id that cannot name a section is a 404.
+    description: Rate limited by the `RL_API` binding. An id that cannot name a section is a 404. With `feeds=unfollow`, as deleting a NewsBlur folder does, the sections inside it go too, and so does every feed filed only inside them; a feed also filed elsewhere stays there.
+    parameters:
+      - name: feeds
+        in: query
+        required: false
+        schema:
+          type: string
+          enum: [keep, unfollow]
+          default: keep
     responses:
       '204':
         description: The section is gone.
+      '400':
+        $ref: '../components/common.yaml#/responses/BadRequest'
       '401':
         $ref: '../components/common.yaml#/responses/Unauthorized'
       '403':

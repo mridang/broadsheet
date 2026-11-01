@@ -65,9 +65,20 @@ export async function addSection(
   );
 }
 
-/** Remove the section with this id (`DELETE /api/sections/:id`). */
-export async function removeSection(id: number): Promise<void> {
-  await ensureOk(await fetch(`/api/sections/${id}`, { method: 'DELETE' }));
+/**
+ * Remove the section with this id (`DELETE /api/sections/:id`), unfollowing
+ * the feeds only inside it when `unfollowFeeds`.
+ */
+export async function removeSection(
+  id: number,
+  unfollowFeeds = false,
+): Promise<void> {
+  await ensureOk(
+    await fetch(
+      `/api/sections/${id}${unfollowFeeds ? '?feeds=unfollow' : ''}`,
+      { method: 'DELETE' },
+    ),
+  );
 }
 
 /** Follow the feeds of these topics (`POST /api/feeds/imports`). */

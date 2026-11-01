@@ -74,6 +74,10 @@ paths:
     $ref: './paths/feeds.yaml#/suggestions'
   /api/feeds/refreshes:
     $ref: './paths/feeds.yaml#/refreshes'
+  /api/feeds/moves:
+    $ref: './paths/feeds.yaml#/moves'
+  /api/feeds/removals:
+    $ref: './paths/feeds.yaml#/removals'
   /api/push/configuration:
     $ref: './paths/push.yaml#/configuration'
   /api/sections:
