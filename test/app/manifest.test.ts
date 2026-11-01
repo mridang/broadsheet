@@ -22,6 +22,11 @@ function pngChunks(file: string): readonly string[] {
 describe('web app manifest', () => {
   const m = manifest();
 
+  it('writes the app’s name with a capital letter, on the home screen and in the install dialog', () => {
+    expect(m.name).toMatch(/^\p{Lu}/u);
+    expect(m.short_name).toMatch(/^\p{Lu}/u);
+  });
+
   it('meets what Chrome needs to offer an install', () => {
     expect(m.name).toBeTruthy();
     expect(m.short_name).toBeTruthy();

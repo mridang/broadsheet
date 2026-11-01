@@ -17,7 +17,7 @@
 import { BRAND_NAME } from '@/app/_brand';
 
 /** The `localStorage` key that remembers the tip was dismissed. */
-export const IOS_HINT_STORAGE_KEY = `${BRAND_NAME}:ios-install-hint-dismissed`;
+export const IOS_HINT_STORAGE_KEY = `${BRAND_NAME.toLowerCase()}:ios-install-hint-dismissed`;
 
 /**
  * The sentence the tip shows. The Share button is the square with an arrow in
