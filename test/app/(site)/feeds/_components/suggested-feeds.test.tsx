@@ -11,7 +11,7 @@ describe('SuggestedFeeds', () => {
       />,
     );
     expect(out).toContain('You might also like');
-    expect(out).toContain('<strong>A</strong>');
+    expect(out).toMatch(/<strong[^>]*>A<\/strong>/);
     expect(out).toContain('>Follow</button>');
     expect(out).toContain('Followed by 2 readers');
   });
@@ -22,7 +22,7 @@ describe('SuggestedFeeds', () => {
         feeds={[{ url: 'https://a.test/f', title: null, followers: 1 }]}
       />,
     );
-    expect(out).toContain('<strong>a.test</strong>');
+    expect(out).toMatch(/<strong[^>]*>a\.test<\/strong>/);
     expect(out).toContain('Followed by 1 reader like you');
   });
 

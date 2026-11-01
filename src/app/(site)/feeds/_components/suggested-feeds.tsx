@@ -5,6 +5,10 @@ import type { ReactElement } from 'react';
 import { followFeed } from '@/app/(site)/feeds/_components/feed-requests';
 import { useFeedAction } from '@/app/(site)/feeds/_components/use-feed-action';
 import { hostOf } from '@/domain/render/tiers';
+import { buttonClass } from '@/components/ui/button';
+import { CARD } from '@/components/ui/field';
+import { ErrorText } from '@/components/ui/notice';
+import { PageSection } from '@/components/ui/page-header';
 
 /** A source to suggest, as the feed manager lists it. */
 export interface SuggestedFeed {
@@ -19,19 +23,21 @@ function SuggestionRow({
 }: Readonly<{ feed: SuggestedFeed }>): ReactElement {
   const { busy, error, run } = useFeedAction();
   return (
-    <div className="feedrow">
-      <div>
-        <strong>{feed.title || hostOf(feed.url)}</strong>
-        <div className="u">{feed.url}</div>
-        <div className="muted">
+    <li className="flex items-start justify-between gap-4 px-5 py-4">
+      <div className="min-w-0">
+        <strong className="text-sm font-semibold">
+          {feed.title || hostOf(feed.url)}
+        </strong>
+        <div className="truncate text-xs text-subtle">{feed.url}</div>
+        <div className="mt-1 text-xs text-muted">
           Followed by {feed.followers} reader{feed.followers === 1 ? '' : 's'}{' '}
           like you
         </div>
-        {error ? <p role="alert">{error}</p> : null}
+        {error ? <ErrorText>{error}</ErrorText> : null}
       </div>
       <button
         type="button"
-        className="btn"
+        className={buttonClass({ size: 'sm' })}
         disabled={busy}
         onClick={() =>
           void run(() => followFeed(feed.url), 'Could not follow that feed.')
@@ -39,7 +45,7 @@ function SuggestionRow({
       >
         Follow
       </button>
-    </div>
+    </li>
   );
 }
 
@@ -49,11 +55,12 @@ export function SuggestedFeeds({
 }: Readonly<{ feeds: readonly SuggestedFeed[] }>): ReactElement | null {
   if (!feeds.length) return null;
   return (
-    <>
-      <h2>You might also like</h2>
-      {feeds.map((feed) => (
-        <SuggestionRow key={feed.url} feed={feed} />
-      ))}
-    </>
+    <PageSection id="suggested" title="You might also like">
+      <ul className={`${CARD} divide-y divide-line`}>
+        {feeds.map((feed) => (
+          <SuggestionRow key={feed.url} feed={feed} />
+        ))}
+      </ul>
+    </PageSection>
   );
 }

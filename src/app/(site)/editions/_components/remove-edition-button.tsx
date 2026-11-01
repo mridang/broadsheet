@@ -4,6 +4,8 @@ import type { ReactElement } from 'react';
 
 import { useApiAction } from '@/components/api/use-api-action';
 import { removeEdition } from '@/app/(site)/editions/_components/edition-requests';
+import { buttonClass } from '@/components/ui/button';
+import { ErrorText } from '@/components/ui/notice';
 
 /** "Remove" on a custom edition; its stored issues go with it. */
 export function RemoveEditionButton({
@@ -14,7 +16,12 @@ export function RemoveEditionButton({
     <div>
       <button
         type="button"
-        className="btn danger"
+        className={buttonClass({
+          variant: 'ghost',
+          size: 'sm',
+          className:
+            'text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950',
+        })}
         disabled={busy}
         onClick={() =>
           void run(() => removeEdition(id), 'Could not remove that edition.')
@@ -22,7 +29,7 @@ export function RemoveEditionButton({
       >
         Remove
       </button>
-      {error ? <p role="alert">{error}</p> : null}
+      {error ? <ErrorText>{error}</ErrorText> : null}
     </div>
   );
 }

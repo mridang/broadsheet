@@ -27,7 +27,7 @@ describe('signing out', () => {
       window: { location: { assign } },
     });
     jest.spyOn(globalThis, 'fetch').mockImplementation(fetchSpy as never);
-    const { props } = SignOutButton();
+    const { props } = SignOutButton({});
     await (props as { onClick: () => Promise<void> | void }).onClick();
     await new Promise((resolve) => setTimeout(resolve, 0));
     return fetchSpy;

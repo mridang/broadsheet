@@ -5,6 +5,10 @@ import { getCurrentUser } from '@/lib/core/auth';
 import { getDatabase } from '@/domain/db/database';
 import { Repository, sectionPath } from '@/domain/repository';
 import { FeedSummary } from '@/components/feeds/feed-summary';
+import { CARD } from '@/components/ui/field';
+import { EmptyState } from '@/components/ui/notice';
+import { PageHeader, PageSection } from '@/components/ui/page-header';
+import { ROW_LINK } from '@/components/stories/story-row';
 
 import { AddFeedForm } from '@/app/(site)/feeds/_components/add-feed-form';
 import { AddSectionForm } from '@/app/(site)/feeds/_components/add-section-form';
@@ -44,23 +48,29 @@ export default async function FeedsPage() {
   }));
 
   return (
-    <div className="panel">
-      <h2>Your feeds</h2>
-      <AddFeedForm />
-      <p className="muted">
-        Feeds are fetched &amp; scraped automatically every day.{' '}
-        <RefreshFeedsButton /> <ExportFeedsButton />
-      </p>
-      {feeds.length ? (
-        feeds.map((f) => (
-          <div className="feedrow" key={f.id}>
-            <div>
-              <FeedSummary feed={f} />
-              <p>
-                <a className="btn ghost small" href={`/feeds/${f.id}`}>
-                  Stories &amp; details →
-                </a>
-              </p>
+    <div className="max-w-3xl">
+      <PageHeader
+        title="Your feeds"
+        description="Feeds are fetched & scraped automatically every day."
+        actions={
+          <>
+            <RefreshFeedsButton /> <ExportFeedsButton />
+          </>
+        }
+      />
+      <div className="mt-8">
+        <AddFeedForm />
+      </div>
+      <ul className="mt-8 space-y-3">
+        {feeds.map((f) => (
+          <li className={`${CARD} p-5`} key={f.id}>
+            <div className="flex items-start gap-4">
+              <div className="min-w-0 flex-1">
+                <FeedSummary feed={f} />
+              </div>
+              <RemoveFeedButton id={f.id} />
+            </div>
+            <div className="mt-4 space-y-3 border-t border-line pt-4">
               <FeedHealth statistics={stats.get(f.id)} />
               <FeedSettingsForm
                 id={f.id}
@@ -69,30 +79,39 @@ export default async function FeedsPage() {
                 sectionId={f.section_id}
                 sections={options}
               />
+              <a className={ROW_LINK} href={`/feeds/${f.id}`}>
+                Stories &amp; details →
+              </a>
             </div>
-            <RemoveFeedButton id={f.id} />
-          </div>
-        ))
-      ) : (
-        <p className="muted">No feeds yet. Add an RSS/Atom feed URL above.</p>
+          </li>
+        ))}
+      </ul>
+      {feeds.length ? null : (
+        <EmptyState title="No feeds yet">
+          Add an RSS/Atom feed URL above.
+        </EmptyState>
       )}
       <SuggestedFeeds feeds={suggestions} />
-      <h2>Sections</h2>
-      <p className="muted">
-        Sections group feeds under their own headings on the front page.
-      </p>
-      <AddSectionForm sections={options} />
-      {options.map((s) => (
-        <div className="feedrow" key={s.id}>
-          <strong>{s.name}</strong>
-          <RemoveSectionButton id={s.id} />
-        </div>
-      ))}
-      <p className="back">
-        <a className="btn ghost" href="/">
-          ← Back to the paper
-        </a>
-      </p>
+      <PageSection
+        id="sections"
+        title="Sections"
+        description="Sections group feeds under their own headings on the front page."
+      >
+        <AddSectionForm sections={options} />
+        {options.length ? (
+          <ul className={`${CARD} mt-4 divide-y divide-line`}>
+            {options.map((s) => (
+              <li
+                className="flex items-center justify-between gap-4 px-5 py-3"
+                key={s.id}
+              >
+                <strong className="text-sm font-semibold">{s.name}</strong>
+                <RemoveSectionButton id={s.id} />
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </PageSection>
     </div>
   );
 }

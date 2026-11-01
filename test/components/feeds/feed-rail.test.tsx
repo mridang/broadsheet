@@ -37,4 +37,14 @@ describe('FeedRail', () => {
       /<img src="\/img\?url=https%3A%2F%2Fexample\.com%2Fi\.png/,
     );
   });
+
+  it('shows how many stories a feed holds, and nothing for none', async () => {
+    const out = html(
+      await FeedRail({
+        feeds: [feed({ count: 12 }), feed({ id: 2, count: 0 })],
+      }),
+    );
+    expect(out).toMatch(/>12<\/span>/);
+    expect(out).not.toMatch(/>0<\/span>/);
+  });
 });

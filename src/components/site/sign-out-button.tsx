@@ -16,10 +16,15 @@ async function signOut(): Promise<void> {
   window.location.assign('/');
 }
 
-/** "Sign out" in the masthead, styled as the other account links. */
-export function SignOutButton(): ReactElement {
+/**
+ * "Sign out": in the masthead it is styled as the other account links; the app
+ * bar passes its own `className`.
+ */
+export function SignOutButton({
+  className = 'navlink',
+}: Readonly<{ className?: string }>): ReactElement {
   return (
-    <button type="button" className="navlink" onClick={() => void signOut()}>
+    <button type="button" className={className} onClick={() => void signOut()}>
       Sign out
     </button>
   );

@@ -1053,6 +1053,23 @@ export class Repository {
     };
   }
 
+  /**
+   * How many stories each of a person's feeds has kept, by feed id. A story
+   * stored again in later editions counts once; a feed with none is absent.
+   */
+  async storyCounts(userId: number): Promise<Map<number, number>> {
+    const rows = await this.#db
+      .select({
+        id: subscriptions.id,
+        count: sql<number>`count(distinct ${articles.url})`,
+      })
+      .from(subscriptions)
+      .innerJoin(articles, eq(articles.source_id, subscriptions.source_id))
+      .where(eq(subscriptions.user_id, userId))
+      .groupBy(subscriptions.id);
+    return new Map(rows.map((r) => [r.id, Number(r.count)]));
+  }
+
   /** Every article of one edition, from every source, for clustering. */
   editionArticles(edition: string): Promise<Clusterable[]> {
     return this.#db

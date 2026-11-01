@@ -9,6 +9,9 @@ import {
   EditionForm,
 } from '@/app/(site)/editions/_components/edition-form';
 import { RemoveEditionButton } from '@/app/(site)/editions/_components/remove-edition-button';
+import { PageHeader, PageSection } from '@/components/ui/page-header';
+import { CARD } from '@/components/ui/field';
+import { EmptyState } from '@/components/ui/notice';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,34 +33,50 @@ export default async function EditionsPage() {
   const options = sections.map((s) => ({ id: s.id, name: s.name }));
 
   return (
-    <div className="panel">
-      <h2>Your editions</h2>
-      <p className="muted">
-        Each edition is its own paper, laid out every day from the stories its
-        rules pick.
-      </p>
-      {editions.map((e) => (
-        <div className="feedrow" key={e.id}>
-          <div>
-            <strong>
-              <a href={`/?edition=${e.id}`}>{e.name}</a>
-            </strong>
-            <EditionForm
-              draft={{
-                id: e.id,
-                name: e.name,
-                section_ids: e.section_ids,
-                query: e.query ?? '',
-                tag: e.tag ?? '',
-              }}
-              sections={options}
-            />
-          </div>
-          <RemoveEditionButton id={e.id} />
+    <div className="max-w-3xl">
+      <PageHeader
+        title="Your editions"
+        description="Each edition is its own paper, laid out every day from the stories its rules pick."
+      />
+      {editions.length ? null : (
+        <div className="mt-8">
+          <EmptyState title="No editions yet">
+            Make one below to get a second paper beside your daily one.
+          </EmptyState>
         </div>
-      ))}
-      <h3>New edition</h3>
-      <EditionForm draft={BLANK} sections={options} />
+      )}
+      <ul className="mt-8 space-y-3">
+        {editions.map((e) => (
+          <li className={`${CARD} flex items-start gap-4 p-5`} key={e.id}>
+            <div className="min-w-0 flex-1">
+              <strong className="text-base font-semibold">
+                <a
+                  className="focus-ring rounded-sm hover:text-accent"
+                  href={`/?edition=${e.id}`}
+                >
+                  {e.name}
+                </a>
+              </strong>
+              <EditionForm
+                draft={{
+                  id: e.id,
+                  name: e.name,
+                  section_ids: e.section_ids,
+                  query: e.query ?? '',
+                  tag: e.tag ?? '',
+                }}
+                sections={options}
+              />
+            </div>
+            <RemoveEditionButton id={e.id} />
+          </li>
+        ))}
+      </ul>
+      <PageSection id="new-edition" title="New edition">
+        <div className={`${CARD} p-5`}>
+          <EditionForm draft={BLANK} sections={options} />
+        </div>
+      </PageSection>
     </div>
   );
 }

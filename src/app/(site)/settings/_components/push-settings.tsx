@@ -8,6 +8,8 @@ import {
   unsubscribeFromPush,
   type PushEnvironment,
 } from '@/components/site/service-worker';
+import { buttonClass } from '@/components/ui/button';
+import { ErrorText } from '@/components/ui/notice';
 
 /** Where this browser stands with pushes. */
 type PushState = 'unsupported' | 'loading' | 'off' | { readonly id: string };
@@ -48,7 +50,11 @@ export function PushSettings({
   }, [subscriptions]);
 
   if (state === 'unsupported') {
-    return <p className="muted">This browser cannot receive notifications.</p>;
+    return (
+      <p className="text-sm text-muted">
+        This browser cannot receive notifications.
+      </p>
+    );
   }
   const on = typeof state === 'object';
   const toggle = (): Promise<void> =>
@@ -73,7 +79,7 @@ export function PushSettings({
       <p>
         <button
           type="button"
-          className="btn"
+          className={buttonClass({})}
           disabled={busy || state === 'loading'}
           onClick={() => void toggle()}
         >
@@ -82,7 +88,7 @@ export function PushSettings({
             : 'Notify this browser when my paper is ready'}
         </button>
       </p>
-      {error ? <p role="alert">{error}</p> : null}
+      {error ? <ErrorText>{error}</ErrorText> : null}
     </>
   );
 }

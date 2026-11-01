@@ -11,6 +11,7 @@ import { pictureSrc } from '@/domain/render/pictures';
 import { hostOf } from '@/domain/render/tiers';
 import type { Feed } from '@/domain/repository';
 import { imageSigner } from '@/lib/cloudflare/images/server';
+import { cn } from '@/components/ui/cn';
 
 /** A stored timestamp as a short date and time, or the text unchanged. */
 function when(stored: string): string {
@@ -53,38 +54,83 @@ export async function FeedSummary({
       ? `Fetched ${when(feed.last_fetched_at)}`
       : 'Not fetched yet',
   ].filter((f): f is string => f !== null);
+  const link =
+    'focus-ring rounded-sm wrap-anywhere text-muted underline-offset-2 hover:text-ink hover:underline';
   return (
-    <div className="feedsummary">
+    <div className="flex items-start gap-4">
       {icon ? (
-        <img src={icon} alt="" width={32} height={32} />
+        <img
+          src={icon}
+          alt=""
+          width={32}
+          height={32}
+          className={cn(
+            'shrink-0 rounded-control bg-ink/5',
+            heading ? 'size-12' : 'size-8',
+          )}
+        />
       ) : (
-        <span className="noicon" aria-hidden="true" />
+        <span
+          className={cn(
+            'shrink-0 rounded-control bg-ink/10',
+            heading ? 'size-12' : 'size-8',
+          )}
+          aria-hidden="true"
+        />
       )}
-      <div>
-        {heading ? <h1>{name}</h1> : <strong>{name}</strong>}{' '}
-        {feed.format ? (
-          <span className="badge">{formatName(feed.format)}</span>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          {heading ? (
+            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+              {name}
+            </h1>
+          ) : (
+            <strong className="text-base font-semibold">{name}</strong>
+          )}{' '}
+          {feed.format ? (
+            <span className="rounded-full bg-ink/[0.07] px-2 py-0.5 text-[0.7rem] font-semibold tracking-wide text-muted uppercase">
+              {formatName(feed.format)}
+            </span>
+          ) : null}
+        </div>
+        {feed.description ? (
+          <p className="mt-1.5 text-sm leading-relaxed text-muted">
+            {feed.description}
+          </p>
         ) : null}
-        {feed.description ? <p className="desc">{feed.description}</p> : null}
-        <div className="u">
+        <div className="mt-2 text-xs">
           {feed.site_url ? (
             <>
-              <a href={feed.site_url} target="_blank" rel="noopener noreferrer">
+              <a
+                href={feed.site_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={link}
+              >
                 {feed.site_url}
               </a>
               {' · '}
             </>
           ) : null}
-          <a href={feed.url} target="_blank" rel="noopener noreferrer">
+          <a
+            href={feed.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={link}
+          >
             {feed.url}
           </a>
         </div>
-        <div className="u">{facts.join(' · ')}</div>
+        <div className="mt-1 text-xs text-subtle">{facts.join(' · ')}</div>
         {imageSrc && image ? (
-          <figure className="feedimage">
-            <img src={imageSrc} alt={image.title} />
+          <figure className="mt-4">
+            <img
+              src={imageSrc}
+              alt={image.title}
+              className="max-h-24 rounded-control"
+            />
             {image.title || image.link ? (
-              <figcaption>
+              <figcaption className="mt-1 text-xs text-subtle">
                 {image.title}
                 {image.link ? (
                   <>
@@ -93,6 +139,7 @@ export async function FeedSummary({
                       href={image.link}
                       target="_blank"
                       rel="noopener noreferrer"
+                      className={link}
                     >
                       {image.link}
                     </a>
@@ -103,11 +150,11 @@ export async function FeedSummary({
           </figure>
         ) : null}
         {heading && declared.length ? (
-          <dl className="feedfacts">
+          <dl className="mt-6 grid gap-x-6 gap-y-3 rounded-card border border-line bg-surface p-5 text-sm sm:grid-cols-2">
             {declared.map((f) => (
-              <div key={f.label}>
-                <dt>{f.label}</dt>
-                <dd>{f.value}</dd>
+              <div key={f.label} className="min-w-0">
+                <dt className="text-xs font-medium text-subtle">{f.label}</dt>
+                <dd className="mt-0.5 wrap-break-word text-ink">{f.value}</dd>
               </div>
             ))}
           </dl>

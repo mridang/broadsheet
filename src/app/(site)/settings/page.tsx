@@ -14,6 +14,8 @@ import { FeedNotificationForm } from '@/app/(site)/settings/_components/feed-not
 import { PushSettings } from '@/app/(site)/settings/_components/push-settings';
 import { RemoveWebhookButton } from '@/app/(site)/settings/_components/remove-webhook-button';
 import { RevokeTokenButton } from '@/app/(site)/settings/_components/revoke-token-button';
+import { CARD } from '@/components/ui/field';
+import { PageHeader, PageSection } from '@/components/ui/page-header';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,63 +53,91 @@ export default async function SettingsPage() {
   const settings = new Map(notifying.map((n) => [n.feed_id, n]));
   const names = new Map(sections.map((s) => [s.id, s.name]));
 
+  const list = `${CARD} mt-4 divide-y divide-line`;
+  const row = 'flex items-center justify-between gap-4 px-5 py-3';
   return (
-    <div className="panel">
-      <h2>Notifications</h2>
-      <p className="muted">
-        A notification on this device when the day’s paper is ready.
-      </p>
-      <PushSettings
-        subscriptions={pushes.map((p) => ({ id: p.id, endpoint: p.endpoint }))}
+    <div className="max-w-3xl">
+      <PageHeader
+        title="Settings"
+        description="Notifications, webhooks and private feeds."
       />
-      <h2>New stories</h2>
-      <p className="muted">
-        Be told about new stories in a feed: by push to the browsers above, by
-        email, or as a webhook. At most three stories a feed each day.
-      </p>
-      {feeds.map((f) => (
-        <FeedNotificationForm
-          key={f.id}
-          feedId={f.id}
-          title={f.title || hostOf(f.url)}
-          filter={settings.get(f.id)?.filter ?? 'unread'}
-          channels={settings.get(f.id)?.channels ?? []}
+      <PageSection
+        id="notifications"
+        title="Notifications"
+        description="A notification on this device when the day’s paper is ready."
+      >
+        <PushSettings
+          subscriptions={pushes.map((p) => ({
+            id: p.id,
+            endpoint: p.endpoint,
+          }))}
         />
-      ))}
-      <h2>Webhooks</h2>
-      <p className="muted">
-        A signed POST to your own address whenever you save or like a story, or
-        a notifying feed has a new one (IFTTT’s Webhooks service can take it).
-      </p>
-      <AddWebhookForm />
-      {hooks.map((h) => (
-        <div className="feedrow" key={h.id}>
-          <div>
-            <strong>{h.url}</strong>
-            <div className="u">{h.events.join(', ')}</div>
-          </div>
-          <RemoveWebhookButton id={h.id} />
-        </div>
-      ))}
-      <h2>Private feeds</h2>
-      <p className="muted">
-        Atom feeds of your saves, a section or the whole edition, for a feed
-        reader.
-      </p>
-      <AddTokenForm
-        sections={sections.map((s) => ({ id: s.id, name: s.name }))}
-      />
-      {tokens.map((t) => (
-        <div className="feedrow" key={t.id}>
-          <strong>{scopeText(t, names)}</strong>
-          <RevokeTokenButton id={t.id} />
-        </div>
-      ))}
-      <p className="back">
-        <a className="btn ghost" href="/">
-          ← Back to the paper
-        </a>
-      </p>
+      </PageSection>
+      <PageSection
+        id="new-stories"
+        title="New stories"
+        description="Be told about new stories in a feed: by push to the browsers above, by email, or as a webhook. At most three stories a feed each day."
+      >
+        {feeds.length ? (
+          <ul className={`${CARD} divide-y divide-line`}>
+            {feeds.map((f) => (
+              <li key={f.id} className="px-5 py-3">
+                <FeedNotificationForm
+                  feedId={f.id}
+                  title={f.title || hostOf(f.url)}
+                  filter={settings.get(f.id)?.filter ?? 'unread'}
+                  channels={settings.get(f.id)?.channels ?? []}
+                />
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </PageSection>
+      <PageSection
+        id="webhooks"
+        title="Webhooks"
+        description="A signed POST to your own address whenever you save or like a story, or a notifying feed has a new one (IFTTT’s Webhooks service can take it)."
+      >
+        <AddWebhookForm />
+        {hooks.length ? (
+          <ul className={list}>
+            {hooks.map((h) => (
+              <li className={row} key={h.id}>
+                <div className="min-w-0">
+                  <strong className="block truncate text-sm font-semibold">
+                    {h.url}
+                  </strong>
+                  <div className="text-xs text-subtle">
+                    {h.events.join(', ')}
+                  </div>
+                </div>
+                <RemoveWebhookButton id={h.id} />
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </PageSection>
+      <PageSection
+        id="private-feeds"
+        title="Private feeds"
+        description="Atom feeds of your saves, a section or the whole edition, for a feed reader."
+      >
+        <AddTokenForm
+          sections={sections.map((s) => ({ id: s.id, name: s.name }))}
+        />
+        {tokens.length ? (
+          <ul className={list}>
+            {tokens.map((t) => (
+              <li className={row} key={t.id}>
+                <strong className="text-sm font-semibold">
+                  {scopeText(t, names)}
+                </strong>
+                <RevokeTokenButton id={t.id} />
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </PageSection>
     </div>
   );
 }

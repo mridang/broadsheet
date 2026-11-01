@@ -6,7 +6,12 @@ import type { FeedElement } from '@/lib/scraping';
 /** A value that is an address, shown as a link to it. */
 function Value({ text }: { readonly text: string }): ReactElement {
   return /^https?:\/\//i.test(text) ? (
-    <a href={text} target="_blank" rel="noopener noreferrer">
+    <a
+      href={text}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="focus-ring rounded-sm wrap-anywhere text-accent hover:underline"
+    >
       {text}
     </a>
   ) : (
@@ -21,28 +26,43 @@ function Value({ text }: { readonly text: string }): ReactElement {
  */
 export function FeedMetadata({
   elements,
+  nested = false,
 }: {
   readonly elements: readonly FeedElement[];
+  /** Drawn inside another element's value, indented under it. */
+  readonly nested?: boolean;
 }): ReactElement {
   return (
-    <dl className="feedmeta">
+    <dl
+      className={
+        nested
+          ? 'mt-2 space-y-2 border-l-2 border-line pl-4'
+          : 'divide-y divide-line rounded-card border border-line bg-surface text-sm'
+      }
+    >
       {elements.map((e, i) => (
-        <div key={i}>
-          <dt>
-            {elementLabel(e.name)} <code>{e.name}</code>
+        <div key={i} className={nested ? 'min-w-0' : 'min-w-0 px-5 py-3'}>
+          <dt className="text-xs font-medium text-subtle">
+            {elementLabel(e.name)}{' '}
+            <code className="font-mono text-[0.7rem] text-subtle">
+              {e.name}
+            </code>
           </dt>
-          <dd>
+          <dd className="mt-0.5 wrap-break-word text-ink">
             {e.text ? <Value text={e.text} /> : null}
             {Object.entries(e.attributes).length ? (
-              <ul className="attrs">
+              <ul className="mt-1 space-y-0.5 text-xs text-muted">
                 {Object.entries(e.attributes).map(([name, value]) => (
                   <li key={name}>
-                    <code>{name}</code> <Value text={value} />
+                    <code className="font-mono text-subtle">{name}</code>{' '}
+                    <Value text={value} />
                   </li>
                 ))}
               </ul>
             ) : null}
-            {e.children.length ? <FeedMetadata elements={e.children} /> : null}
+            {e.children.length ? (
+              <FeedMetadata elements={e.children} nested />
+            ) : null}
           </dd>
         </div>
       ))}

@@ -4,6 +4,7 @@ import type { ReactElement } from 'react';
 
 import { fetchOpml } from '@/app/(site)/feeds/_components/feed-requests';
 import { useApiAction } from '@/components/api/use-api-action';
+import { buttonClass } from '@/components/ui/button';
 
 /** "Export OPML": download the followed feeds, sections as folders. */
 export function ExportFeedsButton(): ReactElement {
@@ -20,13 +21,22 @@ export function ExportFeedsButton(): ReactElement {
     <>
       <button
         type="button"
-        className="btn ghost small"
+        className={buttonClass({
+          variant: 'outline',
+          size: 'sm',
+          className: 'border-line',
+        })}
         disabled={busy}
         onClick={() => void run(download, 'Could not export the feeds.')}
       >
         Export OPML
       </button>
-      {error ? <span role="alert"> {error}</span> : null}
+      {error ? (
+        <span role="alert" className="text-sm text-red-700 dark:text-red-400">
+          {' '}
+          {error}
+        </span>
+      ) : null}
     </>
   );
 }

@@ -26,12 +26,12 @@ describe('FeedMetadata', () => {
         ]}
       />,
     );
-    expect(out).toContain('Generator <code>generator</code>');
+    expect(out).toMatch(/Generator <code[^>]*>generator<\/code>/);
     expect(out).toContain('Hugo');
-    expect(out).toContain('Link (Atom) <code>atom:link</code>');
-    expect(out).toContain('<code>rel</code> self');
-    expect(out).toContain('<a href="https://a.test/f"');
-    expect(out).toContain('Width <code>width</code>');
+    expect(out).toMatch(/Link \(Atom\) <code[^>]*>atom:link<\/code>/);
+    expect(out).toMatch(/<code[^>]*>rel<\/code> self/);
+    expect(out).toContain('href="https://a.test/f"');
+    expect(out).toMatch(/Width <code[^>]*>width<\/code>/);
     expect(out).toContain('88');
   });
 });

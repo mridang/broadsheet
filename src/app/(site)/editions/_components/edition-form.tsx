@@ -8,6 +8,9 @@ import {
   editEdition,
   type EditionEdit,
 } from '@/app/(site)/editions/_components/edition-requests';
+import { buttonClass } from '@/components/ui/button';
+import { CHECK_LABEL, CHECKBOX, fieldClass } from '@/components/ui/field';
+import { ErrorText } from '@/components/ui/notice';
 
 /** A section an edition may print. */
 export interface SectionOption {
@@ -66,7 +69,7 @@ export function EditionForm({
     );
   };
   return (
-    <form className="addform" onSubmit={submit}>
+    <form className="mt-3 grid gap-3 sm:grid-cols-2" onSubmit={submit}>
       <input
         name="name"
         type="text"
@@ -75,17 +78,21 @@ export function EditionForm({
         defaultValue={draft.name}
         maxLength={200}
         required
+        className={fieldClass('sm:col-span-2')}
       />
       {sections.length ? (
-        <fieldset>
-          <legend>Sections (none for every feed)</legend>
+        <fieldset className="flex flex-wrap gap-x-4 gap-y-2 sm:col-span-2">
+          <legend className="mb-2 text-xs font-medium text-subtle">
+            Sections (none for every feed)
+          </legend>
           {sections.map((s) => (
-            <label key={s.id}>
+            <label key={s.id} className={CHECK_LABEL}>
               <input
                 type="checkbox"
                 name="section"
                 value={s.id}
                 defaultChecked={draft.section_ids.includes(s.id)}
+                className={CHECKBOX}
               />{' '}
               {s.name}
             </label>
@@ -99,6 +106,7 @@ export function EditionForm({
         aria-label="Search"
         defaultValue={draft.query}
         maxLength={200}
+        className={fieldClass()}
       />
       <input
         name="tag"
@@ -107,11 +115,20 @@ export function EditionForm({
         aria-label="Tag"
         defaultValue={draft.tag}
         maxLength={50}
+        className={fieldClass()}
       />
-      <button className="btn" type="submit" disabled={busy}>
+      <button
+        className={buttonClass({ className: 'justify-self-start' })}
+        type="submit"
+        disabled={busy}
+      >
         {id === undefined ? 'Add edition' : 'Save'}
       </button>
-      {error ? <p role="alert">{error}</p> : null}
+      {error ? (
+        <div className="sm:col-span-2">
+          <ErrorText>{error}</ErrorText>
+        </div>
+      ) : null}
     </form>
   );
 }

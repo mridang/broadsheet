@@ -7,6 +7,9 @@ import {
   setNotification,
   type NotificationRequest,
 } from '@/app/(site)/settings/_components/settings-requests';
+import { buttonClass } from '@/components/ui/button';
+import { CHECK_LABEL, CHECKBOX, fieldClass } from '@/components/ui/field';
+import { ErrorText } from '@/components/ui/notice';
 
 /** The request a filled-in notification form makes. */
 export function notificationRequest(form: FormData): NotificationRequest {
@@ -38,23 +41,30 @@ export function FeedNotificationForm({
     );
   };
   return (
-    <form className="feedrow" onSubmit={submit}>
-      <strong>{title}</strong>
+    <form
+      className="flex flex-wrap items-center gap-x-4 gap-y-2"
+      onSubmit={submit}
+    >
+      <strong className="w-full truncate text-sm font-semibold sm:w-auto sm:flex-1">
+        {title}
+      </strong>
       <select
         name="filter"
         defaultValue={filter}
         aria-label={`Which new stories in ${title} notify you`}
+        className={fieldClass('h-9')}
       >
         <option value="unread">Any story not disliked</option>
         <option value="focus">Only liked stories</option>
       </select>
       {(['web', 'email', 'webhook'] as const).map((channel) => (
-        <label key={channel}>
+        <label key={channel} className={CHECK_LABEL}>
           <input
             name="channels"
             type="checkbox"
             value={channel}
             defaultChecked={channels.includes(channel)}
+            className={CHECKBOX}
           />{' '}
           {channel === 'web'
             ? 'Push'
@@ -63,10 +73,18 @@ export function FeedNotificationForm({
               : 'Webhook'}
         </label>
       ))}
-      <button className="btn" type="submit" disabled={busy}>
+      <button
+        className={buttonClass({ variant: 'outline', size: 'sm' })}
+        type="submit"
+        disabled={busy}
+      >
         Save
       </button>
-      {error ? <p role="alert">{error}</p> : null}
+      {error ? (
+        <div className="w-full">
+          <ErrorText>{error}</ErrorText>
+        </div>
+      ) : null}
     </form>
   );
 }

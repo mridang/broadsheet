@@ -21,9 +21,12 @@ export function FeedHealth({
   if (!statistics) return null;
   const stories = statistics.stories_per_day.reduce((n, d) => n + d.count, 0);
   return (
-    <div className="u">
+    <div className="text-xs text-subtle">
       {isBroken(statistics) ? (
-        <strong role="alert">
+        <strong
+          role="alert"
+          className="font-semibold text-red-700 dark:text-red-400"
+        >
           Broken: {statistics.fail_count} fetches failed
           {statistics.last_error ? ` (${statistics.last_error})` : ''}.{' '}
         </strong>

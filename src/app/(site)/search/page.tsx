@@ -8,6 +8,11 @@ import { hostOf } from '@/domain/render/tiers';
 import { Repository } from '@/domain/repository';
 import { getCurrentUser } from '@/lib/core/auth';
 import { encodeCursor } from '@/lib/core/api';
+import { StoryRow, ROW_LINK } from '@/components/stories/story-row';
+import { buttonClass } from '@/components/ui/button';
+import { fieldClass } from '@/components/ui/field';
+import { EmptyState } from '@/components/ui/notice';
+import { PageHeader } from '@/components/ui/page-header';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,9 +52,17 @@ export default async function SearchPage({
     : undefined;
 
   return (
-    <div className="searchpage">
-      <h1 className="deskhead">Search the archive</h1>
-      <form className="searchform" action="/search" method="get" role="search">
+    <div className="max-w-3xl">
+      <PageHeader
+        title="Search the archive"
+        description="Every edition of your feeds, back to the first."
+      />
+      <form
+        className="mt-8 flex gap-2"
+        action="/search"
+        method="get"
+        role="search"
+      >
         <label htmlFor="q" className="sr-only">
           Words to find
         </label>
@@ -60,42 +73,59 @@ export default async function SearchPage({
           defaultValue={query.q}
           maxLength={200}
           placeholder="Words in a headline or story"
-          className="focus-ring"
+          className={fieldClass('h-11 flex-1 text-base')}
         />
-        <button type="submit" className="listen">
+        <button
+          type="submit"
+          className={buttonClass({ size: 'wide', className: 'h-11' })}
+        >
           Search
         </button>
       </form>
       {!input.ok ? (
-        <p className="secdesc">That search could not be read.</p>
+        <p className="mt-6 text-sm text-muted">
+          That search could not be read.
+        </p>
       ) : query.q && !items.length ? (
-        <p className="secdesc">No stories hold every one of those words.</p>
+        <div className="mt-8">
+          <EmptyState title="No stories hold every one of those words." />
+        </div>
       ) : null}
-      <ol className="results">
-        {items.map((a) => (
-          <li key={a.id} className="result">
-            <div className="kicker">
-              {a.source || hostOf(a.url)}
-              {a.edition ? <span className="score">{a.edition}</span> : null}
-            </div>
-            <a className="hl focus-ring" href={`/article/${a.id}`}>
-              {a.title}
-            </a>
-            {a.summary ? <p className="ex">{a.summary}</p> : null}
-            <a
-              className="more focus-ring"
-              href={a.url}
-              target="_blank"
-              rel="noopener noreferrer"
+      {items.length ? (
+        <ol className="mt-8 divide-y divide-line border-y border-line">
+          {items.map((a) => (
+            <StoryRow
+              key={a.id}
+              story={{
+                href: `/article/${a.id}`,
+                title: a.title ?? '',
+                meta: [a.source || hostOf(a.url), a.edition],
+                excerpt: a.summary,
+                image: a.image,
+              }}
             >
-              Original ↗
-            </a>
-          </li>
-        ))}
-      </ol>
+              <a
+                className={ROW_LINK}
+                href={a.url}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Original ↗
+              </a>
+            </StoryRow>
+          ))}
+        </ol>
+      ) : null}
       {older ? (
-        <p>
-          <a className="more focus-ring" href={older}>
+        <p className="mt-6">
+          <a
+            className={buttonClass({
+              variant: 'outline',
+              size: 'sm',
+              className: 'border-line',
+            })}
+            href={older}
+          >
             Older results →
           </a>
         </p>

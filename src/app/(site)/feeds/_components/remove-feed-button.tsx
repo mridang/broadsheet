@@ -4,6 +4,8 @@ import type { ReactElement } from 'react';
 
 import { unfollowFeed } from '@/app/(site)/feeds/_components/feed-requests';
 import { useFeedAction } from '@/app/(site)/feeds/_components/use-feed-action';
+import { buttonClass } from '@/components/ui/button';
+import { ErrorText } from '@/components/ui/notice';
 
 /** "Remove" on a row of the feed manager. */
 export function RemoveFeedButton({
@@ -14,7 +16,12 @@ export function RemoveFeedButton({
     <div>
       <button
         type="button"
-        className="btn danger"
+        className={buttonClass({
+          variant: 'ghost',
+          size: 'sm',
+          className:
+            'text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950',
+        })}
         disabled={busy}
         onClick={() =>
           void run(() => unfollowFeed(id), 'Could not remove that feed.')
@@ -22,7 +29,7 @@ export function RemoveFeedButton({
       >
         Remove
       </button>
-      {error ? <p role="alert">{error}</p> : null}
+      {error ? <ErrorText>{error}</ErrorText> : null}
     </div>
   );
 }

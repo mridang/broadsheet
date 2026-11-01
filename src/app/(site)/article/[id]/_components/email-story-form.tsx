@@ -4,6 +4,9 @@ import { useState, type FormEvent, type ReactElement } from 'react';
 
 import { problemError } from '@/components/api/problem-message';
 import { useApiAction } from '@/components/api/use-api-action';
+import { buttonClass } from '@/components/ui/button';
+import { CARD, CHECK_LABEL, CHECKBOX, fieldClass } from '@/components/ui/field';
+import { ErrorText } from '@/components/ui/notice';
 
 /** The body a filled-in email form posts. */
 export function emailRequest(form: FormData): {
@@ -47,31 +50,59 @@ export function EmailStoryForm({
     }, 'Could not send that email.');
   };
   return (
-    <details>
-      <summary>Email this story</summary>
+    <details className="group">
+      <summary className="focus-ring inline-flex list-none items-center gap-1 rounded-sm font-medium text-subtle hover:text-ink [&::-webkit-details-marker]:hidden">
+        Email this story
+      </summary>
       {sent ? (
-        <p>Sent.</p>
+        <p className="mt-3 text-sm text-muted">Sent.</p>
       ) : (
-        <form onSubmit={submit}>
+        <form
+          className={`${CARD} mt-3 grid w-full gap-3 p-4 sm:w-96`}
+          onSubmit={submit}
+        >
           <input
             name="to"
             type="text"
             placeholder="Addresses, separated by commas"
             aria-label="Who to send it to"
             required
+            className={fieldClass()}
           />
-          <textarea name="comment" maxLength={2048} aria-label="A note" />
-          <label>
-            <input name="copy_me" type="checkbox" defaultChecked /> Send me a
-            copy
+          <textarea
+            name="comment"
+            maxLength={2048}
+            aria-label="A note"
+            className={fieldClass('h-20 py-2')}
+          />
+          <label className={CHECK_LABEL}>
+            <input
+              name="copy_me"
+              type="checkbox"
+              defaultChecked
+              className={CHECKBOX}
+            />{' '}
+            Send me a copy
           </label>
-          <button className="btn" type="submit" disabled={busy}>
+          <button
+            className={buttonClass({
+              size: 'sm',
+              className: 'justify-self-start',
+            })}
+            type="submit"
+            disabled={busy}
+          >
             Send
           </button>
-          <a href={mailto}>Use my own mail app</a>
+          <a
+            className="focus-ring rounded-sm text-sm text-subtle hover:text-ink"
+            href={mailto}
+          >
+            Use my own mail app
+          </a>
         </form>
       )}
-      {error ? <p role="alert">{error}</p> : null}
+      {error ? <ErrorText>{error}</ErrorText> : null}
     </details>
   );
 }

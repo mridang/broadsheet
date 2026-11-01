@@ -1,10 +1,10 @@
 import type { ReactElement, ReactNode } from 'react';
 
-import { SiteShell } from '@/components/site/shell';
+import { AppShell } from '@/components/site/app-shell';
 
-/** Every public and signed-in page shares the same header and footer. */
+/** Every page but the paper shares the app's top bar and sidebar. */
 export default function SiteLayout({
   children,
 }: Readonly<{ children: ReactNode }>): ReactElement {
-  return <SiteShell>{children}</SiteShell>;
+  return <AppShell>{children}</AppShell>;
 }

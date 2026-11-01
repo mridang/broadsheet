@@ -30,8 +30,8 @@ const feed = (over: Partial<Feed> = {}): Feed => ({
 describe('FeedSummary', () => {
   it('shows the name, format, description, site and facts', async () => {
     const out = html(await FeedSummary({ feed: feed(), heading: true }));
-    expect(out).toContain('<h1>Shopify Engineering</h1>');
-    expect(out).toContain('<span class="badge">Atom</span>');
+    expect(out).toMatch(/<h1[^>]*>Shopify Engineering<\/h1>/);
+    expect(out).toMatch(/<span[^>]*>Atom<\/span>/);
     expect(out).toContain('How we build.');
     expect(out).toContain('href="https://a.test/"');
     expect(out).toContain('href="https://a.test/feed"');
@@ -65,7 +65,7 @@ describe('FeedSummary', () => {
         heading: true,
       }),
     );
-    expect(out).toContain('<dt>Generator</dt><dd>WordPress</dd>');
+    expect(out).toMatch(/<dt[^>]*>Generator<\/dt><dd[^>]*>WordPress<\/dd>/);
     expect(out).toMatch(
       /<img src="\/img\?url=https%3A%2F%2Fexample\.com%2Fi\.png[^"]*" alt="The Blog"/,
     );
@@ -83,8 +83,8 @@ describe('FeedSummary', () => {
         }),
       }),
     );
-    expect(out).toContain('<strong>a.test</strong>');
+    expect(out).toMatch(/<strong[^>]*>a\.test<\/strong>/);
     expect(out).toContain('Not fetched yet');
-    expect(out).not.toContain('badge');
+    expect(out).not.toMatch(/>(Atom|RSS|JSON)[^<]*<\/span>/);
   });
 });

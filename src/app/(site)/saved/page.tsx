@@ -6,6 +6,9 @@ import { getDatabase } from '@/domain/db/database';
 import { Repository } from '@/domain/repository';
 import { hostOf } from '@/domain/render/tiers';
 import { StoryActions } from '@/app/(site)/_components/story-actions';
+import { StoryRow } from '@/components/stories/story-row';
+import { EmptyState } from '@/components/ui/notice';
+import { PageHeader } from '@/components/ui/page-header';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,27 +27,40 @@ export default async function SavedPage({
   const saves = await new Repository(getDatabase()).listSaves(user.id, tag);
 
   return (
-    <div className="panel">
-      <h2>Saved stories{tag ? ` tagged “${tag}”` : ''}</h2>
-      {tag ? (
-        <p>
-          <a href="/saved">All saved stories</a>
-        </p>
-      ) : null}
+    <div className="max-w-3xl">
+      <PageHeader
+        title={`Saved stories${tag ? ` tagged “${tag}”` : ''}`}
+        description={
+          tag ? (
+            <a
+              className="focus-ring rounded-sm font-medium text-accent hover:underline"
+              href="/saved"
+            >
+              All saved stories
+            </a>
+          ) : (
+            'The stories you kept, newest first.'
+          )
+        }
+      />
       {saves.length ? (
-        <ul className="saved">
+        <ul className="mt-8 divide-y divide-line border-y border-line">
           {saves.map(({ article, tags }) => (
-            <li key={article.id}>
-              <a href={article.url} target="_blank" rel="noopener noreferrer">
-                {article.title || article.url}
-              </a>{' '}
-              <span className="muted">
-                {article.source || hostOf(article.url)}
-              </span>
+            <StoryRow
+              key={article.id}
+              story={{
+                href: article.url,
+                external: true,
+                title: article.title || article.url,
+                meta: [article.source || hostOf(article.url)],
+                excerpt: article.summary,
+                image: article.image,
+              }}
+            >
               {tags.map((t) => (
                 <a
                   key={t}
-                  className="tag"
+                  className="focus-ring rounded-full bg-ink/[0.07] px-2.5 py-0.5 text-xs font-medium text-muted hover:bg-ink/10 hover:text-ink"
                   href={`/saved?tag=${encodeURIComponent(t)}`}
                 >
                   {t}
@@ -55,13 +71,15 @@ export default async function SavedPage({
                 source={article.source || hostOf(article.url)}
                 saved
               />
-            </li>
+            </StoryRow>
           ))}
         </ul>
       ) : (
-        <p className="muted">
-          Nothing saved yet. Press Save on a story to keep it here.
-        </p>
+        <div className="mt-8">
+          <EmptyState title="Nothing saved yet">
+            Press Save on a story to keep it here.
+          </EmptyState>
+        </div>
       )}
     </div>
   );

@@ -583,6 +583,29 @@ describe('feedStatistics', () => {
   });
 });
 
+describe('storyCounts', () => {
+  const story = (n: number) => ({
+    url: `https://x/${n}`,
+    title: 'T',
+    source: '',
+    favicon: '',
+    summary: '',
+    image: '',
+    published_at: '',
+    points: 0,
+  });
+
+  it('counts each feed’s stories once, for its owner only', async () => {
+    const repo = new Repository(db);
+    const feed = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await addFeed(db, 1, 'https://b.test/f');
+    await repo.writeEdition(feed.source_id, '2026-10-19', [story(1)]);
+    await repo.writeEdition(feed.source_id, '2026-10-20', [story(1), story(2)]);
+    expect(await repo.storyCounts(1)).toEqual(new Map([[feed.id, 2]]));
+    expect(await repo.storyCounts(2)).toEqual(new Map());
+  });
+});
+
 describe('clusters and issues', () => {
   const quake = (n: number): ScrapedItem => ({
     url: `https://s${n}.test/q`,

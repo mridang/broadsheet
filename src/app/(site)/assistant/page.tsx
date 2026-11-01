@@ -4,6 +4,7 @@ import type { ReactElement } from 'react';
 
 import { AssistantChat } from '@/app/(site)/assistant/_components/assistant-chat';
 import { getCurrentUser } from '@/lib/core/auth';
+import { PageHeader } from '@/components/ui/page-header';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,13 +22,14 @@ export default async function AssistantPage(): Promise<ReactElement> {
   const user = await getCurrentUser();
   if (!user) redirect('/login');
   return (
-    <div className="panel">
-      <h2>Ask your archive</h2>
-      <p className="muted">
-        Answers come from the stories in your feeds, saves and reads, with links
-        to the ones they draw on.
-      </p>
-      <AssistantChat />
+    <div className="max-w-3xl">
+      <PageHeader
+        title="Ask your archive"
+        description="Answers come from the stories in your feeds, saves and reads, with links to the ones they draw on."
+      />
+      <div className="mt-8">
+        <AssistantChat />
+      </div>
     </div>
   );
 }

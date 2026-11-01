@@ -5,8 +5,8 @@ import { html } from '../../../../components/render';
 
 describe('RefreshFeedsButton', () => {
   it('refreshes with a plain button, not a form', () => {
-    expect(html(<RefreshFeedsButton />)).toBe(
-      '<button type="button" class="btn ghost small">Refresh now</button>',
+    expect(html(<RefreshFeedsButton />)).toMatch(
+      /^<button type="button" class="[^"]*">Refresh now<\/button>$/,
     );
   });
 });

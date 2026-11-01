@@ -5,8 +5,8 @@ import { html } from '../../../../components/render';
 
 describe('ExportFeedsButton', () => {
   it('exports with a plain button, not a link', () => {
-    expect(html(<ExportFeedsButton />)).toBe(
-      '<button type="button" class="btn ghost small">Export OPML</button>',
+    expect(html(<ExportFeedsButton />)).toMatch(
+      /^<button type="button" class="[^"]*">Export OPML<\/button>$/,
     );
   });
 });

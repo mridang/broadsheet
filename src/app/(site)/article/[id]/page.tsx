@@ -11,6 +11,7 @@ import { Repository } from '@/domain/repository';
 import { getCurrentUser } from '@/lib/core/auth';
 import { mailtoLink } from '@/domain/api/emails';
 import { EmailStoryForm } from '@/app/(site)/article/[id]/_components/email-story-form';
+import { ROW_LINK } from '@/components/stories/story-row';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,25 +55,22 @@ export default async function ArticlePage({
   const date = dateline(article.published_at, article.edition);
 
   return (
-    <article className="story">
-      <div className="kicker">
+    <article className="mx-auto max-w-2xl">
+      <p className="text-sm font-medium text-subtle">
         {article.source || hostOf(article.url)}
-        {date ? <span className="score">{date}</span> : null}
-      </div>
-      <h1 className="story-hl">{article.title}</h1>
-      {article.summary ? <p className="story-dek">{article.summary}</p> : null}
-      {paragraphs.length ? (
-        <div className="story-body">
-          {paragraphs.map((text, i) => (
-            <p key={i}>{text}</p>
-          ))}
-        </div>
-      ) : (
-        <p className="story-dek">The full text of this story was not kept.</p>
-      )}
-      <p className="story-foot">
+        {date ? <span> · {date}</span> : null}
+      </p>
+      <h1 className="mt-3 text-3xl leading-tight font-semibold tracking-tight text-balance sm:text-4xl">
+        {article.title}
+      </h1>
+      {article.summary ? (
+        <p className="mt-4 text-lg leading-relaxed text-muted">
+          {article.summary}
+        </p>
+      ) : null}
+      <p className="mt-6 flex flex-wrap gap-x-5 gap-y-2 border-y border-line py-3 text-sm">
         <a
-          className="more focus-ring"
+          className={ROW_LINK}
           href={article.url}
           target="_blank"
           rel="noopener noreferrer"
@@ -82,16 +80,27 @@ export default async function ArticlePage({
         {user ? (
           <EmailStoryForm articleId={article.id} mailto={mailtoLink(article)} />
         ) : (
-          <a className="more focus-ring" href={mailtoLink(article)}>
+          <a className={ROW_LINK} href={mailtoLink(article)}>
             Email this story
           </a>
         )}
         {article.edition ? (
-          <a className="more focus-ring" href={`/edition/${article.edition}`}>
+          <a className={ROW_LINK} href={`/edition/${article.edition}`}>
             Back to the {article.edition} edition
           </a>
         ) : null}
       </p>
+      {paragraphs.length ? (
+        <div className="mt-8 space-y-5 font-(family-name:--font-source-serif) text-lg leading-8 text-ink/90">
+          {paragraphs.map((text, i) => (
+            <p key={i}>{text}</p>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-8 text-muted">
+          The full text of this story was not kept.
+        </p>
+      )}
       {user ? <AskBox id={article.id} /> : null}
     </article>
   );

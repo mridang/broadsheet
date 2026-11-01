@@ -4,6 +4,9 @@ import type { FormEvent, ReactElement } from 'react';
 
 import { followFeed } from '@/app/(site)/feeds/_components/feed-requests';
 import { useFeedAction } from '@/app/(site)/feeds/_components/use-feed-action';
+import { buttonClass } from '@/components/ui/button';
+import { fieldClass } from '@/components/ui/field';
+import { ErrorText } from '@/components/ui/notice';
 
 /** The box at the top of the feed manager for following another feed. */
 export function AddFeedForm(): ReactElement {
@@ -15,18 +18,23 @@ export function AddFeedForm(): ReactElement {
   };
   return (
     <>
-      <form className="addform" onSubmit={submit}>
+      <form
+        className="flex flex-col gap-2 sm:flex-row sm:items-center"
+        onSubmit={submit}
+      >
         <input
           name="url"
           type="url"
           placeholder="https://example.com/feed.xml"
+          aria-label="Feed address"
+          className={fieldClass('w-full sm:flex-1')}
           required
         />
-        <button className="btn" type="submit" disabled={busy}>
+        <button className={buttonClass({})} type="submit" disabled={busy}>
           Add
         </button>
       </form>
-      {error ? <p role="alert">{error}</p> : null}
+      {error ? <ErrorText>{error}</ErrorText> : null}
     </>
   );
 }

@@ -9,23 +9,41 @@ import {
 } from '@/app/(site)/assistant/_components/assistant-requests';
 import { useApiAction } from '@/components/api/use-api-action';
 import { MAX_QUESTION_LENGTH } from '@/domain/assistant';
+import { buttonClass } from '@/components/ui/button';
+import { CARD, fieldClass } from '@/components/ui/field';
+import { ErrorText } from '@/components/ui/notice';
+import { cn } from '@/components/ui/cn';
 
 /** One turn as the chat shows it, with links to the stories it cites. */
 function TurnView({ turn }: Readonly<{ turn: Turn }>): ReactElement {
   return (
-    <div className={turn.role === 'user' ? 'turn mine' : 'turn'}>
-      <strong>{turn.role === 'user' ? 'You' : 'Assistant'}</strong>
+    <div
+      className={cn(
+        'max-w-[85%] rounded-card px-4 py-3 text-sm leading-relaxed',
+        turn.role === 'user'
+          ? 'ml-auto bg-ink text-on-ink'
+          : 'border border-line bg-surface text-ink',
+      )}
+    >
+      <strong className="block text-xs font-semibold opacity-70">
+        {turn.role === 'user' ? 'You' : 'Assistant'}
+      </strong>
       {turn.content
         .split(/\n+/)
         .filter(Boolean)
         .map((line, i) => (
-          <p key={i}>{line}</p>
+          <p key={i} className="mt-1">
+            {line}
+          </p>
         ))}
       {turn.citations.length ? (
-        <ol className="citations">
+        <ol className="mt-3 space-y-1 border-t border-line pt-3">
           {turn.citations.map((c) => (
             <li key={c.article_id}>
-              <a className="more focus-ring" href={c.href}>
+              <a
+                className="focus-ring rounded-sm text-xs font-medium text-accent hover:underline"
+                href={c.href}
+              >
                 {c.title || `Story ${c.article_id}`}
               </a>
             </li>
@@ -63,25 +81,34 @@ export function AssistantChat(): ReactElement {
   };
   return (
     <>
-      <div aria-live="polite">
+      <div aria-live="polite" className="space-y-3">
         {turns.map((turn) => (
           <TurnView key={turn.id} turn={turn} />
         ))}
       </div>
-      <form className="addform" onSubmit={submit}>
+      <form
+        className={cn(
+          CARD,
+          'mt-6 flex flex-col gap-2 p-2 sm:flex-row sm:items-center',
+        )}
+        onSubmit={submit}
+      >
         <input
           name="content"
           type="text"
           placeholder="Ask about anything in your archive"
           maxLength={MAX_QUESTION_LENGTH}
           required
+          className={fieldClass('w-full border-transparent sm:flex-1')}
         />
-        <button className="btn" type="submit" disabled={busy}>
+        <button className={buttonClass({})} type="submit" disabled={busy}>
           Ask
         </button>
       </form>
-      {busy ? <p className="muted">Searching your archive…</p> : null}
-      {error ? <p role="alert">{error}</p> : null}
+      {busy ? (
+        <p className="mt-3 text-sm text-muted">Searching your archive…</p>
+      ) : null}
+      {error ? <ErrorText>{error}</ErrorText> : null}
     </>
   );
 }

@@ -4,6 +4,9 @@ import { useState, type FormEvent, type ReactElement } from 'react';
 
 import { useApiAction } from '@/components/api/use-api-action';
 import { addWebhook } from '@/app/(site)/settings/_components/settings-requests';
+import { buttonClass } from '@/components/ui/button';
+import { CHECK_LABEL, CHECKBOX, fieldClass } from '@/components/ui/field';
+import { ErrorText } from '@/components/ui/notice';
 
 /** The box for adding a webhook; shows the signing secret once it is made. */
 export function AddWebhookForm(): ReactElement {
@@ -22,13 +25,15 @@ export function AddWebhookForm(): ReactElement {
   if (secret) {
     return (
       <div>
-        <p>
+        <p className="text-sm text-muted">
           Webhook added. Deliveries are signed with this secret, shown only now:{' '}
-          <code>{secret}</code>
+          <code className="mt-2 block rounded-control bg-ink/5 px-3 py-2 font-mono text-xs wrap-anywhere">
+            {secret}
+          </code>
         </p>
         <button
           type="button"
-          className="btn"
+          className={buttonClass({ className: 'mt-3' })}
           onClick={() => window.location.reload()}
         >
           Done
@@ -38,30 +43,51 @@ export function AddWebhookForm(): ReactElement {
   }
   return (
     <>
-      <form className="addform" onSubmit={submit}>
+      <form
+        className="flex flex-col gap-3 sm:flex-row sm:items-center"
+        onSubmit={submit}
+      >
         <input
           name="url"
           type="url"
           placeholder="https://example.com/hook"
           required
+          className={fieldClass('w-full sm:flex-1')}
         />
-        <label>
-          <input name="events" type="checkbox" value="save" defaultChecked />{' '}
+        <label className={CHECK_LABEL}>
+          <input
+            name="events"
+            type="checkbox"
+            value="save"
+            defaultChecked
+            className={CHECKBOX}
+          />{' '}
           Saves
         </label>
-        <label>
-          <input name="events" type="checkbox" value="like" defaultChecked />{' '}
+        <label className={CHECK_LABEL}>
+          <input
+            name="events"
+            type="checkbox"
+            value="like"
+            defaultChecked
+            className={CHECKBOX}
+          />{' '}
           Likes
         </label>
-        <label>
-          <input name="events" type="checkbox" value="story" /> New stories in
-          notifying feeds
+        <label className={CHECK_LABEL}>
+          <input
+            name="events"
+            type="checkbox"
+            value="story"
+            className={CHECKBOX}
+          />{' '}
+          New stories in notifying feeds
         </label>
-        <button className="btn" type="submit" disabled={busy}>
+        <button className={buttonClass({})} type="submit" disabled={busy}>
           Add webhook
         </button>
       </form>
-      {error ? <p role="alert">{error}</p> : null}
+      {error ? <ErrorText>{error}</ErrorText> : null}
     </>
   );
 }
