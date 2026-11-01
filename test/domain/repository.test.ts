@@ -911,3 +911,19 @@ describe('trendingArticles', () => {
     ).toEqual([]);
   });
 });
+
+describe('removeSection and custom editions', () => {
+  it('drops the removed section from the editions that printed it', async () => {
+    const repo = new Repository(db);
+    const keep = await repo.addSection(1, 'Keep');
+    const gone = await repo.addSection(1, 'Gone');
+    const { id } = await repo.addCustomEdition(1, {
+      name: 'Weekend',
+      section_ids: [keep.id, gone.id],
+    });
+    await repo.removeSection(1, gone.id);
+    expect((await repo.getCustomEdition(1, id))?.section_ids).toEqual([
+      keep.id,
+    ]);
+  });
+});

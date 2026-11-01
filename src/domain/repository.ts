@@ -605,6 +605,14 @@ export class Repository {
           eq(subscriptions.section_id, id),
         ),
       );
+    // An edition that printed the section stops naming it.
+    for (const edition of await this.listCustomEditions(userId)) {
+      if (edition.section_ids.includes(id)) {
+        await this.updateCustomEdition(userId, edition.id, {
+          section_ids: edition.section_ids.filter((s) => s !== id),
+        });
+      }
+    }
     return true;
   }
 
