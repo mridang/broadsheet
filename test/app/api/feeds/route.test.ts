@@ -209,6 +209,18 @@ describe('GET /api/feeds', () => {
     expect(xml).toContain('xmlUrl="https://a.test/2"');
   });
 
+  it('carries each feed’s stored title and website in the OPML', async () => {
+    await follow('https://a.test/1');
+    raw
+      .prepare(
+        "UPDATE sources SET title = 'Real & True', site_url = 'https://a.test/' WHERE url = 'https://a.test/1'",
+      )
+      .run();
+    const xml = await (await list('', { accept: 'text/x-opml' })).text();
+    expect(xml).toContain('text="Real &amp; True"');
+    expect(xml).toContain('htmlUrl="https://a.test/"');
+  });
+
   it('prefers JSON when the client ranks it first', async () => {
     const res = await list('', { accept: 'application/json, text/x-opml' });
     expect(res.headers.get('content-type')).toContain('application/json');

@@ -64,7 +64,42 @@ function attributes(text: string): Map<string, string> {
   return found;
 }
 
-/** Read the feeds out of an OPML document; folders become sections. */
+/** The index just past the `>` that ends the tag at `from`, or -1. */
+function tagEnd(text: string, from: number): number {
+  let quote = '';
+  for (let i = from; i < text.length; i += 1) {
+    const c = text[i];
+    if (quote) {
+      if (c === quote) quote = '';
+    } else if (c === '"' || c === "'") {
+      quote = c;
+    } else if (c === '>') {
+      return i + 1;
+    }
+  }
+  return -1;
+}
+
+/** Where a comment, CDATA section or processing instruction at `at` ends. */
+function skipMarkup(text: string, at: number): number | undefined {
+  for (const [open, close] of [
+    ['<!--', '-->'],
+    ['<![CDATA[', ']]>'],
+    ['<?', '?>'],
+  ] as const) {
+    if (text.startsWith(open, at)) {
+      const end = text.indexOf(close, at + open.length);
+      return end < 0 ? -1 : end + close.length;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Read the feeds out of an OPML document; folders become sections. One pass
+ * over the text, so a hostile file costs no more than its length. Comments
+ * are skipped, and `>` inside a quoted attribute does not end a tag.
+ */
 export function parseOpml(text: string): OpmlParse {
   if (/<!(DOCTYPE|ENTITY)/i.test(text)) {
     return { ok: false, errors: ['body: DOCTYPE and ENTITY are not allowed.'] };
@@ -76,30 +111,43 @@ export function parseOpml(text: string): OpmlParse {
   const folders: string[] = [];
   // Whether each open outline pushed a folder name, so a close can pop it.
   const open: boolean[] = [];
-  for (const m of text.matchAll(
-    /<(\/?)outline\b([^>]*?)(\/?)>|<\/outline\s*>/gi,
-  )) {
-    const closing = m[1] === '/' || m[0].startsWith('</');
-    if (closing) {
-      if (open.pop()) folders.pop();
+  let at = text.indexOf('<');
+  while (at >= 0) {
+    const skipped = skipMarkup(text, at);
+    if (skipped === -1) {
+      return { ok: false, errors: ['body: not well formed.'] };
+    }
+    if (skipped !== undefined) {
+      at = text.indexOf('<', skipped);
       continue;
     }
-    const attrs = attributes(m[2] ?? '');
-    const url = attrs.get('xmlurl');
-    const label = (attrs.get('text') ?? attrs.get('title') ?? '').trim();
-    if (url) {
-      const section = folders[0];
-      feeds.push({
-        url: url.trim(),
-        ...(label ? { title: label } : {}),
-        ...(section ? { section } : {}),
-      });
+    if (/^<\/outline\s*>/i.test(text.slice(at, at + 16))) {
+      if (open.pop()) folders.pop();
+    } else if (/^<outline[\s/>]/i.test(text.slice(at, at + 9))) {
+      const end = tagEnd(text, at + 8);
+      if (end < 0) {
+        return { ok: false, errors: ['body: not well formed.'] };
+      }
+      const tag = text.slice(at + 8, end - 1);
+      const attrs = attributes(tag);
+      const url = attrs.get('xmlurl')?.trim();
+      const label = (attrs.get('text') ?? attrs.get('title') ?? '').trim();
+      if (url) {
+        const section = folders[0];
+        feeds.push({
+          url,
+          ...(label ? { title: label } : {}),
+          ...(section ? { section } : {}),
+        });
+      }
+      if (!tag.trimEnd().endsWith('/')) {
+        const isFolder = !url && label !== '';
+        open.push(isFolder);
+        if (isFolder) folders.push(label);
+      }
+      at = end - 1;
     }
-    if (m[3] !== '/') {
-      const isFolder = !url && label !== '';
-      open.push(isFolder);
-      if (isFolder) folders.push(label);
-    }
+    at = text.indexOf('<', at + 1);
   }
   return { ok: true, feeds };
 }
@@ -108,6 +156,8 @@ export function parseOpml(text: string): OpmlParse {
 export interface OpmlEntry {
   readonly url: string;
   readonly title: string;
+  /** The feed's website, written as `htmlUrl`. */
+  readonly site_url?: string;
   readonly section?: string;
 }
 
@@ -118,7 +168,7 @@ export function buildOpml(
   sections: readonly string[],
 ): string {
   const outline = (e: OpmlEntry, indent: string): string =>
-    `${indent}<outline type="rss" text="${escapeXml(e.title)}" title="${escapeXml(e.title)}" xmlUrl="${escapeXml(e.url)}"/>`;
+    `${indent}<outline type="rss" text="${escapeXml(e.title)}" title="${escapeXml(e.title)}" xmlUrl="${escapeXml(e.url)}"${e.site_url ? ` htmlUrl="${escapeXml(e.site_url)}"` : ''}/>`;
   const lines = [
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<opml version="2.0">',

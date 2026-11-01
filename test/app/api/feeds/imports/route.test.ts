@@ -128,6 +128,25 @@ describe('POST /api/feeds/imports', () => {
     ).toBe(400);
   });
 
+  it('answers 400 for a truncated upload, importing nothing', async () => {
+    const res = await post(
+      opml('<outline xmlUrl="https://a.test/1"/><outline text="cut'),
+      'text/x-opml',
+    );
+    expect(res.status).toBe(400);
+    expect(await repo.listFeeds(7)).toEqual([]);
+  });
+
+  it('files feeds nested in folders under the top-level folder', async () => {
+    await post(
+      opml(
+        '<outline text="A"><outline text="B"><outline xmlUrl="https://a.test/1"/></outline></outline>',
+      ),
+      'text/x-opml',
+    );
+    expect((await repo.listSections(7)).map((s) => s.name)).toEqual(['A']);
+  });
+
   it('answers 400 for more than 500 feeds', async () => {
     const many = Array.from(
       { length: 501 },

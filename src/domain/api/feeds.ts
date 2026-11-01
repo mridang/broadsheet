@@ -94,6 +94,7 @@ function opmlResponse({ feeds, sections }: FeedList): Response {
     feeds.map((f) => ({
       url: f.url,
       title: f.title ?? f.url,
+      ...(f.site_url ? { site_url: f.site_url } : {}),
       ...(f.section_id !== null && names.has(f.section_id)
         ? { section: names.get(f.section_id) }
         : {}),
