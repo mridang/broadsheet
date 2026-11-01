@@ -128,6 +128,8 @@ export const articles = sqliteTable(
     points: integer('points').default(0),
     /** The article's readable text, when its page was fetched. */
     body_text: text('body_text'),
+    /** Where the story is discussed (RSS `<comments>`, or its HN thread). */
+    comments_url: text('comments_url'),
     /** The day this row was scraped (YYYY-MM-DD, UTC) — one edition per day. */
     edition: text('edition'),
     /** The cluster of near-duplicates from other sources, when there is one. */

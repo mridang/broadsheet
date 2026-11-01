@@ -25,6 +25,7 @@ function article(over: Partial<Article>): Article {
     body_text: null,
     edition: '2026-11-01',
     cluster_id: null,
+    comments_url: null,
     fetched_at: '',
     ...over,
   };

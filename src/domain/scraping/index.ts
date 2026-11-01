@@ -422,6 +422,7 @@ async function hnTopForDate(date: string): Promise<ScrapedItem[]> {
         image: '',
         published_at: h.created_at ?? `${date}T12:00:00Z`,
         points: h.points ?? 0,
+        comments_url: `https://news.ycombinator.com/item?id=${h.objectID}`,
       };
     });
 }

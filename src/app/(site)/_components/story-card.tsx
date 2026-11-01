@@ -51,6 +51,7 @@ export async function StoryCard({
       className={cls}
       data-url={article.url}
       data-article-id={personal ? article.id : undefined}
+      data-comments-url={article.comments_url ?? undefined}
     >
       <a
         className="hit focus-ring-flush"

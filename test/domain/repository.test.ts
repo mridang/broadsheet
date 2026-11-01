@@ -337,6 +337,20 @@ describe('writeEdition, sourceArticles and listEditions', () => {
     expect(await repo.listEditions(2)).toEqual(['2026-10-20']);
     expect(await repo.editionsForSource(source_id)).toEqual(['2026-10-20']);
   });
+
+  it('keeps where each story is discussed', async () => {
+    const repo = new Repository(db);
+    const { source_id } = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await repo.writeEdition(source_id, '2026-10-20', [
+      story({ url: 'https://x/1', comments_url: 'https://hn/item?id=1' }),
+      story({ url: 'https://x/2' }),
+    ]);
+    const rows = await repo.sourceArticles(source_id, '2026-10-20');
+    expect(rows.map((r) => r.comments_url).sort()).toEqual([
+      'https://hn/item?id=1',
+      null,
+    ]);
+  });
 });
 
 /** A scraped story with only what a case cares about filled in. */

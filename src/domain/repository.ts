@@ -839,6 +839,7 @@ export class Repository {
         published_at: a.published_at || '',
         points: a.points || 0,
         body_text: a.body_text || null,
+        comments_url: a.comments_url || null,
         fetched_at: sql`(datetime('now'))`,
       };
       return this.#db

@@ -16,6 +16,7 @@ const article: ArticleSummary = {
   points: 0,
   edition: '2026-10-20',
   cluster_id: null,
+  comments_url: null,
   fetched_at: '',
 };
 

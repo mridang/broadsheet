@@ -384,7 +384,9 @@ export function parseFeed(
     ).slice(0, 1200);
     const points = extractPoints(summary);
     if (isBoilerplate(summary)) summary = '';
+    const comments = tag(b, 'comments').trim();
     items.push({
+      ...(comments ? { comments_url: comments } : {}),
       title: tag(b, 'title') || link,
       url: link.trim(),
       summary,

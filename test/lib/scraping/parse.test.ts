@@ -83,6 +83,22 @@ describe('parseFeed', () => {
     const { items } = parseFeed(hn, 'https://hnrss.org/frontpage');
     expect(items[0]?.summary).toBe('');
   });
+
+  it('keeps where an item is discussed', () => {
+    const hn = `<rss><channel><title>HN</title>
+      <item><title>Story</title><link>https://x.com/y</link>
+      <comments>https://news.ycombinator.com/item?id=1</comments></item>
+    </channel></rss>`;
+    const { items } = parseFeed(hn, 'https://hnrss.org/frontpage');
+    expect(items[0]?.comments_url).toBe(
+      'https://news.ycombinator.com/item?id=1',
+    );
+  });
+
+  it('leaves the discussion out when the feed names none', () => {
+    const { items } = parseFeed(rss, 'https://blog.example.com/feed');
+    expect(items[0]).not.toHaveProperty('comments_url');
+  });
 });
 
 describe('articleText', () => {

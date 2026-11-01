@@ -24,6 +24,7 @@ const stored: Article = {
   body_text: 'Text',
   edition: '2026-06-22',
   cluster_id: null,
+  comments_url: null,
   fetched_at: null,
 };
 

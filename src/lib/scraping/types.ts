@@ -10,4 +10,6 @@ export interface ScrapedItem {
   points: number;
   /** The article's readable text, when its page was fetched. */
   body_text?: string;
+  /** Where the story is discussed, when the feed says. */
+  comments_url?: string;
 }
