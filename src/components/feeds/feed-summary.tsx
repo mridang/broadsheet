@@ -1,6 +1,12 @@
 import type { ReactElement } from 'react';
 
-import { formatName, updateFrequency } from '@/domain/render/feed-details';
+import { feedResource } from '@/domain/api/feed-resource';
+import {
+  formatName,
+  headerFacts,
+  headerImage,
+  updateFrequency,
+} from '@/domain/render/feed-details';
 import { pictureSrc } from '@/domain/render/pictures';
 import { hostOf } from '@/domain/render/tiers';
 import type { Feed } from '@/domain/repository';
@@ -30,9 +36,12 @@ export async function FeedSummary({
   readonly feed: Feed;
   readonly heading?: boolean;
 }): Promise<ReactElement> {
-  const icon = feed.icon
-    ? await pictureSrc(feed.icon, 64, imageSigner())
-    : null;
+  const signer = imageSigner();
+  const icon = feed.icon ? await pictureSrc(feed.icon, 64, signer) : null;
+  const header = feedResource(feed).metadata;
+  const image = headerImage(header);
+  const imageSrc = image ? await pictureSrc(image.url, 240, signer) : null;
+  const declared = headerFacts(header);
   const name = feed.title || hostOf(feed.url);
   const facts = [
     feed.language ? `Language ${feed.language}` : null,
@@ -71,6 +80,38 @@ export async function FeedSummary({
           </a>
         </div>
         <div className="u">{facts.join(' · ')}</div>
+        {imageSrc && image ? (
+          <figure className="feedimage">
+            <img src={imageSrc} alt={image.title} />
+            {image.title || image.link ? (
+              <figcaption>
+                {image.title}
+                {image.link ? (
+                  <>
+                    {' · '}
+                    <a
+                      href={image.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {image.link}
+                    </a>
+                  </>
+                ) : null}
+              </figcaption>
+            ) : null}
+          </figure>
+        ) : null}
+        {heading && declared.length ? (
+          <dl className="feedfacts">
+            {declared.map((f) => (
+              <div key={f.label}>
+                <dt>{f.label}</dt>
+                <dd>{f.value}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : null}
       </div>
     </div>
   );

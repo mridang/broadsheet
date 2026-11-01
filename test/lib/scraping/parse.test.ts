@@ -171,11 +171,11 @@ describe('feedDetails', () => {
     });
   });
 
-  it('takes ttl as the update interval and falls back to the favicon', () => {
+  it('takes ttl as the update interval and leaves a missing image blank', () => {
     const plain = `<rss><channel><title>T</title><link>https://t.test/</link><ttl>60</ttl></channel></rss>`;
     expect(feedDetails(plain, 'https://t.test/rss')).toMatchObject({
       update_minutes: 60,
-      icon: 'https://www.google.com/s2/favicons?sz=64&domain=t.test',
+      icon: '',
     });
   });
 

@@ -21,7 +21,15 @@ import {
   parseFeed,
   siteName,
 } from '@/lib/scraping';
-import type { ScrapedItem } from '@/lib/scraping';
+import type { FeedDetails, ScrapedItem } from '@/lib/scraping';
+import {
+  firstWorkingIcon,
+  iconCandidates,
+  manifestIcons,
+  manifestUrl,
+  pageIcons,
+  type IconFetcher,
+} from '@/domain/scraping/icons';
 
 export type { ScrapedItem } from '@/lib/scraping';
 
@@ -44,6 +52,37 @@ async function get(url: string, ms = 15000): Promise<string> {
   } finally {
     clearTimeout(t);
   }
+}
+
+/** Fetch an icon candidate, following redirects, giving up after a few seconds. */
+const fetchIcon: IconFetcher = (url) =>
+  fetch(url, {
+    headers: { 'user-agent': UA, accept: 'image/*,*/*;q=0.5' },
+    redirect: 'follow',
+    signal: AbortSignal.timeout(8000),
+  });
+
+/**
+ * The icon the feed's site really uses: every icon its home page and manifest
+ * declare, then the feed's own image, then `/favicon.ico`; the first that
+ * loads as an image, or blank when none does.
+ */
+async function siteIcon(
+  details: FeedDetails,
+  feedUrl: string,
+): Promise<string> {
+  const site = details.site_url || new URL(feedUrl).origin + '/';
+  const page = await get(site, 10000);
+  const manifest = manifestUrl(page, site);
+  const candidates = iconCandidates({
+    page: pageIcons(page, site),
+    manifest: manifest
+      ? manifestIcons(await get(manifest, 8000), manifest)
+      : [],
+    feed: details.icon,
+    site,
+  });
+  return firstWorkingIcon(candidates, fetchIcon);
 }
 
 /** Optional: LLM-resolve canonical source names in one batched call. */
@@ -140,9 +179,10 @@ export async function scrapeSource(
   const xml = await get(source.url);
   if (!xml) throw new Error(FETCH_FAILED);
   const { items } = parseFeed(xml, source.url);
+  const details = feedDetails(xml, source.url);
   await repo.recordDetails(
     source.id,
-    feedDetails(xml, source.url),
+    { ...details, icon: await siteIcon(details, source.url) },
     feedHeader(xml),
   );
   await enrich(items);

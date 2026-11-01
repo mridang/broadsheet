@@ -273,7 +273,7 @@ export interface FeedDetails {
   readonly updated_at: string;
   /** How often the feed says it changes, in minutes. */
   readonly update_minutes?: number;
-  /** The feed's own image, else the site's favicon. */
+  /** The feed's own image (`<image><url>`, `<icon>` or `<logo>`), or blank. */
   readonly icon: string;
 }
 
@@ -299,7 +299,7 @@ function absolute(href: string, base: string): string {
  * Read a feed's header: its format, title, site, description, language, when
  * it last changed, how often it says it changes (`sy:updatePeriod` and
  * `sy:updateFrequency`, else `ttl`) and its image (`<image><url>`, `<icon>` or
- * `<logo>`, else the site's favicon).
+ * `<logo>`).
  */
 export function feedDetails(xml: string, feedUrl: string): FeedDetails {
   const format: FeedFormat | undefined = /<rdf:RDF[\s>]/i.test(xml)
@@ -348,7 +348,7 @@ export function feedDetails(xml: string, feedUrl: string): FeedDetails {
       (head.match(/<feed\b[^>]*\bxml:lang=["']([^"']+)["']/i)?.[1] ?? ''),
     updated_at: date && !Number.isNaN(date.getTime()) ? date.toISOString() : '',
     ...(update_minutes ? { update_minutes } : {}),
-    icon: absolute(decode(image), feedUrl) || faviconFor(site_url || feedUrl),
+    icon: absolute(decode(image), feedUrl),
   };
 }
 

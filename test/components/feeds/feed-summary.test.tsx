@@ -39,6 +39,36 @@ describe('FeedSummary', () => {
     expect(out).toContain('Fetched 23 Oct 2026, 06:00 UTC');
   });
 
+  it('shows every declared fact and the feed image on the feed page', async () => {
+    const header = [
+      { name: 'generator', attributes: {}, text: 'WordPress', children: [] },
+      {
+        name: 'image',
+        attributes: {},
+        text: '',
+        children: [
+          {
+            name: 'url',
+            attributes: {},
+            text: 'https://example.com/i.png',
+            children: [],
+          },
+          { name: 'title', attributes: {}, text: 'The Blog', children: [] },
+        ],
+      },
+    ];
+    const out = html(
+      await FeedSummary({
+        feed: feed({ header: JSON.stringify(header) }),
+        heading: true,
+      }),
+    );
+    expect(out).toContain('<dt>Generator</dt><dd>WordPress</dd>');
+    expect(out).toMatch(
+      /<img src="\/img\?url=https%3A%2F%2Fexample\.com%2Fi\.png[^"]*" alt="The Blog"/,
+    );
+  });
+
   it('says a feed that was never fetched has not been, named by its host', async () => {
     const out = html(
       await FeedSummary({

@@ -77,3 +77,93 @@ export function formatName(format: string): string {
         ? 'RSS 1.0 (RDF)'
         : format;
 }
+
+/** An element of a feed's header, as {@link headerFacts} reads it. */
+interface Element {
+  readonly name: string;
+  readonly attributes: Readonly<Record<string, string>>;
+  readonly text: string;
+  readonly children: readonly Element[];
+}
+
+/** One readable fact a feed declares about itself. */
+export interface HeaderFact {
+  readonly label: string;
+  readonly value: string;
+}
+
+/** The text of a child element by local name, or blank. */
+function child(e: Element, name: string): string {
+  return (
+    e.children.find((c) => c.name.replace(/^.*:/, '') === name)?.text ?? ''
+  );
+}
+
+/**
+ * How one element reads in a sentence: its text, else its children's texts
+ * (an Atom `<author>` reads as its name, email and address), else its
+ * attributes (an RSS `<cloud>` or an Atom `<category term>`).
+ */
+function phrase(e: Element): string {
+  if (e.text && !Object.keys(e.attributes).length) return e.text;
+  const parts = [
+    e.text,
+    ...e.children.map((c) => phrase(c)).filter(Boolean),
+    ...Object.entries(e.attributes)
+      .filter(([k]) => !k.startsWith('xmlns'))
+      .map(([k, v]) => `${k} ${v}`),
+  ].filter(Boolean);
+  return parts.join(' · ');
+}
+
+/** Elements the summary already shows on its own, and the items themselves. */
+const SHOWN = new Set([
+  'title',
+  'link',
+  'description',
+  'subtitle',
+  'language',
+  'image',
+  'icon',
+  'logo',
+  'item',
+  'entry',
+  'items',
+]);
+
+/**
+ * Every element a feed declares, as readable facts in the order the feed gives
+ * them, repeated elements (categories, authors, skipped hours) joined into one
+ * line. Only the few the summary shows on its own are left out.
+ */
+export function headerFacts(elements: readonly Element[]): HeaderFact[] {
+  const facts = new Map<string, string[]>();
+  for (const e of elements) {
+    const local = e.name.replace(/^.*:/, '');
+    if (SHOWN.has(local) && !e.name.includes(':')) continue;
+    const value = phrase(e);
+    if (!value) continue;
+    const label = elementLabel(e.name);
+    facts.set(label, [...(facts.get(label) ?? []), value]);
+  }
+  return [...facts].map(([label, values]) => ({
+    label,
+    value: values.join(', '),
+  }));
+}
+
+/** The feed's own image block (RSS `<image>`, Atom `<logo>` or `<icon>`), if any. */
+export function headerImage(
+  elements: readonly Element[],
+): { url: string; title: string; link: string } | undefined {
+  const image = elements.find((e) => e.name === 'image');
+  if (image && child(image, 'url')) {
+    return {
+      url: child(image, 'url'),
+      title: child(image, 'title'),
+      link: child(image, 'link'),
+    };
+  }
+  const logo = elements.find((e) => e.name === 'logo' || e.name === 'icon');
+  return logo?.text ? { url: logo.text, title: '', link: '' } : undefined;
+}

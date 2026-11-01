@@ -1044,6 +1044,34 @@ button.navlink {
   padding: 1px 5px;
   vertical-align: middle;
 }
+.feedimage {
+  margin: 8px 0;
+}
+.feedimage img {
+  max-width: 120px;
+  max-height: 120px;
+}
+.feedimage figcaption {
+  font-size: 12px;
+  color: var(--muted);
+}
+.feedfacts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 2px 12px;
+  margin: 8px 0 0;
+  font-size: 13px;
+}
+.feedfacts > div {
+  display: contents;
+}
+.feedfacts dt {
+  font-weight: 700;
+}
+.feedfacts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
 .feeditems {
   list-style: none;
   padding: 0;
