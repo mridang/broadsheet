@@ -56,6 +56,11 @@ export interface Classifiable {
   readonly source: string | null;
   readonly author?: string | null;
   readonly tags?: readonly string[];
+  /** The summary and text, matched by `text` classifiers. */
+  readonly summary?: string | null;
+  readonly body_text?: string | null;
+  /** The source it came from, matched by `feed` classifiers (by source id). */
+  readonly source_id?: number;
 }
 
 const same = (a: string, b: string): boolean =>
@@ -72,20 +77,30 @@ export function matches(story: Classifiable, c: Training): boolean {
       return (story.title ?? '').toLowerCase().includes(c.value.toLowerCase());
     case 'tag':
       return (story.tags ?? []).some((t) => same(t, c.value));
+    case 'text':
+      return `${story.summary ?? ''} ${story.body_text ?? ''}`
+        .toLowerCase()
+        .includes(c.value.toLowerCase());
+    case 'feed':
+      return (
+        story.source_id !== undefined && String(story.source_id) === c.value
+      );
     default:
       return false;
   }
 }
 
 /**
- * The person's verdict on a story: 1 when any classifier likes it (a like
- * wins over a dislike), -1 when one dislikes it, 0 when none match.
+ * The person's verdict on a story: -1 when a super-dislike (score -2)
+ * matches, whatever else does; otherwise 1 when any classifier likes it (a
+ * like wins over a dislike), -1 when one dislikes it, 0 when none match.
  */
 export function verdict(
   story: Classifiable,
   training: readonly Training[],
 ): -1 | 0 | 1 {
   const hits = training.filter((c) => matches(story, c));
+  if (hits.some((c) => c.score <= -2)) return -1;
   if (hits.some((c) => c.score > 0)) return 1;
   if (hits.some((c) => c.score < 0)) return -1;
   return 0;

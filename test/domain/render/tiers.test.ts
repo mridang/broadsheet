@@ -114,6 +114,29 @@ describe('verdict', () => {
     expect(verdict(article({}), [dislike('source', 'example')])).toBe(-1);
   });
 
+  it('likes a story whose summary or text holds a text phrase', () => {
+    expect(
+      verdict({ title: 'x', source: null, body_text: 'All about WASM' }, [
+        like('text', 'wasm'),
+      ]),
+    ).toBe(1);
+  });
+
+  it('likes every story of a feed by its source id', () => {
+    expect(
+      verdict({ title: 'x', source: null, source_id: 7 }, [like('feed', '7')]),
+    ).toBe(1);
+  });
+
+  it('lets a super-dislike win over a like', () => {
+    expect(
+      verdict(article({ title: 'Rust' }), [
+        like('title', 'rust'),
+        { kind: 'source', value: 'example', score: -2 },
+      ]),
+    ).toBe(-1);
+  });
+
   it('ignores a kind it does not know', () => {
     expect(verdict(article({}), [like('colour', 'example')])).toBe(0);
   });

@@ -8,7 +8,7 @@ Classifier:
       $ref: '#/ClassifierKind'
     value:
       type: string
-      description: The author, source (the site a story is from), phrase in the title, or tag to match, ignoring case.
+      description: The author, source (the site a story is from), phrase in the title, tag, or phrase in the summary or text (`text`) to match, ignoring case; for `feed`, the id of the feed's source, as a string.
     score:
       $ref: '#/ClassifierScore'
     created_at:
@@ -16,11 +16,11 @@ Classifier:
       format: date-time
 ClassifierKind:
   type: string
-  enum: [author, source, title, tag]
+  enum: [author, source, title, tag, text, feed]
 ClassifierScore:
   type: string
-  enum: [like, dislike]
-  description: Liked stories are promoted toward the lead and features; disliked ones leave the paper. A like wins over a dislike.
+  enum: [like, dislike, super_dislike]
+  description: Liked stories are promoted toward the lead and features; disliked ones leave the paper. A like wins over a dislike; a super_dislike wins over a like.
 ClassifierInput:
   type: object
   additionalProperties: false

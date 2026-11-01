@@ -9,10 +9,17 @@ import { MAX_NAME_LENGTH, rfc3339 } from '@/domain/api/feed-resource';
 import type { Classifier, ClassifierInput } from '@/domain/repository';
 
 /** What a classifier can match on. */
-const KINDS = ['author', 'source', 'title', 'tag'] as const;
+export const KINDS = [
+  'author',
+  'source',
+  'title',
+  'tag',
+  'text',
+  'feed',
+] as const;
 
 /** What a classifier says about the stories it matches, and its stored score. */
-const SCORES = { like: 1, dislike: -1 } as const;
+const SCORES = { like: 1, dislike: -1, super_dislike: -2 } as const;
 
 type Score = keyof typeof SCORES;
 
@@ -36,7 +43,12 @@ export function classifierResource(
     id: String(classifier.id),
     kind: classifier.kind,
     value: classifier.value,
-    score: classifier.score > 0 ? 'like' : 'dislike',
+    score:
+      classifier.score > 0
+        ? 'like'
+        : classifier.score <= -2
+          ? 'super_dislike'
+          : 'dislike',
     ...(created ? { created_at: created } : {}),
   };
 }
@@ -48,7 +60,7 @@ export type ClassifierBody =
 
 /**
  * Check a classifier body: `kind` one of author, source, title or tag,
- * `value` a non-blank string, `score` like or dislike. Other members are
+ * `value` a non-blank string, `score` like, dislike or super_dislike. Other members are
  * refused.
  */
 export function parseClassifierInput(
@@ -67,8 +79,8 @@ export function parseClassifierInput(
     errors.push('value: must be a non-blank string.');
   else if (value.trim().length > MAX_NAME_LENGTH)
     errors.push('value: too long.');
-  if (score !== 'like' && score !== 'dislike')
-    errors.push('score: must be like or dislike.');
+  if (typeof score !== 'string' || !Object.hasOwn(SCORES, score))
+    errors.push('score: must be like, dislike or super_dislike.');
   return errors.length
     ? { ok: false, errors }
     : {
