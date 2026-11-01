@@ -55,6 +55,9 @@ describe('shortcutFor', () => {
     ['B', 'read-above'],
     ['Y', 'read-below'],
     ['y', 'listen'],
+    ['q', 'queue'],
+    ['<', 'slower'],
+    ['>', 'faster'],
     ['r', 'reload'],
     ['R', 'refresh'],
     ['/', 'search'],
@@ -84,7 +87,7 @@ describe('shortcutFor', () => {
   });
 
   it('leaves other keys to the browser', () => {
-    expect(shortcutFor(press('q'))).toBeNull();
+    expect(shortcutFor(press('w'))).toBeNull();
   });
 
   it.each(['altKey', 'ctrlKey', 'metaKey'])(
@@ -133,8 +136,8 @@ describe('step', () => {
 
 describe('SHORTCUTS', () => {
   it('lists a line for each group of keys the page answers to', () => {
-    expect(SHORTCUTS).toHaveLength(30);
-    expect(new Set(SHORTCUTS.map(([keys]) => keys)).size).toBe(30);
+    expect(SHORTCUTS).toHaveLength(33);
+    expect(new Set(SHORTCUTS.map(([keys]) => keys)).size).toBe(33);
   });
 });
 

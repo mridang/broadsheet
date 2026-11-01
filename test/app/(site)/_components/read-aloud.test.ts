@@ -5,6 +5,8 @@ import { spokenText, webSpeech } from '@/app/(site)/_components/read-aloud';
 class FakeUtterance {
   onend: (() => void) | null = null;
   onerror: (() => void) | null = null;
+  onboundary: ((event: { charIndex: number }) => void) | null = null;
+  rate = 1;
   constructor(readonly text: string) {}
 }
 
@@ -64,6 +66,43 @@ describe('webSpeech', () => {
     reader?.play('One', first);
     reader?.play('Two', () => undefined);
     expect(first).toHaveBeenCalledTimes(1);
+  });
+
+  it('says a reading completed only when it came to its end', () => {
+    const { host: h, spoken } = host();
+    const reader = webSpeech(h);
+    const ends: boolean[] = [];
+    reader?.play('One', (done) => ends.push(done));
+    spoken[0]?.onend?.();
+    reader?.play('Two', (done) => ends.push(done));
+    spoken[1]?.onerror?.();
+    reader?.play('Three', (done) => ends.push(done));
+    reader?.stop();
+    expect(ends).toEqual([true, false, false]);
+  });
+
+  it('reads at the rate asked, from where it left off', () => {
+    const { host: h, spoken } = host();
+    webSpeech(h)?.play('Hello world', () => undefined, { rate: 1.5, from: 6 });
+    expect(spoken[0]?.text).toBe('world');
+    expect(spoken[0]?.rate).toBe(1.5);
+  });
+
+  it('starts from the top for a position outside the text', () => {
+    const { host: h, spoken } = host();
+    webSpeech(h)?.play('Hello', () => undefined, { from: 99 });
+    expect(spoken[0]?.text).toBe('Hello');
+  });
+
+  it('reports progress through the whole text', () => {
+    const { host: h, spoken } = host();
+    const seen: number[] = [];
+    webSpeech(h)?.play('Hello world', () => undefined, {
+      from: 6,
+      onProgress: (at) => seen.push(at),
+    });
+    spoken[0]?.onboundary?.({ charIndex: 2 });
+    expect(seen).toEqual([8]);
   });
 
   it('stops by cancelling the speech', () => {

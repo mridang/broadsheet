@@ -5,6 +5,8 @@ import { html } from '../../../components/render';
 
 describe('ListenButton', () => {
   it('renders nothing on the server, where speech support is unknown', () => {
-    expect(html(<ListenButton title="A story" text="A story." />)).toBe('');
+    expect(
+      html(<ListenButton articleId={1} title="A story" text="A story." />),
+    ).toBe('');
   });
 });

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactElement } from 'react';
 
+import { stepRate, updatePlayer } from '@/app/(site)/_components/player';
 import { refreshFeeds } from '@/app/(site)/feeds/_components/feed-requests';
 import {
   SHORTCUTS,
@@ -179,6 +180,17 @@ export function KeyboardShortcuts(): ReactElement {
           return;
         case 'listen':
           act('button[data-action="listen"]');
+          return;
+        case 'queue':
+          act('button[data-action="queue"]');
+          return;
+        case 'slower':
+        case 'faster':
+          take();
+          updatePlayer((p) => ({
+            ...p,
+            rate: stepRate(p.rate, shortcut === 'faster' ? 'up' : 'down'),
+          }));
           return;
         case 'read': {
           const id = Number(card?.dataset['articleId']);

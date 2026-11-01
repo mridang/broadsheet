@@ -24,6 +24,9 @@ export type Shortcut =
   | 'read-above'
   | 'read-below'
   | 'listen'
+  | 'queue'
+  | 'slower'
+  | 'faster'
   | 'reload'
   | 'refresh'
   | 'search'
@@ -57,6 +60,9 @@ export const SHORTCUTS: ReadonlyArray<readonly [keys: string, does: string]> = [
   ['B', 'Mark the stories above read'],
   ['Y', 'Mark the stories below read'],
   ['y', 'Listen to the focused story, or stop'],
+  ['q', 'Queue the focused story to listen to next'],
+  ['<', 'Listen more slowly'],
+  ['>', 'Listen faster'],
   ['r', 'Reload the paper'],
   ['R', 'Fetch every feed again now'],
   ['/', 'Search'],
@@ -107,6 +113,9 @@ const KEYS: Readonly<Record<string, Shortcut>> = {
   B: 'read-above',
   Y: 'read-below',
   y: 'listen',
+  q: 'queue',
+  '<': 'slower',
+  '>': 'faster',
   r: 'reload',
   R: 'refresh',
   '/': 'search',

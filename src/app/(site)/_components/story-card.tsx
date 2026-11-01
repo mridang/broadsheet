@@ -162,6 +162,7 @@ export async function StoryCard({
             </a>
           ) : null}
           <ListenButton
+            articleId={article.id}
             title={article.title ?? ''}
             text={spokenText(article.title ?? '', ex)}
           />
