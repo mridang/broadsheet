@@ -45,6 +45,7 @@ export interface PreferencesResource {
   readonly intelligence: Preferences['intelligence'];
   readonly mark_read_on_open: boolean;
   readonly auto_mark_read_days: number;
+  readonly mark_read_on_scroll: boolean;
 }
 
 /** The story counts a note may cover. */
@@ -99,6 +100,7 @@ export function preferencesResource(p: Preferences): PreferencesResource {
     intelligence: p.intelligence,
     mark_read_on_open: p.mark_read_on_open,
     auto_mark_read_days: p.auto_mark_read_days,
+    mark_read_on_scroll: p.mark_read_on_scroll,
   };
 }
 
@@ -117,6 +119,7 @@ const TOP = [
   'intelligence',
   'mark_read_on_open',
   'auto_mark_read_days',
+  'mark_read_on_scroll',
 ];
 const BRIEFING = [
   'enabled',
@@ -297,6 +300,7 @@ export function parsePreferenceChanges(
     'story_clustering',
     'cluster_mark_read',
     'mark_read_on_open',
+    'mark_read_on_scroll',
   ] as const) {
     if (!(key in body)) continue;
     const value = body[key];

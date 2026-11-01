@@ -133,9 +133,12 @@ Budget:
       format: date-time
 Usage:
   type: object
-  required: [answers, assistant]
+  required: [answers, assistant, classifiers]
   properties:
     answers:
       $ref: '#/Budget'
     assistant:
       $ref: '#/Budget'
+    classifiers:
+      $ref: '#/Budget'
+      description: The stories AI prompt classifiers may judge today.

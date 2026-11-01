@@ -195,6 +195,8 @@ export const classifiers = sqliteTable(
     scope_feed_id: integer('scope_feed_id'),
     /** Only stories of this section's feeds, as NewsBlur's folder scope. */
     scope_section_id: integer('scope_section_id'),
+    /** The value is a regular expression (title, author, text, url). */
+    is_regex: integer('is_regex').notNull().default(0),
     created_at: text('created_at').default(sql`(datetime('now'))`),
   },
   (table) => [index('idx_classifiers_user').on(table.user_id)],
@@ -594,6 +596,8 @@ export const preferences = sqliteTable('preferences', {
   mark_read_on_open: integer('mark_read_on_open').notNull().default(1),
   /** Days after which stories count as read when no feed or section says; 0 never. */
   auto_mark_read_days: integer('auto_mark_read_days').notNull().default(0),
+  /** Whether stories scrolled past are marked read (0/1). */
+  mark_read_on_scroll: integer('mark_read_on_scroll').notNull().default(0),
   updated_at: text('updated_at').default(sql`(datetime('now'))`),
   // Migration 0027: the briefing's schedule, sources, model and sections,
   // and how a story's copies show.
@@ -696,5 +700,24 @@ export const briefings = sqliteTable(
   (table) => [
     unique().on(table.user_id, table.slot, table.local_date),
     index('idx_briefings_user').on(table.user_id, table.created_at),
+  ],
+);
+
+/**
+ * Whether the AI found a story matches a person's `prompt` classifier, asked
+ * once per story and prompt.
+ */
+export const prompt_scores = sqliteTable(
+  'prompt_scores',
+  {
+    classifier_id: integer('classifier_id').notNull(),
+    article_id: integer('article_id').notNull(),
+    user_id: integer('user_id').notNull(),
+    matched: integer('matched').notNull(),
+    created_at: text('created_at').default(sql`(datetime('now'))`),
+  },
+  (table) => [
+    primaryKey({ columns: [table.classifier_id, table.article_id] }),
+    index('idx_prompt_scores_user').on(table.user_id),
   ],
 );

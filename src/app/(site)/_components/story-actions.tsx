@@ -8,6 +8,7 @@ import {
   train as trainOn,
   type TrainKind,
 } from '@/app/(site)/_components/story-requests';
+import { PhraseTrainer } from '@/app/(site)/_components/phrase-trainer';
 
 /** Something about a story the reader can like or dislike. */
 interface Target {
@@ -21,9 +22,9 @@ export const CHIP =
   'focus-ring pointer-events-auto relative z-10 inline-flex h-7 items-center gap-1 rounded-full border border-line px-2.5 text-xs font-medium text-muted hover:border-field hover:text-ink aria-pressed:border-accent aria-pressed:text-accent disabled:opacity-50';
 
 /**
- * Thumbs up and down on a story's source, a trainer for its feed, author and
- * tags, and saving the story. Training reloads the page so the paper is set
- * again; saving flips in place.
+ * Thumbs up and down on a story's source, a trainer for its feed, author, tags
+ * and phrases of the reader's own (see `PhraseTrainer`), and saving the story.
+ * Training reloads the page so the paper is set again; saving flips in place.
  */
 export function StoryActions({
   articleId,
@@ -32,6 +33,7 @@ export function StoryActions({
   feedId,
   author,
   tags = [],
+  title = '',
 }: Readonly<{
   articleId: number;
   source: string;
@@ -39,6 +41,7 @@ export function StoryActions({
   feedId?: number;
   author?: string | null;
   tags?: readonly string[];
+  title?: string;
 }>): ReactElement {
   const train = useApiAction(() => window.location.reload());
   const save = useApiAction();
@@ -54,13 +57,19 @@ export function StoryActions({
     ...tags.map((t) => ({ kind: 'tag' as const, value: t, label: `#${t}` })),
   ];
   const thumbs = (target: Target) =>
-    (['like', 'dislike'] as const).map((score) => (
+    (['like', 'dislike', 'super_dislike'] as const).map((score) => (
       <button
         key={score}
         type="button"
         className={CHIP}
         disabled={train.busy}
-        aria-label={`${score === 'like' ? 'More' : 'Less'} like ${target.label}`}
+        aria-label={`${
+          score === 'like'
+            ? 'More'
+            : score === 'dislike'
+              ? 'Less'
+              : 'Never anything'
+        } like ${target.label}`}
         onClick={() =>
           void train.run(
             () => trainOn(target.kind, target.value, score),
@@ -68,7 +77,7 @@ export function StoryActions({
           )
         }
       >
-        {score === 'like' ? '👍' : '👎'}
+        {score === 'like' ? '👍' : score === 'dislike' ? '👎' : '🚫'}
       </button>
     ));
 
@@ -104,16 +113,15 @@ export function StoryActions({
       >
         👎
       </button>
-      {targets.length ? (
-        <details>
-          <summary>Train</summary>
-          {targets.map((target) => (
-            <span key={`${target.kind}:${target.value}`}>
-              {target.label} {thumbs(target)}
-            </span>
-          ))}
-        </details>
-      ) : null}
+      <details>
+        <summary>Train</summary>
+        {targets.map((target) => (
+          <span key={`${target.kind}:${target.value}`}>
+            {target.label} {thumbs(target)}
+          </span>
+        ))}
+        <PhraseTrainer title={title} />
+      </details>
       <button
         type="button"
         className={CHIP}

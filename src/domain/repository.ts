@@ -36,6 +36,7 @@ import {
   briefings,
   issues,
   preferences,
+  prompt_scores,
   conversations,
   edition_issues,
   editions,
@@ -283,6 +284,8 @@ export interface ClassifierInput {
   readonly score: number;
   readonly scope_feed_id?: number;
   readonly scope_section_id?: number;
+  /** The value is a regular expression. */
+  readonly is_regex?: boolean;
 }
 /** A story a person kept: the article, their tags and when they saved it. */
 export interface SavedStory {
@@ -372,6 +375,8 @@ export interface Preferences {
   readonly briefing_section_order: readonly string[] | null;
   /** Keyword prompts for sections of the person's own, at most five. */
   readonly briefing_prompts: readonly string[];
+  /** Whether stories scrolled past are marked read. */
+  readonly mark_read_on_scroll: boolean;
 }
 /** The preferences of someone who has changed nothing. */
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -397,6 +402,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   briefing_sections: {},
   briefing_section_order: null,
   briefing_prompts: [],
+  mark_read_on_scroll: false,
 };
 
 /** A stored JSON value, or `fallback` when it does not parse. */
@@ -632,7 +638,7 @@ export interface ArchiveSummary {
 /** A conversation as a list shows it. */
 export type ConversationSummary = typeof conversations.$inferSelect;
 /** What Ask AI or the assistant may be asked: its daily budget. */
-export type UsageKind = 'answer' | 'assistant';
+export type UsageKind = 'answer' | 'assistant' | 'classifier';
 /** A story like another, from any source, and whether the person follows its source. */
 export interface DiscoveredArticle {
   readonly article: ArticleSummary;
@@ -1647,6 +1653,7 @@ export class Repository {
         input.scope_section_id === undefined
           ? isNull(classifiers.scope_section_id)
           : eq(classifiers.scope_section_id, input.scope_section_id),
+        eq(classifiers.is_regex, input.is_regex ? 1 : 0),
       ),
     });
     if (existing) {
@@ -1657,9 +1664,10 @@ export class Repository {
         .returning();
       return { classifier: row!, created: false };
     }
+    const { is_regex, ...rest } = input;
     const [row] = await this.#db
       .insert(classifiers)
-      .values({ user_id: userId, ...input })
+      .values({ user_id: userId, ...rest, is_regex: is_regex ? 1 : 0 })
       .returning();
     return { classifier: row!, created: true };
   }
@@ -2979,6 +2987,7 @@ export class Repository {
           : 'unread',
       mark_read_on_open: row.mark_read_on_open === 1,
       auto_mark_read_days: row.auto_mark_read_days,
+      mark_read_on_scroll: row.mark_read_on_scroll === 1,
     };
   }
 
@@ -3014,6 +3023,7 @@ export class Repository {
           ? null
           : JSON.stringify(next.briefing_section_order),
       briefing_prompts: JSON.stringify(next.briefing_prompts),
+      mark_read_on_scroll: next.mark_read_on_scroll ? 1 : 0,
       updated_at: sql`(datetime('now'))`,
     };
     await this.#db
@@ -3578,6 +3588,87 @@ export class Repository {
     const [first, ...rest] = inserts;
     if (first) await this.#db.batch([first, ...rest]);
     return (scope.articleIds ? inScope : unread).map((a) => a.id);
+  }
+
+  /**
+   * The stories of an edition in the person's feeds that a `prompt` classifier
+   * has not been asked about yet, at most `limit`, for each such classifier.
+   */
+  async unscoredPrompts(
+    userId: number,
+    edition: string,
+    limit: number,
+  ): Promise<
+    { readonly classifier: Classifier; readonly stories: ArticleSummary[] }[]
+  > {
+    const prompts = (await this.listClassifiers(userId)).filter(
+      (c) => c.kind === 'prompt',
+    );
+    return Promise.all(
+      prompts.map(async (classifier) => ({
+        classifier,
+        stories: await this.#db
+          .select(summaryColumns)
+          .from(articles)
+          .where(
+            and(
+              inArray(articles.source_id, this.#followed(userId)),
+              eq(articles.edition, edition),
+              notInArray(
+                articles.id,
+                this.#db
+                  .select({ id: prompt_scores.article_id })
+                  .from(prompt_scores)
+                  .where(eq(prompt_scores.classifier_id, classifier.id)),
+              ),
+            ),
+          )
+          .orderBy(asc(articles.id))
+          .limit(limit),
+      })),
+    );
+  }
+
+  /** Keep the AI's answers for one prompt classifier, one row per story. */
+  async savePromptScores(
+    userId: number,
+    classifierId: number,
+    answers: ReadonlyMap<number, boolean>,
+  ): Promise<void> {
+    const inserts = [...answers].map(([articleId, matched]) =>
+      this.#db
+        .insert(prompt_scores)
+        .values({
+          classifier_id: classifierId,
+          article_id: articleId,
+          user_id: userId,
+          matched: matched ? 1 : 0,
+        })
+        .onConflictDoNothing(),
+    );
+    const [first, ...rest] = inserts;
+    if (first) await this.#db.batch([first, ...rest]);
+  }
+
+  /** The person's prompt classifiers each story matched, by article id. */
+  async promptMatches(userId: number): Promise<Map<number, Set<number>>> {
+    const rows = await this.#db
+      .select({
+        article_id: prompt_scores.article_id,
+        classifier_id: prompt_scores.classifier_id,
+      })
+      .from(prompt_scores)
+      .where(
+        and(eq(prompt_scores.user_id, userId), eq(prompt_scores.matched, 1)),
+      );
+    const out = new Map<number, Set<number>>();
+    for (const r of rows) {
+      out.set(
+        r.article_id,
+        (out.get(r.article_id) ?? new Set()).add(r.classifier_id),
+      );
+    }
+    return out;
   }
 }
 

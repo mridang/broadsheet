@@ -11,6 +11,7 @@ describe('ReadingPreferences', () => {
           intelligence="focus"
           markReadOnOpen
           autoMarkReadDays={0}
+          markReadOnScroll={false}
         />,
       ),
     ).toMatch(/<option value="focus" selected="">/);
@@ -22,6 +23,7 @@ describe('ReadingPreferences', () => {
         intelligence="unread"
         markReadOnOpen
         autoMarkReadDays={0}
+        markReadOnScroll={false}
       />,
     );
     ['focus', 'unread', 'all'].forEach((level) =>
@@ -38,6 +40,7 @@ describe('ReadingPreferences', () => {
         intelligence="unread"
         markReadOnOpen={on}
         autoMarkReadDays={0}
+        markReadOnScroll={false}
       />,
     );
     expect(/type="checkbox"[^>]*checked/.test(out)).toBe(ticked);
@@ -52,8 +55,26 @@ describe('ReadingPreferences auto-mark-read days', () => {
           intelligence="unread"
           markReadOnOpen
           autoMarkReadDays={14}
+          markReadOnScroll={false}
         />,
       ),
     ).toMatch(/type="number"[^>]*value="14"/);
+  });
+});
+
+describe('ReadingPreferences mark-read-on-scroll', () => {
+  it.each([
+    [true, 1],
+    [false, 0],
+  ])('ticks scrolling past when it is %s', (on, ticked) => {
+    const out = html(
+      <ReadingPreferences
+        intelligence="unread"
+        markReadOnOpen={false}
+        autoMarkReadDays={0}
+        markReadOnScroll={on}
+      />,
+    );
+    expect(out.match(/type="checkbox"[^>]*checked/g)?.length ?? 0).toBe(ticked);
   });
 });

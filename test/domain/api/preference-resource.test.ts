@@ -31,6 +31,7 @@ describe('preferencesResource', () => {
       intelligence: 'unread',
       mark_read_on_open: true,
       auto_mark_read_days: 0,
+      mark_read_on_scroll: false,
     });
   });
 });
@@ -280,5 +281,21 @@ describe('preferencesResource order', () => {
     expect(out.briefing.sections.long_read).toBe(false);
     expect(out.briefing.sections.top_stories).toBe(true);
     expect(out.briefing.model).toBe('@cf/google/gemma-3-12b-it');
+  });
+});
+
+describe('mark-read-on-scroll', () => {
+  it('takes a change', () => {
+    expect(parsePreferenceChanges({ mark_read_on_scroll: true })).toEqual({
+      ok: true,
+      changes: { mark_read_on_scroll: true },
+    });
+  });
+
+  it('refuses a value that is not true or false', () => {
+    const out = parsePreferenceChanges({ mark_read_on_scroll: 1 });
+    expect(out.ok ? [] : out.errors).toEqual([
+      'mark_read_on_scroll: must be true or false.',
+    ]);
   });
 });

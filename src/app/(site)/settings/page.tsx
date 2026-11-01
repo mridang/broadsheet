@@ -74,6 +74,7 @@ export default async function SettingsPage() {
           intelligence={prefs.intelligence}
           markReadOnOpen={prefs.mark_read_on_open}
           autoMarkReadDays={prefs.auto_mark_read_days}
+          markReadOnScroll={prefs.mark_read_on_scroll}
         />
       </PageSection>
       <PageSection

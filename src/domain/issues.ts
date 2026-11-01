@@ -25,6 +25,7 @@ import {
   type Candidate,
 } from '@/domain/briefing';
 import { toCandidates } from '@/domain/briefings';
+import { scorePrompts } from '@/domain/prompts';
 import {
   layOut,
   parseLayout,
@@ -67,12 +68,13 @@ export async function composeLayout(
   readerId?: number,
   pick?: IssuePick,
 ): Promise<Layout> {
-  const [all, reads, training, sections, prefs] = await Promise.all([
+  const [all, reads, training, sections, prefs, prompted] = await Promise.all([
     repo.listFeeds(ownerId),
     readerId === undefined ? undefined : repo.readState(readerId),
     readerId === undefined ? [] : repo.listClassifiers(readerId),
     repo.listSections(ownerId),
     repo.getPreferences(readerId ?? ownerId),
+    readerId === undefined ? new Map() : repo.promptMatches(readerId),
   ]);
   // A picked section takes in the sections nested under it.
   const picked = new Set(
@@ -97,12 +99,18 @@ export async function composeLayout(
           : new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
       return {
         feed,
-        articles: (await repo.sourceArticles(feed.source_id, date)).filter(
-          (a) =>
-            (!reads || reads.ids.has(a.id) || !reads.urls.has(a.url)) &&
-            (!oldest || !a.edition || a.edition >= oldest) &&
-            (!pick?.keep || pick.keep(a.id)),
-        ),
+        articles: (await repo.sourceArticles(feed.source_id, date))
+          .filter(
+            (a) =>
+              (!reads || reads.ids.has(a.id) || !reads.urls.has(a.url)) &&
+              (!oldest || !a.edition || a.edition >= oldest) &&
+              (!pick?.keep || pick.keep(a.id)),
+          )
+          // The reader's AI prompts this story matched, for `verdict`.
+          .map((a) => {
+            const ids = prompted.get(a.id);
+            return ids ? { ...a, prompt_ids: ids } : a;
+          }),
       };
     }),
   );
@@ -259,6 +267,7 @@ export async function publishIssue(
   date: string,
 ): Promise<number> {
   const repo = new Repository(db);
+  await scorePrompts(env, repo, userId, date);
   const layout = await composeLayout(repo, userId, date, userId);
   const { briefing, briefed, stories } = await briefingFor(
     repo,

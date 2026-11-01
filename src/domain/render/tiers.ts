@@ -10,6 +10,7 @@
  * sources covered (its cluster's size) weighs more.
  */
 import type { Article } from '@/domain/repository';
+import { regexProblem } from '@/domain/rules';
 
 export type Tier = 'lead' | 'feature' | 'standard' | 'brief';
 
@@ -50,6 +51,10 @@ export interface Training {
   readonly score: number;
   readonly scope_feed_id?: number | null;
   readonly scope_section_id?: number | null;
+  /** The value is a regular expression (1 or true); title, author, text, url. */
+  readonly is_regex?: number | boolean;
+  /** The classifier's id, which `prompt` classifiers are matched by. */
+  readonly id?: number;
 }
 
 /**
@@ -69,6 +74,8 @@ export interface Classifiable {
   readonly feed_id?: number;
   /** The section the story's feed is filed under, when known. */
   readonly section_id?: number | null;
+  /** The `prompt` classifiers the AI found the story matches, by id. */
+  readonly prompt_ids?: ReadonlySet<number>;
 }
 
 /**
@@ -129,7 +136,10 @@ export function tagsOf(tags: Classifiable['tags']): readonly string[] {
 
 /** Whether one classifier matches the story (case-insensitively). */
 export function matches(story: Classifiable, c: Training): boolean {
+  if (c.is_regex) return regexMatches(story, c);
   switch (c.kind) {
+    case 'prompt':
+      return c.id !== undefined && !!story.prompt_ids?.has(c.id);
     case 'author':
       return !!story.author && same(story.author, c.value);
     case 'source':
@@ -158,8 +168,32 @@ function inScope(story: Classifiable, c: Training): boolean {
   return true;
 }
 
+/**
+ * Whether a regular-expression classifier matches, as NewsBlur's: over the
+ * title, the author, the summary and text, or the address, ignoring case. A
+ * pattern `regexProblem` refuses never matches, and the text is capped, as a
+ * Worker cannot stop a slow match.
+ */
+function regexMatches(story: Classifiable, c: Training): boolean {
+  const text =
+    c.kind === 'title'
+      ? story.title
+      : c.kind === 'author'
+        ? story.author
+        : c.kind === 'url'
+          ? story.url
+          : c.kind === 'text'
+            ? [story.summary, story.body_text].filter(Boolean).join(' ')
+            : undefined;
+  if (!text || regexProblem(c.value)) return false;
+  return new RegExp(c.value, 'i').test(text.slice(0, MAX_REGEX_TEXT));
+}
+
+/** The most text a regular-expression classifier runs over. */
+const MAX_REGEX_TEXT = 20_000;
+
 /** Kinds about the whole feed or site, which yield to the story's own. */
-const BROAD: ReadonlySet<string> = new Set(['feed', 'source']);
+const BROAD: ReadonlySet<string> = new Set(['feed', 'source', 'prompt']);
 
 /** A verdict: super dislike, dislike, neutral or like. */
 export type Verdict = -2 | -1 | 0 | 1;
@@ -176,8 +210,9 @@ function score(hits: readonly Training[]): Verdict {
 }
 
 /**
- * The person's verdict on a story, as NewsBlur's `compute_story_score`: the
- * classifiers on the story itself (title, author, tag, text, URL) decide, a
+ * The person's verdict on a story, as NewsBlur's `compute_story_score`: an AI
+ * prompt the story matches decides first; then the classifiers on the story
+ * itself (title, author, tag, text, URL, plain or regular expressions), a
  * super dislike beating any like and a like beating a dislike; only when none
  * of those match do the feed and site ones count.
  */
@@ -186,6 +221,9 @@ export function verdict(
   training: readonly Training[],
 ): Verdict {
   const hits = training.filter((c) => inScope(story, c) && matches(story, c));
+  // An AI prompt that matches decides, as NewsBlur's prompt score does.
+  const prompted = score(hits.filter((c) => c.kind === 'prompt'));
+  if (prompted) return prompted;
   return (
     score(hits.filter((c) => !BROAD.has(c.kind))) ||
     score(hits.filter((c) => BROAD.has(c.kind)))

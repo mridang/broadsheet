@@ -32,7 +32,11 @@ const ARTICLE_CONTEXT = 12000;
 export const HISTORY_TURNS = 6;
 
 /** Questions a person may ask of the model each day (UTC), by kind. */
-export const DAILY_LIMITS = { answer: 50, assistant: 30 } as const;
+export const DAILY_LIMITS = {
+  answer: 50,
+  assistant: 30,
+  classifier: 500,
+} as const;
 
 /** One message of a chat prompt. */
 export interface ChatMessage {

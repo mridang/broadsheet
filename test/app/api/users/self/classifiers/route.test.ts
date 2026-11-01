@@ -211,3 +211,41 @@ describe('POST /api/users/self/classifiers feeds and scopes', () => {
     expect(res.status).toBe(400);
   });
 });
+
+describe('POST /api/users/self/classifiers patterns and prompts', () => {
+  it('answers 201 for a regular expression on titles', async () => {
+    const res = await post(
+      JSON.stringify({
+        kind: 'title',
+        value: '^rust',
+        score: 'like',
+        is_regex: true,
+      }),
+    );
+    expect(await res.json()).toMatchObject({ is_regex: true });
+  });
+
+  it('answers 400 as a problem for a pattern that could run without end', async () => {
+    const res = await post(
+      JSON.stringify({
+        kind: 'title',
+        value: '(a+)+',
+        score: 'like',
+        is_regex: true,
+      }),
+    );
+    expect(res.status).toBe(400);
+    expect(res.headers.get('content-type')).toBe('application/problem+json');
+  });
+
+  it('answers 201 for an AI prompt', async () => {
+    const res = await post(
+      JSON.stringify({
+        kind: 'prompt',
+        value: 'Stories about compilers',
+        score: 'like',
+      }),
+    );
+    expect(res.status).toBe(201);
+  });
+});

@@ -178,6 +178,7 @@ export async function StoryCard({
               feedId={feedId}
               author={article.author}
               tags={tagsOf(article.tags)}
+              title={article.title ?? ''}
             />
           ) : null}
         </div>

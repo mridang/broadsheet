@@ -58,6 +58,8 @@ const reader = (
   saved: new Set(),
   level,
   markReadOnOpen: true,
+  markReadOnScroll: false,
+  prompted: new Map(),
   sections: new Map([[4, 9]]),
   ...over,
 });
@@ -93,5 +95,21 @@ describe('visibleStories', () => {
 
   it('skips a laid story whose article is gone', () => {
     expect(visibleStories(desk, new Map(), reader('all'))).toEqual([]);
+  });
+});
+
+describe('visibleStories and AI prompts', () => {
+  it('lets a matched prompt decide over the other training', () => {
+    expect(
+      ids(
+        reader('focus', {
+          training: [
+            { kind: 'title', value: 'go', score: -1 },
+            { kind: 'prompt', value: 'languages', score: 1, id: 5 },
+          ],
+          prompted: new Map([[2, new Set([5])]]),
+        }),
+      ),
+    ).toEqual([2]);
   });
 });

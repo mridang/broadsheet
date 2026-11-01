@@ -9,19 +9,32 @@
 import { ensureOk } from '@/components/api/problem-message';
 
 /** What a story can be trained on. */
-export type TrainKind = 'source' | 'feed' | 'author' | 'tag' | 'title';
+export type TrainKind =
+  'source' | 'feed' | 'author' | 'tag' | 'title' | 'text' | 'url' | 'prompt';
 
-/** Like or dislike every story matching `kind` and `value` (`POST .../classifiers`). */
+/** How a classifier scores what it matches. */
+export type TrainScore = 'like' | 'dislike' | 'super_dislike';
+
+/**
+ * Like, dislike or super-dislike every story matching `kind` and `value`, a
+ * regular expression with `isRegex` (`POST .../classifiers`).
+ */
 export async function train(
   kind: TrainKind,
   value: string,
-  score: 'like' | 'dislike',
+  score: TrainScore,
+  isRegex = false,
 ): Promise<void> {
   await ensureOk(
     await fetch('/api/users/self/classifiers', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ kind, value, score }),
+      body: JSON.stringify({
+        kind,
+        value,
+        score,
+        ...(isRegex ? { is_regex: true } : {}),
+      }),
     }),
   );
 }

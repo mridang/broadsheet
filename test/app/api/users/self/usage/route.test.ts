@@ -54,6 +54,13 @@ describe('GET /api/users/self/usage', () => {
     });
   });
 
+  it('includes the AI classifier budget', async () => {
+    await repo.recordUsage(7, 'classifier');
+    expect(await (await usage()).json()).toMatchObject({
+      classifiers: { used: 1, limit: DAILY_LIMITS.classifier },
+    });
+  });
+
   it('counts only the caller’s questions', async () => {
     await repo.recordUsage(8, 'answer');
     expect(await (await usage()).json()).toMatchObject({

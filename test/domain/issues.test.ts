@@ -196,6 +196,20 @@ describe('publishIssue', () => {
     });
   });
 
+  it('judges the stories against the reader’s AI prompts first', async () => {
+    const { classifier } = await repo.addClassifier(uid, {
+      kind: 'prompt',
+      value: 'anything',
+      score: 1,
+    });
+    const env = envWith('yes');
+    await publishIssue(db, env, uid, DAY);
+    expect((await repo.promptMatches(uid)).size).toBe(3);
+    expect(
+      [...(await repo.promptMatches(uid)).values()][0]?.has(classifier.id),
+    ).toBe(true);
+  });
+
   it('replaces the day’s issue when run again', async () => {
     await publishIssue(db, envWith('First.'), uid, DAY);
     await publishIssue(db, envWith('Second.'), uid, DAY);
@@ -462,5 +476,23 @@ describe('composeLayout and the reader’s own auto-mark-read days', () => {
   it('keeps every edition for a paper laid out with no reader', async () => {
     await repo.updatePreferences(uid, { auto_mark_read_days: 7 });
     expect(storyIds(await composeLayout(repo, uid, OLD))).toHaveLength(1);
+  });
+});
+
+describe('composeLayout and AI prompts', () => {
+  it('prints a story a hide prompt matched last for the reader', async () => {
+    const { classifier } = await repo.addClassifier(uid, {
+      kind: 'prompt',
+      value: 'gossip',
+      score: -1,
+    });
+    const [first] = await repo.sourceArticles(sourceId, DAY);
+    await repo.savePromptScores(
+      uid,
+      classifier.id,
+      new Map([[first!.id, true]]),
+    );
+    const ids = storyIds(await composeLayout(repo, uid, DAY, uid));
+    expect(ids.at(-1)).toBe(first!.id);
   });
 });

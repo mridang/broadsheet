@@ -1,6 +1,6 @@
 Classifier:
   type: object
-  required: [id, kind, value, score]
+  required: [id, kind, value, score, is_regex]
   properties:
     id:
       type: string
@@ -11,6 +11,9 @@ Classifier:
       description: What to match, ignoring case. A phrase in the title (matched at the start of a word), the author, a tag, a phrase in the text, part of the story's address, a feed id, or the site a story is from.
     score:
       $ref: '#/ClassifierScore'
+    is_regex:
+      type: boolean
+      description: The value is a regular expression (title, author, text or url).
     feed_id:
       type: string
       description: The classifier applies only to this feed's stories. Absent, with no `section_id`, it applies everywhere.
@@ -22,7 +25,7 @@ Classifier:
       format: date-time
 ClassifierKind:
   type: string
-  enum: [title, author, tag, text, url, feed, source]
+  enum: [title, author, tag, text, url, feed, source, prompt]
   description: What a classifier matches, as NewsBlur's classifiers. The story's own (title, author, tag, text, url) decide; only when none of them match do the feed and site (`feed`, `source`) ones count.
 ClassifierScore:
   type: string
@@ -31,6 +34,7 @@ ClassifierScore:
 ClassifierInput:
   type: object
   additionalProperties: false
+  description: A `prompt` classifier's value is up to 1000 characters the AI judges each story against, and its score is like (focus) or dislike (hidden). A regular expression may not nest quantifiers or refer back to a group.
   required: [kind, value, score]
   properties:
     kind:
@@ -38,13 +42,16 @@ ClassifierInput:
     value:
       type: string
       minLength: 1
-      maxLength: 200
+      maxLength: 1000
     score:
       $ref: '#/ClassifierScore'
     feed_id:
       type: string
       pattern: '^[1-9][0-9]{0,14}$'
       description: Scope the classifier to one of the person's feeds.
+    is_regex:
+      type: boolean
+      description: Treat the value as a regular expression; only for title, author, text and url.
     section_id:
       type: string
       pattern: '^[1-9][0-9]{0,14}$'

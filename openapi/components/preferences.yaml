@@ -11,6 +11,7 @@ Preferences:
     - cluster_preview_style
     - timezone
     - briefing
+    - mark_read_on_scroll
   properties:
     story_clustering:
       type: boolean
@@ -41,6 +42,9 @@ Preferences:
       minimum: 0
       maximum: 365
       description: Days after which stories count as read when no feed or section says (0 never).
+    mark_read_on_scroll:
+      type: boolean
+      description: Stories scrolled past are marked read, as NewsBlur's mark-read-on-scroll.
 Intelligence:
   type: string
   enum: [focus, unread, all]
@@ -143,6 +147,8 @@ PreferenceChanges:
   type: object
   additionalProperties: false
   properties:
+    mark_read_on_scroll:
+      type: boolean
     intelligence:
       $ref: '#/Intelligence'
     mark_read_on_open:

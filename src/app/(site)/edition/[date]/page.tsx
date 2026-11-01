@@ -16,6 +16,7 @@ import { FrontPage } from '@/app/(site)/_components/front-page';
 import { Paper } from '@/app/(site)/_components/paper';
 import { loadPersonal } from '@/app/(site)/_components/personal';
 import { ReadTracker } from '@/app/(site)/_components/read-tracker';
+import { ScrollReader } from '@/app/(site)/_components/scroll-reader';
 import { EditionBar } from '@/app/(site)/_components/edition-bar';
 import { KeyboardShortcuts } from '@/app/(site)/_components/keyboard-shortcuts';
 
@@ -57,6 +58,7 @@ export default async function Edition({ params }: { params: Params }) {
     >
       <KeyboardShortcuts />
       {personal?.markReadOnOpen ? <ReadTracker /> : null}
+      {personal?.markReadOnScroll ? <ScrollReader /> : null}
       <Paper
         layout={issue.layout}
         articles={await issueArticles(repo, issue.layout)}

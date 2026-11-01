@@ -13,6 +13,7 @@ describe('classifierResource', () => {
         user_id: 9,
         scope_feed_id: null,
         scope_section_id: null,
+        is_regex: 0,
         kind: 'source',
         value: 'a.test',
         score: 1,
@@ -23,6 +24,7 @@ describe('classifierResource', () => {
       kind: 'source',
       value: 'a.test',
       score: 'like',
+      is_regex: false,
       created_at: '2026-01-02T03:04:05Z',
     });
   });
@@ -34,12 +36,19 @@ describe('classifierResource', () => {
         user_id: 9,
         scope_feed_id: null,
         scope_section_id: null,
+        is_regex: 0,
         kind: 'tag',
         value: 'x',
         score: -1,
         created_at: null,
       }),
-    ).toEqual({ id: '3', kind: 'tag', value: 'x', score: 'dislike' });
+    ).toEqual({
+      id: '3',
+      kind: 'tag',
+      value: 'x',
+      score: 'dislike',
+      is_regex: false,
+    });
   });
 });
 
@@ -54,6 +63,7 @@ describe('classifierResource of a super-dislike', () => {
         score: -2,
         scope_feed_id: null,
         scope_section_id: null,
+        is_regex: 0,
         created_at: null,
       }).score,
     ).toBe('super_dislike');
@@ -77,7 +87,7 @@ describe('parseClassifierInput', () => {
   it.each([
     [
       { kind: 'colour', value: 'x', score: 'like' },
-      'kind: must be one of title, author, tag, text, url, feed, source.',
+      'kind: must be one of title, author, tag, text, url, feed, source, prompt.',
     ],
     [
       { kind: 'tag', value: ' ', score: 'like' },
@@ -154,6 +164,7 @@ describe('classifierResource scores and scopes', () => {
     score: -2,
     scope_feed_id: 4,
     scope_section_id: null,
+    is_regex: 0,
     created_at: null,
   };
 
@@ -164,6 +175,7 @@ describe('classifierResource scores and scopes', () => {
       value: 'x',
       score: 'super_dislike',
       feed_id: '4',
+      is_regex: false,
     });
   });
 
@@ -176,5 +188,79 @@ describe('classifierResource scores and scopes', () => {
         scope_section_id: 5,
       }),
     ).toMatchObject({ score: 'like', section_id: '5' });
+  });
+});
+
+describe('regular expressions and prompts', () => {
+  it.each(['title', 'author', 'text', 'url'])(
+    'takes a regular expression for %s',
+    (kind) => {
+      expect(
+        parseClassifierInput({
+          kind,
+          value: '^rust\\b',
+          score: 'like',
+          is_regex: true,
+        }),
+      ).toEqual({
+        ok: true,
+        input: { kind, value: '^rust\\b', score: 1, is_regex: true },
+      });
+    },
+  );
+
+  it.each([
+    [
+      { kind: 'tag', value: 'x', score: 'like', is_regex: true },
+      'is_regex: only for title, author, text, url.',
+    ],
+    [
+      { kind: 'title', value: 'x', score: 'like', is_regex: 'yes' },
+      'is_regex: must be true or false.',
+    ],
+    [
+      { kind: 'title', value: '(', score: 'like', is_regex: true },
+      'value: not a valid regular expression.',
+    ],
+    [
+      { kind: 'title', value: '(a+)+', score: 'like', is_regex: true },
+      'value: a repeated group may not itself repeat.',
+    ],
+    [
+      { kind: 'prompt', value: 'x', score: 'super_dislike' },
+      'score: a prompt classifier is like (focus) or dislike (hidden).',
+    ],
+    [
+      { kind: 'prompt', value: 'x'.repeat(1001), score: 'like' },
+      'value: too long.',
+    ],
+  ])('refuses %j', (body, error) => {
+    expect(parseClassifierInput(body)).toEqual({ ok: false, errors: [error] });
+  });
+
+  it('takes a prompt of up to 1000 characters', () => {
+    expect(
+      parseClassifierInput({
+        kind: 'prompt',
+        value: 'x'.repeat(1000),
+        score: 'dislike',
+      }),
+    ).toMatchObject({ ok: true, input: { kind: 'prompt', score: -1 } });
+  });
+
+  it('shows whether a classifier is a regular expression', () => {
+    expect(
+      classifierResource({
+        id: 1,
+        user_id: 9,
+        kind: 'title',
+        value: '^a',
+        score: 1,
+        scope_feed_id: null,
+        scope_section_id: null,
+        is_regex: 1,
+        created_at: null,
+      }).is_regex,
+    ).toBe(true);
   });
 });

@@ -2765,3 +2765,58 @@ describe('popular shares', () => {
     ).toEqual([[a!.id, 2]]);
   });
 });
+
+describe('prompt scores', () => {
+  it('lists the edition’s stories a prompt has not judged, then keeps the answers', async () => {
+    const repo = new Repository(db);
+    const { id } = await oneStory();
+    const { classifier } = await repo.addClassifier(1, {
+      kind: 'prompt',
+      value: 'p',
+      score: 1,
+    });
+    const [pending] = await repo.unscoredPrompts(1, '2026-10-20', 10);
+    expect(pending?.stories.map((s) => s.id)).toEqual([id]);
+    await repo.savePromptScores(1, classifier.id, new Map([[id, true]]));
+    expect(
+      (await repo.unscoredPrompts(1, '2026-10-20', 10))[0]?.stories,
+    ).toEqual([]);
+    expect(await repo.promptMatches(1)).toEqual(
+      new Map([[id, new Set([classifier.id])]]),
+    );
+  });
+
+  it('keeps a no without counting it as a match', async () => {
+    const repo = new Repository(db);
+    const { id } = await oneStory();
+    const { classifier } = await repo.addClassifier(1, {
+      kind: 'prompt',
+      value: 'p',
+      score: 1,
+    });
+    await repo.savePromptScores(1, classifier.id, new Map([[id, false]]));
+    expect((await repo.promptMatches(1)).size).toBe(0);
+  });
+
+  it('has nothing to judge without prompt classifiers', async () => {
+    await oneStory();
+    expect(
+      await new Repository(db).unscoredPrompts(1, '2026-10-20', 10),
+    ).toEqual([]);
+  });
+
+  it('keeps a pattern apart from the same words as a phrase', async () => {
+    const repo = new Repository(db);
+    const input = { kind: 'title', value: 'rust', score: 1 };
+    await repo.addClassifier(1, input);
+    expect(
+      (await repo.addClassifier(1, { ...input, is_regex: true })).created,
+    ).toBe(true);
+  });
+
+  it('keeps mark-read-on-scroll in the preferences', async () => {
+    const repo = new Repository(db);
+    await repo.updatePreferences(1, { mark_read_on_scroll: true });
+    expect((await repo.getPreferences(1)).mark_read_on_scroll).toBe(true);
+  });
+});

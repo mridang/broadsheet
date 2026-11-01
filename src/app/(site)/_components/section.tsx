@@ -22,6 +22,10 @@ export interface Personal {
   readonly sections: ReadonlyMap<number, number | null>;
   /** Whether opening a story marks it read. */
   readonly markReadOnOpen: boolean;
+  /** Whether stories scrolled past are marked read. */
+  readonly markReadOnScroll: boolean;
+  /** The AI prompt classifiers each story matched, by article id. */
+  readonly prompted: ReadonlyMap<number, ReadonlySet<number>>;
 }
 
 /**
@@ -42,6 +46,9 @@ export function visibleStories(
         ...a,
         feed_id: desk.feed_id,
         section_id: personal.sections.get(desk.feed_id) ?? null,
+        ...(personal.prompted.has(a.id)
+          ? { prompt_ids: personal.prompted.get(a.id)! }
+          : {}),
       },
       personal.training,
     );

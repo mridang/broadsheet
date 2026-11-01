@@ -348,3 +348,57 @@ describe('rank at a level', () => {
     ).toEqual(ids);
   });
 });
+
+describe('verdict with regular expressions and AI prompts', () => {
+  const re = (kind: string, value: string, score = 1) => ({
+    kind,
+    value,
+    score,
+    is_regex: 1,
+  });
+
+  it.each<[string, string, Classifiable]>([
+    ['title', '^why\\s+rust', article({ title: 'Why  Rust wins' })],
+    ['author', '^ada\\b', { ...article({}), author: 'Ada Lovelace' }],
+    ['text', 'borrow(ed|ing)', article({ summary: 'Borrowing rules' })],
+    ['url', '/rust/\\d+$', article({ url: 'https://x.test/rust/42' })],
+  ])('matches a %s pattern %j, ignoring case', (kind, value, story) => {
+    expect(verdict(story, [re(kind, value)])).toBe(1);
+  });
+
+  it('never matches a pattern that could run without end', () => {
+    expect(verdict(article({ title: 'aaaa' }), [re('title', '(a+)+$')])).toBe(
+      0,
+    );
+  });
+
+  it('never matches a pattern on a kind that takes none', () => {
+    expect(verdict(article({ tags: '["x"]' }), [re('tag', 'x')])).toBe(0);
+  });
+
+  it('lets a matched AI prompt decide over a super-dislike', () => {
+    expect(
+      verdict({ ...article({ title: 'Ads' }), prompt_ids: new Set([5]) }, [
+        { kind: 'title', value: 'ads', score: -2 },
+        { kind: 'prompt', value: 'useful', score: 1, id: 5 },
+      ]),
+    ).toBe(1);
+  });
+
+  it('hides a story an AI hide prompt matched', () => {
+    expect(
+      verdict({ ...article({}), prompt_ids: new Set([6]) }, [
+        { kind: 'prompt', value: 'gossip', score: -1, id: 6 },
+      ]),
+    ).toBe(-1);
+  });
+
+  it('leaves a story no prompt matched to the other training', () => {
+    expect(
+      verdict(article({ title: 'Rust' }), [
+        { kind: 'prompt', value: 'gossip', score: -1, id: 6 },
+        { kind: 'title', value: 'rust', score: 1 },
+      ]),
+    ).toBe(1);
+  });
+});

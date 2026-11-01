@@ -14,21 +14,24 @@ const LEVELS = [
 
 /**
  * How the reader reads: how much of the paper their training lets through,
- * whether opening a story marks it read, and after how many days stories
- * count as read anyway (0 never). Each change is saved at once.
+ * whether opening a story or scrolling past it marks it read, and after how
+ * many days stories count as read anyway (0 never). Each change is saved at once.
  */
 export function ReadingPreferences({
   intelligence,
   markReadOnOpen,
   autoMarkReadDays,
+  markReadOnScroll,
 }: Readonly<{
   intelligence: string;
   markReadOnOpen: boolean;
   autoMarkReadDays: number;
+  markReadOnScroll: boolean;
 }>): ReactElement {
   const [level, setLevel] = useState(intelligence);
   const [onOpen, setOnOpen] = useState(markReadOnOpen);
   const [days, setDays] = useState(String(autoMarkReadDays));
+  const [onScroll, setOnScroll] = useState(markReadOnScroll);
   const action = useApiAction();
   const save = (change: Record<string, unknown>) =>
     action.run(async () => {
@@ -72,6 +75,20 @@ export function ReadingPreferences({
             }}
           />{' '}
           Mark a story read when I open it
+        </label>
+      </p>
+      <p>
+        <label>
+          <input
+            type="checkbox"
+            checked={onScroll}
+            disabled={action.busy}
+            onChange={(e) => {
+              setOnScroll(e.target.checked);
+              void save({ mark_read_on_scroll: e.target.checked });
+            }}
+          />{' '}
+          Mark stories read as I scroll past them
         </label>
       </p>
       <p>
