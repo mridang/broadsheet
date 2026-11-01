@@ -38,7 +38,12 @@ const requests: { url: string; headers: Record<string, string> }[] = [];
  * Answer every fetch from a table of address to body (or a function making
  * the response); others fail.
  */
-function serve(pages: Record<string, string | (() => Response)>): void {
+function serve(
+  pages: Record<
+    string,
+    string | ((headers: Record<string, string>) => Response)
+  >,
+): void {
   jest.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     requests.push({
       url: String(input),
@@ -46,7 +51,9 @@ function serve(pages: Record<string, string | (() => Response)>): void {
     });
     const page = pages[String(input)];
     if (page === undefined) throw new Error('offline');
-    return typeof page === 'function' ? page() : new Response(page);
+    return typeof page === 'function'
+      ? page((init?.headers ?? {}) as Record<string, string>)
+      : new Response(page);
   });
 }
 
@@ -156,6 +163,7 @@ describe('scrapeSource conditional GET', () => {
       env,
       { ...(await source()), last_fetched_at: '2026-11-01 06:00:00' },
       '2026-11-01',
+      () => 0.5,
     );
     expect(result).toEqual({ articles: 0 });
     expect(requests[0]?.headers).toMatchObject({
@@ -252,6 +260,116 @@ describe('scrapeSource answers', () => {
   });
 });
 
+describe('scrapeSource fetching', () => {
+  it('asks once more as a browser after an error answer', async () => {
+    serve({
+      'https://a.test/f': (headers) =>
+        headers['user-agent']?.includes('Chrome')
+          ? new Response(FEED)
+          : new Response(null, { status: 403 }),
+      'https://a.test/story': PAGE,
+    });
+    expect(
+      await scrapeSource(db, env, { id: sourceId, url: 'https://a.test/f' }),
+    ).toEqual({ articles: 1 });
+  });
+
+  it('does not ask again after a 429', async () => {
+    serve({ 'https://a.test/f': () => new Response(null, { status: 429 }) });
+    await scrapeSource(db, env, { id: sourceId, url: 'https://a.test/f' });
+    expect(requests).toHaveLength(1);
+  });
+
+  it('now and then asks without validators, to catch servers that never change them', async () => {
+    serve({ 'https://a.test/f': FEED, 'https://a.test/story': PAGE });
+    await scrapeSource(
+      db,
+      env,
+      {
+        id: sourceId,
+        url: 'https://a.test/f',
+        etag: '"v1"',
+        last_fetched_at: '2026-11-01 06:00:00',
+      },
+      '2026-11-01',
+      () => 0,
+    );
+    expect(requests[0]?.headers).not.toHaveProperty('if-none-match');
+  });
+
+  it('looks for a never-fetched feed from its site when its address fails', async () => {
+    serve({
+      'https://a.test/old.xml': () => new Response(null, { status: 404 }),
+      'https://a.test/':
+        '<html><head><link rel="alternate" type="application/rss+xml" href="/new.xml"></head></html>',
+      'https://a.test/new.xml': FEED,
+      'https://a.test/story': PAGE,
+    });
+    await new Repository(db).moveSource(sourceId, 'https://a.test/old.xml');
+    expect(
+      await scrapeSource(db, env, {
+        id: sourceId,
+        url: 'https://a.test/old.xml',
+      }),
+    ).toEqual({ articles: 1 });
+    expect((await source()).url).toBe('https://a.test/new.xml');
+  });
+
+  it('does not look again for a feed that has worked before', async () => {
+    serve({ 'https://a.test/f': () => new Response(null, { status: 404 }) });
+    await scrapeSource(db, env, {
+      id: sourceId,
+      url: 'https://a.test/f',
+      last_fetched_at: '2026-10-01 06:00:00',
+    });
+    expect(requests.map((r) => r.url)).toEqual([
+      'https://a.test/f',
+      'https://a.test/f',
+    ]);
+  });
+
+  /** Minutes from now until the source is due again. */
+  const minutesAway = async () => {
+    const next = (await source()).next_fetch_at!;
+    return (Date.parse(`${next.replace(' ', 'T')}Z`) - Date.now()) / 60000;
+  };
+
+  it('schedules the next fetch from how busy the feed is', async () => {
+    serve({ 'https://a.test/f': FEED, 'https://a.test/story': PAGE });
+    await scrapeSource(
+      db,
+      env,
+      { id: sourceId, url: 'https://a.test/f' },
+      '2026-11-01',
+      () => 0,
+    );
+    // One story this month for one follower is 348 minutes, capped at four
+    // hours while anyone follows the feed.
+    expect(Math.round(await minutesAway())).toBe(240);
+  });
+
+  it('waits as long as Cache-Control max-age asks instead', async () => {
+    serve({
+      'https://a.test/f': () =>
+        new Response(FEED, { headers: { 'cache-control': 'max-age=1200' } }),
+      'https://a.test/story': PAGE,
+    });
+    await scrapeSource(db, env, { id: sourceId, url: 'https://a.test/f' });
+    expect(Math.round(await minutesAway())).toBe(20);
+  });
+
+  it('stores a story the feed lists twice once', async () => {
+    const twice = `<rss><channel><title>A</title>
+      <item><title>Story</title><link>https://a.test/story</link><guid>1</guid></item>
+      <item><title>Story</title><link>https://a.test/story?utm=x</link><guid>1</guid></item>
+    </channel></rss>`;
+    serve({ 'https://a.test/f': twice, 'https://a.test/story': PAGE });
+    expect(
+      await scrapeSource(db, env, { id: sourceId, url: 'https://a.test/f' }),
+    ).toEqual({ articles: 1 });
+  });
+});
+
 describe('fetchFeed', () => {
   it('gives up on an address that redirects too many times', async () => {
     serve({ 'https://a.test/f': redirect(302, 'https://a.test/f') });
@@ -308,7 +426,12 @@ describe('discoverFeed', () => {
 });
 
 describe('withText', () => {
-  const article = { id: 0, url: 'https://a.test/story', body_text: null };
+  const article = {
+    id: 0,
+    url: 'https://a.test/story',
+    body_text: null,
+    image: null,
+  };
 
   const stored = async () => {
     serve({ 'https://a.test/f': FEED, 'https://a.test/story': '<p>no</p>' });
@@ -346,6 +469,22 @@ describe('withText', () => {
       '2026-11-01',
     );
     expect(again?.body_text).toBe(TEXT);
+  });
+
+  it('takes the page’s lead picture for a story with none', async () => {
+    const row = await stored();
+    serve({
+      'https://a.test/story': `<html><head><meta property="og:image" content="/lead.jpg"></head><body><p>${TEXT}</p></body></html>`,
+    });
+    expect((await withText(db, row)).image).toBe('https://a.test/lead.jpg');
+  });
+
+  it('fetches the text again when forced', async () => {
+    const row = await stored();
+    serve({ 'https://a.test/story': PAGE });
+    expect(
+      (await withText(db, { ...row, body_text: 'Old.' }, true)).body_text,
+    ).toBe(TEXT);
   });
 
   it('remembers a page with too little text as having none', async () => {

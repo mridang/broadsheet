@@ -8,6 +8,8 @@ export interface ScrapedItem {
   summary: string;
   published_at: string;
   points: number;
+  /** The feed's own id for the story (`<guid>`, Atom `<id>`), when it gives one. */
+  guid?: string;
   /** The article's readable text, when its page was fetched. */
   body_text?: string;
   /** Where the story is discussed, when the feed says. */

@@ -47,7 +47,12 @@ import {
   users,
 } from '@/domain/db/schema';
 import { alias } from 'drizzle-orm/sqlite-core';
-import type { FeedDetails, FeedElement, ScrapedItem } from '@/lib/scraping';
+import type {
+  FeedActivity,
+  FeedDetails,
+  FeedElement,
+  ScrapedItem,
+} from '@/lib/scraping';
 
 /** A signed-in person. */
 export type User = typeof users.$inferSelect;
@@ -202,7 +207,12 @@ export interface FetchOutcome {
   readonly lastModified?: string | null;
   /** How long the fetch took, in milliseconds. */
   readonly durationMs?: number;
+  /** Minutes until a successful source is due again; due now when absent. */
+  readonly nextFetch?: number;
 }
+
+/** A source due this soon is taken by the run that sees it. */
+const DUE_SLACK_MS = 4 * 60 * 1000;
 
 /** Longest a failing source is left before it is tried again: a week. */
 export const MAX_BACKOFF_MINUTES = 7 * 24 * 60;
@@ -734,7 +744,7 @@ export class Repository {
     sourceId: number,
     outcome: string | FetchOutcome = {},
   ): Promise<void> {
-    const { error, retryAfter, etag, lastModified, durationMs } =
+    const { error, retryAfter, etag, lastModified, durationMs, nextFetch } =
       typeof outcome === 'string' ? { error: outcome } : outcome;
     // A day longer for each failure in a row before this one, up to a week,
     // or longer when the server asked for it (NewsBlur's geometric backoff on
@@ -753,7 +763,10 @@ export class Repository {
               last_fetched_at: sql`(datetime('now'))`,
               last_error: null,
               fail_count: 0,
-              next_fetch_at: null,
+              next_fetch_at:
+                nextFetch === undefined
+                  ? null
+                  : sql`datetime('now', '+' || ${nextFetch} || ' minutes')`,
               ...(etag !== undefined ? { etag } : {}),
               ...(lastModified !== undefined
                 ? { last_modified: lastModified }
@@ -781,32 +794,89 @@ export class Repository {
   }
 
   /**
-   * The sources somebody follows that are due a fetch: never backed off, or
-   * due within the hour (so a daily run a few seconds early still takes them).
+   * The sources somebody follows that are due a fetch: never scheduled, or
+   * due before the next five-minute run would see them.
    */
   async dueSources(): Promise<Source[]> {
     return (await this.allSources()).filter(
       (s) =>
         !s.next_fetch_at ||
         Date.parse(`${s.next_fetch_at.replace(' ', 'T')}Z`) <=
-          Date.now() + 60 * 60 * 1000,
+          Date.now() + DUE_SLACK_MS,
     );
   }
 
   /**
-   * Point a source at the address its feed moved to for good. False, leaving
-   * it alone, when another source already has that address.
+   * Point a source at the address its feed moved to for good, forgetting the
+   * validators of the old one. When another source already has that address,
+   * the two are merged instead: this source's followers follow that one. The
+   * id of the source that now stands for the feed.
    */
-  async moveSource(sourceId: number, url: string): Promise<boolean> {
+  async moveSource(sourceId: number, url: string): Promise<number> {
     const taken = await this.#db.query.sources.findFirst({
       where: eq(sources.url, url),
     });
-    if (taken) return false;
+    if (taken && taken.id !== sourceId) {
+      await this.mergeSource(sourceId, taken.id);
+      return taken.id;
+    }
     await this.#db
       .update(sources)
       .set({ url, etag: null, last_modified: null })
       .where(eq(sources.id, sourceId));
-    return true;
+    return sourceId;
+  }
+
+  /**
+   * Fold one source into another that turned out to be the same feed: each
+   * follower of `from` follows `into` (keeping their own settings), unless they
+   * already did. `from` keeps its stories and, followed by nobody, is no longer
+   * fetched.
+   */
+  async mergeSource(from: number, into: number): Promise<void> {
+    const already = this.#db
+      .select({ user: subscriptions.user_id })
+      .from(subscriptions)
+      .where(eq(subscriptions.source_id, into));
+    await this.#db.batch([
+      this.#db
+        .update(subscriptions)
+        .set({ source_id: into })
+        .where(
+          and(
+            eq(subscriptions.source_id, from),
+            notInArray(subscriptions.user_id, already),
+          ),
+        ),
+      this.#db.delete(subscriptions).where(eq(subscriptions.source_id, from)),
+    ]);
+  }
+
+  /**
+   * How busy a source is, for scheduling its next fetch: the distinct stories
+   * it published in the last 30 days, how many follow it, and whole months
+   * since its newest story.
+   */
+  async sourceActivity(sourceId: number): Promise<FeedActivity> {
+    const published = sql`coalesce(nullif(${articles.published_at}, ''), ${articles.fetched_at})`;
+    const [row] = await this.#db
+      .select({
+        recent: sql<number>`count(distinct case when julianday(${published}) >= julianday('now', '-30 days') then ${articles.url} end)`,
+        newest: sql<number | null>`max(julianday(${published}))`,
+        now: sql<number>`julianday('now')`,
+      })
+      .from(articles)
+      .where(eq(articles.source_id, sourceId));
+    const [followers] = await this.#db
+      .select({ n: sql<number>`count(*)` })
+      .from(subscriptions)
+      .where(eq(subscriptions.source_id, sourceId));
+    const days = row?.newest == null ? Infinity : row.now - row.newest;
+    return {
+      storiesLastMonth: row?.recent ?? 0,
+      subscribers: followers?.n ?? 0,
+      monthsSinceLastStory: Number.isFinite(days) ? Math.floor(days / 30) : 12,
+    };
   }
 
   /**
@@ -970,23 +1040,26 @@ export class Repository {
   ): Promise<void> {
     // The addresses go in as one JSON parameter: D1 binds at most 100.
     const listed = JSON.stringify(items.map((a) => a.url));
-    const stale = this.#db
-      .delete(articles)
-      .where(
-        and(
-          eq(articles.source_id, sourceId),
-          eq(articles.edition, edition),
-          sql`${articles.url} NOT IN (SELECT value FROM json_each(${listed}))`,
-          notInArray(
-            articles.id,
-            this.#db.select({ id: saves.article_id }).from(saves),
-          ),
-          notInArray(
-            articles.id,
-            this.#db.select({ id: reads.article_id }).from(reads),
-          ),
+    const guids = JSON.stringify(
+      items.flatMap((a) => (a.guid ? [a.guid] : [])),
+    );
+    const stale = this.#db.delete(articles).where(
+      and(
+        eq(articles.source_id, sourceId),
+        eq(articles.edition, edition),
+        sql`${articles.url} NOT IN (SELECT value FROM json_each(${listed}))`,
+        // A story still listed by its id is renamed below, not dropped.
+        sql`ifnull(${articles.guid}, '') NOT IN (SELECT value FROM json_each(${guids}))`,
+        notInArray(
+          articles.id,
+          this.#db.select({ id: saves.article_id }).from(saves),
         ),
-      );
+        notInArray(
+          articles.id,
+          this.#db.select({ id: reads.article_id }).from(reads),
+        ),
+      ),
+    );
     // One INSERT per row: a single multi-row insert blows past D1's ~100
     // bound-variable limit. db.batch runs them in one transaction.
     const upserts = items.map((a) => {
@@ -1000,6 +1073,7 @@ export class Repository {
         points: a.points || 0,
         body_text: a.body_text || null,
         comments_url: a.comments_url || null,
+        guid: a.guid || null,
         fetched_at: sql`(datetime('now'))`,
       };
       return this.#db
@@ -1010,10 +1084,29 @@ export class Repository {
           set: {
             ...row,
             body_text: sql`coalesce(excluded.body_text, ${articles.body_text})`,
+            original_summary: sql`coalesce(${articles.original_summary}, case when ${articles.summary} is not excluded.summary then ${articles.summary} end)`,
           },
         });
     });
-    await this.#db.batch([stale, ...upserts]);
+    // A story the feed still lists by its id under a new address keeps its row.
+    const renames = items
+      .filter((a) => a.guid)
+      .map((a) =>
+        this.#db
+          .update(articles)
+          .set({ url: a.url })
+          .where(
+            and(
+              eq(articles.source_id, sourceId),
+              eq(articles.edition, edition),
+              eq(articles.guid, a.guid!),
+              ne(articles.url, a.url),
+              // Leave it when the new address already has its own row.
+              sql`not exists (select 1 from articles as taken where taken.source_id = ${sourceId} and taken.edition = ${edition} and taken.url = ${a.url})`,
+            ),
+          ),
+      );
+    await this.#db.batch([stale, ...renames, ...upserts]);
   }
 
   sourceArticles(sourceId: number, edition: string) {
@@ -1111,11 +1204,40 @@ export class Repository {
    * Keep the text fetched for an article later; blank records that its page
    * held none, so it is not fetched again.
    */
-  async setBodyText(id: number, text: string): Promise<void> {
+  async setBodyText(id: number, text: string, image?: string): Promise<void> {
     await this.#db
       .update(articles)
-      .set({ body_text: text })
+      .set({ body_text: text, ...(image ? { image } : {}) })
       .where(eq(articles.id, id));
+  }
+
+  /**
+   * Up to `limit` stories from the sources the person follows most like this
+   * one, best first: those sharing the most words of its title (FTS5 rank),
+   * never another copy of the same address (NewsBlur's more-like-this).
+   */
+  async similarArticles(
+    userId: number,
+    article: Pick<Article, 'id' | 'url' | 'title'>,
+    limit: number,
+  ): Promise<ArticleSummary[]> {
+    const match = anyWordQuery(article.title ?? '');
+    if (!match) return [];
+    return this.#db
+      .select(summaryColumns)
+      .from(articles)
+      .innerJoin(
+        sql`(SELECT rowid AS hit, rank FROM articles_fts WHERE articles_fts MATCH ${match}) AS fts`,
+        sql`fts.hit = ${articles.id}`,
+      )
+      .where(
+        and(
+          inArray(articles.source_id, this.#followed(userId)),
+          ne(articles.url, article.url),
+        ),
+      )
+      .orderBy(sql`fts.rank`, desc(articles.id))
+      .limit(limit);
   }
 
   /** The person's saved searches, newest first. */

@@ -25,6 +25,8 @@ const stored: Article = {
   edition: '2026-06-22',
   cluster_id: null,
   comments_url: null,
+  guid: null,
+  original_summary: null,
   fetched_at: null,
 };
 
@@ -49,6 +51,16 @@ describe('articleResource', () => {
 });
 
 describe('articleDetailResource', () => {
+  it('adds the summary the story first had once it changed', () => {
+    expect(
+      articleDetailResource({ ...stored, original_summary: 'Before' })
+        .original_summary,
+    ).toBe('Before');
+    expect(articleDetailResource(stored)).not.toHaveProperty(
+      'original_summary',
+    );
+  });
+
   it('adds the body text when there is some', () => {
     expect(articleDetailResource(stored).body_text).toBe('Text');
     expect(

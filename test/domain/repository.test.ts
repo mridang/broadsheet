@@ -244,6 +244,13 @@ describe('recordFetch', () => {
     expect(Math.round(await minutesAway(repo))).toBe(120);
   });
 
+  it('schedules a success the given minutes ahead', async () => {
+    const repo = new Repository(db);
+    const { source_id } = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await repo.recordFetch(source_id, { nextFetch: 45 });
+    expect(Math.round(await minutesAway(repo))).toBe(45);
+  });
+
   it('keeps the validators of a success and clears the backoff', async () => {
     const repo = new Repository(db);
     const { source_id } = (await addFeed(db, 1, 'https://a.test/f'))!;
@@ -273,18 +280,57 @@ describe('moveSource', () => {
     const repo = new Repository(db);
     const { source_id } = (await addFeed(db, 1, 'https://a.test/f'))!;
     await repo.recordFetch(source_id, { etag: '"x"' });
-    expect(await repo.moveSource(source_id, 'https://b.test/f')).toBe(true);
+    expect(await repo.moveSource(source_id, 'https://b.test/f')).toBe(
+      source_id,
+    );
     expect((await repo.allSources())[0]).toMatchObject({
       url: 'https://b.test/f',
       etag: null,
     });
   });
 
-  it('refuses an address another source already has', async () => {
+  it('merges into the source that already has the address', async () => {
     const repo = new Repository(db);
     const { source_id } = (await addFeed(db, 1, 'https://a.test/f'))!;
-    await addFeed(db, 1, 'https://b.test/f');
-    expect(await repo.moveSource(source_id, 'https://b.test/f')).toBe(false);
+    await addFeed(db, 2, 'https://a.test/f');
+    const other = (await addFeed(db, 2, 'https://b.test/f'))!.source_id;
+    expect(await repo.moveSource(source_id, 'https://b.test/f')).toBe(other);
+    expect((await listFeeds(db, 1)).map((f) => f.url)).toEqual([
+      'https://b.test/f',
+    ]);
+    expect((await listFeeds(db, 2)).map((f) => f.url)).toEqual([
+      'https://b.test/f',
+    ]);
+    expect((await repo.allSources()).map((s) => s.id)).toEqual([other]);
+  });
+});
+
+describe('sourceActivity', () => {
+  it('counts the last month’s distinct stories and the followers', async () => {
+    const repo = new Repository(db);
+    const { source_id } = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await addFeed(db, 2, 'https://a.test/f');
+    const recent = new Date(Date.now() - 86_400_000).toISOString();
+    await repo.writeEdition(source_id, '2026-10-01', [
+      story({ url: 'https://x/1', published_at: recent }),
+      story({ url: 'https://x/2', published_at: '2020-01-01T00:00:00Z' }),
+    ]);
+    await repo.writeEdition(source_id, '2026-10-02', [
+      story({ url: 'https://x/1', published_at: recent }),
+    ]);
+    expect(await repo.sourceActivity(source_id)).toEqual({
+      storiesLastMonth: 1,
+      subscribers: 2,
+      monthsSinceLastStory: 0,
+    });
+  });
+
+  it('treats a source with no stories as quiet for a year', async () => {
+    const repo = new Repository(db);
+    const { source_id } = (await addFeed(db, 1, 'https://a.test/f'))!;
+    expect((await repo.sourceActivity(source_id)).monthsSinceLastStory).toBe(
+      12,
+    );
   });
 });
 
@@ -514,6 +560,59 @@ describe('searchArticles and getArticle', () => {
     });
     expect(await repo.searchArticles(1, { limit: 10 })).toHaveLength(1);
     expect(await repo.searchArticles(1, { q: 'gone', limit: 10 })).toEqual([]);
+  });
+
+  it('keep the summary a story first had once a fetch changes it', async () => {
+    const repo = new Repository(db);
+    const { source_id } = (await addFeed(db, 1, 'https://a.test/f'))!;
+    const write = (summary: string) =>
+      repo.writeEdition(source_id, '2026-10-01', [story({ summary })]);
+    await write('First');
+    await write('First');
+    const [same] = await repo.searchArticles(1, { limit: 1 });
+    expect((await repo.getArticle(1, same!.id))?.original_summary).toBeNull();
+    await write('Second');
+    await write('Third');
+    expect(await repo.getArticle(1, same!.id)).toMatchObject({
+      summary: 'Third',
+      original_summary: 'First',
+    });
+  });
+
+  it('keep the row of a story whose address changed under the same id', async () => {
+    const repo = new Repository(db);
+    const { source_id } = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await repo.writeEdition(source_id, '2026-10-01', [
+      story({ url: 'https://x/old', guid: 'g1' }),
+    ]);
+    const [before] = await repo.searchArticles(1, { limit: 1 });
+    await repo.writeEdition(source_id, '2026-10-01', [
+      story({ url: 'https://x/new', guid: 'g1' }),
+    ]);
+    const after = await repo.searchArticles(1, { limit: 10 });
+    expect(after.map((a) => [a.id, a.url])).toEqual([
+      [before!.id, 'https://x/new'],
+    ]);
+  });
+
+  it('find similar stories by title words, never the same address', async () => {
+    const repo = new Repository(db);
+    const { source_id } = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await repo.writeEdition(source_id, '2026-10-01', [
+      story({ url: 'https://x/1', title: 'Rust compiler gets faster builds' }),
+      story({ url: 'https://x/2', title: 'Faster Rust compiler builds land' }),
+      story({ url: 'https://x/3', title: 'Gardening in winter' }),
+    ]);
+    await repo.writeEdition(source_id, '2026-10-02', [
+      story({ url: 'https://x/1', title: 'Rust compiler gets faster builds' }),
+    ]);
+    const [article] = await repo.searchArticles(1, { q: 'gets', limit: 1 });
+    const similar = await repo.similarArticles(1, article!, 10);
+    expect(similar.map((a) => a.url)).toEqual(['https://x/2']);
+    expect(await repo.similarArticles(2, article!, 10)).toEqual([]);
+    expect(
+      await repo.similarArticles(1, { ...article!, title: 'a an' }, 10),
+    ).toEqual([]);
   });
 
   it('forget the old text when an edition is written again', async () => {

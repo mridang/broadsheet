@@ -34,6 +34,9 @@ ArticleDetail:
         body_text:
           type: string
           description: The readable text of the article's page, blocks separated by a blank line. Absent when the page was not fetched or held no text.
+        original_summary:
+          type: string
+          description: The summary the story first had, when a later fetch of its feed changed it; `summary` is the latest. Absent when it never changed.
 ArticlePage:
   type: object
   required: [self, items]

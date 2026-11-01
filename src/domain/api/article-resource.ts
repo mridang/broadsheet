@@ -43,6 +43,8 @@ export interface TrendingArticleResource extends ArticleResource {
 /** One article on its own, with the readable text of its page. */
 export interface ArticleDetailResource extends ArticleResource {
   readonly body_text?: string;
+  /** The summary the story first had, when a later fetch changed it. */
+  readonly original_summary?: string;
 }
 
 /** A stored timestamp as RFC 3339, or undefined when it does not parse. */
@@ -88,6 +90,9 @@ export function articleDetailResource(
   return {
     ...articleResource(article),
     ...(article.body_text ? { body_text: article.body_text } : {}),
+    ...(article.original_summary !== null
+      ? { original_summary: article.original_summary }
+      : {}),
   };
 }
 

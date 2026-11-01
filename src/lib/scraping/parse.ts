@@ -385,8 +385,10 @@ export function parseFeed(
     const points = extractPoints(summary);
     if (isBoilerplate(summary)) summary = '';
     const comments = tag(b, 'comments').trim();
+    const guid = tag(b, 'guid') || tag(b, 'id');
     items.push({
       ...(comments ? { comments_url: comments } : {}),
+      ...(guid ? { guid } : {}),
       title: tag(b, 'title') || link,
       url: link.trim(),
       summary,

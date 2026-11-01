@@ -168,15 +168,31 @@ describe('parseFeedTokenInput', () => {
       { scope: 'saves', filter: 'all' },
       { scope: 'saves', filter: 'all' },
     ],
+    [
+      { scope: 'search', search_id: '5' },
+      { scope: 'search', search_id: 5 },
+    ],
   ])('accepts %j', (body, value) => {
     expect(parseFeedTokenInput(body)).toEqual({ ok: true, value });
   });
 
   it.each([
-    [{ scope: 'all' }, 'scope: must be one of saves, section, edition.'],
+    [
+      { scope: 'all' },
+      'scope: must be one of saves, section, edition, search.',
+    ],
     [{ scope: 'edition', tag: 'x' }, 'tag: only for a saves feed.'],
     [{ scope: 'saves', tag: ' ' }, 'tag: must be a non-blank string.'],
     [{ scope: 'section' }, 'section_id: must name one of your sections.'],
+    [{ scope: 'search' }, 'search_id: must name one of your saved searches.'],
+    [
+      { scope: 'edition', search_id: '5' },
+      'search_id: only for a search feed.',
+    ],
+    [
+      { scope: 'search', search_id: '5', filter: 'focus' },
+      'filter: a search feed keeps every story it finds.',
+    ],
     [
       { scope: 'section', section_id: 'x' },
       'section_id: must name one of your sections.',
@@ -207,6 +223,7 @@ describe('feedTokenResource', () => {
     scope: 'section' as const,
     tag: null,
     section_id: 4,
+    search_id: null,
     created_at: null,
     filter: 'focus' as const,
   };

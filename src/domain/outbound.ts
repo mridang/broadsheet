@@ -55,7 +55,7 @@ export interface Webhook {
 }
 
 /** What a feed token shows. */
-export const FEED_SCOPES = ['saves', 'section', 'edition'] as const;
+export const FEED_SCOPES = ['saves', 'section', 'edition', 'search'] as const;
 
 /** One kind of feed. */
 export type FeedScope = (typeof FEED_SCOPES)[number];
@@ -83,6 +83,8 @@ export interface FeedTokenInput {
   readonly scope: FeedScope;
   readonly tag?: string | undefined;
   readonly section_id?: number | undefined;
+  /** The saved search a `search` feed follows. */
+  readonly search_id?: number | undefined;
   readonly filter?: FeedFilter | undefined;
 }
 
@@ -244,6 +246,7 @@ export class OutboundRepository {
         scope: input.scope,
         tag: input.tag ?? null,
         section_id: input.section_id ?? null,
+        search_id: input.search_id ?? null,
         filter: input.filter ?? 'all',
       })
       .returning();

@@ -118,8 +118,11 @@ jest.unstable_mockModule('@/domain/notifications', () => ({
   },
 }));
 
-const { default: extraHandlers, DailyScrape } =
-  await import('@/lib/core/worker-extras');
+const {
+  default: extraHandlers,
+  DailyScrape,
+  isDailyRun,
+} = await import('@/lib/core/worker-extras');
 
 /** A step runner like the Workflows one: names each step and runs it once. */
 const step = {
@@ -131,9 +134,9 @@ const step = {
 };
 
 /** Run the Workflow as if started on 1 November 2026. */
-const run = () =>
+const run = (payload: { fetchOnly?: boolean } = {}) =>
   Reflect.apply(DailyScrape.prototype.run, { env: { DB: {} } }, [
-    { timestamp: new Date('2026-11-01T06:00:00Z'), payload: {} },
+    { timestamp: new Date('2026-11-01T06:00:00Z'), payload },
     step,
   ]) as Promise<{ sources: number; ok: number; articles: number }>;
 
@@ -256,19 +259,61 @@ describe('DailyScrape custom editions', () => {
   });
 });
 
+describe('DailyScrape fetch-only runs', () => {
+  it('fetches the due sources and stops there', async () => {
+    jest.spyOn(console, 'log').mockImplementation(() => undefined);
+    expect(await run({ fetchOnly: true })).toEqual({
+      sources: 2,
+      ok: 2,
+      articles: 10,
+    });
+    expect(calls.filter((c) => c.startsWith('step:'))).toEqual([
+      'step:list sources',
+      'step:fetch source 1',
+      'step:fetch source 2',
+    ]);
+  });
+});
+
+describe('isDailyRun', () => {
+  it.each([
+    ['2026-11-01T06:00:00Z', true],
+    ['2026-11-01T06:04:59Z', true],
+    ['2026-11-01T06:05:00Z', false],
+    ['2026-11-01T05:55:00Z', false],
+    ['2026-11-01T18:00:00Z', false],
+  ])('at %s is %s', (time, daily) => {
+    expect(isDailyRun(Date.parse(time))).toBe(daily);
+  });
+});
+
 describe('scheduled', () => {
-  const fire = (create: () => Promise<{ id: string }>) =>
+  const fire = (
+    create: (options: unknown) => Promise<{ id: string }>,
+    time = '2026-11-01T06:00:00Z',
+  ) =>
     Reflect.apply(extraHandlers.scheduled as never, undefined, [
-      { cron: '0 6 * * *' },
+      { cron: '*/5 * * * *', scheduledTime: Date.parse(time) },
       { DAILY_SCRAPE: { create } },
       { waitUntil: () => undefined },
     ]) as Promise<void>;
 
-  it('starts a daily scrape run', async () => {
+  it('starts the whole daily run at 06:00 UTC', async () => {
     jest.spyOn(console, 'log').mockImplementation(() => undefined);
-    const create = jest.fn(async () => ({ id: 'run-1' }));
+    const create = jest.fn<(options: unknown) => Promise<{ id: string }>>(
+      async () => ({ id: 'run-1' }),
+    );
     await fire(create);
-    expect(create).toHaveBeenCalledTimes(1);
+    expect(create).toHaveBeenCalledWith({ params: { fetchOnly: false } });
+  });
+
+  it('starts a fetch of the due sources the rest of the day', async () => {
+    jest.spyOn(console, 'log').mockImplementation(() => undefined);
+    const create = jest.fn<(options: unknown) => Promise<{ id: string }>>(
+      async () => ({ id: 'run-2' }),
+    );
+    await fire(create, '2026-11-01T13:35:00Z');
+    expect(create).toHaveBeenCalledWith({ params: { fetchOnly: true } });
   });
 
   it('logs a run that could not start instead of letting it escape', async () => {

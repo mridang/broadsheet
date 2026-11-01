@@ -94,6 +94,24 @@ async function contentOf(
       ),
     };
   }
+  if (token.scope === 'search') {
+    const search =
+      token.search_id !== null
+        ? await repo.getSearch(token.user_id, token.search_id)
+        : undefined;
+    if (!search) return undefined;
+    const found = await repo.searchArticles(token.user_id, {
+      q: search.query,
+      ...(search.feed_id !== null ? { feed: search.feed_id } : {}),
+      limit: 100,
+    });
+    return {
+      title: `Search: ${search.query}`,
+      entries: found
+        .slice(0, 100)
+        .map((a) => entryOf(a, origin, when(a.published_at || a.edition, now))),
+    };
+  }
   let title = 'Today’s edition';
   if (token.scope === 'section') {
     const section =

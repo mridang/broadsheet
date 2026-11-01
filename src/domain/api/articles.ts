@@ -152,3 +152,83 @@ export function createArticleItem(
 
 /** The article-item controller bound to the production resolver. */
 export const articleItem = createArticleItem();
+
+/** The `{id}` of `/api/articles/{id}/...`: the segment before the last. */
+function articleIdOf(request: Request): number | undefined {
+  const segments = new URL(request.url).pathname.split('/');
+  return parseFeedId(segments[segments.length - 2] ?? '');
+}
+
+/** How many similar stories `/similar` lists. */
+const SIMILAR = 10;
+
+/**
+ * `GET /api/articles/:id/similar`: up to ten stories from the sources the
+ * person follows most like this one (NewsBlur's more-like-this), best first,
+ * as one page with no next. 404 when there is no such article among the
+ * sources the person follows, 401 when not signed in.
+ */
+export function createSimilarArticles(
+  resolver: CurrentUserResolver = requestCookieResolver,
+): ApiController<UidContext> {
+  return new ApiController<UidContext>({
+    context: async (request) => ({
+      request,
+      uid: await liveUid(request, resolver),
+    }),
+  }).on<null, readonly ArticleSummary[] | undefined>({
+    method: 'GET',
+    handle: async (_input, { request, uid }) => {
+      const id = articleIdOf(request);
+      if (id === undefined) return undefined;
+      const repo = new Repository(getDatabase());
+      const article = await repo.getArticle(uid, id);
+      return article && repo.similarArticles(uid, article, SIMILAR);
+    },
+    encode: (items) =>
+      items
+        ? page(items.map(articleResource), undefined, {
+            'Cache-Control': 'private, no-cache',
+          })
+        : problems.notFound('article'),
+  });
+}
+
+/** The similar-articles controller bound to the production resolver. */
+export const similarArticles = createSimilarArticles();
+
+/**
+ * `POST /api/articles/:id/extractions`: fetch the article's page again now and
+ * keep its text afresh (NewsBlur's forced original text). An extraction is not
+ * stored apart from the article, so the answer is the article, 200. 404 when
+ * there is no such article among the sources the person follows, 401/403 when
+ * not signed in or cross-site.
+ */
+export function createArticleExtractions(
+  resolver: CurrentUserResolver = requestCookieResolver,
+): ApiController<UidContext> {
+  return new ApiController<UidContext>({
+    context: async (request) => ({
+      request,
+      uid: await liveUid(request, resolver),
+    }),
+  }).on<null, Article | undefined>({
+    method: 'POST',
+    handle: async (_input, { request, uid }) => {
+      const id = articleIdOf(request);
+      if (id === undefined) return undefined;
+      const db = getDatabase();
+      const article = await new Repository(db).getArticle(uid, id);
+      return article && withText(db, article, true);
+    },
+    encode: (article) =>
+      article
+        ? ok(articleDetailResource(article), {
+            headers: { 'Cache-Control': 'no-store' },
+          })
+        : problems.notFound('article'),
+  });
+}
+
+/** The extractions controller bound to the production resolver. */
+export const articleExtractions = createArticleExtractions();

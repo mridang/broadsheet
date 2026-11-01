@@ -8,3 +8,4 @@
 export * from './parse';
 export * from './types';
 export * from './discover';
+export * from './stories';

@@ -111,6 +111,26 @@ describe('serveFeed', () => {
     expect((await fetchFeed('?token=nope')).status).toBe(404);
   });
 
+  it('serves what a saved search finds', async () => {
+    await paper();
+    const { search } = await new Repository(db).addSearch(1, 'alpha', null);
+    const xml = await (
+      await fetchFeed(
+        `?token=${await token({ scope: 'search', search_id: search.id })}`,
+      )
+    ).text();
+    expect(xml).toContain('Search: alpha');
+    expect(xml).toContain('<title>Alpha</title>');
+    expect(xml).not.toContain('<title>Beta</title>');
+  });
+
+  it('answers 404 when the saved search has gone', async () => {
+    const { search } = await new Repository(db).addSearch(1, 'alpha', null);
+    const t = await token({ scope: 'search', search_id: search.id });
+    await new Repository(db).removeSearch(1, search.id);
+    expect((await fetchFeed(`?token=${t}`)).status).toBe(404);
+  });
+
   it('answers 404 when the section has gone', async () => {
     const { sectionId } = await paper();
     const t = await token({ scope: 'section', section_id: sectionId });

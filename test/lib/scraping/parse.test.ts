@@ -75,6 +75,19 @@ describe('parseFeed', () => {
     expect(items[0]?.source).toBe('Example');
   });
 
+  it('keeps the feed’s own id for each story', () => {
+    const feed = `<rss><channel><title>F</title>
+      <item><title>A</title><link>https://x/a</link><guid isPermaLink="false">tag:x,1</guid></item>
+      <item><title>B</title><link>https://x/b</link></item>
+    </channel></rss>`;
+    const atom = `<feed><title>F</title><entry><title>C</title>
+      <link href="https://x/c"/><id>urn:uuid:3</id></entry></feed>`;
+    const { items } = parseFeed(feed, 'https://x/feed');
+    expect(items[0]?.guid).toBe('tag:x,1');
+    expect(items[1]).not.toHaveProperty('guid');
+    expect(parseFeed(atom, 'https://x/feed').items[0]?.guid).toBe('urn:uuid:3');
+  });
+
   it('blanks hnrss boilerplate summaries', () => {
     const hn = `<rss><channel><title>HN</title>
       <item><title>Story</title><link>https://x.com/y</link>

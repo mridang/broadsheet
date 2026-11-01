@@ -252,6 +252,14 @@ export function createTokensCollection(
           'section_id: must name one of your sections.',
         ]);
       }
+      if (
+        input.search_id !== undefined &&
+        !(await new Repository(db).getSearch(uid, input.search_id))
+      ) {
+        throw problems.badRequest('The token is not valid.', [
+          'search_id: must name one of your saved searches.',
+        ]);
+      }
       const token = randomToken();
       const row = await new OutboundRepository(db).addFeedToken(
         uid,

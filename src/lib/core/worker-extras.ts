@@ -40,8 +40,29 @@ const AI_STEP = {
 } as const;
 
 /**
- * The daily scrape, as a Workflow: list the sources somebody follows that are
- * due (a failing source backs off), fetch
+ * What a run is asked to do: with `fetchOnly`, just fetch the sources that are
+ * due (the five-minute runs); otherwise the whole daily pipeline.
+ */
+interface ScrapeParams {
+  readonly fetchOnly?: boolean;
+}
+
+/** The five-minute run that also lays out the paper: 06:00 UTC. */
+const DAILY_HOUR = 6;
+
+/**
+ * Whether a cron firing at `time` starts the whole daily pipeline rather than
+ * a fetch of the sources that are due.
+ */
+export function isDailyRun(time: number): boolean {
+  const at = new Date(time);
+  return at.getUTCHours() === DAILY_HOUR && at.getUTCMinutes() < 5;
+}
+
+/**
+ * The scrape, as a Workflow: list the sources somebody follows that are due
+ * (each is scheduled from how often it publishes and how many follow it, as
+ * NewsBlur does, and a failing source backs off), fetch
  * each as its own step (retried on its own, so one slow or broken feed neither
  * holds up nor reruns the others), cluster the edition's near-duplicates,
  * tell each person with notifying feeds about the new stories in them,
@@ -51,9 +72,12 @@ const AI_STEP = {
  * the run moves on. The edition is the day the run was started, so a step
  * replayed after midnight still writes the same day.
  */
-export class DailyScrape extends WorkflowEntrypoint<CloudflareEnv> {
+export class DailyScrape extends WorkflowEntrypoint<
+  CloudflareEnv,
+  ScrapeParams
+> {
   override async run(
-    event: Readonly<WorkflowEvent<unknown>>,
+    event: Readonly<WorkflowEvent<ScrapeParams>>,
     step: WorkflowStep,
   ): Promise<{ sources: number; ok: number; articles: number }> {
     const db = databaseFrom(this.env.DB);
@@ -88,6 +112,16 @@ export class DailyScrape extends WorkflowEntrypoint<CloudflareEnv> {
           );
         });
       }
+    }
+    if (event.payload?.fetchOnly) {
+      logInfo({
+        event: 'fetch.completed',
+        edition,
+        sources: sources.length,
+        ok,
+        articles,
+      });
+      return { sources: sources.length, ok, articles };
     }
     const clustered = await step.do('cluster edition', AI_STEP, () =>
       clusterEdition(db, this.env, edition),
@@ -179,15 +213,17 @@ export class DailyScrape extends WorkflowEntrypoint<CloudflareEnv> {
 /**
  * The handlers this app adds to the Worker, besides `fetch`.
  *
- * `scheduled` is the daily cron: it starts a {@link DailyScrape} run, which
- * scrapes today's edition for every source and backfills missing recent days
- * for the HN feeds from real historical HN data (Algolia).
+ * `scheduled` runs every five minutes and starts a {@link DailyScrape} run:
+ * a fetch of the sources that are due, or at 06:00 UTC the whole pipeline,
+ * which also clusters the edition, backfills missing recent days for the HN
+ * feeds from real historical HN data (Algolia) and lays out the issues.
  */
 const extraHandlers: Partial<ExportedHandler<CloudflareEnv>> = {
-  async scheduled(_event, env) {
+  async scheduled(event, env) {
     try {
-      const run = await env.DAILY_SCRAPE.create();
-      logInfo({ event: 'scrape.started', run: run.id });
+      const fetchOnly = !isDailyRun(event.scheduledTime);
+      const run = await env.DAILY_SCRAPE.create({ params: { fetchOnly } });
+      logInfo({ event: 'scrape.started', run: run.id, fetchOnly });
     } catch (error) {
       logError({ event: 'scrape.failed', error: errorMessage(error) });
     }

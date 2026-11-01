@@ -155,6 +155,10 @@ export const articles = sqliteTable(
     body_text: text('body_text'),
     /** Where the story is discussed (RSS `<comments>`, or its HN thread). */
     comments_url: text('comments_url'),
+    /** The feed's own id for the story, so a moved address is the same story. */
+    guid: text('guid'),
+    /** The summary the story first had, kept once a later fetch changed it. */
+    original_summary: text('original_summary'),
     /** The day this row was scraped (YYYY-MM-DD, UTC) — one edition per day. */
     edition: text('edition'),
     /** The cluster of near-duplicates from other sources, when there is one. */
@@ -411,6 +415,7 @@ export const feed_tokens = sqliteTable(
     scope: text('scope').notNull(),
     tag: text('tag'),
     section_id: integer('section_id'),
+    search_id: integer('search_id'),
     created_at: text('created_at').default(sql`(datetime('now'))`),
     /** all, unread (no disliked stories) or focus (only liked ones). */
     filter: text('filter').notNull().default('all'),

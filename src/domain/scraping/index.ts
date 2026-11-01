@@ -12,10 +12,14 @@ import { Repository, type Source } from '@/domain/repository';
 import { logInfo, logWarn } from '@/utils/logging';
 import {
   articleText,
+  distinctStories,
   domainClean,
   feedCandidates,
+  fetchIntervalMinutes,
   isFeed,
+  maxAgeMinutes,
   retryAfterMinutes,
+  withJitter,
   hostOf,
   ogImage,
   pageDescription,
@@ -38,6 +42,11 @@ export type { ScrapedItem } from '@/lib/scraping';
 
 const UA =
   'Mozilla/5.0 (compatible; HackerTimesBot/1.0; +https://broadsheet.apps.mrida.ng)';
+/** Sent once more after an error answer, as NewsBlur retries with a browser's agent. */
+const BROWSER_UA =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36';
+/** How often a conditional fetch is sent without its validators, to catch servers that never change them. */
+const UNCONDITIONAL_SHARE = 0.01;
 const ENRICH = 10; // article pages fetched per feed for og:image, site name and text
 const MAX_REDIRECTS = 5;
 const DISCOVERY_PROBES = 6; // candidate addresses tried when finding a page's feed
@@ -186,6 +195,8 @@ export interface FeedAnswer {
   readonly retryAfter?: number;
   /** Where the feed now lives, when every redirect on the way was permanent. */
   readonly movedTo?: string;
+  /** Minutes a 200's `Cache-Control: max-age` asks to keep it. */
+  readonly maxAge?: number;
 }
 
 /**
@@ -198,8 +209,21 @@ export async function fetchFeed(
   url: string,
   validators: { etag?: string | null; lastModified?: string | null } = {},
 ): Promise<FeedAnswer> {
+  const first = await fetchOnce(url, validators, UA);
+  // A 4xx or 5xx is often a bot block: ask once more as a browser would.
+  return first.status >= 400 && first.status !== 429
+    ? fetchOnce(url, validators, BROWSER_UA)
+    : first;
+}
+
+/** One {@link fetchFeed} attempt with the given user agent. */
+async function fetchOnce(
+  url: string,
+  validators: { etag?: string | null; lastModified?: string | null },
+  agent: string,
+): Promise<FeedAnswer> {
   const headers: Record<string, string> = {
-    'user-agent': UA,
+    'user-agent': agent,
     accept:
       'application/rss+xml, application/atom+xml, application/feed+json, application/xml;q=0.9, */*;q=0.8',
   };
@@ -230,6 +254,10 @@ export async function fetchFeed(
           ? retryAfterMinutes(r.headers.get('retry-after'))
           : undefined,
       movedTo: permanent && at !== url ? at : undefined,
+      maxAge:
+        r.status === 200
+          ? maxAgeMinutes(r.headers.get('cache-control'))
+          : undefined,
     };
   }
   throw new Error('The feed redirects too many times.');
@@ -257,25 +285,34 @@ export async function scrapeSource(
   env: CloudflareEnv,
   source: Fetchable,
   edition: string = todayEdition(),
+  random: () => number = Math.random,
+  rediscover = true,
 ): Promise<ScrapeResult> {
   const repo = new Repository(db);
   const started = Date.now();
   const took = () => ({ durationMs: Date.now() - started });
-  const fetchedToday = source.last_fetched_at?.slice(0, 10) === edition;
+  const conditional =
+    source.last_fetched_at?.slice(0, 10) === edition &&
+    random() >= UNCONDITIONAL_SHARE;
   let answer: FeedAnswer;
   try {
     answer = await fetchFeed(
       source.url,
-      fetchedToday
+      conditional
         ? { etag: source.etag, lastModified: source.last_modified }
         : {},
     );
   } catch {
     throw new Error(FETCH_FAILED);
   }
-  if (answer.movedTo) await repo.moveSource(source.id, answer.movedTo);
+  const id = answer.movedTo
+    ? await repo.moveSource(source.id, answer.movedTo)
+    : source.id;
+  const nextFetch = async (maxAge?: number) =>
+    maxAge ??
+    withJitter(fetchIntervalMinutes(await repo.sourceActivity(id)), random());
   if (answer.status === 304) {
-    await repo.recordFetch(source.id, took());
+    await repo.recordFetch(id, { nextFetch: await nextFetch(), ...took() });
     return { articles: 0 };
   }
   if (answer.status !== 200) {
@@ -283,7 +320,22 @@ export async function scrapeSource(
     if (answer.status >= 500 && answer.retryAfter === undefined) {
       throw new Error(error);
     }
-    await repo.recordFetch(source.id, {
+    // A feed never fetched may have moved: look for it from its site again.
+    if (rediscover && answer.status !== 429 && !source.last_fetched_at) {
+      const found = await discoverFeed(new URL('/', source.url).href, false);
+      if (found && found !== source.url) {
+        const moved = await repo.moveSource(id, found);
+        return scrapeSource(
+          db,
+          env,
+          { id: moved, url: found },
+          edition,
+          random,
+          false,
+        );
+      }
+    }
+    await repo.recordFetch(id, {
       error,
       retryAfter: answer.retryAfter,
       ...took(),
@@ -293,24 +345,25 @@ export async function scrapeSource(
   const xml = answer.body;
   if (!isFeed(xml)) {
     const error = 'The address is not a feed.';
-    await repo.recordFetch(source.id, { error, ...took() });
+    await repo.recordFetch(id, { error, ...took() });
     return { articles: 0, failed: error };
   }
   const url = answer.movedTo ?? source.url;
-  const { items } = parseFeed(xml, url);
+  const items = distinctStories(parseFeed(xml, url).items);
   const details = feedDetails(xml, url);
   await repo.recordDetails(
-    source.id,
+    id,
     { ...details, icon: await siteIcon(details, url) },
     feedHeader(xml),
   );
   await enrich(items);
   await resolveNames(env, items);
-  await repo.writeEdition(source.id, edition, items);
-  await repo.recordFetch(source.id, {
+  await repo.writeEdition(id, edition, items);
+  await repo.recordFetch(id, {
     etag: answer.etag?.slice(0, 255) ?? null,
     lastModified: answer.lastModified,
     ...took(),
+    nextFetch: await nextFetch(answer.maxAge),
   });
   return { articles: items.length };
 }
@@ -343,17 +396,22 @@ export async function refreshSource(
  * feed, else the best feed its page declares or links to, else a feed at one
  * of the usual paths (at most {@link DISCOVERY_PROBES} addresses are tried).
  * The address as given when it cannot be fetched (its first fetch will record
- * why); undefined when it is a page with no feed to be found.
+ * why), unless `keepUnreachable` is off; undefined when it is a page with no
+ * feed to be found.
  */
-export async function discoverFeed(url: string): Promise<string | undefined> {
+export async function discoverFeed(
+  url: string,
+  keepUnreachable = true,
+): Promise<string | undefined> {
   let page: FeedAnswer;
   try {
     page = await fetchFeed(url);
   } catch {
-    return url;
+    return keepUnreachable ? url : undefined;
   }
   const here = page.movedTo ?? url;
-  if (page.status !== 200 || isFeed(page.body)) return here;
+  if (page.status === 200 && isFeed(page.body)) return here;
+  if (page.status !== 200) return keepUnreachable ? here : undefined;
   for (const candidate of feedCandidates(page.body, here).slice(
     0,
     DISCOVERY_PROBES,
@@ -373,18 +431,28 @@ export async function discoverFeed(url: string): Promise<string | undefined> {
 /**
  * An article with its full text, fetching and keeping the text the first time
  * it is asked for when the scrape did not fetch it (NewsBlur's original text,
- * on demand). A page with too little text is remembered as having none, so it
- * is not fetched again.
+ * on demand), or again when `force` asks for a fresh copy. A page with too
+ * little text is remembered as having none, so it is not fetched again. When
+ * the story has no picture, the page's lead picture becomes its picture.
  */
 export async function withText<
-  T extends { id: number; url: string; body_text: string | null },
->(db: Database, article: T): Promise<T> {
-  if (article.body_text !== null) return article;
+  T extends {
+    id: number;
+    url: string;
+    body_text: string | null;
+    image: string | null;
+  },
+>(db: Database, article: T, force = false): Promise<T> {
+  if (article.body_text !== null && !force) return article;
   const page = await get(article.url, 12000);
   const text = articleText(page);
   const body_text = text.length >= MIN_TEXT ? text : '';
-  await new Repository(db).setBodyText(article.id, body_text);
-  return { ...article, body_text };
+  // The page's lead picture stands in for a story the feed gave none.
+  const image = article.image
+    ? undefined
+    : ogImage(page, article.url) || undefined;
+  await new Repository(db).setBodyText(article.id, body_text, image);
+  return { ...article, body_text, ...(image ? { image } : {}) };
 }
 
 // ---- historical backfill via the HN Algolia API (hnrss only serves today) ----

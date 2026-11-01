@@ -139,8 +139,9 @@
     },
   ],
   "triggers": {
-    // 06:00 UTC — starts the daily scrape Workflow.
-    "crons": ["0 6 * * *"],
+    // Every five minutes: fetch the sources that are due; the 06:00 UTC run
+    // also lays out the day's paper (src/lib/core/worker-extras.ts).
+    "crons": ["*/5 * * * *"],
   },
   "vars": {
     // VAPID public key — not a secret; the browser needs it to subscribe.

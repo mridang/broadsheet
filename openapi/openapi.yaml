@@ -40,6 +40,10 @@ paths:
     $ref: './paths/articles.yaml#/collection'
   /api/articles/{id}:
     $ref: './paths/articles.yaml#/item'
+  /api/articles/{id}/similar:
+    $ref: './paths/articles.yaml#/similar'
+  /api/articles/{id}/extractions:
+    $ref: './paths/articles.yaml#/extractions'
   /api/editions:
     $ref: './paths/editions.yaml#/collection'
   /api/editions/{id}:

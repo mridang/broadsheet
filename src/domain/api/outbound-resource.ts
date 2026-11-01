@@ -190,6 +190,7 @@ export interface FeedTokenResource {
   readonly scope: FeedScope;
   readonly tag?: string;
   readonly section_id?: string;
+  readonly search_id?: string;
   readonly filter: FeedFilter;
   readonly token?: string;
   readonly feed_url?: string;
@@ -209,6 +210,7 @@ export function feedTokenResource(
     scope: row.scope,
     ...(row.tag ? { tag: row.tag } : {}),
     ...(row.section_id !== null ? { section_id: String(row.section_id) } : {}),
+    ...(row.search_id !== null ? { search_id: String(row.search_id) } : {}),
     filter: row.filter,
     ...(secret
       ? {
@@ -221,21 +223,28 @@ export function feedTokenResource(
 }
 
 /**
- * Check a feed token body: `scope` saves, section or edition. `filter` (all,
+ * Check a feed token body: `scope` saves, section, edition or search. `filter` (all,
  * unread or focus) keeps a section or edition feed to stories not disliked or
  * only liked ones, as NewsBlur's folder feeds do. `tag` narrows
  * saves to one tag; `section_id` is required for, and only allowed with, a
- * section.
+ * section; `search_id` likewise for a search, which follows one of the
+ * person's saved searches (NewsBlur's saved-search feeds).
  */
 export function parseFeedTokenInput(
   body: Readonly<Record<string, unknown>>,
 ): Checked<FeedTokenInput> {
   const errors = strangers(
     body,
-    ['scope', 'tag', 'section_id', 'filter'],
+    ['scope', 'tag', 'section_id', 'search_id', 'filter'],
     'a feed token',
   );
-  const { scope, tag, section_id: sectionId, filter } = body;
+  const {
+    scope,
+    tag,
+    section_id: sectionId,
+    search_id: searchId,
+    filter,
+  } = body;
   if (!(FEED_SCOPES as readonly unknown[]).includes(scope)) {
     errors.push(`scope: must be one of ${FEED_SCOPES.join(', ')}.`);
   }
@@ -255,11 +264,20 @@ export function parseFeedTokenInput(
   } else if (scope !== 'section' && sectionId !== undefined) {
     errors.push('section_id: only for a section feed.');
   }
+  const search =
+    typeof searchId === 'string' ? parseFeedId(searchId) : undefined;
+  if (scope === 'search' && search === undefined) {
+    errors.push('search_id: must name one of your saved searches.');
+  } else if (scope !== 'search' && searchId !== undefined) {
+    errors.push('search_id: only for a search feed.');
+  }
   if (filter !== undefined) {
     if (!(FEED_FILTERS as readonly unknown[]).includes(filter)) {
       errors.push(`filter: must be one of ${FEED_FILTERS.join(', ')}.`);
     } else if (scope === 'saves' && filter !== 'all') {
       errors.push('filter: a saves feed keeps every saved story.');
+    } else if (scope === 'search' && filter !== 'all') {
+      errors.push('filter: a search feed keeps every story it finds.');
     }
   }
   return checked(errors, () => ({
@@ -267,6 +285,7 @@ export function parseFeedTokenInput(
     ...(filter !== undefined ? { filter: filter as FeedFilter } : {}),
     ...(typeof tag === 'string' ? { tag: tag.trim() } : {}),
     ...(section !== undefined ? { section_id: section } : {}),
+    ...(search !== undefined ? { search_id: search } : {}),
   }));
 }
 
