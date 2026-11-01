@@ -38,7 +38,15 @@ export interface Sibling {
   readonly source: string;
   readonly url: string;
   readonly tier: 'title' | 'related';
+  /** The copy's headline, date, picture and opening (absent in older issues). */
+  readonly title?: string;
+  readonly published_at?: string;
+  readonly image?: string;
+  readonly excerpt?: string;
 }
+
+/** How much of a copy's text an expanded preview shows. */
+export const SIBLING_EXCERPT = 500;
 
 /**
  * How a reader wants clusters printed: not at all (`clustering` false), or
@@ -97,6 +105,7 @@ export function collapseClusters(
   training: readonly Training[] = [],
   printable?: ReadonlySet<number>,
   options: ClusterOptions = {},
+  outside: readonly Article[] = [],
 ): {
   readonly dropped: ReadonlySet<number>;
   readonly also: ReadonlyMap<number, readonly string[]>;
@@ -115,15 +124,26 @@ export function collapseClusters(
     if (a.cluster_id === null) continue;
     members.set(a.cluster_id, [...(members.get(a.cluster_id) ?? []), a]);
   }
+  // Copies from other days or desks the paper does not print: named, never
+  // printed, never the one kept.
+  const printed = new Set(articles.map((a) => a.id));
+  const elsewhere = new Map<number, Article[]>();
+  for (const a of outside) {
+    if (a.cluster_id === null || printed.has(a.id)) continue;
+    elsewhere.set(a.cluster_id, [...(elsewhere.get(a.cluster_id) ?? []), a]);
+  }
   for (const [cluster, group] of members) {
-    if (group.length < 2) continue;
-    const [kept, ...rest] = group.toSorted(
+    const extra = elsewhere.get(cluster) ?? [];
+    if (group.length + extra.length < 2) continue;
+    const [first, ...others] = group.toSorted(
       (x, y) =>
         verdict(y, training) - verdict(x, training) ||
         Number(printable?.has(y.id) ?? 0) - Number(printable?.has(x.id) ?? 0) ||
         weight(y) - weight(x),
     );
-    if (!kept) continue;
+    if (!first) continue;
+    const kept = first;
+    const rest = [...others, ...extra];
     const folded = rest
       .map((a) => ({ a, tier: matchTier(kept.title, a.title) }))
       .filter(
@@ -132,7 +152,9 @@ export function collapseClusters(
           (options.mode !== 'title' && a.source_id !== kept.source_id),
       );
     if (!folded.length) continue;
-    folded.forEach(({ a }) => dropped.add(a.id));
+    folded.forEach(({ a }) => {
+      if (printed.has(a.id)) dropped.add(a.id);
+    });
     also.set(
       kept.id,
       [...new Set(folded.map(({ a }) => byline(a)))].filter(
@@ -146,6 +168,17 @@ export function collapseClusters(
         source: byline(a),
         url: a.url,
         tier,
+        ...(a.title ? { title: a.title } : {}),
+        ...(a.published_at ? { published_at: a.published_at } : {}),
+        ...(a.image ? { image: a.image } : {}),
+        ...(a.summary || a.body_text
+          ? {
+              excerpt: (a.summary || a.body_text || '').slice(
+                0,
+                SIBLING_EXCERPT,
+              ),
+            }
+          : {}),
       })),
     );
     coverage.set(
@@ -168,6 +201,7 @@ export function layOut(
   groups: readonly DeskGroup[],
   training: readonly Training[] = [],
   options: ClusterOptions = {},
+  outside: readonly Article[] = [],
 ): Layout {
   // Each story carries the feed it prints under, so feed classifiers match.
   const filed = groups.map((g) => ({
@@ -189,6 +223,7 @@ export function layOut(
     training,
     undefined,
     options,
+    outside,
   ).coverage;
   const printable = new Set(
     filed.flatMap((g) =>
@@ -204,6 +239,7 @@ export function layOut(
     training,
     printable,
     options,
+    outside,
   );
   return {
     groups: filed.map((group) => ({
@@ -249,6 +285,15 @@ export function topStories(layout: Layout, n: number): number[] {
 
 const TIERS: readonly string[] = ['lead', 'feature', 'standard', 'brief'];
 
+/** Whether each of `keys` on `v` is absent or a string. */
+const optionalStrings = (v: unknown, keys: readonly string[]): boolean =>
+  typeof v === 'object' &&
+  v !== null &&
+  keys.every((k) => {
+    const value: unknown = Reflect.get(v, k);
+    return value === undefined || typeof value === 'string';
+  });
+
 const isSibling = (v: unknown): v is Sibling => {
   const s = v as Sibling;
   return (
@@ -257,7 +302,8 @@ const isSibling = (v: unknown): v is Sibling => {
     Number.isInteger(s.id) &&
     typeof s.source === 'string' &&
     typeof s.url === 'string' &&
-    (s.tier === 'title' || s.tier === 'related')
+    (s.tier === 'title' || s.tier === 'related') &&
+    optionalStrings(v, ['title', 'published_at', 'image', 'excerpt'])
   );
 };
 

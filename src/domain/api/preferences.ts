@@ -10,6 +10,7 @@
 import {
   parsePreferenceChanges,
   preferencesResource,
+  sourceSection,
   type PreferencesResource,
 } from '@/domain/api/preference-resource';
 import {
@@ -55,8 +56,8 @@ const respond = ({ body, tag }: Tagged) =>
  * defaults for what they never changed).
  *
  * `PATCH /api/users/self/preferences`: change some of them. 200 with all of
- * them, 400 naming each bad member, 412 when `If-Match` names an older
- * version.
+ * them, 400 naming each bad member (a briefing source must be one of the
+ * person's sections), 412 when `If-Match` names an older version.
  *
  * Both answer 401 when not signed in; a cross-site change is 403.
  */
@@ -91,6 +92,15 @@ export function createPreferencesItem(
       },
       handle: async (changes, { request, uid }) => {
         const repo = new Repository(getDatabase());
+        const section =
+          changes.briefing_sources === undefined
+            ? undefined
+            : sourceSection(changes.briefing_sources);
+        if (section !== undefined && !(await repo.getSection(uid, section))) {
+          throw problems.badRequest('The change is not valid.', [
+            'briefing.sources: no such section.',
+          ]);
+        }
         const current = await tagged(await repo.getPreferences(uid));
         if (!ifMatchSatisfied(request.headers.get('if-match'), current.tag)) {
           throw problems.preconditionFailed();

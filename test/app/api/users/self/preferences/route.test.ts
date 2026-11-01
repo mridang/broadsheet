@@ -115,3 +115,24 @@ describe('PATCH /api/users/self/preferences', () => {
     );
   });
 });
+
+describe('PATCH /api/users/self/preferences briefing sources', () => {
+  it('answers 400 for a section that is not the person’s', async () => {
+    const res = await patch({ briefing: { sources: 'section:999' } });
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { errors: string[] }).errors).toEqual([
+      'briefing.sources: no such section.',
+    ]);
+  });
+
+  it('keeps a change to the schedule', async () => {
+    const res = await patch({
+      briefing: { sources: 'all', frequency: 'weekly' },
+    });
+    expect(res.status).toBe(200);
+    expect(
+      ((await res.json()) as { briefing: { frequency: string } }).briefing
+        .frequency,
+    ).toBe('weekly');
+  });
+});

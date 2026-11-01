@@ -29,6 +29,18 @@ export const EMBEDDING_MODEL = '@cf/baai/bge-base-en-v1.5';
 /** How similar (cosine) two articles must be to count as one story. */
 export const SAME_STORY = 0.86;
 
+/** How many days back a story may find its copies (NewsBlur's 120 hours). */
+export const LOOKBACK_DAYS = 5;
+/** How many days a cluster is kept before it is forgotten. */
+export const CLUSTER_TTL_DAYS = 14;
+
+/** `days` days before a YYYY-MM-DD date. */
+export function daysBefore(date: string, days: number): string {
+  return new Date(Date.parse(`${date}T00:00:00Z`) - days * 86400000)
+    .toISOString()
+    .slice(0, 10);
+}
+
 /** The most stories one cluster holds. */
 export const MAX_CLUSTER = 10;
 
@@ -222,8 +234,11 @@ async function embedAll(
 }
 
 /**
- * Cluster one edition: embed the articles Vectorize does not hold yet, then
- * group the whole edition and store the clusters. Returns how many articles
+ * Cluster one edition with the days before it (the last
+ * {@link LOOKBACK_DAYS} editions), so a story finds the copies published
+ * the day before: embed the articles Vectorize does not hold yet, group the
+ * window and store its clusters, and forget clusters older than
+ * {@link CLUSTER_TTL_DAYS} days. Returns how many articles
  * were compared and how many clusters were found. Clustering is off until the
  * Vectorize binding is added: with none, nothing is embedded or compared.
  */
@@ -238,7 +253,8 @@ export async function clusterEdition(
     return { articles: 0, clusters: 0 };
   }
   const repo = new Repository(db);
-  const articles = await repo.editionArticles(edition);
+  const from = daysBefore(edition, LOOKBACK_DAYS - 1);
+  const articles = await repo.windowArticles(from, edition);
   const vectors = await storedVectors(
     index,
     articles.map((a) => a.id),
@@ -253,10 +269,14 @@ export async function clusterEdition(
       return { ...a, ...(vector ? { vector } : {}) };
     }),
   );
-  await repo.writeClusters(edition, groups);
+  await repo.writeWindowClusters(from, edition, groups);
+  const expired = await repo.expireClusters(
+    daysBefore(edition, CLUSTER_TTL_DAYS),
+  );
   logInfo({
     event: 'cluster.completed',
     edition,
+    expired,
     articles: articles.length,
     embedded: fresh.length,
     clusters: groups.length,

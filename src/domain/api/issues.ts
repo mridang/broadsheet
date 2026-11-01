@@ -9,6 +9,7 @@
  */
 
 import {
+  type IssueView,
   issueResource,
   issueSummaryResource,
   parseIssueQuery,
@@ -46,6 +47,20 @@ export type Publisher = (userId: number, date: string) => Promise<unknown>;
 const publishWithEnv: Publisher = (userId, date) =>
   publishIssue(getDatabase(), getEnv(), userId, date);
 
+/** What `uid` has done that marks an issue's copies. */
+async function viewFor(repo: Repository, uid: number): Promise<IssueView> {
+  const [reads, training, prefs] = await Promise.all([
+    repo.readState(uid),
+    repo.listClassifiers(uid),
+    repo.getPreferences(uid),
+  ]);
+  return {
+    read: reads.ids,
+    training,
+    expanded: prefs.cluster_preview_style === 'expanded',
+  };
+}
+
 /** The signed-in caller's id and the request, for an issue endpoint. */
 interface UidContext {
   readonly request: Request;
@@ -65,17 +80,18 @@ export function createIssueItem(
       request,
       uid: await liveUid(request, resolver),
     }),
-  }).on<null, Issue | undefined>({
+  }).on<null, { issue: Issue; view: IssueView } | undefined>({
     method: 'GET',
     handle: async (_input, { request, uid }) => {
       const date = idOf(request);
-      return isIssueDate(date)
-        ? storedIssue(new Repository(getDatabase()), uid, date)
-        : undefined;
+      if (!isIssueDate(date)) return undefined;
+      const repo = new Repository(getDatabase());
+      const issue = await storedIssue(repo, uid, date);
+      return issue ? { issue, view: await viewFor(repo, uid) } : undefined;
     },
-    encode: (issue) =>
-      issue
-        ? ok(issueResource(issue), {
+    encode: (found) =>
+      found
+        ? ok(issueResource(found.issue, found.view), {
             headers: { 'Cache-Control': 'private, no-cache' },
           })
         : problems.notFound('issue'),
@@ -145,7 +161,7 @@ export function createIssuesCollection(
           { 'Cache-Control': 'private, no-cache' },
         ),
     })
-    .on<string, Published>({
+    .on<string, Published & { view?: IssueView }>({
       method: 'POST',
       decode: async (request) => {
         const body = await readJsonObject(
@@ -166,14 +182,18 @@ export function createIssuesCollection(
         }
         const replaced = (await repo.getIssue(uid, date)) !== undefined;
         await publish(uid, date);
-        return { issue: await storedIssue(repo, uid, date), replaced };
+        return {
+          issue: await storedIssue(repo, uid, date),
+          replaced,
+          view: await viewFor(repo, uid),
+        };
       },
-      encode: ({ issue, replaced }) => {
+      encode: ({ issue, replaced, view }) => {
         if (!issue) return problems.notFound('edition');
         const at = `/api/editions/self/issues/${issue.date}`;
         return replaced
-          ? ok(issueResource(issue), { location: at })
-          : created(issueResource(issue), at);
+          ? ok(issueResource(issue, view), { location: at })
+          : created(issueResource(issue, view), at);
       },
     });
 }

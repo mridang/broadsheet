@@ -19,6 +19,7 @@ security:
 tags:
   - name: articles
   - name: answers
+  - name: briefings
   - name: classifiers
   - name: editions
   - name: conversations
@@ -54,6 +55,12 @@ paths:
     $ref: './paths/editions.yaml#/item'
   /api/editions/{id}/issues/{date}:
     $ref: './paths/editions.yaml#/editionIssue'
+  /api/briefings:
+    $ref: './paths/briefings.yaml#/audit'
+  /api/editions/self/briefings:
+    $ref: './paths/briefings.yaml#/collection'
+  /api/editions/self/briefings/{id}:
+    $ref: './paths/briefings.yaml#/item'
   /api/editions/self/issues:
     $ref: './paths/editions.yaml#/issues'
   /api/editions/self/issues/{date}:

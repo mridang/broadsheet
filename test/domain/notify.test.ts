@@ -6,6 +6,9 @@ import {
   deliverWebhooks,
   notifies,
   notifyNewStories,
+  briefingReadyNotice,
+  issueReadyNotice,
+  sendBriefingReady,
   sendIssueReady,
   stillActive,
   STORIES_PER_FEED,
@@ -421,5 +424,47 @@ describe('notifyNewStories rules and activity', () => {
     expect(
       (await notifyNewStories({}, db, user.id, '2026-10-02')).stories,
     ).toBe(0);
+  });
+});
+
+describe('issueReadyNotice', () => {
+  it('opens that day’s paper', () => {
+    expect(issueReadyNotice('2026-11-01').url).toMatch(
+      /\/edition\/2026-11-01$/,
+    );
+  });
+});
+
+describe('briefingReadyNotice', () => {
+  it('names the briefing and opens it', () => {
+    expect(briefingReadyNotice(4, 'Morning Daily Briefing')).toMatchObject({
+      body: 'Morning Daily Briefing is ready.',
+      tag: 'briefing-4',
+    });
+    expect(briefingReadyNotice(4, 'x').url).toMatch(
+      /\/api\/editions\/self\/briefings\/4$/,
+    );
+  });
+});
+
+describe('sendBriefingReady', () => {
+  it('sends nothing without the VAPID keys', async () => {
+    const { fetcher, calls } = answering();
+    await sendBriefingReady({}, db, 1, 4, 'Morning', fetcher);
+    expect(calls).toHaveLength(0);
+  });
+
+  it('pushes to each browser the person subscribed', async () => {
+    const { env, p256dh, auth } = await keys();
+    await new OutboundRepository(db).addPushSubscription(1, {
+      endpoint: 'https://push.example.com/ok',
+      p256dh,
+      auth,
+    });
+    const { fetcher, calls } = answering(201);
+    expect(
+      (await sendBriefingReady(env, db, 1, 4, 'Morning', fetcher)).sent,
+    ).toBe(1);
+    expect(calls).toHaveLength(1);
   });
 });

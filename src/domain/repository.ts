@@ -17,6 +17,7 @@ import {
   gt,
   gte,
   inArray,
+  lte,
   isNull,
   lt,
   ne,
@@ -32,6 +33,7 @@ import {
   articles,
   classifiers,
   clusters,
+  briefings,
   issues,
   preferences,
   conversations,
@@ -41,6 +43,7 @@ import {
   messages,
   reads,
   saves,
+  shares,
   savedSearches,
   sections,
   sources,
@@ -338,6 +341,7 @@ export interface Preferences {
   readonly story_clustering: boolean;
   readonly cluster_mode: 'title' | 'related';
   readonly cluster_mark_read: boolean;
+  readonly cluster_preview_style: 'single_line' | 'expanded';
   readonly briefing_enabled: boolean;
   readonly briefing_story_count: number;
   readonly briefing_length: 'short' | 'medium' | 'detailed';
@@ -349,12 +353,32 @@ export interface Preferences {
   readonly mark_read_on_open: boolean;
   /** Days after which stories count as read when no feed or section says; 0 never. */
   readonly auto_mark_read_days: number;
+  readonly briefing_frequency:
+    'daily' | 'twice_daily' | 'thrice_daily' | 'weekly';
+  /** `auto`, `morning`, `afternoon`, `evening`, or a time written HH:MM. */
+  readonly briefing_time: string;
+  /** The weekday a weekly briefing comes: `sun` to `sat`. */
+  readonly briefing_day: string;
+  /** The person's IANA time zone, such as `Europe/Helsinki`. */
+  readonly timezone: string;
+  /** `all`, or `section:{id}` for one section and those nested in it. */
+  readonly briefing_sources: string;
+  readonly briefing_include_read: boolean;
+  /** The Workers AI model, or null for the server's default. */
+  readonly briefing_model: string | null;
+  /** Each section the person turned on or off; absent ones are on. */
+  readonly briefing_sections: Readonly<Record<string, boolean>>;
+  /** The order the person put the sections in; null for the default. */
+  readonly briefing_section_order: readonly string[] | null;
+  /** Keyword prompts for sections of the person's own, at most five. */
+  readonly briefing_prompts: readonly string[];
 }
 /** The preferences of someone who has changed nothing. */
 export const DEFAULT_PREFERENCES: Preferences = {
   story_clustering: true,
   cluster_mode: 'related',
   cluster_mark_read: false,
+  cluster_preview_style: 'single_line',
   briefing_enabled: true,
   briefing_story_count: 5,
   briefing_length: 'medium',
@@ -363,7 +387,59 @@ export const DEFAULT_PREFERENCES: Preferences = {
   intelligence: 'unread',
   mark_read_on_open: true,
   auto_mark_read_days: 0,
+  briefing_frequency: 'daily',
+  briefing_time: 'morning',
+  briefing_day: 'sun',
+  timezone: 'UTC',
+  briefing_sources: 'all',
+  briefing_include_read: false,
+  briefing_model: null,
+  briefing_sections: {},
+  briefing_section_order: null,
+  briefing_prompts: [],
 };
+
+/** A stored JSON value, or `fallback` when it does not parse. */
+function storedJson<T>(
+  stored: string | null,
+  fallback: T,
+  valid: (v: unknown) => boolean,
+): T {
+  if (!stored) return fallback;
+  try {
+    const parsed: unknown = JSON.parse(stored);
+    return valid(parsed) ? (parsed as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+/** `value` when it is one of `allowed`, else `fallback`. */
+function oneOf<T extends string>(
+  value: string,
+  allowed: readonly T[],
+  fallback: T,
+): T {
+  return allowed.find((a) => a === value) ?? fallback;
+}
+
+const isStringList = (v: unknown): boolean =>
+  Array.isArray(v) && v.every((x) => typeof x === 'string');
+
+const isSwitches = (v: unknown): boolean =>
+  typeof v === 'object' &&
+  v !== null &&
+  !Array.isArray(v) &&
+  Object.values(v).every((x) => typeof x === 'boolean');
+
+/** A briefing as it is stored. */
+export type StoredBriefing = typeof briefings.$inferSelect;
+/** A briefing about to be stored. */
+export type NewBriefing = Omit<
+  typeof briefings.$inferInsert,
+  'id' | 'created_at'
+>;
+
 /** One day in a person's list of stored issues. */
 export interface IssueListing {
   readonly date: string;
@@ -1992,6 +2068,14 @@ export class Repository {
 
   /** Every article of one edition, from every source, for clustering. */
   editionArticles(edition: string): Promise<Clusterable[]> {
+    return this.windowArticles(edition, edition);
+  }
+
+  /**
+   * Every article of the editions from `from` to `to` (YYYY-MM-DD, both
+   * included), from every source, for clustering across days.
+   */
+  windowArticles(from: string, to: string): Promise<Clusterable[]> {
     return this.#db
       .select({
         id: articles.id,
@@ -2002,7 +2086,7 @@ export class Repository {
       })
       .from(articles)
       .leftJoin(sources, eq(articles.source_id, sources.id))
-      .where(eq(articles.edition, edition))
+      .where(and(gte(articles.edition, from), lte(articles.edition, to)))
       .orderBy(asc(articles.id));
   }
 
@@ -2011,21 +2095,34 @@ export class Repository {
    * cluster its members point at, and every other article of the edition
    * belongs to none.
    */
-  async writeClusters(
+  writeClusters(
     edition: string,
     groups: readonly (readonly number[])[],
   ): Promise<void> {
+    return this.writeWindowClusters(edition, edition, groups);
+  }
+
+  /**
+   * Replace the clusters of the editions from `from` to `to`: every article
+   * of them leaves its cluster, those clusters go, and each group becomes a
+   * new cluster dated `to`.
+   */
+  async writeWindowClusters(
+    from: string,
+    to: string,
+    groups: readonly (readonly number[])[],
+  ): Promise<void> {
+    const window = and(gte(articles.edition, from), lte(articles.edition, to));
     await this.#db.batch([
+      this.#db.update(articles).set({ cluster_id: null }).where(window),
       this.#db
-        .update(articles)
-        .set({ cluster_id: null })
-        .where(eq(articles.edition, edition)),
-      this.#db.delete(clusters).where(eq(clusters.edition, edition)),
+        .delete(clusters)
+        .where(and(gte(clusters.edition, from), lte(clusters.edition, to))),
     ]);
     for (const group of groups) {
       const [cluster] = await this.#db
         .insert(clusters)
-        .values({ edition })
+        .values({ edition: to })
         .returning({ id: clusters.id });
       if (!cluster) continue;
       for (const ids of chunks(group, IN_CHUNK)) {
@@ -2035,6 +2132,51 @@ export class Repository {
           .where(inArray(articles.id, ids));
       }
     }
+  }
+
+  /**
+   * Forget the clusters dated before `before` (YYYY-MM-DD): their members
+   * belong to none. Returns how many clusters went.
+   */
+  async expireClusters(before: string): Promise<number> {
+    const old = this.#db
+      .select({ id: clusters.id })
+      .from(clusters)
+      .where(lt(clusters.edition, before));
+    await this.#db
+      .update(articles)
+      .set({ cluster_id: null })
+      .where(inArray(articles.cluster_id, old));
+    const gone = await this.#db
+      .delete(clusters)
+      .where(lt(clusters.edition, before))
+      .returning({ id: clusters.id });
+    return gone.length;
+  }
+
+  /**
+   * The members of these clusters from sources the person follows, from any
+   * edition: the copies a paper names though it does not print them.
+   */
+  async clusterMembers(
+    userId: number,
+    clusterIds: readonly number[],
+  ): Promise<Article[]> {
+    const rows: Article[] = [];
+    for (const part of chunks([...new Set(clusterIds)], IN_CHUNK)) {
+      rows.push(
+        ...(await this.#db
+          .select()
+          .from(articles)
+          .where(
+            and(
+              inArray(articles.cluster_id, part),
+              inArray(articles.source_id, this.#followed(userId)),
+            ),
+          )),
+      );
+    }
+    return rows;
   }
 
   /** The articles with these ids, in no particular order. */
@@ -2604,28 +2746,233 @@ export class Repository {
     return new Set(rows.map((r) => r.id));
   }
 
+  /**
+   * Articles from the person's followed, unmuted sources fetched since
+   * `since` (a SQLite time), newest first; with `sourceIds`, only from those
+   * sources.
+   */
+  async briefingArticles(
+    userId: number,
+    since: string,
+    sourceIds?: readonly number[],
+  ): Promise<Article[]> {
+    const feeds = (await this.listFeeds(userId)).filter(
+      (f) =>
+        !f.muted &&
+        (sourceIds === undefined || sourceIds.includes(f.source_id)),
+    );
+    const rows: Article[] = [];
+    for (const part of chunks(
+      [...new Set(feeds.map((f) => f.source_id))],
+      IN_CHUNK,
+    )) {
+      rows.push(
+        ...(await this.#db
+          .select()
+          .from(articles)
+          .where(
+            and(
+              inArray(articles.source_id, part),
+              gte(articles.fetched_at, since),
+            ),
+          )),
+      );
+    }
+    return rows.sort((a, b) => b.id - a.id);
+  }
+
+  /**
+   * The person's articles fetched since `since` whose title, summary or text
+   * holds every word of `q`, best match first, at most `limit`.
+   */
+  async searchSince(
+    userId: number,
+    q: string,
+    since: string,
+    limit = 10,
+  ): Promise<Article[]> {
+    const match = ftsQuery(q);
+    if (!match) return [];
+    return this.#db
+      .select()
+      .from(articles)
+      .where(
+        and(
+          gte(articles.fetched_at, since),
+          inArray(articles.source_id, this.#followed(userId)),
+          sql`${articles.id} IN (SELECT rowid FROM articles_fts WHERE articles_fts MATCH ${match})`,
+        ),
+      )
+      .orderBy(desc(articles.id))
+      .limit(limit);
+  }
+
+  /**
+   * The articles the most people read (saved, or shared) since `since`, across
+   * everyone, most first, at most `limit`, with how many did. Only counts
+   * leave the database, never who.
+   */
+  async popularArticles(
+    order: 'reads' | 'saves' | 'shares',
+    since: string,
+    limit: number,
+  ): Promise<{ readonly article: Article; readonly count: number }[]> {
+    const acts = order === 'reads' ? reads : order === 'saves' ? saves : shares;
+    const count = sql<number>`count(*)`;
+    const rows = await this.#db
+      .select({ article: getTableColumns(articles), count })
+      .from(acts)
+      .innerJoin(articles, eq(acts.article_id, articles.id))
+      .where(sql`${acts.created_at} >= ${since}`)
+      .groupBy(articles.id)
+      .orderBy(desc(count), desc(articles.id))
+      .limit(limit);
+    return rows.map((r) => ({ article: r.article, count: Number(r.count) }));
+  }
+
+  /** Store a briefing, replacing the one for the same slot and day. */
+  async saveBriefing(b: NewBriefing): Promise<StoredBriefing> {
+    const { user_id, slot, local_date, ...rest } = b;
+    const [row] = await this.#db
+      .insert(briefings)
+      .values(b)
+      .onConflictDoUpdate({
+        target: [briefings.user_id, briefings.slot, briefings.local_date],
+        set: { ...rest, created_at: sql`(datetime('now'))` },
+      })
+      .returning();
+    if (!row) throw new Error(`briefing ${user_id}/${slot}/${local_date}`);
+    return row;
+  }
+
+  /** A person's briefing for a slot and day, if one was written. */
+  findBriefing(
+    userId: number,
+    slot: string,
+    localDate: string,
+  ): Promise<StoredBriefing | undefined> {
+    return this.#db.query.briefings.findFirst({
+      where: and(
+        eq(briefings.user_id, userId),
+        eq(briefings.slot, slot),
+        eq(briefings.local_date, localDate),
+      ),
+    });
+  }
+
+  /** One of a person's briefings by id. */
+  getBriefing(userId: number, id: number): Promise<StoredBriefing | undefined> {
+    return this.#db.query.briefings.findFirst({
+      where: and(eq(briefings.user_id, userId), eq(briefings.id, id)),
+    });
+  }
+
+  /**
+   * Briefings newest first, at most `limit`, each with a smaller id than
+   * `before` when given: one person's (`userId`), or everyone's.
+   */
+  listBriefings(
+    userId: number | undefined,
+    limit: number,
+    before?: number,
+  ): Promise<StoredBriefing[]> {
+    const where = [
+      ...(userId === undefined ? [] : [eq(briefings.user_id, userId)]),
+      ...(before === undefined ? [] : [lt(briefings.id, before)]),
+    ];
+    return this.#db
+      .select()
+      .from(briefings)
+      .where(where.length ? and(...where) : undefined)
+      .orderBy(desc(briefings.id))
+      .limit(limit);
+  }
+
+  /**
+   * The stories the person's briefings since `since` covered, leaving out
+   * the one for `except` (a slot and local date) that is being written again.
+   */
+  async briefedSince(
+    userId: number,
+    since: string,
+    except?: { readonly slot: string; readonly date: string },
+  ): Promise<string[]> {
+    const rows = await this.#db
+      .select({
+        stories: briefings.stories,
+        slot: briefings.slot,
+        date: briefings.local_date,
+      })
+      .from(briefings)
+      .where(
+        and(eq(briefings.user_id, userId), gte(briefings.created_at, since)),
+      );
+    return rows
+      .filter(
+        (r) => !(except && r.slot === except.slot && r.date === except.date),
+      )
+      .map((r) => r.stories);
+  }
+
   /** A person's preferences, with the defaults for what they never set. */
   async getPreferences(userId: number): Promise<Preferences> {
     const row = await this.#db.query.preferences.findFirst({
       where: eq(preferences.user_id, userId),
     });
     if (!row) return DEFAULT_PREFERENCES;
+    const d = DEFAULT_PREFERENCES;
     return {
       story_clustering: row.story_clustering === 1,
-      cluster_mode: row.cluster_mode === 'title' ? 'title' : 'related',
+      cluster_mode: oneOf(row.cluster_mode, ['title', 'related'], 'related'),
       cluster_mark_read: row.cluster_mark_read === 1,
+      cluster_preview_style: oneOf(
+        row.cluster_preview_style,
+        ['single_line', 'expanded'],
+        'single_line',
+      ),
       briefing_enabled: row.briefing_enabled === 1,
       briefing_story_count: row.briefing_story_count,
-      briefing_length:
-        row.briefing_length === 'short' || row.briefing_length === 'detailed'
-          ? row.briefing_length
-          : 'medium',
-      briefing_style:
-        row.briefing_style === 'editorial' || row.briefing_style === 'headlines'
-          ? row.briefing_style
-          : 'bullets',
-      briefing_read_filter:
-        row.briefing_read_filter === 'focus' ? 'focus' : 'unread',
+      briefing_length: oneOf(
+        row.briefing_length,
+        ['short', 'medium', 'detailed'],
+        'medium',
+      ),
+      briefing_style: oneOf(
+        row.briefing_style,
+        ['editorial', 'bullets', 'headlines'],
+        'bullets',
+      ),
+      briefing_read_filter: oneOf(
+        row.briefing_read_filter,
+        ['unread', 'focus'],
+        'unread',
+      ),
+      briefing_frequency: oneOf(
+        row.briefing_frequency,
+        ['daily', 'twice_daily', 'thrice_daily', 'weekly'],
+        'daily',
+      ),
+      briefing_time: row.briefing_time,
+      briefing_day: row.briefing_day,
+      timezone: row.timezone,
+      briefing_sources: row.briefing_sources,
+      briefing_include_read: row.briefing_include_read === 1,
+      briefing_model: row.briefing_model,
+      briefing_sections: storedJson(
+        row.briefing_sections,
+        d.briefing_sections,
+        isSwitches,
+      ),
+      briefing_section_order: storedJson(
+        row.briefing_section_order,
+        d.briefing_section_order,
+        isStringList,
+      ),
+      briefing_prompts: storedJson(
+        row.briefing_prompts,
+        d.briefing_prompts,
+        isStringList,
+      ),
       intelligence:
         row.intelligence === 'focus' || row.intelligence === 'all'
           ? row.intelligence
@@ -2645,6 +2992,7 @@ export class Repository {
       story_clustering: next.story_clustering ? 1 : 0,
       cluster_mode: next.cluster_mode,
       cluster_mark_read: next.cluster_mark_read ? 1 : 0,
+      cluster_preview_style: next.cluster_preview_style,
       briefing_enabled: next.briefing_enabled ? 1 : 0,
       briefing_story_count: next.briefing_story_count,
       briefing_length: next.briefing_length,
@@ -2653,6 +3001,19 @@ export class Repository {
       intelligence: next.intelligence,
       mark_read_on_open: next.mark_read_on_open ? 1 : 0,
       auto_mark_read_days: next.auto_mark_read_days,
+      briefing_frequency: next.briefing_frequency,
+      briefing_time: next.briefing_time,
+      briefing_day: next.briefing_day,
+      timezone: next.timezone,
+      briefing_sources: next.briefing_sources,
+      briefing_include_read: next.briefing_include_read ? 1 : 0,
+      briefing_model: next.briefing_model,
+      briefing_sections: JSON.stringify(next.briefing_sections),
+      briefing_section_order:
+        next.briefing_section_order === null
+          ? null
+          : JSON.stringify(next.briefing_section_order),
+      briefing_prompts: JSON.stringify(next.briefing_prompts),
       updated_at: sql`(datetime('now'))`,
     };
     await this.#db
@@ -2660,6 +3021,16 @@ export class Repository {
       .values({ user_id: userId, ...row })
       .onConflictDoUpdate({ target: preferences.user_id, set: row });
     return next;
+  }
+
+  /** The ids of everyone who changed a preference, with their preferences. */
+  async allPreferences(): Promise<Map<number, Preferences>> {
+    const rows = await this.#db
+      .select({ id: preferences.user_id })
+      .from(preferences);
+    const out = new Map<number, Preferences>();
+    for (const { id } of rows) out.set(id, await this.getPreferences(id));
+    return out;
   }
 
   /**

@@ -10,7 +10,12 @@ import type { Category } from '@/domain/briefing';
 import { isIssueDate, type Issue } from '@/domain/issues';
 import type { IssueListing } from '@/domain/repository';
 import { DEFAULT_LIMIT, MAX_LIMIT, decodeCursor } from '@/lib/core/api';
-import type { Tier } from '@/domain/render/tiers';
+import {
+  verdict,
+  type Tier,
+  type Training,
+  type Verdict,
+} from '@/domain/render/tiers';
 
 /** One story as the issue prints it. */
 export interface IssueStoryResource {
@@ -28,6 +33,22 @@ export interface IssueSiblingResource {
   readonly url: string;
   /** 'title' when the headlines match, 'related' when only the meaning does. */
   readonly match: 'title' | 'related';
+  readonly title?: string;
+  readonly published_at?: string;
+  /** Whether the person has read this copy. */
+  readonly read: boolean;
+  /** The person's training on it: 1 likes, -1 dislikes, -2 strongly, 0 neither. */
+  readonly score: Verdict;
+  /** With the expanded preview: the copy's picture and opening. */
+  readonly image?: string;
+  readonly excerpt?: string;
+}
+
+/** What the person who reads an issue has done, which marks its copies. */
+export interface IssueView {
+  readonly read: ReadonlySet<number>;
+  readonly training: readonly Training[];
+  readonly expanded: boolean;
 }
 
 /** A story the editor's note covers, and why it was picked. */
@@ -74,7 +95,10 @@ function timestamp(stored: string | null): string | undefined {
 }
 
 /** The API's view of an issue. */
-export function issueResource(issue: Readonly<Issue>): IssueResource {
+export function issueResource(
+  issue: Readonly<Issue>,
+  view: IssueView = { read: new Set(), training: [], expanded: false },
+): IssueResource {
   const created = timestamp(issue.created_at);
   return {
     date: issue.date,
@@ -98,6 +122,15 @@ export function issueResource(issue: Readonly<Issue>): IssueResource {
             source: s.source,
             url: s.url,
             match: s.tier,
+            ...(s.title ? { title: s.title } : {}),
+            ...(s.published_at ? { published_at: s.published_at } : {}),
+            read: view.read.has(s.id),
+            score: verdict(
+              { title: s.title ?? null, source: s.source },
+              view.training,
+            ),
+            ...(view.expanded && s.image ? { image: s.image } : {}),
+            ...(view.expanded && s.excerpt ? { excerpt: s.excerpt } : {}),
           })),
         })),
       })),

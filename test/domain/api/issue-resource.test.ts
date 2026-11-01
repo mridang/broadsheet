@@ -71,6 +71,8 @@ describe('issueResource', () => {
                       source: 'BBC',
                       url: 'https://bbc.test/8',
                       match: 'title',
+                      read: false,
+                      score: 0,
                     },
                   ],
                 },

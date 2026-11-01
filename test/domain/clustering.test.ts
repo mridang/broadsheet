@@ -4,7 +4,10 @@ import {
   clusterEdition,
   cosine,
   embeddingText,
+  CLUSTER_TTL_DAYS,
+  LOOKBACK_DAYS,
   MAX_CLUSTER,
+  daysBefore,
   clusterGroups,
 } from '@/domain/clustering';
 import { databaseFrom, type Database } from '@/domain/db/database';
@@ -308,6 +311,41 @@ describe('clusterEdition', () => {
     expect(again.run).not.toHaveBeenCalled();
   });
 
+  it('finds a copy published days before, within the lookback', async () => {
+    jest.spyOn(console, 'log').mockImplementation(() => undefined);
+    const feed = await repo.addFeed(1, 'https://s3.test/rss');
+    await repo.writeEdition(feed!.source_id, '2026-11-03', [
+      {
+        url: 'https://s3.test/quake',
+        title: 'Earthquake hits city',
+        source: 'S3',
+        favicon: '',
+        summary: '',
+        image: '',
+        published_at: '',
+        points: 0,
+      },
+    ]);
+    await clusterEdition(db, env().env, '2026-11-03');
+    const quakes = (await repo.windowArticles('2026-11-01', '2026-11-03'))
+      .filter((a) => a.title === 'Earthquake hits city')
+      .map((a) => a.id);
+    const rows = await repo.articlesByIds(quakes);
+    expect(new Set(rows.map((a) => a.cluster_id)).size).toBe(1);
+    expect(rows).toHaveLength(3);
+  });
+
+  it('forgets clusters older than the time they are kept', async () => {
+    jest.spyOn(console, 'log').mockImplementation(() => undefined);
+    await clusterEdition(db, env().env, '2026-11-01');
+    const later = daysBefore('2026-11-01', -CLUSTER_TTL_DAYS - 1);
+    await clusterEdition(db, env().env, later);
+    const rows = await repo.articlesByIds(
+      (await repo.editionArticles('2026-11-01')).map((a) => a.id),
+    );
+    expect(rows.every((a) => a.cluster_id === null)).toBe(true);
+  });
+
   it('skips clustering without embedding anything when no index is bound', async () => {
     const { run, env: e } = env();
     const unbound = { ...e, VECTORIZE: undefined } as CloudflareEnv;
@@ -316,5 +354,11 @@ describe('clusterEdition', () => {
       clusters: 0,
     });
     expect(run).not.toHaveBeenCalled();
+  });
+});
+
+describe('daysBefore', () => {
+  it('steps back across a month', () => {
+    expect(daysBefore('2026-11-02', LOOKBACK_DAYS)).toBe('2026-10-28');
   });
 });

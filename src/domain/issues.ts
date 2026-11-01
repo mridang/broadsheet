@@ -24,7 +24,7 @@ import {
   type BriefedStory,
   type Candidate,
 } from '@/domain/briefing';
-import { matches, verdict, type Training } from '@/domain/render/tiers';
+import { toCandidates } from '@/domain/briefings';
 import {
   layOut,
   parseLayout,
@@ -123,10 +123,21 @@ export async function composeLayout(
       desks: group.desks.filter((desk) => desk.articles.length || !pick?.keep),
     }))
     .filter((group) => group.desks.length);
-  return layOut(groups, training, {
-    clustering: prefs.story_clustering,
-    mode: prefs.cluster_mode,
-  });
+  // The copies of the paper's stories it does not print: from other days
+  // within the lookback, or desks left out.
+  const clusterIds = desks.flatMap(({ articles }) =>
+    articles.flatMap((a) => (a.cluster_id === null ? [] : [a.cluster_id])),
+  );
+  const outside =
+    prefs.story_clustering && clusterIds.length
+      ? await repo.clusterMembers(readerId ?? ownerId, clusterIds)
+      : [];
+  return layOut(
+    groups,
+    training,
+    { clustering: prefs.story_clustering, mode: prefs.cluster_mode },
+    outside,
+  );
 }
 
 /** The articles a layout prints, by id. */
@@ -165,39 +176,24 @@ export async function briefingCandidates(
   date: string,
   covered: ReadonlySet<string> = new Set(),
 ): Promise<Candidate[]> {
-  const [training, reads, readSources] = await Promise.all([
-    repo.listClassifiers(readerId),
-    repo.readState(readerId),
-    repo.readSourceIds(readerId),
-  ]);
-  const stories = layout.groups.flatMap((g) =>
-    g.desks.flatMap((d) => d.stories),
+  const entries = layout.groups.flatMap((g) =>
+    g.desks.flatMap((d) =>
+      d.stories.flatMap((s) => {
+        const article = byId.get(s.id);
+        return article
+          ? [
+              {
+                article,
+                also: s.also,
+                coverage:
+                  1 + new Set((s.siblings ?? []).map((x) => x.source)).size,
+              },
+            ]
+          : [];
+      }),
+    ),
   );
-  const printed = stories.flatMap((s) => {
-    const a = byId.get(s.id);
-    return a && !covered.has(a.url) ? [{ s, a }] : [];
-  });
-  const monthly = await repo.sourceCounts(
-    printed.map(({ a }) => a.source_id),
-    monthBefore(date),
-  );
-  return printed.map(({ s, a }) => ({
-    article: a,
-    liked: verdict(a, training) > 0,
-    matches: likedBy(a, training),
-    read: reads.ids.has(a.id),
-    coverage: 1 + new Set((s.siblings ?? []).map((x) => x.source)).size,
-    also: s.also,
-    monthly: monthly.get(a.source_id) ?? 0,
-    followed_up: readSources.has(a.source_id),
-  }));
-}
-
-/** The classifiers that like a story, as `kind: value`. */
-function likedBy(a: Article, training: readonly Training[]): string[] {
-  return training
-    .filter((c) => c.score > 0 && matches(a, c))
-    .map((c) => `${c.kind}: ${c.value}`);
+  return toCandidates(repo, readerId, entries, monthBefore(date), covered);
 }
 
 /** The addresses of the stories a stored note covered. */

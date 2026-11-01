@@ -2517,3 +2517,251 @@ describe('storyTime', () => {
     expect(storyTime(a)).toBe(at);
   });
 });
+
+describe('clusters across days', () => {
+  const story = (n: number): ScrapedItem => ({
+    url: `https://w.test/${n}`,
+    title: 'Quake',
+    source: 'W',
+    favicon: '',
+    summary: '',
+    image: '',
+    published_at: '',
+    points: 0,
+  });
+
+  it('lists the articles of every edition in a window', async () => {
+    const repo = new Repository(db);
+    await repo.writeEdition(1, '2026-10-29', [story(1)]);
+    await repo.writeEdition(1, '2026-10-31', [story(2)]);
+    await repo.writeEdition(1, '2026-11-02', [story(3)]);
+    expect(
+      (await repo.windowArticles('2026-10-30', '2026-11-01')).map((a) => a.id),
+    ).toHaveLength(1);
+  });
+
+  it('rewrites the clusters of a whole window', async () => {
+    const repo = new Repository(db);
+    await repo.writeEdition(1, '2026-10-31', [story(1)]);
+    await repo.writeEdition(2, '2026-11-01', [story(2)]);
+    const ids = (await repo.windowArticles('2026-10-31', '2026-11-01')).map(
+      (a) => a.id,
+    );
+    await repo.writeWindowClusters('2026-10-31', '2026-11-01', [ids]);
+    const rows = await repo.articlesByIds(ids);
+    expect(new Set(rows.map((a) => a.cluster_id)).size).toBe(1);
+    await repo.writeWindowClusters('2026-10-31', '2026-11-01', []);
+    expect(
+      (await repo.articlesByIds(ids)).every((a) => a.cluster_id === null),
+    ).toBe(true);
+  });
+
+  it('forgets clusters older than a date', async () => {
+    const repo = new Repository(db);
+    await repo.writeEdition(1, '2026-10-01', [story(1)]);
+    await repo.writeEdition(2, '2026-10-01', [story(2)]);
+    const ids = (await repo.editionArticles('2026-10-01')).map((a) => a.id);
+    await repo.writeClusters('2026-10-01', [ids]);
+    expect(await repo.expireClusters('2026-10-15')).toBe(1);
+    expect(
+      (await repo.articlesByIds(ids)).every((a) => a.cluster_id === null),
+    ).toBe(true);
+    expect(await repo.expireClusters('2026-10-15')).toBe(0);
+  });
+
+  it('lists the members of clusters from sources the person follows', async () => {
+    const repo = new Repository(db);
+    const user = await upsertUser(db, { sub: 'a', email: 'a@b.c' });
+    const feed = await addFeed(db, user.id, 'https://w.test/rss');
+    await repo.writeEdition(feed!.source_id, '2026-11-01', [story(1)]);
+    await repo.writeEdition(99, '2026-11-01', [story(2)]);
+    const ids = (await repo.editionArticles('2026-11-01')).map((a) => a.id);
+    await repo.writeClusters('2026-11-01', [ids]);
+    const [mine] = await repo.articlesByIds([ids[0]!]);
+    const members = await repo.clusterMembers(user.id, [mine!.cluster_id!]);
+    expect(members.map((a) => a.source_id)).toEqual([feed!.source_id]);
+  });
+});
+
+describe('briefings', () => {
+  const story = (n: number, over: Partial<ScrapedItem> = {}): ScrapedItem => ({
+    url: `https://b.test/${n}`,
+    title: `Story ${n}`,
+    source: 'B',
+    favicon: '',
+    summary: '',
+    image: '',
+    published_at: '',
+    points: 0,
+    ...over,
+  });
+
+  const briefing = (over: Record<string, unknown> = {}) => ({
+    user_id: 1,
+    slot: 'morning',
+    local_date: '2026-11-01',
+    frequency: 'daily',
+    period_start: '2026-10-31T08:30:00.000Z',
+    title: 'Morning',
+    summary: 'Note.',
+    stories: '[]',
+    sections: '[]',
+    status: 'complete',
+    error: null,
+    model: 'm',
+    tokens: 1,
+    seconds: 1,
+    ...over,
+  });
+
+  it('lists the articles fetched since a time from unmuted feeds', async () => {
+    const repo = new Repository(db);
+    const user = await upsertUser(db, { sub: 'a', email: 'a@b.c' });
+    const a = await addFeed(db, user.id, 'https://a.test/rss');
+    const b = await addFeed(db, user.id, 'https://b.test/rss');
+    await repo.updateFeed(user.id, b!.id, { muted: true });
+    await repo.writeEdition(a!.source_id, '2026-11-01', [story(1)]);
+    await repo.writeEdition(b!.source_id, '2026-11-01', [story(2)]);
+    expect(
+      await repo.briefingArticles(user.id, '2000-01-01 00:00:00'),
+    ).toHaveLength(1);
+    expect(
+      await repo.briefingArticles(user.id, '2999-01-01 00:00:00'),
+    ).toHaveLength(0);
+    expect(
+      await repo.briefingArticles(user.id, '2000-01-01 00:00:00', [999]),
+    ).toHaveLength(0);
+  });
+
+  it('searches the person’s articles since a time', async () => {
+    const repo = new Repository(db);
+    const user = await upsertUser(db, { sub: 'a', email: 'a@b.c' });
+    const a = await addFeed(db, user.id, 'https://a.test/rss');
+    await repo.writeEdition(a!.source_id, '2026-11-01', [
+      story(1, { title: 'Quantum chips' }),
+      story(2),
+    ]);
+    expect(
+      (await repo.searchSince(user.id, 'quantum', '2000-01-01 00:00:00')).map(
+        (x) => x.title,
+      ),
+    ).toEqual(['Quantum chips']);
+    expect(await repo.searchSince(user.id, '  ', '2000-01-01')).toEqual([]);
+  });
+
+  it('ranks the articles the most people read, across everyone', async () => {
+    const repo = new Repository(db);
+    const one = await upsertUser(db, { sub: 'a', email: 'a@b.c' });
+    const two = await upsertUser(db, { sub: 'b', email: 'b@b.c' });
+    const feedA = await addFeed(db, one.id, 'https://a.test/rss');
+    await addFeed(db, two.id, 'https://a.test/rss');
+    await repo.writeEdition(feedA!.source_id, '2026-11-01', [
+      story(1),
+      story(2),
+    ]);
+    const [first, second] = await repo.editionArticles('2026-11-01');
+    await repo.markRead(one.id, first!.id);
+    await repo.markRead(two.id, first!.id);
+    await repo.markRead(one.id, second!.id);
+    const top = await repo.popularArticles('reads', '2000-01-01', 5);
+    expect(top.map((t) => [t.article.id, t.count])).toEqual([
+      [first!.id, 2],
+      [second!.id, 1],
+    ]);
+  });
+
+  it('stores, finds and replaces a briefing by slot and day', async () => {
+    const repo = new Repository(db);
+    const first = await repo.saveBriefing(briefing());
+    const again = await repo.saveBriefing(briefing({ summary: 'Again.' }));
+    expect(again.id).toBe(first.id);
+    expect((await repo.findBriefing(1, 'morning', '2026-11-01'))?.summary).toBe(
+      'Again.',
+    );
+    expect(await repo.findBriefing(1, 'evening', '2026-11-01')).toBeUndefined();
+    expect((await repo.getBriefing(1, first.id))?.id).toBe(first.id);
+    expect(await repo.getBriefing(2, first.id)).toBeUndefined();
+  });
+
+  it('lists briefings newest first, one person’s or everyone’s', async () => {
+    const repo = new Repository(db);
+    const a = await repo.saveBriefing(briefing());
+    const b = await repo.saveBriefing(briefing({ slot: 'evening' }));
+    const c = await repo.saveBriefing(briefing({ user_id: 2 }));
+    expect((await repo.listBriefings(1, 5)).map((x) => x.id)).toEqual([
+      b.id,
+      a.id,
+    ]);
+    expect((await repo.listBriefings(undefined, 5)).map((x) => x.id)).toEqual([
+      c.id,
+      b.id,
+      a.id,
+    ]);
+    expect((await repo.listBriefings(1, 5, b.id)).map((x) => x.id)).toEqual([
+      a.id,
+    ]);
+  });
+
+  it('lists what recent briefings covered, but for the one written again', async () => {
+    const repo = new Repository(db);
+    await repo.saveBriefing(briefing({ stories: '[1]' }));
+    await repo.saveBriefing(briefing({ slot: 'evening', stories: '[2]' }));
+    expect(await repo.briefedSince(1, '2000-01-01')).toHaveLength(2);
+    expect(
+      await repo.briefedSince(1, '2000-01-01', {
+        slot: 'morning',
+        date: '2026-11-01',
+      }),
+    ).toEqual(['[2]']);
+    expect(await repo.briefedSince(1, '2999-01-01')).toEqual([]);
+  });
+
+  it('keeps every preference and reads them all back', async () => {
+    const repo = new Repository(db);
+    await repo.updatePreferences(1, {
+      briefing_sections: { long_read: false },
+      briefing_section_order: ['long_read'],
+      briefing_prompts: ['rust'],
+      briefing_model: '@cf/google/gemma-3-12b-it',
+      timezone: 'Asia/Tokyo',
+    });
+    const all = await repo.allPreferences();
+    expect(all.get(1)).toMatchObject({
+      briefing_sections: { long_read: false },
+      briefing_section_order: ['long_read'],
+      briefing_prompts: ['rust'],
+      briefing_model: '@cf/google/gemma-3-12b-it',
+      timezone: 'Asia/Tokyo',
+    });
+    expect(all.has(2)).toBe(false);
+  });
+});
+
+describe('popular shares', () => {
+  it('ranks the articles the most people shared', async () => {
+    const made = sqliteD1(...APP_MIGRATIONS);
+    const repo = new Repository(databaseFrom(made.d1));
+    await repo.writeEdition(1, '2026-11-01', [
+      {
+        url: 'https://s.test/1',
+        title: 'Shared',
+        source: 'S',
+        favicon: '',
+        summary: '',
+        image: '',
+        published_at: '',
+        points: 0,
+      },
+    ]);
+    const [a] = await repo.editionArticles('2026-11-01');
+    made.raw
+      .prepare('INSERT INTO shares (user_id, article_id) VALUES (1, ?), (2, ?)')
+      .run(a!.id, a!.id);
+    expect(
+      (await repo.popularArticles('shares', '2000-01-01', 5)).map((r) => [
+        r.article.id,
+        r.count,
+      ]),
+    ).toEqual([[a!.id, 2]]);
+  });
+});

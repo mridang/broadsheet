@@ -140,6 +140,26 @@ async function pushToBrowsers(
   return outcome;
 }
 
+/** The notice that the issue for `edition` is ready: it opens that day's paper. */
+export function issueReadyNotice(edition: string) {
+  return {
+    title: BRAND_NAME,
+    body: `Your paper for ${edition} is ready.`,
+    tag: `issue-${edition}`,
+    url: `${BRAND_URL}/edition/${edition}`,
+  };
+}
+
+/** The notice that briefing `id`, called `title`, is ready. */
+export function briefingReadyNotice(id: number, title: string) {
+  return {
+    title: BRAND_NAME,
+    body: `${title} is ready.`,
+    tag: `briefing-${id}`,
+    url: `${BRAND_URL}/api/editions/self/briefings/${id}`,
+  };
+}
+
 /**
  * Tell every browser the person subscribed that the issue for `edition`
  * (YYYY-MM-DD) is ready. Does nothing when the VAPID keys are not set.
@@ -155,12 +175,28 @@ export function sendIssueReady(
     env,
     new OutboundRepository(db),
     userId,
-    {
-      title: BRAND_NAME,
-      body: `Your paper for ${edition} is ready.`,
-      tag: `issue-${edition}`,
-      url: `${BRAND_URL}/?date=${edition}`,
-    },
+    issueReadyNotice(edition),
+    fetcher,
+  );
+}
+
+/**
+ * Tell every browser the person subscribed that a briefing (`title`, stored
+ * as `id`) is ready. Does nothing when the VAPID keys are not set.
+ */
+export function sendBriefingReady(
+  env: PushEnvironment,
+  db: Database,
+  userId: number,
+  id: number,
+  title: string,
+  fetcher?: SafeFetcher,
+): Promise<PushOutcome> {
+  return pushToBrowsers(
+    env,
+    new OutboundRepository(db),
+    userId,
+    briefingReadyNotice(id, title),
     fetcher,
   );
 }

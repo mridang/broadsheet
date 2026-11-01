@@ -2,6 +2,12 @@ import { describe, expect, it, jest } from '@jest/globals';
 
 import {
   BRIEFING_MODEL,
+  BRIEFING_MODELS,
+  allocate,
+  composeBriefing,
+  modelFor,
+  sectionOn,
+  sectionOrder,
   MIN_BRIEFED,
   PER_SOURCE,
   briefingScore,
@@ -42,7 +48,7 @@ function article(over: Partial<Article>): Article {
 function candidate(over: Partial<Candidate> & { id?: number } = {}): Candidate {
   const { id = 1, ...rest } = over;
   return {
-    article: article({ id, source_id: id }),
+    article: article({ id, source_id: id, url: `https://example.com/${id}` }),
     liked: false,
     matches: [],
     read: false,
@@ -209,8 +215,8 @@ const picks: Choice[] = [
 describe('sectionsOf', () => {
   it('lists the sections in print order', () => {
     expect(sectionsOf([...picks].reverse())).toEqual([
-      'widely_covered',
       'top_stories',
+      'widely_covered',
     ]);
   });
 });
@@ -218,8 +224,8 @@ describe('sectionsOf', () => {
 describe('systemPrompt', () => {
   it('names the sections in order with their guidance', () => {
     const text = systemPrompt(picks, prefs);
-    expect(text).toContain('1. Widely covered (widely_covered)');
-    expect(text).toContain('2. Top stories (top_stories)');
+    expect(text).toContain('1. Top stories (top_stories)');
+    expect(text).toContain('2. Widely covered (widely_covered)');
     expect(text).not.toContain('Long reads');
   });
 
@@ -373,5 +379,248 @@ describe('parseBriefedStories', () => {
     '[{"id":1,"category":"x"}]',
   ])('reads nothing from %s', (stored) => {
     expect(parseBriefedStories(stored)).toEqual([]);
+  });
+});
+
+describe('sectionOn', () => {
+  const prefs = { briefing_sections: {}, briefing_prompts: [] };
+
+  it('keeps top stories on even when turned off', () => {
+    expect(
+      sectionOn('top_stories', {
+        ...prefs,
+        briefing_sections: { top_stories: false },
+      }),
+    ).toBe(true);
+  });
+
+  it('turns a section off', () => {
+    expect(
+      sectionOn('long_read', {
+        ...prefs,
+        briefing_sections: { long_read: false },
+      }),
+    ).toBe(false);
+    expect(sectionOn('long_read', prefs)).toBe(true);
+  });
+
+  it('turns a keyword section on only with its prompt', () => {
+    expect(sectionOn('custom_1', prefs)).toBe(false);
+    expect(
+      sectionOn('custom_1', { ...prefs, briefing_prompts: ['rust'] }),
+    ).toBe(true);
+  });
+});
+
+describe('sectionOrder', () => {
+  it('puts the reader’s order first and the rest after', () => {
+    const order = sectionOrder({
+      briefing_section_order: ['long_read', 'nope'],
+    });
+    expect(order[0]).toBe('long_read');
+    expect(order).not.toContain('nope');
+    expect(new Set(order).size).toBe(order.length);
+  });
+});
+
+describe('allocate', () => {
+  it('gives the first section most and the last the rest', () => {
+    expect([
+      ...allocate(10, ['top_stories', 'long_read', 'infrequent']),
+    ]).toEqual([
+      ['top_stories', 5],
+      ['long_read', 3],
+      ['infrequent', 2],
+    ]);
+  });
+
+  it('gives each section at least one while the budget lasts', () => {
+    expect([
+      ...allocate(2, ['top_stories', 'long_read', 'infrequent']),
+    ]).toEqual([
+      ['top_stories', 1],
+      ['long_read', 1],
+      ['infrequent', 0],
+    ]);
+  });
+
+  it('is empty with no sections', () => {
+    expect(allocate(5, []).size).toBe(0);
+  });
+});
+
+describe('selectStories with the reader’s settings', () => {
+  const many = [1, 2, 3, 4, 5, 6].map((id) =>
+    candidate({ id, article: article({ id, source_id: id, points: id }) }),
+  );
+
+  it('covers only stories from liked sources with the focus filter', () => {
+    const picks = selectStories(
+      [
+        ...many,
+        ...[7, 8, 9].map((id) => candidate({ id, source_liked: true })),
+      ],
+      { ...prefs, briefing_read_filter: 'focus' },
+    );
+    expect(ids(picks).toSorted()).toEqual([7, 8, 9]);
+  });
+
+  it('covers read stories when the reader includes them', () => {
+    const read = candidate({
+      id: 9,
+      read: true,
+      article: article({ id: 9, source_id: 9, points: 999 }),
+    });
+    expect(
+      ids(
+        selectStories([...many, read], {
+          ...prefs,
+          briefing_include_read: true,
+        }),
+      ),
+    ).toContain(9);
+  });
+
+  it('files a story under top stories when its section is off', () => {
+    const long = candidate({
+      id: 9,
+      article: article({
+        id: 9,
+        source_id: 9,
+        points: 999,
+        body_text: 'w '.repeat(900),
+      }),
+    });
+    const picks = selectStories([...many, long], {
+      ...prefs,
+      briefing_sections: { long_read: false },
+    });
+    expect(picks.find((p) => p.candidate.article.id === 9)?.category).toBe(
+      'top_stories',
+    );
+  });
+
+  it('prints the sections in the reader’s order', () => {
+    const long = candidate({
+      id: 9,
+      article: article({ id: 9, source_id: 9, body_text: 'w '.repeat(900) }),
+    });
+    const picks = selectStories([...many, long], {
+      ...prefs,
+      briefing_section_order: ['long_read', 'top_stories'],
+    });
+    expect(picks[0]?.category).toBe('long_read');
+  });
+
+  it('adds keyword stories beyond the budget, at most two a prompt', () => {
+    const found = [20, 21, 22].map((id) => candidate({ id }));
+    const picks = selectStories(
+      many,
+      { ...prefs, briefing_prompts: ['rust'] },
+      new Map([['custom_1', found]]),
+    );
+    expect(picks.filter((p) => p.category === 'custom_1')).toHaveLength(2);
+    expect(picks).toHaveLength(7);
+  });
+
+  it('leaves out a keyword section with no prompt', () => {
+    const picks = selectStories(
+      many,
+      prefs,
+      new Map([['custom_1', [candidate({ id: 20 })]]]),
+    );
+    expect(picks.some((p) => p.category === 'custom_1')).toBe(false);
+  });
+
+  it('adds up to three unread site-wide stories per section', () => {
+    const everyone = [30, 31, 32, 33].map((id) => candidate({ id }));
+    const picks = selectStories(
+      many,
+      prefs,
+      new Map([
+        ['widely_read', [...everyone, candidate({ id: 40, read: true })]],
+      ]),
+    );
+    expect(ids(picks.filter((p) => p.category === 'widely_read'))).toEqual([
+      30, 31, 32,
+    ]);
+  });
+
+  it('turns off a site-wide section', () => {
+    const picks = selectStories(
+      many,
+      { ...prefs, briefing_sections: { widely_read: false } },
+      new Map([['widely_read', [candidate({ id: 30 })]]]),
+    );
+    expect(picks.some((p) => p.category === 'widely_read')).toBe(false);
+  });
+
+  it('never repeats a story another section covers', () => {
+    const picks = selectStories(
+      many,
+      prefs,
+      new Map([['widely_read', [many[5]!]]]),
+    );
+    expect(ids(picks).filter((id) => id === 6)).toHaveLength(1);
+  });
+
+  it('takes a lower minimum when given one', () => {
+    expect(selectStories(many.slice(0, 1), prefs, new Map(), 1)).toHaveLength(
+      1,
+    );
+  });
+});
+
+describe('systemPrompt for keyword sections', () => {
+  it('asks for a heading written from the keywords', () => {
+    const text = systemPrompt(
+      [{ candidate: candidate(), category: 'custom_1' }],
+      { ...prefs, briefing_prompts: ['rust compilers'] },
+    );
+    expect(text).toContain(
+      'A heading you write from these keywords: rust compilers',
+    );
+  });
+});
+
+describe('modelFor', () => {
+  it('takes a model we offer', () => {
+    expect(modelFor(BRIEFING_MODELS[1])).toBe(BRIEFING_MODELS[1]);
+  });
+
+  it.each([null, undefined, '@cf/some/other'])('falls back for %s', (m) => {
+    expect(modelFor(m)).toBe(BRIEFING_MODEL);
+  });
+});
+
+describe('composeBriefing', () => {
+  it('writes with the reader’s model and reports the tokens used', async () => {
+    const run = jest.fn<
+      (model: string) => Promise<{ response: string; usage: object }>
+    >(async () => ({
+      response: 'Note.',
+      usage: { total_tokens: 321 },
+    }));
+    const env = { AI: { run } } as unknown as CloudflareEnv;
+    const out = await composeBriefing(
+      env,
+      picks,
+      { ...prefs, briefing_model: BRIEFING_MODELS[2] ?? null },
+      '2026-11-01',
+      noWait,
+    );
+    expect(out).toMatchObject({
+      text: 'Note.',
+      model: BRIEFING_MODELS[2],
+      tokens: 321,
+    });
+    expect(run.mock.calls[0]?.[0]).toBe(BRIEFING_MODELS[2]);
+  });
+
+  it('reports no tokens when the model does not say', async () => {
+    const { env } = envWith('Note.');
+    expect(
+      (await composeBriefing(env, picks, prefs, '2026-11-01', noWait)).tokens,
+    ).toBeNull();
   });
 });

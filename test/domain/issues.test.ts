@@ -63,6 +63,24 @@ beforeEach(async () => {
   await repo.writeEdition(sourceId, DAY, [item(1), item(2)]);
 });
 
+describe('composeLayout copies from other days', () => {
+  it('names a copy of a story from an earlier edition', async () => {
+    const other = await repo.addFeed(uid, 'https://y.test/rss', 'Y');
+    await repo.writeEdition(other!.source_id, '2026-10-31', [
+      item(1, { url: 'https://y.test/1', source: 'Y' }),
+    ]);
+    const ids = (await repo.windowArticles('2026-10-31', DAY))
+      .filter((a) => a.title === 'Story 1')
+      .map((a) => a.id);
+    await repo.writeWindowClusters('2026-10-31', DAY, [ids]);
+    const layout = await composeLayout(repo, uid, DAY, uid);
+    const story = layout.groups
+      .flatMap((g) => g.desks.flatMap((d) => d.stories))
+      .find((s) => (s.siblings ?? []).length);
+    expect(story?.also).toEqual(['Y']);
+  });
+});
+
 describe('composeLayout', () => {
   it('prints every copy of a clustered story when the reader turned clustering off', async () => {
     const other = await repo.addFeed(uid, 'https://y.test/rss', 'Y');

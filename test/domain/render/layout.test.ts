@@ -134,8 +134,20 @@ describe('collapseClusters options', () => {
 
   it('lists each folded copy with how it matched', () => {
     expect(collapseClusters([kept, twin, related]).siblings.get(1)).toEqual([
-      { id: 2, source: 'B', url: 'https://b.test/1', tier: 'title' },
-      { id: 3, source: 'C', url: 'https://example.com/a', tier: 'related' },
+      {
+        id: 2,
+        source: 'B',
+        url: 'https://b.test/1',
+        tier: 'title',
+        title: 'Mars rover lands safely on red planet',
+      },
+      {
+        id: 3,
+        source: 'C',
+        url: 'https://example.com/a',
+        tier: 'related',
+        title: 'NASA probe touches down',
+      },
     ]);
   });
 
@@ -171,6 +183,50 @@ describe('collapseClusters options', () => {
       cluster_id: 9,
     });
     expect(collapseClusters([kept, own]).dropped.has(4)).toBe(true);
+  });
+});
+
+describe('collapseClusters with copies outside the paper', () => {
+  const kept = article({
+    id: 1,
+    title: 'Mars rover lands safely on red planet',
+    cluster_id: 9,
+  });
+  const yesterday = article({
+    id: 5,
+    source_id: 5,
+    source: 'Old',
+    title: 'Mars rover lands safely on red planet',
+    cluster_id: 9,
+    summary: 'x'.repeat(600),
+    image: 'https://img.test/5.jpg',
+    published_at: '2026-10-31',
+  });
+
+  it('names a copy from another day without printing or dropping it', () => {
+    const out = collapseClusters([kept], [], undefined, {}, [yesterday]);
+    expect(out.dropped.size).toBe(0);
+    expect(out.also.get(1)).toEqual(['Old']);
+    expect(out.coverage.get(9)).toBe(2);
+  });
+
+  it('keeps the copy’s picture, date and a 500-character opening', () => {
+    const [sibling] =
+      collapseClusters([kept], [], undefined, {}, [yesterday]).siblings.get(
+        1,
+      ) ?? [];
+    expect(sibling).toMatchObject({
+      image: 'https://img.test/5.jpg',
+      published_at: '2026-10-31',
+    });
+    expect(sibling?.excerpt).toHaveLength(500);
+  });
+
+  it('never keeps an outside copy over a printed one', () => {
+    const heavy = { ...yesterday, points: 9999 };
+    expect(
+      collapseClusters([kept], [], undefined, {}, [heavy]).siblings.has(1),
+    ).toBe(true);
   });
 });
 

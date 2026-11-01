@@ -68,7 +68,7 @@ IssueStory:
         $ref: '#/IssueSibling'
 IssueSibling:
   type: object
-  required: [article_id, source, url, match]
+  required: [article_id, source, url, match, read, score]
   properties:
     article_id:
       type: string
@@ -81,6 +81,24 @@ IssueSibling:
       type: string
       enum: [title, related]
       description: '`title` when the headlines match, `related` when only the meaning does.'
+    title:
+      type: string
+    published_at:
+      type: string
+    read:
+      type: boolean
+      description: Whether the person has read this copy.
+    score:
+      type: integer
+      enum: [-2, -1, 0, 1]
+      description: The person's training on this copy; -2 is a strong dislike.
+    image:
+      type: string
+      description: With the expanded preview, the copy's picture.
+    excerpt:
+      type: string
+      maxLength: 500
+      description: With the expanded preview, the copy's opening.
 BriefedStory:
   type: object
   required: [article_id, category]

@@ -1,0 +1,120 @@
+Briefing:
+  type: object
+  required:
+    - id
+    - title
+    - slot
+    - local_date
+    - frequency
+    - period_start
+    - status
+    - sections
+    - stories
+
+  properties:
+    id:
+      type: string
+    title:
+      type: string
+      description: Such as "Morning Daily Briefing — Sunday, November 1, 2026".
+    slot:
+      type: string
+      enum: [morning, afternoon, evening, custom]
+    local_date:
+      type: string
+      format: date
+      description: The day on the person's own clock the briefing is for.
+    frequency:
+      type: string
+      enum: [daily, twice_daily, thrice_daily, weekly]
+    period_start:
+      type: string
+      format: date-time
+      description: The start of the window of stories it read.
+    status:
+      type: string
+      enum: [complete, failed]
+    summary:
+      type: string
+    error:
+      type: string
+    sections:
+      type: array
+      items:
+        $ref: './preferences.yaml#/SectionKey'
+    stories:
+      type: array
+      items:
+        $ref: '#/BriefingStory'
+    model:
+      type: string
+    tokens:
+      type: integer
+    seconds:
+      type: number
+    created_at:
+      type: string
+      format: date-time
+BriefingStory:
+  type: object
+  required: [article_id, category, read]
+  properties:
+    article_id:
+      type: string
+    category:
+      $ref: './preferences.yaml#/SectionKey'
+    title:
+      type: string
+    url:
+      type: string
+      format: uri
+    source:
+      type: string
+    read:
+      type: boolean
+BriefingPage:
+  type: object
+  required: [self, items]
+  properties:
+    self:
+      type: string
+    next:
+      type: string
+    items:
+      type: array
+      items:
+        $ref: '#/Briefing'
+BriefingAudit:
+  type: object
+  required: [id, user_id, title, status, story_count]
+  properties:
+    id:
+      type: string
+    user_id:
+      type: string
+    email:
+      type: string
+    title:
+      type: string
+    status:
+      type: string
+      enum: [complete, failed]
+    summary:
+      type: string
+    story_count:
+      type: integer
+    created_at:
+      type: string
+      format: date-time
+BriefingAuditPage:
+  type: object
+  required: [self, items]
+  properties:
+    self:
+      type: string
+    next:
+      type: string
+    items:
+      type: array
+      items:
+        $ref: '#/BriefingAudit'

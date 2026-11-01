@@ -13,12 +13,21 @@ import {
   type WorkflowStep,
 } from 'cloudflare:workers';
 
+import {
+  dueSlots,
+  writeScheduledBriefing,
+  type Slot,
+} from '@/domain/briefings';
 import { clusterEdition } from '@/domain/clustering';
 import { databaseFrom } from '@/domain/db/database';
 import { publishEditionIssue, publishIssue } from '@/domain/issues';
 import { NotificationRepository } from '@/domain/notifications';
-import { notifyNewStories, sendIssueReady } from '@/domain/notify';
-import { Repository } from '@/domain/repository';
+import {
+  notifyNewStories,
+  sendBriefingReady,
+  sendIssueReady,
+} from '@/domain/notify';
+import { DEFAULT_PREFERENCES, Repository } from '@/domain/repository';
 import {
   FETCH_FAILED,
   backfillRecent,
@@ -210,6 +219,102 @@ export class DailyScrape extends WorkflowEntrypoint<
   }
 }
 
+/** One briefing that is due: whose, which slot, and the reader's local date. */
+export interface DueBriefing {
+  readonly user: number;
+  readonly slot: Slot;
+  readonly date: string;
+}
+
+/**
+ * The briefings due at `at` that are not written yet: every reader's slots
+ * (by their preferences, the defaults for those who changed none) whose time
+ * has come on their own clock.
+ */
+export async function dueBriefings(
+  repo: Repository,
+  at: Date,
+): Promise<DueBriefing[]> {
+  const [readers, prefs] = await Promise.all([
+    repo.readerIds(),
+    repo.allPreferences(),
+  ]);
+  const due: DueBriefing[] = [];
+  for (const user of readers) {
+    for (const { slot, date } of dueSlots(
+      prefs.get(user) ?? DEFAULT_PREFERENCES,
+      at,
+    )) {
+      if (!(await repo.findBriefing(user, slot, date))) {
+        due.push({ user, slot, date });
+      }
+    }
+  }
+  return due;
+}
+
+/**
+ * Writing the briefings that came due, as a Workflow: each as its own
+ * retried step (so one failing model call neither holds up nor reruns the
+ * others), skipping one another run wrote meanwhile, and pushing a notice to
+ * the reader's browsers when a new one is ready.
+ */
+export class BriefingRun extends WorkflowEntrypoint<CloudflareEnv> {
+  override async run(
+    event: Readonly<WorkflowEvent<{ due: DueBriefing[]; at: string }>>,
+    step: WorkflowStep,
+  ): Promise<{ due: number; written: number }> {
+    const db = databaseFrom(this.env.DB);
+    const at = new Date(event.payload.at);
+    let written = 0;
+    for (const { user, slot, date } of event.payload.due) {
+      try {
+        const done = await step.do(
+          `brief user ${user} ${slot} ${date}`,
+          AI_STEP,
+          async () => {
+            if (await new Repository(db).findBriefing(user, slot, date)) {
+              return null;
+            }
+            const { briefing } = await writeScheduledBriefing(
+              db,
+              this.env,
+              user,
+              slot,
+              date,
+              at,
+            );
+            return briefing && briefing.status === 'complete'
+              ? { id: briefing.id, title: briefing.title }
+              : null;
+          },
+        );
+        if (!done) continue;
+        written++;
+        await step.do(`notify user ${user} of briefing ${done.id}`, () =>
+          sendBriefingReady(this.env, db, user, done.id, done.title).then(
+            () => null,
+          ),
+        );
+      } catch (error) {
+        logError({
+          event: 'briefing.failed',
+          user,
+          slot,
+          date,
+          error: errorMessage(error),
+        });
+      }
+    }
+    logInfo({
+      event: 'briefings.completed',
+      due: event.payload.due.length,
+      written,
+    });
+    return { due: event.payload.due.length, written };
+  }
+}
+
 /**
  * The handlers this app adds to the Worker, besides `fetch`.
  *
@@ -218,6 +323,20 @@ export class DailyScrape extends WorkflowEntrypoint<
  * which also clusters the edition, backfills missing recent days for the HN
  * feeds from real historical HN data (Algolia) and lays out the issues.
  */
+/** Start a run that writes the briefings due at `at`, if any are. */
+async function startBriefings(env: CloudflareEnv, at: Date): Promise<void> {
+  try {
+    const due = await dueBriefings(new Repository(databaseFrom(env.DB)), at);
+    if (!due.length) return;
+    const run = await env.BRIEFINGS.create({
+      params: { due, at: at.toISOString() },
+    });
+    logInfo({ event: 'briefings.started', run: run.id, due: due.length });
+  } catch (error) {
+    logError({ event: 'briefings.failed', error: errorMessage(error) });
+  }
+}
+
 const extraHandlers: Partial<ExportedHandler<CloudflareEnv>> = {
   async scheduled(event, env) {
     try {
@@ -227,6 +346,7 @@ const extraHandlers: Partial<ExportedHandler<CloudflareEnv>> = {
     } catch (error) {
       logError({ event: 'scrape.failed', error: errorMessage(error) });
     }
+    await startBriefings(env, new Date(event.scheduledTime));
   },
 };
 

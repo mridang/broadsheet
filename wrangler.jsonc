@@ -137,10 +137,17 @@
       "binding": "DAILY_SCRAPE",
       "class_name": "DailyScrape",
     },
+    // Writes the briefings that came due on each reader's own clock.
+    {
+      "name": "broadsheet-briefings",
+      "binding": "BRIEFINGS",
+      "class_name": "BriefingRun",
+    },
   ],
   "triggers": {
-    // Every five minutes: fetch the sources that are due; the 06:00 UTC run
-    // also lays out the day's paper (src/lib/core/worker-extras.ts).
+    // Every five minutes: fetch the sources that are due (the 06:00 UTC run
+    // also lays out the day's paper) and write the briefings that came due on
+    // some reader's clock (src/lib/core/worker-extras.ts).
     "crons": ["*/5 * * * *"],
   },
   "vars": {

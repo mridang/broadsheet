@@ -595,6 +595,21 @@ export const preferences = sqliteTable('preferences', {
   /** Days after which stories count as read when no feed or section says; 0 never. */
   auto_mark_read_days: integer('auto_mark_read_days').notNull().default(0),
   updated_at: text('updated_at').default(sql`(datetime('now'))`),
+  // Migration 0027: the briefing's schedule, sources, model and sections,
+  // and how a story's copies show.
+  briefing_frequency: text('briefing_frequency').notNull().default('daily'),
+  briefing_time: text('briefing_time').notNull().default('morning'),
+  briefing_day: text('briefing_day').notNull().default('sun'),
+  timezone: text('timezone').notNull().default('UTC'),
+  briefing_sources: text('briefing_sources').notNull().default('all'),
+  briefing_include_read: integer('briefing_include_read').notNull().default(0),
+  briefing_model: text('briefing_model'),
+  briefing_sections: text('briefing_sections'),
+  briefing_section_order: text('briefing_section_order'),
+  briefing_prompts: text('briefing_prompts'),
+  cluster_preview_style: text('cluster_preview_style')
+    .notNull()
+    .default('single_line'),
 });
 
 /**
@@ -650,4 +665,36 @@ export const rivers = sqliteTable(
     created_at: text('created_at').default(sql`(datetime('now'))`),
   },
   (table) => [unique().on(table.user_id, table.side, table.position)],
+);
+
+/**
+ * A briefing written for a person (migration 0027): one per slot of their
+ * day (`morning`, `afternoon`, `evening`, or `custom` at their own time) and
+ * local date. `stories` is a JSON array of {id, category}; `sections` the
+ * JSON array of section keys it has; `status` is `complete` or `failed`.
+ */
+export const briefings = sqliteTable(
+  'briefings',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    user_id: integer('user_id').notNull(),
+    slot: text('slot').notNull(),
+    local_date: text('local_date').notNull(),
+    frequency: text('frequency').notNull(),
+    period_start: text('period_start').notNull(),
+    title: text('title').notNull(),
+    summary: text('summary'),
+    stories: text('stories').notNull().default('[]'),
+    sections: text('sections').notNull().default('[]'),
+    status: text('status').notNull(),
+    error: text('error'),
+    model: text('model'),
+    tokens: integer('tokens'),
+    seconds: real('seconds'),
+    created_at: text('created_at').default(sql`(datetime('now'))`),
+  },
+  (table) => [
+    unique().on(table.user_id, table.slot, table.local_date),
+    index('idx_briefings_user').on(table.user_id, table.created_at),
+  ],
 );

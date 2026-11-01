@@ -8,6 +8,9 @@ Preferences:
     - intelligence
     - mark_read_on_open
     - auto_mark_read_days
+    - cluster_preview_style
+    - timezone
+    - briefing
   properties:
     story_clustering:
       type: boolean
@@ -19,6 +22,13 @@ Preferences:
     cluster_mark_read:
       type: boolean
       description: Opening one copy of a story marks its other copies read.
+    cluster_preview_style:
+      type: string
+      enum: [single_line, expanded]
+      description: '`expanded` shows each copy with its picture and opening.'
+    timezone:
+      type: string
+      description: The person's IANA time zone, whose clock briefings keep.
     briefing:
       $ref: '#/BriefingPreferences'
     intelligence:
@@ -37,7 +47,20 @@ Intelligence:
   description: How much of the paper training lets through, as NewsBlur's intelligence levels. Focus shows only liked stories, unread all but disliked ones, all every story with disliked ones last.
 BriefingPreferences:
   type: object
-  required: [enabled, story_count, length, style, read_filter]
+  required:
+    - enabled
+    - story_count
+    - length
+    - style
+    - read_filter
+    - frequency
+    - time
+    - day
+    - sources
+    - include_read
+    - sections
+    - section_order
+    - prompts
   properties:
     enabled:
       type: boolean
@@ -55,6 +78,67 @@ BriefingPreferences:
       type: string
       enum: [unread, focus]
       description: '`focus` covers only stories the person trained the paper to like.'
+    frequency:
+      type: string
+      enum: [daily, twice_daily, thrice_daily, weekly]
+    time:
+      type: string
+      description: '`auto`, `morning` (08:30), `afternoon` (12:30), `evening` (17:00), or a time written HH:MM.'
+      pattern: '^(auto|morning|afternoon|evening|([01][0-9]|2[0-3]):[0-5][0-9])$'
+    day:
+      type: string
+      enum: [sun, mon, tue, wed, thu, fri, sat]
+      description: The weekday a weekly briefing comes on.
+    sources:
+      type: string
+      pattern: '^(all|section:[1-9][0-9]{0,14})$'
+      description: "`all`, or `section:{id}` for one of the person's sections and those nested in it."
+    include_read:
+      type: boolean
+      description: Cover stories the person already read.
+    model:
+      type: string
+      description: The Workers AI model that writes the note; absent for the server's default.
+      enum:
+        - '@cf/meta/llama-3.1-8b-instruct-fast'
+        - '@cf/meta/llama-3.3-70b-instruct-fp8-fast'
+        - '@cf/meta/llama-4-scout-17b-16e-instruct'
+        - '@cf/mistralai/mistral-small-3.1-24b-instruct'
+        - '@cf/google/gemma-3-12b-it'
+    sections:
+      type: object
+      description: Each section on or off. Top stories is always on; a keyword section is on only with its prompt.
+      additionalProperties:
+        type: boolean
+    section_order:
+      type: array
+      items:
+        $ref: '#/SectionKey'
+    prompts:
+      type: array
+      maxItems: 5
+      description: Keyword prompts, one per section of the person's own (`custom_1` to `custom_5`).
+      items:
+        type: string
+        maxLength: 500
+SectionKey:
+  type: string
+  enum:
+    - widely_covered
+    - infrequent
+    - follow_up
+    - classifier_match
+    - long_read
+    - top_stories
+    - widely_read
+    - long_reads
+    - good_reads
+    - global_shared
+    - custom_1
+    - custom_2
+    - custom_3
+    - custom_4
+    - custom_5
 PreferenceChanges:
   type: object
   additionalProperties: false
@@ -74,6 +158,11 @@ PreferenceChanges:
       enum: [title, related]
     cluster_mark_read:
       type: boolean
+    cluster_preview_style:
+      type: string
+      enum: [single_line, expanded]
+    timezone:
+      type: string
     briefing:
       type: object
       additionalProperties: false
@@ -92,3 +181,34 @@ PreferenceChanges:
         read_filter:
           type: string
           enum: [unread, focus]
+        frequency:
+          type: string
+          enum: [daily, twice_daily, thrice_daily, weekly]
+        time:
+          type: string
+          pattern: '^(auto|morning|afternoon|evening|([01][0-9]|2[0-3]):[0-5][0-9])$'
+        day:
+          type: string
+          enum: [sun, mon, tue, wed, thu, fri, sat]
+        sources:
+          type: string
+          pattern: '^(all|section:[1-9][0-9]{0,14})$'
+        include_read:
+          type: boolean
+        model:
+          type: [string, 'null']
+        sections:
+          type: object
+          additionalProperties:
+            type: boolean
+        section_order:
+          type: array
+          uniqueItems: true
+          items:
+            $ref: '#/SectionKey'
+        prompts:
+          type: array
+          maxItems: 5
+          items:
+            type: string
+            maxLength: 500
