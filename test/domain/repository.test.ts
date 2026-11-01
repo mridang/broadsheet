@@ -947,3 +947,25 @@ describe('removeSection and custom editions', () => {
     ]);
   });
 });
+
+describe('listEditions', () => {
+  it('leaves out the days only a muted feed has', async () => {
+    const repo = new Repository(db);
+    const loud = (await addFeed(db, 1, 'https://a.test/loud'))!;
+    const quiet = (await addFeed(db, 1, 'https://a.test/quiet'))!;
+    const item = {
+      url: 'https://x/1',
+      title: 'One',
+      source: '',
+      favicon: '',
+      summary: '',
+      image: '',
+      published_at: '',
+      points: 0,
+    };
+    await repo.writeEdition(loud.source_id, '2026-10-20', [item]);
+    await repo.writeEdition(quiet.source_id, '2026-10-21', [item]);
+    await repo.updateFeed(1, quiet.id, { muted: true });
+    expect(await repo.listEditions(1)).toEqual(['2026-10-20']);
+  });
+});

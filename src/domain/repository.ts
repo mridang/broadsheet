@@ -686,13 +686,16 @@ export class Repository {
       .orderBy(desc(articles.published_at), desc(articles.id));
   }
 
-  /** Distinct edition dates available for a user's feeds, newest first. */
+  /**
+   * Distinct edition dates available for a user's feeds, newest first. Muted
+   * feeds are out of the paper, so their days do not count.
+   */
   async listEditions(userId: number): Promise<string[]> {
     const rows = await this.#db
       .selectDistinct({ edition: articles.edition })
       .from(articles)
       .innerJoin(subscriptions, eq(articles.source_id, subscriptions.source_id))
-      .where(eq(subscriptions.user_id, userId))
+      .where(and(eq(subscriptions.user_id, userId), eq(subscriptions.muted, 0)))
       .orderBy(desc(articles.edition));
     return rows.map((r) => r.edition).filter((e): e is string => !!e);
   }
