@@ -11,6 +11,7 @@ import { WriteBriefing } from '@/app/(site)/briefings/_components/write-briefing
 import { buttonClass } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
+import { countOf } from '@/lib/intl';
 
 export const dynamic = 'force-dynamic';
 
@@ -66,9 +67,7 @@ export default async function BriefingsPage({
                   <span aria-hidden="true">·</span>
                   <span className="capitalize">{b.slot}</span>
                   <span aria-hidden="true">·</span>
-                  <span>
-                    {count} {count === 1 ? 'story' : 'stories'}
-                  </span>
+                  <span>{countOf(count, 'story', 'stories')}</span>
                   <Badge tone={failed ? 'danger' : 'neutral'} className="ml-1">
                     {failed ? 'Failed' : 'Written'}
                   </Badge>

@@ -77,6 +77,7 @@ import type {
   ScrapedItem,
 } from '@/lib/scraping';
 import type { Intelligence } from '@/domain/render/tiers';
+import { compareText } from '@/lib/intl';
 
 /** A signed-in person. */
 export type User = typeof users.$inferSelect;
@@ -3722,7 +3723,7 @@ export class Repository {
     }
     return [...counts]
       .map(([tag, count]) => ({ tag, count }))
-      .sort((a, b) => a.tag.localeCompare(b.tag));
+      .sort((a, b) => compareText(a.tag, b.tag));
   }
 
   /**

@@ -4,6 +4,7 @@ import { ago, hostOf } from '@/domain/render/tiers';
 import { pictureSrc } from '@/domain/render/pictures';
 import { imageSigner } from '@/lib/cloudflare/images/server';
 import { cn } from '@/components/ui/cn';
+import { countOf } from '@/lib/intl';
 
 /** The width an expanded preview's picture is asked for, in pixels. */
 const PREVIEW_WIDTH = 160;
@@ -18,9 +19,7 @@ export function ClusterBadge({
   const n = siblings.length;
   return (
     <span title={`Also told by ${siblings.map((s) => s.source).join(', ')}`}>
-      <Badge tone="accent">
-        +{n} {n === 1 ? 'source' : 'sources'}
-      </Badge>
+      <Badge tone="accent">+{countOf(n, 'source')}</Badge>
     </span>
   );
 }

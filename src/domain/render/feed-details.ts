@@ -1,3 +1,4 @@
+import { countOf } from '@/lib/intl';
 /**
  * @packageDocumentation
  *
@@ -64,7 +65,7 @@ export function updateFrequency(minutes: number): string {
   if (minutes === 10080) return 'weekly';
   if (minutes % 1440 === 0) return `every ${minutes / 1440} days`;
   if (minutes % 60 === 0) return `every ${minutes / 60} hours`;
-  return `every ${minutes} minute${minutes === 1 ? '' : 's'}`;
+  return `every ${countOf(minutes, 'minute')}`;
 }
 
 /** The name of a feed format as people know it. */

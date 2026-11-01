@@ -9,6 +9,7 @@ import { buttonClass } from '@/components/ui/button';
 import { List } from '@/components/ui/card';
 import { ErrorText } from '@/components/ui/notice';
 import { PageSection } from '@/components/ui/page-header';
+import { countOf } from '@/lib/intl';
 
 /** A source trending across the app, as the feed manager lists it. */
 export interface TrendingFeed {
@@ -28,7 +29,7 @@ function TrendingRow({ feed }: Readonly<{ feed: TrendingFeed }>): ReactElement {
         </strong>
         <div className="truncate text-xs text-subtle">{feed.url}</div>
         <div className="mt-1 text-xs text-muted">
-          Read by {feed.readers} reader{feed.readers === 1 ? '' : 's'} this week
+          Read by {countOf(feed.readers, 'reader')} this week
         </div>
         {error ? <ErrorText>{error}</ErrorText> : null}
       </div>

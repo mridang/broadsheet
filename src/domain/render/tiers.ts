@@ -11,7 +11,7 @@
  */
 import type { Article } from '@/domain/repository';
 import { regexProblem } from '@/domain/rules';
-import { relativeTime, truncate } from '@/lib/intl';
+import { foldText, relativeTime, truncate } from '@/lib/intl';
 
 export type Tier = 'lead' | 'feature' | 'standard' | 'brief';
 
@@ -97,8 +97,7 @@ export function shows(v: number, level: Intelligence = 'unread'): boolean {
   return v >= FLOOR[level];
 }
 
-const same = (a: string, b: string): boolean =>
-  a.localeCompare(b, undefined, { sensitivity: 'base' }) === 0;
+const same = (a: string, b: string): boolean => foldText(a) === foldText(b);
 
 const has = (text: string | null | undefined, phrase: string): boolean =>
   (text ?? '').toLowerCase().includes(phrase.toLowerCase());

@@ -40,9 +40,9 @@ export function FeedHealth({
       {statistics.last_fetched_at
         ? `Last fetched ${statistics.last_fetched_at} UTC`
         : 'Not fetched yet'}
-      {` · ${stories} ${stories === 1 ? 'story' : 'stories'} in the last 7 editions`}
+      {` · ${countOf(stories, 'story', 'stories')} in the last 7 editions`}
       {` · ${statistics.average_stories_per_month} a month`}
-      {` · ${statistics.subscribers} ${statistics.subscribers === 1 ? 'reader' : 'readers'}`}
+      {` · ${countOf(statistics.subscribers, 'reader')}`}
       {statistics.update_minutes !== null
         ? ` · asks for ${countOf(statistics.update_minutes, 'minute')} between fetches`
         : ''}

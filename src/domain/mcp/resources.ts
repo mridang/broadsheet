@@ -12,6 +12,7 @@ import { sectionResource } from '@/domain/api/section-resource';
 import { Repository } from '@/domain/repository';
 import { ToolFailure, type McpResource } from '@/lib/mcp';
 import type { ToolContext } from './tools';
+import { compareText } from '@/lib/intl';
 
 /** The URI of one feed. */
 const FEED_URI = /^broadsheet:\/\/feeds\/([1-9]\d{0,15})$/;
@@ -48,7 +49,7 @@ export const RESOURCES: readonly McpResource<ToolContext>[] = [
       }
       return {
         tags: [...counts]
-          .sort(([a], [b]) => a.localeCompare(b))
+          .sort(([a], [b]) => compareText(a, b))
           .map(([tag, count]) => ({ tag, count })),
       };
     },

@@ -9,6 +9,7 @@ import { buttonClass } from '@/components/ui/button';
 import { List } from '@/components/ui/card';
 import { ErrorText } from '@/components/ui/notice';
 import { PageSection } from '@/components/ui/page-header';
+import { countOf } from '@/lib/intl';
 
 /** A source to suggest, as the feed manager lists it. */
 export interface SuggestedFeed {
@@ -30,8 +31,7 @@ function SuggestionRow({
         </strong>
         <div className="truncate text-xs text-subtle">{feed.url}</div>
         <div className="mt-1 text-xs text-muted">
-          Followed by {feed.followers} reader{feed.followers === 1 ? '' : 's'}{' '}
-          like you
+          Followed by {countOf(feed.followers, 'reader')} like you
         </div>
         {error ? <ErrorText>{error}</ErrorText> : null}
       </div>

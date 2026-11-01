@@ -1,4 +1,5 @@
 import type { TrendingArticle } from '@/domain/repository';
+import { countOf } from '@/lib/intl';
 
 /**
  * The "Most read" column: the stories from the reader's sources that most
@@ -34,7 +35,7 @@ export function MostRead({
                 {article.title ?? article.url}
               </a>{' '}
               <span className="block text-xs text-subtle">
-                {count} {count === 1 ? 'reader' : 'readers'}
+                {countOf(count, 'reader')}
               </span>
             </div>
           </li>

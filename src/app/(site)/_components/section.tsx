@@ -12,6 +12,7 @@ import {
 import { MarkFeedReadButton } from '@/app/(site)/_components/mark-feed-read-button';
 import { StoryCard } from '@/app/(site)/_components/story-card';
 import { BriefBlock } from '@/app/(site)/_components/brief-block';
+import { countOf } from '@/lib/intl';
 
 /** What the reader has done, which shapes their desks. */
 export interface Personal {
@@ -90,8 +91,7 @@ export function Section({
         title={desk.title}
         description={
           <span className="text-subtle">
-            {hostOf(desk.url)} · {stories.length}{' '}
-            {stories.length === 1 ? 'item' : 'items'}
+            {hostOf(desk.url)} · {countOf(stories.length, 'item')}
           </span>
         }
         actions={

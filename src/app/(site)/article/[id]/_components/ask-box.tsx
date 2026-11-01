@@ -22,6 +22,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { CARD, CHECK_LABEL, SMALL_FIELD } from '@/components/ui/field';
 import { ErrorText } from '@/components/ui/notice';
+import { countOf } from '@/lib/intl';
 
 /**
  * "Ask about this story": one-click preset questions and a box for the
@@ -144,7 +145,7 @@ export function AskBox({ id }: Readonly<{ id: number }>): ReactElement {
       {error ? <ErrorText>{error}</ErrorText> : null}
       {remaining !== undefined ? (
         <p className="mt-3 text-sm text-muted">
-          {remaining} question{remaining === 1 ? '' : 's'} left today.
+          {countOf(remaining, 'question')} left today.
         </p>
       ) : null}
     </section>
