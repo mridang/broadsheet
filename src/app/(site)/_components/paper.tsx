@@ -50,8 +50,8 @@ export function Paper({
       ))}
       <footer className="mt-16 border-t border-line pt-6 text-xs text-subtle">
         <p>
-          The Hacker Times — auto-generated from your feeds, refreshed daily.
-          Every day is archived.
+          Broadsheet — auto-generated from your feeds, refreshed daily. Every
+          day is archived.
         </p>
         <p className="mt-1 print:hidden">
           Generative layout: weight → tier → copyfit, with an In Brief list for

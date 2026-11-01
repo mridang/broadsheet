@@ -37,7 +37,7 @@
     "url": "https://github.com/mridang"
   },
   "license": "Apache-2.0",
-  "description": "The Hacker Times: a personalised daily newspaper that turns web feeds into a print-style front page, on Cloudflare Workers and D1.",
+  "description": "Broadsheet: a personalised daily newspaper that turns web feeds into a print-style front page, on Cloudflare Workers and D1.",
   "private": true,
   "engines": {
     "node": ">=24.0.0"

@@ -3,7 +3,7 @@ import type { ReactElement, ReactNode } from 'react';
 import { BRAND_NAME } from '@/app/_brand';
 import type { User } from '@/domain/repository';
 
-import { BrandMark } from '@/components/site/logo';
+import { Wordmark } from '@/components/site/logo';
 import { SignOutButton } from '@/components/site/sign-out-button';
 import { ButtonLink, TextLink } from '@/components/ui/button';
 import { fieldClass } from '@/components/ui/field';
@@ -36,12 +36,8 @@ export function AppHeader({
             {menu}
           </div>
         </details>
-        <a
-          href="/"
-          className="focus-ring-wide flex items-center gap-2 rounded-control text-base font-semibold tracking-tight text-ink"
-        >
-          <BrandMark className="size-5" />
-          {BRAND_NAME}
+        <a href="/" className="focus-ring-wide rounded-control">
+          <Wordmark name={BRAND_NAME} />
         </a>
         <form
           action="/search"

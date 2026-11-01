@@ -19,7 +19,7 @@ import {
 export const metadata: Metadata = pageMetadata({
   title: 'Privacy',
   description:
-    'What The Hacker Times keeps about you, what it asks Google for, and what it fetches on your behalf.',
+    'What Broadsheet keeps about you, what it asks Google for, and what it fetches on your behalf.',
   path: '/privacy',
   index: true,
 });
@@ -38,10 +38,10 @@ export default function PrivacyPage(): ReactElement {
         updated={PRIVACY_LAST_UPDATED}
       >
         <p>
-          The Hacker Times is a daily newspaper made from the feeds you follow.
-          Anyone can read the public Hacker News edition without signing in;
-          signing in lets you choose your own feeds. This policy explains what
-          it accesses and keeps.
+          Broadsheet is a daily newspaper made from the feeds you follow. Anyone
+          can read the public Hacker News edition without signing in; signing in
+          lets you choose your own feeds. This policy explains what it accesses
+          and keeps.
         </p>
 
         <LegalSection title="What we access">
@@ -86,8 +86,8 @@ export default function PrivacyPage(): ReactElement {
             their pictures and summaries. Pictures, and the small icons of each
             source (from Google’s favicon service), are loaded through this site
             and resized by Cloudflare, so the sites they come from see a request
-            from The Hacker Times rather than from your browser. Only addresses
-            on the public internet are fetched.
+            from Broadsheet rather than from your browser. Only addresses on the
+            public internet are fetched.
           </p>
         </LegalSection>
 
@@ -142,7 +142,7 @@ export default function PrivacyPage(): ReactElement {
             being fetched for you. To delete your account, email us from the
             address you sign in with and we will remove your sign-in record,
             your feeds and their editions. To also withdraw Google’s permission,
-            remove The Hacker Times at{' '}
+            remove Broadsheet at{' '}
             <LegalLink href="https://myaccount.google.com/permissions">
               your Google account permissions
             </LegalLink>

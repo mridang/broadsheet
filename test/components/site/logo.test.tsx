@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { BrandMark } from '@/components/site/logo';
+import { BrandMark, Wordmark } from '@/components/site/logo';
 import { classOf, html } from '../render';
 
 describe('BrandMark', () => {
@@ -9,5 +9,13 @@ describe('BrandMark', () => {
     expect(out).toContain('aria-hidden="true"');
     expect(classOf(out, 'svg')).toContain('text-brand');
     expect(classOf(out, 'svg')).toContain('size-14');
+  });
+});
+
+describe('Wordmark', () => {
+  it('sets the name beside the mark', () => {
+    const out = html(<Wordmark name="Broadsheet" />);
+    expect(out).toContain('<svg');
+    expect(out).toMatch(/font-serif[^>]*>Broadsheet</);
   });
 });

@@ -1,1 +1,1 @@
-The Hacker Times, a personalised daily newspaper. All the News That's Fit to Upvote.
+Broadsheet, a personalised daily newspaper made from the feeds you follow.

@@ -17,7 +17,7 @@ describe('TermsPage', () => {
 
   it('has a section for each part of the terms', () => {
     for (const heading of [
-      'Using The Hacker Times',
+      'Using Broadsheet',
       'The articles',
       'The service',
       'Open source',
@@ -52,9 +52,7 @@ describe('TermsPage', () => {
   });
 
   it('links back home', () => {
-    expect(out).toMatch(
-      /<a [^>]*href="\/"[^>]*>.*Back to The Hacker Times<\/a>/,
-    );
+    expect(out).toMatch(/<a [^>]*href="\/"[^>]*>.*Back to Broadsheet<\/a>/);
   });
 });
 
@@ -67,6 +65,6 @@ describe('the terms page’s metadata', () => {
   it('has its own social card', () => {
     expect(metadata.openGraph?.url).toBe('/terms');
     expect(metadata.title).toBe('Terms');
-    expect(metadata.twitter?.title).toBe('Terms · The Hacker Times');
+    expect(metadata.twitter?.title).toBe('Terms · Broadsheet');
   });
 });

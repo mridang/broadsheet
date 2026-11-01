@@ -1,8 +1,8 @@
-# The Hacker Times
+# Broadsheet
 
-> The Hacker Times is a personalised daily newspaper, generated fresh from the feeds a reader follows. Signed-out visitors read a Hacker News edition; every day's edition is kept in an archive.
+> Broadsheet is a personalised daily newspaper, generated fresh from the feeds a reader follows. Signed-out visitors read a Hacker News edition; every day's edition is kept in an archive.
 
-The Hacker Times is a web app at https://broadsheet.apps.mrida.ng. Only the front page is public; feeds and accounts are private to the signed-in reader.
+Broadsheet is a web app at https://broadsheet.apps.mrida.ng. Only the front page is public; feeds and accounts are private to the signed-in reader.
 
 ## Public pages
 

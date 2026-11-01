@@ -1,4 +1,4 @@
-The Hacker Times security policy
+Broadsheet security policy
 
 Report a vulnerability in https://broadsheet.apps.mrida.ng by email to
 mridang.agarwalla@gmail.com. Please include what you found, the address or

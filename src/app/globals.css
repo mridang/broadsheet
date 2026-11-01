@@ -20,6 +20,7 @@
   --color-on-highlight: #fff;
   --color-danger: var(--danger);
   --color-success: var(--success);
+  --color-warning: var(--warning);
 }
 
 @theme inline {
@@ -214,31 +215,36 @@ body {
  * 4. This app's styles: they differ per app. Sections 2 and 3 never do.
  * ======================================================================== */
 
-/* The palette: a warm off-white in light, a near-black in dark, as the device
- * asks. */
+/* The palette: warm newsprint and a deep, warm ink, with one editorial red.
+ * Light is a newspaper on a table; dark is the same paper at night, the red
+ * lifted so it keeps its contrast. Every text colour here (and the muted,
+ * subtle and field mixes in section 2) meets WCAG AA on both paper and
+ * surface; white on the highlight is over 6.5:1 in both. */
 :root {
-  --paper: #f8f7f5;
-  --ink: #1b1b1f;
-  --on-ink: #fff;
-  --surface: #fff;
-  --brand: #990f3d;
-  --accent: #990f3d;
-  --highlight: #990f3d;
-  --danger: #b42318;
-  --success: #067647;
+  --paper: #f6f1e7;
+  --ink: #1c1a17;
+  --on-ink: #fffdf8;
+  --surface: #fffdf8;
+  --brand: #a61e1e;
+  --accent: #a61e1e;
+  --highlight: #a61e1e;
+  --danger: #b3261e;
+  --warning: #8a5300;
+  --success: #1f6b3a;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --paper: #131316;
-    --ink: #ececee;
-    --on-ink: #131316;
-    --surface: #1c1c21;
-    --brand: #f0668e;
-    --accent: #f48fb1;
-    --highlight: #c2185b;
+    --paper: #141210;
+    --ink: #ede6d9;
+    --on-ink: #141210;
+    --surface: #1e1b18;
+    --brand: #e5534b;
+    --accent: #f07a70;
+    --highlight: #b3261e;
     --danger: #f97066;
-    --success: #47cd89;
+    --warning: #f2b54a;
+    --success: #57c785;
     color-scheme: dark;
   }
 }

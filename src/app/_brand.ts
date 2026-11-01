@@ -24,7 +24,7 @@ import {
 export const BRAND_NAME = SITE_TITLE;
 
 /** The name where space is short: under the home-screen icon, and as the installed app's short name. */
-export const BRAND_SHORT_NAME = 'Hacker Times';
+export const BRAND_SHORT_NAME = 'Broadsheet';
 
 /** The small descriptor under the wordmark and on the social card. */
 export const BRAND_TAGLINE = 'A personalised daily newspaper';
@@ -44,21 +44,14 @@ export const SECURITY_CONTACT = 'mailto:mridang.agarwalla@gmail.com';
 /** The disclosure policy that `security.txt` points researchers to (`public/security-policy.txt`). */
 export const SECURITY_POLICY_URL = `${SITE_URL}/security-policy.txt`;
 
-/**
- * The crimson of the masthead in the default theme: the browser's own bar and
- * the installed app's title bar. (The theme switcher changes the bar's colour
- * for the Economist theme while the page is open; see `theme-script.tsx`.)
- */
-export const THEME_COLOR = '#990F3D';
+/** The editorial red of the mark: the browser's own bar and the installed app's title bar. */
+export const THEME_COLOR = '#A61E1E';
 
 /** The newsprint colour of the page, shown while the installed app starts. */
-export const BACKGROUND_COLOR = '#FFF1E5';
+export const BACKGROUND_COLOR = '#F6F1E7';
 
-/**
- * Which colour schemes the app is drawn in. Both newspaper themes are light,
- * and saying so stops Android's "auto dark" from inverting the pages.
- */
-export const COLOR_SCHEME = 'only light';
+/** Which colour schemes the app is drawn in: both, following the device. */
+export const COLOR_SCHEME = 'light dark';
 
 /**
  * Whether pages may be indexed unless they say otherwise. Only the front page

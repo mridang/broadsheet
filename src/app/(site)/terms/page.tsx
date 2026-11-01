@@ -18,7 +18,7 @@ import {
 export const metadata: Metadata = pageMetadata({
   title: 'Terms',
   description:
-    'The terms for using The Hacker Times: follow feeds you may read, and the articles stay their authors’.',
+    'The terms for using Broadsheet: follow feeds you may read, and the articles stay their authors’.',
   path: '/terms',
   index: true,
 });
@@ -36,12 +36,12 @@ export default function TermsPage(): ReactElement {
         updated={TERMS_LAST_UPDATED}
       >
         <p>
-          The Hacker Times is a free service that turns the feeds you follow
-          into a daily newspaper. By using it you agree to these terms. If you
-          don’t, please don’t use it.
+          Broadsheet is a free service that turns the feeds you follow into a
+          daily newspaper. By using it you agree to these terms. If you don’t,
+          please don’t use it.
         </p>
 
-        <LegalSection title="Using The Hacker Times">
+        <LegalSection title="Using Broadsheet">
           <ul className="space-y-2">
             <LegalItem>
               Add only feeds you are allowed to read. The paper fetches each
@@ -72,8 +72,8 @@ export default function TermsPage(): ReactElement {
 
         <LegalSection title="The service">
           <p>
-            The Hacker Times is provided as it is, without warranty of any kind.
-            It may change, be unavailable or stop at any time, and as far as the
+            Broadsheet is provided as it is, without warranty of any kind. It
+            may change, be unavailable or stop at any time, and as far as the
             law allows we are not liable for any loss from using it. We may
             remove an account that breaks these terms.
           </p>
@@ -81,9 +81,9 @@ export default function TermsPage(): ReactElement {
 
         <LegalSection title="Open source">
           <p>
-            The Hacker Times’ code is open source under the Apache 2.0 licence,
-            and is on <LegalLink href={SOURCE_URL}>GitHub</LegalLink>. That
-            licence, not these terms, covers the code.
+            Broadsheet’s code is open source under the Apache 2.0 licence, and
+            is on <LegalLink href={SOURCE_URL}>GitHub</LegalLink>. That licence,
+            not these terms, covers the code.
           </p>
         </LegalSection>
 

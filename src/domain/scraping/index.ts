@@ -45,7 +45,7 @@ import { needsSubscription, subscribeToHub } from '@/domain/websub';
 export type { ScrapedItem } from '@/lib/scraping';
 
 const UA =
-  'Mozilla/5.0 (compatible; HackerTimesBot/1.0; +https://broadsheet.apps.mrida.ng)';
+  'Mozilla/5.0 (compatible; BroadsheetBot/1.0; +https://broadsheet.apps.mrida.ng)';
 /** Sent once more after an error answer, as NewsBlur retries with a browser's agent. */
 const BROWSER_UA =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36';

@@ -60,9 +60,7 @@ describe('PrivacyPage', () => {
   });
 
   it('links back home', () => {
-    expect(out).toMatch(
-      /<a [^>]*href="\/"[^>]*>.*Back to The Hacker Times<\/a>/,
-    );
+    expect(out).toMatch(/<a [^>]*href="\/"[^>]*>.*Back to Broadsheet<\/a>/);
   });
 });
 
@@ -75,6 +73,6 @@ describe('the privacy page’s metadata', () => {
   it('has its own social card', () => {
     expect(metadata.openGraph?.url).toBe('/privacy');
     expect(metadata.title).toBe('Privacy');
-    expect(metadata.twitter?.title).toBe('Privacy · The Hacker Times');
+    expect(metadata.twitter?.title).toBe('Privacy · Broadsheet');
   });
 });

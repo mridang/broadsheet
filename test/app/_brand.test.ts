@@ -13,8 +13,8 @@ import {
 
 describe('the brand', () => {
   it('is named and placed as the site says', () => {
-    expect(BRAND_NAME).toBe('The Hacker Times');
-    expect(BRAND_SHORT_NAME).toBe('Hacker Times');
+    expect(BRAND_NAME).toBe('Broadsheet');
+    expect(BRAND_SHORT_NAME).toBe('Broadsheet');
     expect(BRAND_URL).toBe('https://broadsheet.apps.mrida.ng');
   });
 
@@ -23,7 +23,7 @@ describe('the brand', () => {
   });
 
   it('colours the browser bar the crimson of the default theme', () => {
-    expect(THEME_COLOR).toBe('#990F3D');
+    expect(THEME_COLOR).toBe('#A61E1E');
   });
 });
 

@@ -12,7 +12,7 @@ export const SITE_NAME = 'Broadsheet';
 export const SITE_URL = 'https://broadsheet.apps.mrida.ng';
 
 /** The site's default page title. */
-export const SITE_TITLE = 'The Hacker Times';
+export const SITE_TITLE = 'Broadsheet';
 /** The site's default description, for page metadata and structured data. */
 export const SITE_DESCRIPTION =
   'A personalised daily newspaper, generated fresh from the feeds you follow.';
