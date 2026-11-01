@@ -20,6 +20,8 @@ const stats = (over = {}) => ({
   stories_per_weekday: {},
   stories_per_hour: {},
   fetch_history: [],
+  next_fetch_at: null,
+  archive_count: 0,
   stories_per_day: [{ date: '2026-10-20', count: 1 }],
   ...over,
 });

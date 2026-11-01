@@ -76,6 +76,7 @@ describe('GET /api/feeds/:id/statistics', () => {
     const feed = (await repo.addFeed(7, 'https://a.test/f'))!;
     expect(await (await get(String(feed.id))).json()).toEqual({
       fail_count: 0,
+      archive_count: 0,
       subscribers: 1,
       active_subscribers: 1,
       story_count: 0,

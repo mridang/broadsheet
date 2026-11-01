@@ -456,6 +456,7 @@ export const fetchHistory = sqliteTable(
     fetched_at: text('fetched_at').default(sql`(datetime('now'))`),
     ok: integer('ok').notNull(),
     message: text('message'),
+    duration_ms: integer('duration_ms'),
   },
   (table) => [index('idx_fetch_history_source').on(table.source_id, table.id)],
 );

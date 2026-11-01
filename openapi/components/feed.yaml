@@ -103,6 +103,7 @@ FeedStatistics:
   type: object
   required:
     - fail_count
+    - archive_count
     - subscribers
     - active_subscribers
     - story_count
@@ -163,6 +164,16 @@ FeedStatistics:
       description: Stories by hour of the day (UTC) they were published.
       additionalProperties:
         type: integer
+    next_fetch_at:
+      type: string
+      format: date-time
+      description: When the feed may be fetched again after failures; absent when it is due.
+    archive_count:
+      type: integer
+      description: Stories whose full text has been kept.
+    last_load_time_ms:
+      type: integer
+      description: How long the last timed fetch took.
     fetch_history:
       type: array
       description: The latest fetches, newest first, at most 25.
@@ -177,6 +188,8 @@ FeedStatistics:
             type: boolean
           message:
             type: string
+          duration_ms:
+            type: integer
     stories_per_day:
       type: array
       description: Stories per edition day, newest first, at most 14 days.

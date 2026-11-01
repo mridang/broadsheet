@@ -99,6 +99,20 @@ describe('scrapeSource', () => {
     });
   });
 
+  it('times each fetch in the history, a failed one too', async () => {
+    serve({ 'https://a.test/f': FEED, 'https://a.test/story': PAGE });
+    await scrapeSource(db, env, { id: sourceId, url: 'https://a.test/f' });
+    serve({});
+    await refreshSource(db, env, { id: sourceId, url: 'https://a.test/f' });
+    const feed = (await new Repository(db).listFeeds(1))[0]!;
+    const history = (await new Repository(db).feedStatistics(1, feed.id))!
+      .fetch_history;
+    expect(history.map((h) => [h.ok, typeof h.duration_ms])).toEqual([
+      [false, 'number'],
+      [true, 'number'],
+    ]);
+  });
+
   it('throws when the feed cannot be fetched, recording nothing', async () => {
     serve({});
     await expect(

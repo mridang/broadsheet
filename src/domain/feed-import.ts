@@ -61,6 +61,9 @@ export async function importFeeds(
   const sites = new Set(
     followed.flatMap((f) => (f.site_url ? [comparable(f.site_url)] : [])),
   );
+  const titles = new Set(
+    followed.flatMap((f) => (f.title ? [f.title.trim().toLowerCase()] : [])),
+  );
   const rejected: { url: string; reason: string }[] = [];
   const feeds: Feed[] = [];
   let skipped = 0;
@@ -94,9 +97,11 @@ export async function importFeeds(
     }
     const address = comparable(checked.url);
     const site = comparable(entry.site_url);
+    const name = entry.title?.trim().toLowerCase() ?? '';
     if (
       addresses.has(address) ||
       (site !== '' && sites.has(site)) ||
+      (name !== '' && titles.has(name)) ||
       (await repo.getFeedByUrl(uid, checked.url))
     ) {
       skipped += 1;
@@ -109,6 +114,7 @@ export async function importFeeds(
       continue;
     }
     addresses.add(address);
+    if (name !== '') titles.add(name);
     if (site !== '') sites.add(site);
     const sectionId = await sectionFor(entry.sections ?? []);
     const changes = {

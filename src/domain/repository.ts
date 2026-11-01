@@ -112,7 +112,12 @@ export interface FeedStatistics {
     readonly fetched_at: string | null;
     readonly ok: boolean;
     readonly message: string | null;
+    readonly duration_ms: number | null;
   }[];
+  /** When the source may be fetched again; null when it is due now. */
+  readonly next_fetch_at: string | null;
+  /** Stories whose full text has been kept. */
+  readonly archive_count: number;
 }
 
 /** How many fetches of a source are remembered. */
@@ -178,6 +183,8 @@ export interface FetchOutcome {
   /** The validators of a successful answer, for the next conditional GET. */
   readonly etag?: string | null;
   readonly lastModified?: string | null;
+  /** How long the fetch took, in milliseconds. */
+  readonly durationMs?: number;
 }
 
 /** Longest a failing source is left before it is tried again: a week. */
@@ -606,7 +613,7 @@ export class Repository {
     sourceId: number,
     outcome: string | FetchOutcome = {},
   ): Promise<void> {
-    const { error, retryAfter, etag, lastModified } =
+    const { error, retryAfter, etag, lastModified, durationMs } =
       typeof outcome === 'string' ? { error: outcome } : outcome;
     // A day longer for each failure in a row before this one, up to a week,
     // or longer when the server asked for it (NewsBlur's geometric backoff on
@@ -637,6 +644,7 @@ export class Repository {
       source_id: sourceId,
       ok: error ? 0 : 1,
       message: error ?? null,
+      duration_ms: durationMs ?? null,
     });
     await this.#db.run(
       sql`DELETE FROM fetch_history WHERE source_id = ${sourceId} AND id NOT IN (SELECT id FROM fetch_history WHERE source_id = ${sourceId} ORDER BY id DESC LIMIT ${FETCH_HISTORY_LIMIT})`,
@@ -1288,6 +1296,7 @@ export class Repository {
       .select({
         total: sql<number>`count(*)`,
         recent: sql<number>`coalesce(sum(${articles.edition} >= date('now', '-30 day')), 0)`,
+        archived: sql<number>`coalesce(sum(${articles.body_text} is not null), 0)`,
       })
       .from(articles)
       .where(where());
@@ -1329,7 +1338,10 @@ export class Repository {
         fetched_at: h.fetched_at,
         ok: h.ok !== 0,
         message: h.message,
+        duration_ms: h.duration_ms,
       })),
+      next_fetch_at: source.next_fetch_at,
+      archive_count: Number(totals?.archived ?? 0),
     };
   }
 

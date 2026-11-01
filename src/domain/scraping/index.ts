@@ -259,6 +259,8 @@ export async function scrapeSource(
   edition: string = todayEdition(),
 ): Promise<ScrapeResult> {
   const repo = new Repository(db);
+  const started = Date.now();
+  const took = () => ({ durationMs: Date.now() - started });
   const fetchedToday = source.last_fetched_at?.slice(0, 10) === edition;
   let answer: FeedAnswer;
   try {
@@ -273,7 +275,7 @@ export async function scrapeSource(
   }
   if (answer.movedTo) await repo.moveSource(source.id, answer.movedTo);
   if (answer.status === 304) {
-    await repo.recordFetch(source.id);
+    await repo.recordFetch(source.id, took());
     return { articles: 0 };
   }
   if (answer.status !== 200) {
@@ -281,13 +283,17 @@ export async function scrapeSource(
     if (answer.status >= 500 && answer.retryAfter === undefined) {
       throw new Error(error);
     }
-    await repo.recordFetch(source.id, { error, retryAfter: answer.retryAfter });
+    await repo.recordFetch(source.id, {
+      error,
+      retryAfter: answer.retryAfter,
+      ...took(),
+    });
     return { articles: 0, failed: error };
   }
   const xml = answer.body;
   if (!isFeed(xml)) {
     const error = 'The address is not a feed.';
-    await repo.recordFetch(source.id, error);
+    await repo.recordFetch(source.id, { error, ...took() });
     return { articles: 0, failed: error };
   }
   const url = answer.movedTo ?? source.url;
@@ -304,6 +310,7 @@ export async function scrapeSource(
   await repo.recordFetch(source.id, {
     etag: answer.etag?.slice(0, 255) ?? null,
     lastModified: answer.lastModified,
+    ...took(),
   });
   return { articles: items.length };
 }
@@ -318,14 +325,15 @@ export async function refreshSource(
   source: Fetchable,
   edition: string = todayEdition(),
 ): Promise<{ ok: boolean; n: number }> {
+  const started = Date.now();
   try {
     const result = await scrapeSource(db, env, source, edition);
     return { ok: !result.failed, n: result.articles };
   } catch (error) {
-    await new Repository(db).recordFetch(
-      source.id,
-      error instanceof Error ? error.message : FETCH_FAILED,
-    );
+    await new Repository(db).recordFetch(source.id, {
+      error: error instanceof Error ? error.message : FETCH_FAILED,
+      durationMs: Date.now() - started,
+    });
     return { ok: false, n: 0 };
   }
 }

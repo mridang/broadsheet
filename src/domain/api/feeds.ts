@@ -458,12 +458,20 @@ export function statisticsResource(
     stories_per_month: stats.stories_per_month,
     stories_per_weekday: stats.stories_per_weekday,
     stories_per_hour: stats.stories_per_hour,
+    ...(stats.next_fetch_at
+      ? { next_fetch_at: rfc3339(stats.next_fetch_at) }
+      : {}),
+    archive_count: stats.archive_count,
+    ...(stats.fetch_history[0]?.duration_ms != null
+      ? { last_load_time_ms: stats.fetch_history[0].duration_ms }
+      : {}),
     fetch_history: stats.fetch_history.map((h) => ({
       ...((h.fetched_at ? rfc3339(h.fetched_at) : undefined)
         ? { fetched_at: rfc3339(h.fetched_at!) }
         : {}),
       ok: h.ok,
       ...(h.message ? { message: h.message } : {}),
+      ...(h.duration_ms !== null ? { duration_ms: h.duration_ms } : {}),
     })),
   };
 }

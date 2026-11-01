@@ -775,6 +775,39 @@ describe('feedStatistics', () => {
   });
 });
 
+describe('feedStatistics fetch timing and archive', () => {
+  it('reports when a failing feed is next fetched and how many stories keep their text', async () => {
+    const repo = new Repository(db);
+    const feed = (await addFeed(db, 1, 'https://a.test/f'))!;
+    expect((await repo.feedStatistics(1, feed.id))!.next_fetch_at).toBeNull();
+    await repo.recordFetch(feed.source_id, {
+      error: 'boom',
+      durationMs: 120,
+    });
+    const stats = (await repo.feedStatistics(1, feed.id))!;
+    expect(stats.next_fetch_at).not.toBeNull();
+    expect(stats.fetch_history[0]).toMatchObject({
+      ok: false,
+      duration_ms: 120,
+    });
+    expect(stats.archive_count).toBe(0);
+    await repo.writeEdition(feed.source_id, '2026-10-20', [
+      {
+        url: 'https://x/1',
+        title: 'T',
+        source: '',
+        favicon: '',
+        summary: '',
+        image: '',
+        published_at: '',
+        points: 0,
+        body_text: 'Full text.',
+      } as never,
+    ]);
+    expect((await repo.feedStatistics(1, feed.id))!.archive_count).toBe(1);
+  });
+});
+
 describe('clearFailures', () => {
   it('forgets the failures but keeps the history', async () => {
     const repo = new Repository(db);

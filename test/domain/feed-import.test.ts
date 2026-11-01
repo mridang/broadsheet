@@ -100,6 +100,18 @@ describe('importFeeds nesting, matching and names', () => {
   });
 });
 
+describe('importFeeds by name', () => {
+  it('skips a feed that carries the name of one already followed, ignoring case', async () => {
+    await repo.addFeed(1, 'https://a.test/f', 'The Daily');
+    const summary = await importFeeds(repo, 1, [
+      { url: 'https://b.test/other', title: ' the daily ' },
+      { url: 'https://b.test/one', title: 'Same' },
+      { url: 'https://c.test/two', title: 'SAME' },
+    ]);
+    expect(summary).toMatchObject({ added: 1, skipped: 2 });
+  });
+});
+
 describe('comparable', () => {
   it('is empty for nothing or a non-address', () => {
     expect(comparable(undefined)).toBe('');
