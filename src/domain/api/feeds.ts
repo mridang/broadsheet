@@ -275,7 +275,20 @@ export function createFeedItem(
         if (changes.url !== undefined) {
           const current = await repo.getFeed(uid, id);
           if (!current) return undefined;
-          const taken = await repo.getFeedByUrl(uid, changes.url);
+          let address: string = changes.url;
+          if (address !== current.url) {
+            // A page's address follows the feed it declares (NewsBlur's
+            // "change feed link").
+            const found = await discoverFeed(address);
+            if (!found) {
+              throw problems.badRequest('The change is not valid.', [
+                'url: no feed was found at this address.',
+              ]);
+            }
+            address = found;
+          }
+          changes = { ...changes, url: address };
+          const taken = await repo.getFeedByUrl(uid, address);
           if (taken && taken.id !== id) {
             throw problem(
               409,
@@ -285,7 +298,7 @@ export function createFeedItem(
               { errors: ['url: already followed.'] },
             );
           }
-          if (changes.url === current.url) {
+          if (address === current.url) {
             const { url: _same, ...rest } = changes;
             void _same;
             return repo.updateFeed(uid, id, rest);

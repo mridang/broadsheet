@@ -28,8 +28,11 @@ const listFeeds = (d: Database, u: number) => new Repository(d).listFeeds(u);
 const refreshSource = jest.fn<(...args: unknown[]) => Promise<unknown>>(
   async () => ({ ok: true, n: 0 }),
 );
+/** What the page at an address declares as its feed; undefined for none. */
+let declared: (url: string) => string | undefined = (url) => url;
 jest.unstable_mockModule('@/domain/scraping/index', () => ({
   refreshSource,
+  discoverFeed: async (url: string) => declared(url),
 }));
 
 const { PATCH, DELETE } = await import('@/app/api/feeds/[id]/route');
@@ -198,6 +201,35 @@ describe('PATCH /api/feeds/:id', () => {
 });
 
 describe('PATCH /api/feeds/:id with a new address', () => {
+  beforeEach(() => {
+    declared = (url) => url;
+  });
+
+  it('follows the feed a page declares', async () => {
+    declared = () => 'https://found.test/atom.xml';
+    const res = await patch(
+      mine,
+      JSON.stringify({ url: 'https://found.test/' }),
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({
+      url: 'https://found.test/atom.xml',
+    });
+  });
+
+  it('answers 400 when the page declares no feed, changing nothing', async () => {
+    declared = () => undefined;
+    const res = await patch(
+      mine,
+      JSON.stringify({ url: 'https://none.test/' }),
+    );
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { errors: string[] }).errors).toEqual([
+      'url: no feed was found at this address.',
+    ]);
+    expect((await listFeeds(db, 7))[0]?.url).toBe('https://a.test/feed.xml');
+  });
+
   it('follows the new address in its place and fetches it', async () => {
     refreshSource.mockClear();
     const res = await patch(

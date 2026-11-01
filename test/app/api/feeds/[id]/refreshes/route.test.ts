@@ -29,7 +29,10 @@ const refreshSource = jest.fn(
     return { ok: works, n: 0 };
   },
 );
-jest.unstable_mockModule('@/domain/scraping/index', () => ({ refreshSource }));
+jest.unstable_mockModule('@/domain/scraping/index', () => ({
+  refreshSource,
+  discoverFeed: async (url: string) => url,
+}));
 
 const { POST } = await import('@/app/api/feeds/[id]/refreshes/route');
 
