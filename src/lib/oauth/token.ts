@@ -191,15 +191,18 @@ export async function authenticateAccessToken(
 }
 
 /**
- * Revoke the grant behind a token (RFC 7009). Unknown tokens are not an
- * error, so the answer never reveals whether a token existed.
+ * Revoke the grant behind a token (RFC 7009), only for the client it was
+ * issued to. Unknown tokens, and another client's, are not an error, so the
+ * answer never reveals whether a token existed.
  */
 export async function revokeToken(
-  store: Pick<OAuthStore, 'findToken' | 'revokeGrant'>,
+  store: Pick<OAuthStore, 'findToken' | 'findGrant' | 'revokeGrant'>,
   token: string,
+  clientId: string,
 ): Promise<void> {
   const stored = await store.findToken(await hashSecret(token));
-  if (stored) {
-    await store.revokeGrant(stored.grantId);
+  const grant = stored ? await store.findGrant(stored.grantId) : undefined;
+  if (grant && grant.clientId === clientId) {
+    await store.revokeGrant(grant.id);
   }
 }

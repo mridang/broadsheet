@@ -2,7 +2,7 @@
  * Token revocation (RFC 7009): revoking either token ends the grant behind
  * it, so the assistant is disconnected.
  *
- *   POST /oauth/revoke token=… (application/x-www-form-urlencoded)
+ *   POST /oauth/revoke token=…&client_id=… (application/x-www-form-urlencoded)
  */
 
 import { D1OAuthStore } from '@/domain/db/oauth';
@@ -18,7 +18,7 @@ import {
 
 /**
  * `POST /oauth/revoke`: 200 whether or not the token was known (so the answer
- * reveals nothing), 400 for a form with no token.
+ * reveals nothing), 400 for a form with no token or client_id.
  */
 export async function POST(request: Request) {
   const body = await readOAuthForm(request);
@@ -26,10 +26,11 @@ export async function POST(request: Request) {
     return formFailure(body);
   }
   const token = body.form.get('token');
-  if (!token) {
-    return oauthError('invalid_request', 'Send token.');
+  const clientId = body.form.get('client_id');
+  if (!token || !clientId) {
+    return oauthError('invalid_request', 'Send token and client_id.');
   }
-  await revokeToken(new D1OAuthStore(getDatabase()), token);
+  await revokeToken(new D1OAuthStore(getDatabase()), token, clientId);
   return noStoreJson({});
 }
 

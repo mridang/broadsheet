@@ -190,13 +190,21 @@ describe('authenticateAccessToken', () => {
 describe('revokeToken', () => {
   it('ends every token of the grant', async () => {
     const { access_token, refresh_token } = await tokens();
-    await revokeToken(store, refresh_token);
+    await revokeToken(store, refresh_token, 'c1');
     expect(
       await authenticateAccessToken(store, access_token, RESOURCE, 1100),
     ).toBeUndefined();
   });
 
+  it("leaves another client's token alone", async () => {
+    const { access_token } = await tokens();
+    await revokeToken(store, access_token, 'c2');
+    expect(
+      await authenticateAccessToken(store, access_token, RESOURCE, 1100),
+    ).toMatchObject({ userId: 7 });
+  });
+
   it('ignores an unknown token', async () => {
-    await expect(revokeToken(store, 'nope')).resolves.toBeUndefined();
+    await expect(revokeToken(store, 'nope', 'c1')).resolves.toBeUndefined();
   });
 });
