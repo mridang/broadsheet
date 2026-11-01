@@ -44,7 +44,7 @@ const LOOK: Record<
 > = {
   lead: {
     card: 'flex flex-col gap-5 pb-8 sm:col-span-2 md:flex-row-reverse md:items-start',
-    photo: 'aspect-[16/10] w-full rounded-card md:w-1/2',
+    photo: 'aspect-video w-full rounded-card md:w-1/2',
     title: 'text-2xl leading-tight sm:text-3xl',
   },
   feature: {
