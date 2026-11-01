@@ -485,6 +485,16 @@ describe('saves', () => {
 });
 
 describe('reads', () => {
+  it('keeps a read story when its edition is written again', async () => {
+    const repo = new Repository(db);
+    const { source_id, id } = await oneStory();
+    await repo.markRead(1, id);
+    await repo.writeEdition(source_id, '2026-10-20', [
+      story({ url: 'https://x/1' }),
+    ]);
+    expect([...(await repo.readState(1)).ids]).toEqual([id]);
+  });
+
   it('notes a read once and reports its id and address', async () => {
     const repo = new Repository(db);
     const { id } = await oneStory();

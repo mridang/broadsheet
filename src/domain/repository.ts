@@ -610,15 +610,15 @@ export class Repository {
 
   /**
    * Write one day's edition for a source: replace just THIS edition's rows (so a
-   * same-day re-run is idempotent, saved stories excepted) and insert the current items dated to
-   * `edition`. Past editions are never touched — history is kept indefinitely.
+   * same-day re-run is idempotent) and insert the current items dated to
+   * `edition`. Stories someone saved or read keep their rows, so the save and
+   * the read still point at them. Past editions are never touched — history is kept indefinitely.
    */
   async writeEdition(
     sourceId: number,
     edition: string,
     items: ScrapedItem[],
   ): Promise<void> {
-    // A saved story outlives its edition being rewritten.
     const del = this.#db
       .delete(articles)
       .where(
@@ -628,6 +628,10 @@ export class Repository {
           notInArray(
             articles.id,
             this.#db.select({ id: saves.article_id }).from(saves),
+          ),
+          notInArray(
+            articles.id,
+            this.#db.select({ id: reads.article_id }).from(reads),
           ),
         ),
       );
