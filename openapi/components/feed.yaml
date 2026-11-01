@@ -264,6 +264,40 @@ ImportSummary:
             type: string
           reason:
             type: string
+FeedImport:
+  type: object
+  required:
+    [id, status, total, processed, added, skipped, sections_added, rejected]
+  properties:
+    id:
+      type: string
+    status:
+      type: string
+      enum: [running, complete, failed]
+    total:
+      type: integer
+      description: Entries in the file.
+    processed:
+      type: integer
+      description: Entries looked at so far.
+    added:
+      type: integer
+    skipped:
+      type: integer
+      description: Feeds the person already followed.
+    sections_added:
+      type: integer
+    rejected:
+      type: array
+      description: Entries that could not be followed, with why.
+      items:
+        type: object
+        required: [url, reason]
+        properties:
+          url:
+            type: string
+          reason:
+            type: string
 FeedSuggestion:
   type: object
   required: [url, followers]

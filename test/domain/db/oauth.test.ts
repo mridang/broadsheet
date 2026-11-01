@@ -86,4 +86,35 @@ describe('D1OAuthStore', () => {
       await store.takeToken('t'),
     ]).toEqual([token, token, undefined]);
   });
+
+  it('purges only the codes and tokens that expired', async () => {
+    const code = {
+      codeHash: 'old',
+      clientId: 'c1',
+      userId: 1,
+      redirectUri: 'https://a/cb',
+      codeChallenge: 'x',
+      scope: ['read'],
+      resource: 'https://app.test/mcp',
+      expiresAt: 99,
+    };
+    await store.saveCode(code);
+    await store.saveCode({ ...code, codeHash: 'new', expiresAt: 100 });
+    await store.saveToken({
+      tokenHash: 'old',
+      kind: 'access',
+      grantId: 'g1',
+      expiresAt: 50,
+    });
+    await store.saveToken({
+      tokenHash: 'new',
+      kind: 'refresh',
+      grantId: 'g1',
+      expiresAt: 200,
+    });
+    expect(await store.purgeExpired(100)).toEqual({ codes: 1, tokens: 1 });
+    expect(await store.takeCode('new')).toBeDefined();
+    expect(await store.findToken('new')).toBeDefined();
+    expect(await store.findToken('old')).toBeUndefined();
+  });
 });

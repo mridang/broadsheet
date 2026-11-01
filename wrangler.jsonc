@@ -143,11 +143,19 @@
       "binding": "BRIEFINGS",
       "class_name": "BriefingRun",
     },
+    // Follows the feeds of a large OPML file a chunk at a time, keeping its
+    // progress for /api/feeds/imports/:id.
+    {
+      "name": "broadsheet-feed-imports",
+      "binding": "FEED_IMPORTS",
+      "class_name": "FeedImportRun",
+    },
   ],
   "triggers": {
     // Every five minutes: fetch the sources that are due (the 06:00 UTC run
     // also lays out the day's paper) and write the briefings that came due on
-    // some reader's clock (src/lib/core/worker-extras.ts).
+    // some reader's clock, and delete expired OAuth codes and tokens
+    // (src/lib/core/worker-extras.ts).
     "crons": ["*/5 * * * *"],
   },
   "vars": {

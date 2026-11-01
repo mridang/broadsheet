@@ -403,16 +403,20 @@ export const oauth_grants = sqliteTable(
 );
 
 /** A single-use authorization code, stored as its hash. */
-export const oauth_codes = sqliteTable('oauth_codes', {
-  code_hash: text('code_hash').primaryKey(),
-  client_id: text('client_id').notNull(),
-  user_id: integer('user_id').notNull(),
-  redirect_uri: text('redirect_uri').notNull(),
-  code_challenge: text('code_challenge').notNull(),
-  scope: text('scope').notNull(),
-  resource: text('resource').notNull(),
-  expires_at: integer('expires_at').notNull(),
-});
+export const oauth_codes = sqliteTable(
+  'oauth_codes',
+  {
+    code_hash: text('code_hash').primaryKey(),
+    client_id: text('client_id').notNull(),
+    user_id: integer('user_id').notNull(),
+    redirect_uri: text('redirect_uri').notNull(),
+    code_challenge: text('code_challenge').notNull(),
+    scope: text('scope').notNull(),
+    resource: text('resource').notNull(),
+    expires_at: integer('expires_at').notNull(),
+  },
+  (table) => [index('idx_oauth_codes_expires').on(table.expires_at)],
+);
 
 /** An access or refresh token, stored as its hash; `kind` says which. */
 export const oauth_tokens = sqliteTable(
@@ -423,7 +427,10 @@ export const oauth_tokens = sqliteTable(
     grant_id: text('grant_id').notNull(),
     expires_at: integer('expires_at').notNull(),
   },
-  (table) => [index('idx_oauth_tokens_grant').on(table.grant_id)],
+  (table) => [
+    index('idx_oauth_tokens_grant').on(table.grant_id),
+    index('idx_oauth_tokens_expires').on(table.expires_at),
+  ],
 );
 
 /**
@@ -748,4 +755,27 @@ export const feed_recommendations = sqliteTable(
   (table) => [
     index('idx_feed_recommendations_status').on(table.status, table.decided_at),
   ],
+);
+
+/**
+ * A large OPML import running in a Workflow: how far it got and what it did.
+ * `status` is `running` until it is `complete` or `failed`; `rejected` is a
+ * JSON list of `{url, reason}`.
+ */
+export const feed_imports = sqliteTable(
+  'feed_imports',
+  {
+    id: text('id').primaryKey(),
+    user_id: integer('user_id').notNull(),
+    status: text('status').notNull().default('running'),
+    total: integer('total').notNull(),
+    processed: integer('processed').notNull().default(0),
+    added: integer('added').notNull().default(0),
+    skipped: integer('skipped').notNull().default(0),
+    sections_added: integer('sections_added').notNull().default(0),
+    rejected: text('rejected').notNull().default('[]'),
+    created_at: text('created_at').default(sql`(datetime('now'))`),
+    finished_at: text('finished_at'),
+  },
+  (table) => [index('idx_feed_imports_finished').on(table.finished_at)],
 );

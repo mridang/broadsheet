@@ -23,6 +23,7 @@ interface __BaseEnv_Env {
   VAPID_PRIVATE_KEY: string;
   DAILY_SCRAPE: Workflow /* DailyScrape */;
   BRIEFINGS: Workflow /* BriefingRun */;
+  FEED_IMPORTS: Workflow /* FeedImportRun */;
 }
 declare namespace Cloudflare {
   interface GlobalProps {

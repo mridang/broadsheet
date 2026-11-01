@@ -4,7 +4,8 @@
  * What this app adds to the Worker in `src/worker.ts`, which is the same in
  * every app: handlers besides `fetch` (a cron trigger's `scheduled`), and the
  * Workflow or Durable Object classes the Worker must export by name. This app
- * has a daily cron that starts the {@link DailyScrape} Workflow.
+ * has a daily cron that starts the {@link DailyScrape} Workflow, and runs
+ * large OPML imports in the {@link FeedImportRun} Workflow.
  */
 
 import {
@@ -19,7 +20,10 @@ import {
   type Slot,
 } from '@/domain/briefings';
 import { clusterEdition } from '@/domain/clustering';
+import type { OpmlFeed } from '@/domain/api/opml';
 import { databaseFrom } from '@/domain/db/database';
+import { D1OAuthStore } from '@/domain/db/oauth';
+import { FeedImportRuns, IMPORT_CHUNK } from '@/domain/feed-import-runs';
 import { publishEditionIssue, publishIssue } from '@/domain/issues';
 import { NotificationRepository } from '@/domain/notifications';
 import {
@@ -31,6 +35,7 @@ import { DEFAULT_PREFERENCES, Repository } from '@/domain/repository';
 import {
   FETCH_FAILED,
   backfillRecent,
+  refreshSource,
   scrapeSource,
   type Fetchable,
 } from '@/domain/scraping/index';
@@ -315,6 +320,99 @@ export class BriefingRun extends WorkflowEntrypoint<CloudflareEnv> {
   }
 }
 
+/** What an import run is asked to do: follow these entries for this person. */
+export interface ImportParams {
+  readonly id: string;
+  readonly user: number;
+  readonly feeds: readonly OpmlFeed[];
+}
+
+/** How many of an import's new feeds are fetched as soon as it is done. */
+const FIRST_FETCHES = 10;
+
+/**
+ * A large OPML import, as a Workflow: the entries are followed
+ * {@link IMPORT_CHUNK} at a time, each chunk its own retried step that adds
+ * what it did to the import's progress (so a person polling the import sees
+ * it move, and a failure reruns one chunk, not the file), then the first few
+ * new feeds are fetched so they have stories straight away. An import whose
+ * chunk still fails after its retries is marked failed with what it did so
+ * far.
+ */
+export class FeedImportRun extends WorkflowEntrypoint<
+  CloudflareEnv,
+  ImportParams
+> {
+  override async run(
+    event: Readonly<WorkflowEvent<ImportParams>>,
+    step: WorkflowStep,
+  ): Promise<{ added: number }> {
+    const { id, user, feeds } = event.payload;
+    const db = databaseFrom(this.env.DB);
+    const runs = new FeedImportRuns(db);
+    const added: { id: number; url: string }[] = [];
+    try {
+      for (let start = 0; start < feeds.length; start += IMPORT_CHUNK) {
+        const chunk = feeds.slice(start, start + IMPORT_CHUNK);
+        added.push(
+          ...(await step.do(`import feeds from ${start}`, FETCH_STEP, () =>
+            runs.importChunk(id, user, chunk),
+          )),
+        );
+      }
+    } catch (error) {
+      await step.do('mark failed', () => runs.finish(id, 'failed'));
+      logError({
+        event: 'import.failed',
+        import: id,
+        error: errorMessage(error),
+      });
+      return { added: added.length };
+    }
+    await step.do('mark complete', () => runs.finish(id, 'complete'));
+    for (const source of added.slice(0, FIRST_FETCHES)) {
+      try {
+        await step.do(`fetch source ${source.id}`, FETCH_STEP, () =>
+          refreshSource(db, this.env, source).then(() => null),
+        );
+      } catch (error) {
+        logError({
+          event: 'fetch.failed',
+          source: source.id,
+          error: errorMessage(error),
+        });
+      }
+    }
+    logInfo({ event: 'import.completed', import: id, added: added.length });
+    return { added: added.length };
+  }
+}
+
+/** How long a finished import's progress is kept: a week. */
+const IMPORT_KEPT_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Delete what no longer serves anyone: OAuth codes and tokens past their
+ * expiry, and the progress of imports that finished over a week ago.
+ */
+export async function purgeExpired(
+  env: CloudflareEnv,
+  at: Date,
+): Promise<void> {
+  try {
+    const db = databaseFrom(env.DB);
+    const oauth = await new D1OAuthStore(db).purgeExpired(
+      Math.floor(at.getTime() / 1000),
+    );
+    const imports = await new FeedImportRuns(db).purgeFinished(
+      new Date(at.getTime() - IMPORT_KEPT_MS),
+    );
+    logInfo({ event: 'purge.completed', ...oauth, imports });
+  } catch (error) {
+    logError({ event: 'purge.failed', error: errorMessage(error) });
+  }
+}
+
 /**
  * The handlers this app adds to the Worker, besides `fetch`.
  *
@@ -347,6 +445,7 @@ const extraHandlers: Partial<ExportedHandler<CloudflareEnv>> = {
       logError({ event: 'scrape.failed', error: errorMessage(error) });
     }
     await startBriefings(env, new Date(event.scheduledTime));
+    await purgeExpired(env, new Date(event.scheduledTime));
   },
 };
 

@@ -5,7 +5,7 @@
  * hashes of issued tokens (see `migrations/0011_oauth.sql`).
  */
 
-import { and, eq, isNull, sql } from 'drizzle-orm';
+import { and, eq, isNull, lt, sql } from 'drizzle-orm';
 
 import type { Database } from '@/domain/db/database';
 import {
@@ -171,5 +171,23 @@ export class D1OAuthStore implements OAuthStore {
       .where(eq(oauth_tokens.token_hash, tokenHash))
       .returning();
     return row ? tokenOf(row) : undefined;
+  }
+
+  /**
+   * Delete the codes and tokens that expired before `now` (Unix seconds),
+   * which no request can use any more, returning how many of each.
+   */
+  async purgeExpired(
+    now: number,
+  ): Promise<{ readonly codes: number; readonly tokens: number }> {
+    const codes = await this.#db
+      .delete(oauth_codes)
+      .where(lt(oauth_codes.expires_at, now))
+      .returning({ hash: oauth_codes.code_hash });
+    const tokens = await this.#db
+      .delete(oauth_tokens)
+      .where(lt(oauth_tokens.expires_at, now))
+      .returning({ hash: oauth_tokens.token_hash });
+    return { codes: codes.length, tokens: tokens.length };
   }
 }

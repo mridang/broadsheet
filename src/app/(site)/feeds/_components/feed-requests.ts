@@ -6,7 +6,7 @@
  * refused (see `problemText`).
  */
 
-import { ensureOk } from '@/components/api/problem-message';
+import { ensureOk, ProblemError } from '@/components/api/problem-message';
 
 /** Follow the feed at `url` (`POST /api/feeds`). */
 export async function followFeed(url: string): Promise<void> {
@@ -108,15 +108,51 @@ export interface ImportResult {
   readonly rejected: readonly unknown[];
 }
 
-/** Follow the feeds of an OPML file (`POST /api/feeds/imports`). */
-export async function importOpml(file: Blob): Promise<ImportResult> {
+/** How far a large import got (`GET /api/feeds/imports/:id`). */
+export interface ImportProgress extends ImportResult {
+  readonly status: 'running' | 'complete' | 'failed';
+  readonly total: number;
+  readonly processed: number;
+}
+
+/** How long to wait between looks at a running import. */
+const POLL_MS = 1500;
+
+/**
+ * Follow the feeds of an OPML file (`POST /api/feeds/imports`). A large file
+ * is followed in the background: its progress is fetched until it is done,
+ * each look passed to `onProgress`. An import that stopped part way is an
+ * error, after `onProgress` has seen what it did.
+ */
+export async function importOpml(
+  file: Blob,
+  onProgress: (progress: ImportProgress) => void = () => undefined,
+  wait: (ms: number) => Promise<void> = (ms) =>
+    new Promise((resolve) => setTimeout(resolve, ms)),
+): Promise<ImportResult> {
   const res = await fetch('/api/feeds/imports', {
     method: 'POST',
     headers: { 'Content-Type': 'text/x-opml' },
     body: file,
   });
   await ensureOk(res);
-  return (await res.json()) as ImportResult;
+  if (res.status !== 202) return (await res.json()) as ImportResult;
+  const location = res.headers.get('location') ?? '';
+  let progress = (await res.json()) as ImportProgress;
+  onProgress(progress);
+  while (progress.status === 'running') {
+    await wait(POLL_MS);
+    const look = await fetch(location, { cache: 'no-store' });
+    await ensureOk(look);
+    progress = (await look.json()) as ImportProgress;
+    onProgress(progress);
+  }
+  if (progress.status === 'failed') {
+    throw new ProblemError(
+      `The import stopped after ${progress.processed} of ${progress.total} feeds.`,
+    );
+  }
+  return progress;
 }
 
 /** Fetch one feed again, forgetting its failures (`POST /api/feeds/:id/refreshes`). */

@@ -31,15 +31,24 @@ jest.unstable_mockModule('@/domain/scraping/index', () => ({
 
 const route = await import('@/app/api/feeds/imports/route');
 
+const create = jest.fn<(options: unknown) => Promise<{ id: string }>>(
+  async () => ({ id: 'run' }),
+);
+
 let restore: () => void;
+let made: ReturnType<typeof sqliteD1>;
 let repo: Repository;
 let auth: Record<string, string>;
 const origin = 'https://app.test';
 
 beforeEach(async () => {
   refreshSource.mockClear();
-  const made = sqliteD1(...APP_MIGRATIONS);
-  restore = installCloudflareContext(made.d1, { SESSION_SECRET });
+  create.mockClear();
+  made = sqliteD1(...APP_MIGRATIONS);
+  restore = installCloudflareContext(made.d1, {
+    SESSION_SECRET,
+    FEED_IMPORTS: { create },
+  });
   made.raw
     .prepare(
       'INSERT INTO users (id, google_sub, email, session_epoch) VALUES (7, ?, ?, 0), (8, ?, ?, 0)',
@@ -162,6 +171,60 @@ describe('POST /api/feeds/imports', () => {
     ).join('');
     expect((await post(opml(many), 'text/x-opml')).status).toBe(400);
     expect(await repo.listFeeds(7)).toEqual([]);
+  });
+
+  it('starts a Workflow for more than 50 feeds, answering 202 with where to watch it', async () => {
+    const many = Array.from(
+      { length: 51 },
+      (_, i) => `<outline xmlUrl="https://a.test/${i}"/>`,
+    ).join('');
+    const res = await post(opml(many), 'text/x-opml');
+    expect(res.status).toBe(202);
+    const body = (await res.json()) as { id: string };
+    expect(res.headers.get('location')).toBe(
+      `${origin}/api/feeds/imports/${body.id}`,
+    );
+    expect(body).toEqual({
+      id: body.id,
+      status: 'running',
+      total: 51,
+      processed: 0,
+      added: 0,
+      skipped: 0,
+      sections_added: 0,
+      rejected: [],
+    });
+    expect(create).toHaveBeenCalledWith({
+      id: body.id,
+      params: {
+        id: body.id,
+        user: 7,
+        feeds: expect.arrayContaining([{ url: 'https://a.test/50' }]),
+      },
+    });
+    expect(await repo.listFeeds(7)).toEqual([]);
+  });
+
+  it('marks the import failed when its Workflow cannot start', async () => {
+    create.mockRejectedValueOnce(new Error('no binding'));
+    const many = Array.from(
+      { length: 51 },
+      (_, i) => `<outline xmlUrl="https://a.test/${i}"/>`,
+    ).join('');
+    jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    expect((await post(opml(many), 'text/x-opml')).status).toBe(500);
+    expect(made.raw.prepare('SELECT status FROM feed_imports').all()).toEqual([
+      { status: 'failed' },
+    ]);
+  });
+
+  it('imports 50 feeds straight away', async () => {
+    const many = Array.from(
+      { length: 50 },
+      (_, i) => `<outline xmlUrl="https://a.test/${i}"/>`,
+    ).join('');
+    expect((await post(opml(many), 'text/x-opml')).status).toBe(201);
+    expect(create).not.toHaveBeenCalled();
   });
 
   it('answers 413 for an upload over 1 MiB', async () => {

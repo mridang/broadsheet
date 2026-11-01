@@ -42,6 +42,18 @@ export function created<T>(
   return { status: 201, body, location, headers };
 }
 
+/**
+ * A 202 for work started but not finished: `body` says where it stands and
+ * `location` (a path on this app) is where to watch it.
+ */
+export function accepted<T>(
+  body: T,
+  location: string,
+  headers?: Headers,
+): ApiResponse<T> {
+  return { status: 202, body, location, headers };
+}
+
 /** An empty 204, for a request that succeeded with nothing to return. */
 export function noContent(headers?: Headers): ApiResponse<never> {
   return { status: 204, headers };

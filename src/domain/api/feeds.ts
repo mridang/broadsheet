@@ -34,6 +34,7 @@ import {
   ApiController,
   type ApiResponse,
   ok,
+  accepted,
   created,
   noContent,
 } from '@/lib/core/api';
@@ -58,7 +59,16 @@ import {
   type OpmlEntry,
   type OpmlFeed,
 } from '@/domain/api/opml';
-import { importFeeds, MAX_IMPORT_FEEDS } from '@/domain/feed-import';
+import {
+  importFeeds,
+  MAX_IMPORT_FEEDS,
+  type ImportSummary,
+} from '@/domain/feed-import';
+import {
+  FeedImportRuns,
+  IMPORT_CHUNK,
+  type ImportRun,
+} from '@/domain/feed-import-runs';
 import { findTopic } from '@/domain/topics';
 
 /** The signed-in caller's id and the request, for a feed endpoint. */
@@ -603,11 +613,16 @@ async function decodeImport(request: Request): Promise<ImportInput> {
 /** How many newly followed feeds are fetched straight away. */
 const FIRST_FETCHES = 10;
 
+/** Where an import's progress is watched. */
+const importPath = (id: string): string => `/api/feeds/imports/${id}`;
+
 /**
  * `POST /api/feeds/imports`: follow many feeds at once, from an OPML file
  * (`text/x-opml`, `text/xml` or `application/xml`, at most 1 MiB and 500 feeds;
  * folders become sections) or from `{topic_ids}` as JSON. 201 with `Location`
- * (the feeds) and a summary of what was added, skipped and rejected; 400 for
+ * (the feeds) and a summary of what was added, skipped and rejected; for a
+ * file of more than {@link IMPORT_CHUNK} feeds, 202 with `Location` (the
+ * import) and its progress, as the feeds are followed in a Workflow. 400 for
  * input that is not valid, 413 for an oversized file, 415 for another type.
  */
 export function createFeedImports(
@@ -618,33 +633,84 @@ export function createFeedImports(
       request,
       uid: await liveUid(request, resolver),
     }),
-  }).on<ImportInput, Awaited<ReturnType<typeof importFeeds>>>({
+  }).on<
+    ImportInput,
+    | { readonly kind: 'done'; readonly summary: ImportSummary }
+    | { readonly kind: 'started'; readonly run: ImportRun }
+  >({
     method: 'POST',
     decode: decodeImport,
     handle: async (input, { uid }) => {
       const db = getDatabase();
-      const summary = await importFeeds(new Repository(db), uid, input.feeds);
       const env = getEnv();
+      if (input.kind === 'opml' && input.feeds.length > IMPORT_CHUNK) {
+        const runs = new FeedImportRuns(db);
+        const run = await runs.start(uid, input.feeds.length);
+        try {
+          await env.FEED_IMPORTS.create({
+            id: run.id,
+            params: { id: run.id, user: uid, feeds: input.feeds },
+          });
+        } catch (error) {
+          await runs.finish(run.id, 'failed');
+          throw error;
+        }
+        return { kind: 'started', run };
+      }
+      const summary = await importFeeds(new Repository(db), uid, input.feeds);
       for (const feed of summary.feeds.slice(0, FIRST_FETCHES)) {
         runInBackground(
           refreshSource(db, env, sourceOf(feed)).catch(() => undefined),
         );
       }
-      return summary;
+      return { kind: 'done', summary };
     },
-    encode: (summary) =>
-      created(
-        {
-          added: summary.added,
-          skipped: summary.skipped,
-          sections_added: summary.sections_added,
-          rejected: summary.rejected,
-        },
-        '/api/feeds',
-        { 'Cache-Control': 'no-store' },
-      ),
+    encode: (result) =>
+      result.kind === 'started'
+        ? accepted(result.run, importPath(result.run.id), {
+            'Cache-Control': 'no-store',
+          })
+        : created(
+            {
+              added: result.summary.added,
+              skipped: result.summary.skipped,
+              sections_added: result.summary.sections_added,
+              rejected: result.summary.rejected,
+            },
+            '/api/feeds',
+            { 'Cache-Control': 'no-store' },
+          ),
   });
 }
+
+/**
+ * `GET /api/feeds/imports/:id`: how far one of the person's imports got and
+ * what it did so far; `status` turns `complete` (or `failed`) when it is done.
+ * 404 when there is no such import, 401/403 when not signed in or cross-site.
+ */
+export function createFeedImportItem(
+  resolver: CurrentUserResolver = requestCookieResolver,
+): ApiController<UidContext> {
+  return new ApiController<UidContext>({
+    context: async (request) => ({
+      request,
+      uid: await liveUid(request, resolver),
+    }),
+  }).on<null, ImportRun | undefined>({
+    method: 'GET',
+    handle: async (_input, { request, uid }) => {
+      const id = new URL(request.url).pathname.split('/').at(-1) ?? '';
+      return new FeedImportRuns(getDatabase()).find(uid, id);
+    },
+    encode: (run) =>
+      run
+        ? ok(run, { headers: { 'Cache-Control': 'no-store' } })
+        : problems.notFound('import'),
+  });
+}
+
+/** The import progress controller bound to the production resolver. */
+export const feedImportItem = createFeedImportItem();
 
 /** The imports controller bound to the production resolver. */
 export const feedImports = createFeedImports();

@@ -197,6 +197,57 @@ describe('importOpml', () => {
     });
   });
 
+  it('watches a large import until it is done, passing on each look', async () => {
+    const look = (status: string, processed: number) =>
+      new Response(
+        JSON.stringify({
+          status,
+          total: 80,
+          processed,
+          added: processed,
+          skipped: 0,
+          rejected: [],
+        }),
+        {
+          status: processed ? 200 : 202,
+          headers: { Location: '/api/feeds/imports/a' },
+        },
+      );
+    const spy = jest
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(look('running', 0))
+      .mockResolvedValueOnce(look('running', 50))
+      .mockResolvedValueOnce(look('complete', 80));
+    const seen: number[] = [];
+    const done = await importOpml(
+      new Blob(['<opml/>']),
+      (p) => seen.push(p.processed),
+      async () => undefined,
+    );
+    expect(done).toMatchObject({ status: 'complete', added: 80 });
+    expect(seen).toEqual([0, 50, 80]);
+    expect(spy.mock.calls[1]?.[0]).toBe('/api/feeds/imports/a');
+  });
+
+  it('throws when a large import stopped part way', async () => {
+    jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          status: 'failed',
+          total: 80,
+          processed: 50,
+          added: 50,
+          skipped: 0,
+          rejected: [],
+        }),
+        { status: 202, headers: { Location: '/api/feeds/imports/a' } },
+      ),
+    );
+    await expect(importOpml(new Blob(['<opml/>']))).rejects.toThrow(
+      new ProblemError('The import stopped after 50 of 80 feeds.'),
+    );
+  });
+
   it('throws the server’s words when refused', async () => {
     answer(refusal('Too big.'));
     await expect(importOpml(new Blob(['x']))).rejects.toBeInstanceOf(

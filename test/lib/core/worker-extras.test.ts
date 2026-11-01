@@ -60,6 +60,15 @@ jest.unstable_mockModule('@/domain/scraping/index', () => ({
     }
     return { articles: 5 };
   },
+  refreshSource: async (
+    _db: unknown,
+    _env: unknown,
+    source: { id: number },
+  ) => {
+    calls.push(`refresh:${source.id}`);
+    if (failing.has(source.id)) throw new Error('feed down');
+    return { ok: true, n: 1 };
+  },
   backfillRecent: async (_db: unknown, _env: unknown, days: number) => {
     calls.push(`backfillRecent:${days}`);
   },
@@ -153,6 +162,40 @@ jest.unstable_mockModule('@/domain/notify', () => ({
   },
 }));
 
+const failingChunks = new Set<number>();
+let purgeFails = false;
+
+jest.unstable_mockModule('@/domain/feed-import-runs', () => ({
+  IMPORT_CHUNK: 2,
+  FeedImportRuns: class {
+    importChunk = async (id: string, user: number, feeds: unknown[]) => {
+      calls.push(`chunk:${id}:${user}:${feeds.length}`);
+      if (failingChunks.has(feeds.length)) throw new Error('database down');
+      return feeds.map((_f, i) => ({
+        id: 100 + i,
+        url: `https://f.test/${i}`,
+      }));
+    };
+    finish = async (id: string, status: string) => {
+      calls.push(`finish:${id}:${status}`);
+    };
+    purgeFinished = async (before: Date) => {
+      calls.push(`purgeImports:${before.toISOString()}`);
+      return 1;
+    };
+  },
+}));
+
+jest.unstable_mockModule('@/domain/db/oauth', () => ({
+  D1OAuthStore: class {
+    purgeExpired = async (now: number) => {
+      calls.push(`purgeOAuth:${now}`);
+      if (purgeFails) throw new Error('database down');
+      return { codes: 2, tokens: 3 };
+    };
+  },
+}));
+
 jest.unstable_mockModule('@/domain/notifications', () => ({
   NotificationRepository: class {
     notifiedUserIds = async () => [7];
@@ -164,6 +207,7 @@ const {
   default: extraHandlers,
   BriefingRun,
   DailyScrape,
+  FeedImportRun,
   dueBriefings,
   isDailyRun,
 } = await import('@/lib/core/worker-extras');
@@ -186,6 +230,8 @@ const run = (payload: { fetchOnly?: boolean } = {}) =>
   ]) as Promise<{ sources: number; ok: number; articles: number }>;
 
 afterEach(() => {
+  failingChunks.clear();
+  purgeFails = false;
   written.clear();
   failingBriefings.clear();
   thinBriefings.clear();
@@ -373,6 +419,88 @@ describe('scheduled', () => {
     });
     expect(String(error.mock.calls[0]?.[0])).toContain('scrape.failed');
     expect(String(error.mock.calls[0]?.[0])).toContain('no binding');
+  });
+});
+
+describe('scheduled clean-up', () => {
+  const fire = () =>
+    Reflect.apply(extraHandlers.scheduled as never, undefined, [
+      {
+        cron: '*/5 * * * *',
+        scheduledTime: Date.parse('2026-11-08T13:35:00Z'),
+      },
+      { DAILY_SCRAPE: { create: async () => ({ id: 'run' }) } },
+      { waitUntil: () => undefined },
+    ]) as Promise<void>;
+
+  it('deletes expired OAuth codes and tokens and week-old imports', async () => {
+    jest.spyOn(console, 'log').mockImplementation(() => undefined);
+    await fire();
+    expect(calls).toContain(
+      `purgeOAuth:${Date.parse('2026-11-08T13:35:00Z') / 1000}`,
+    );
+    expect(calls).toContain('purgeImports:2026-11-01T13:35:00.000Z');
+  });
+
+  it('logs a clean-up that failed instead of letting it escape', async () => {
+    jest.spyOn(console, 'log').mockImplementation(() => undefined);
+    const error = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    purgeFails = true;
+    await fire();
+    expect(error.mock.calls.map(String).join()).toContain('purge.failed');
+  });
+});
+
+describe('FeedImportRun', () => {
+  const feeds = (n: number) =>
+    Array.from({ length: n }, (_v, i) => ({ url: `https://f.test/${i}` }));
+  const importRun = (n: number) =>
+    Reflect.apply(FeedImportRun.prototype.run, { env: { DB: {} } }, [
+      { payload: { id: 'imp', user: 7, feeds: feeds(n) } },
+      step,
+    ]) as Promise<{ added: number }>;
+
+  it('follows the entries a chunk per step, marks it complete, then fetches the new feeds', async () => {
+    jest.spyOn(console, 'log').mockImplementation(() => undefined);
+    expect(await importRun(3)).toEqual({ added: 3 });
+    expect(calls).toEqual([
+      'step:import feeds from 0',
+      'chunk:imp:7:2',
+      'step:import feeds from 2',
+      'chunk:imp:7:1',
+      'step:mark complete',
+      'finish:imp:complete',
+      'step:fetch source 100',
+      'refresh:100',
+      'step:fetch source 101',
+      'refresh:101',
+      'step:fetch source 100',
+      'refresh:100',
+    ]);
+  });
+
+  it('marks the import failed when a chunk still fails', async () => {
+    const error = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    failingChunks.add(1);
+    expect(await importRun(3)).toEqual({ added: 2 });
+    expect(calls).toContain('finish:imp:failed');
+    expect(calls).not.toContain('step:fetch source 100');
+    expect(String(error.mock.calls[0]?.[0])).toContain('import.failed');
+  });
+
+  it('logs a first fetch that fails and fetches the next', async () => {
+    jest.spyOn(console, 'log').mockImplementation(() => undefined);
+    const error = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    failing.add(100);
+    await importRun(2);
+    expect(String(error.mock.calls[0]?.[0])).toContain('fetch.failed');
+    expect(calls).toContain('refresh:101');
   });
 });
 
