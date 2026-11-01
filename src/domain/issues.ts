@@ -11,31 +11,33 @@ import {
   Repository,
   type Article,
   type CustomEdition,
+  type Preferences,
   sectionAndDescendants,
   sectionPath,
 } from '@/domain/repository';
 import {
+  parseBriefedStories,
+  selectStories,
+  writeBriefing,
+  type BriefedStory,
+  type Candidate,
+} from '@/domain/briefing';
+import { matches, verdict, type Training } from '@/domain/render/tiers';
+import {
   layOut,
   parseLayout,
   storyIds,
-  topStories,
   type DeskGroup,
   type Layout,
 } from '@/domain/render/layout';
-import { logWarn } from '@/utils/logging';
-
-/** The model the editor's note is written with. */
-export const BRIEFING_MODEL = '@cf/meta/llama-3.1-8b-instruct-fast';
-
-/** How many top stories the note covers, and its longest length. */
-const BRIEFED = 6;
-const MAX_BRIEFING = 600;
 
 /** One day's paper: its layout and, when one was written, the note. */
 export interface Issue {
   readonly date: string;
   readonly layout: Layout;
   readonly briefing: string | null;
+  /** The stories the note covers and why each was picked. */
+  readonly briefing_stories: readonly BriefedStory[];
   /** When it was stored; null for a paper laid out live. */
   readonly created_at: string | null;
 }
@@ -62,11 +64,12 @@ export async function composeLayout(
   readerId?: number,
   pick?: IssuePick,
 ): Promise<Layout> {
-  const [all, reads, training, sections] = await Promise.all([
+  const [all, reads, training, sections, prefs] = await Promise.all([
     repo.listFeeds(ownerId),
     readerId === undefined ? undefined : repo.readState(readerId),
     readerId === undefined ? [] : repo.listClassifiers(readerId),
     repo.listSections(ownerId),
+    repo.getPreferences(readerId ?? ownerId),
   ]);
   // A picked section takes in the sections nested under it.
   const picked = new Set(
@@ -106,44 +109,10 @@ export async function composeLayout(
       desks: group.desks.filter((desk) => desk.articles.length || !pick?.keep),
     }))
     .filter((group) => group.desks.length);
-  return layOut(groups, training);
-}
-
-/** The prompt that asks for an editor's note on these stories. */
-export function briefingPrompt(stories: readonly Article[]): string {
-  return (
-    "Write a short editor's note (two or three sentences, under 80 words) for " +
-    "the front page of today's paper, summarising these top stories. Reply " +
-    'with the note only, no heading or quotes.\n\n' +
-    stories
-      .map(
-        (a) =>
-          `- ${a.title ?? ''}${a.summary ? `: ${a.summary.slice(0, 200)}` : ''}`,
-      )
-      .join('\n')
-  );
-}
-
-/** Ask Workers AI for the editor's note, or null when it gives none. */
-export async function writeBriefing(
-  env: CloudflareEnv,
-  stories: readonly Article[],
-): Promise<string | null> {
-  if (!stories.length) return null;
-  try {
-    const out = await env.AI.run(BRIEFING_MODEL, {
-      messages: [{ role: 'user', content: briefingPrompt(stories) }],
-    });
-    const text = (out as { response?: unknown }).response;
-    const note = typeof text === 'string' ? text.trim() : '';
-    return note ? note.slice(0, MAX_BRIEFING) : null;
-  } catch (error) {
-    logWarn({
-      event: 'briefing.failed',
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return null;
-  }
+  return layOut(groups, training, {
+    clustering: prefs.story_clustering,
+    mode: prefs.cluster_mode,
+  });
 }
 
 /** The articles a layout prints, by id. */
@@ -155,18 +124,118 @@ export async function issueArticles(
   return new Map(rows.map((a) => [a.id, a]));
 }
 
-/** Lay out the editor's note on a layout's top stories. */
-async function briefingFor(
+/** The day before a YYYY-MM-DD date. */
+export function dayBefore(date: string): string {
+  return new Date(Date.parse(`${date}T00:00:00Z`) - 86400000)
+    .toISOString()
+    .slice(0, 10);
+}
+
+/** Thirty days before a YYYY-MM-DD date. */
+const monthBefore = (date: string): string =>
+  new Date(Date.parse(`${date}T00:00:00Z`) - 30 * 86400000)
+    .toISOString()
+    .slice(0, 10);
+
+/**
+ * What the note could cover: every story the layout prints, in print order,
+ * with what the reader's training, reads and the cluster say about it.
+ * Stories whose address the previous issue's note already covered are left
+ * out (`covered`).
+ */
+export async function briefingCandidates(
+  repo: Repository,
+  readerId: number,
+  layout: Layout,
+  byId: ReadonlyMap<number, Article>,
+  date: string,
+  covered: ReadonlySet<string> = new Set(),
+): Promise<Candidate[]> {
+  const [training, reads, readSources] = await Promise.all([
+    repo.listClassifiers(readerId),
+    repo.readState(readerId),
+    repo.readSourceIds(readerId),
+  ]);
+  const stories = layout.groups.flatMap((g) =>
+    g.desks.flatMap((d) => d.stories),
+  );
+  const printed = stories.flatMap((s) => {
+    const a = byId.get(s.id);
+    return a && !covered.has(a.url) ? [{ s, a }] : [];
+  });
+  const monthly = await repo.sourceCounts(
+    printed.map(({ a }) => a.source_id),
+    monthBefore(date),
+  );
+  return printed.map(({ s, a }) => ({
+    article: a,
+    liked: verdict(a, training) > 0,
+    matches: likedBy(a, training),
+    read: reads.ids.has(a.id),
+    coverage: 1 + new Set((s.siblings ?? []).map((x) => x.source)).size,
+    also: s.also,
+    monthly: monthly.get(a.source_id) ?? 0,
+    followed_up: readSources.has(a.source_id),
+  }));
+}
+
+/** The classifiers that like a story, as `kind: value`. */
+function likedBy(a: Article, training: readonly Training[]): string[] {
+  return training
+    .filter((c) => c.score > 0 && matches(a, c))
+    .map((c) => `${c.kind}: ${c.value}`);
+}
+
+/** The addresses of the stories a stored note covered. */
+async function briefedUrls(
+  repo: Repository,
+  stored: string | null | undefined,
+): Promise<Set<string>> {
+  const ids = parseBriefedStories(stored ?? null).map((s) => s.id);
+  if (!ids.length) return new Set();
+  return new Set((await repo.articlesByIds(ids)).map((a) => a.url));
+}
+
+/**
+ * The note for a layout: the stories it covers and the text, or nothing
+ * when the reader turned the note off or too few stories qualify.
+ */
+export async function briefingFor(
   repo: Repository,
   env: CloudflareEnv,
+  readerId: number,
   layout: Layout,
-): Promise<{ readonly briefing: string | null; readonly stories: number }> {
+  date: string,
+  prefs: Preferences,
+  previous?: string | null,
+): Promise<{
+  readonly briefing: string | null;
+  readonly briefed: readonly BriefedStory[];
+  readonly stories: number;
+}> {
   const byId = await issueArticles(repo, layout);
-  const top = topStories(layout, BRIEFED).flatMap((id) => {
-    const a = byId.get(id);
-    return a ? [a] : [];
-  });
-  return { briefing: await writeBriefing(env, top), stories: byId.size };
+  if (!prefs.briefing_enabled) {
+    return { briefing: null, briefed: [], stories: byId.size };
+  }
+  const picks = selectStories(
+    await briefingCandidates(
+      repo,
+      readerId,
+      layout,
+      byId,
+      date,
+      await briefedUrls(repo, previous),
+    ),
+    prefs,
+  );
+  const briefing = await writeBriefing(env, picks, prefs, date);
+  return {
+    briefing,
+    briefed: briefing
+      ? picks.map((p) => ({ id: p.candidate.article.id, category: p.category }))
+      : [],
+    stories: byId.size,
+  };
 }
 
 /**
@@ -181,8 +250,22 @@ export async function publishIssue(
 ): Promise<number> {
   const repo = new Repository(db);
   const layout = await composeLayout(repo, userId, date, userId);
-  const { briefing, stories } = await briefingFor(repo, env, layout);
-  await repo.saveIssue(userId, date, JSON.stringify(layout), briefing);
+  const { briefing, briefed, stories } = await briefingFor(
+    repo,
+    env,
+    userId,
+    layout,
+    date,
+    await repo.getPreferences(userId),
+    (await repo.getIssue(userId, dayBefore(date)))?.briefing_stories,
+  );
+  await repo.saveIssue(
+    userId,
+    date,
+    JSON.stringify(layout),
+    briefing,
+    briefed.length ? JSON.stringify(briefed) : null,
+  );
   return stories;
 }
 
@@ -229,12 +312,21 @@ export async function publishEditionIssue(
     edition.user_id,
     await editionPick(repo, edition, date),
   );
-  const { briefing, stories } = await briefingFor(repo, env, layout);
+  const { briefing, briefed, stories } = await briefingFor(
+    repo,
+    env,
+    edition.user_id,
+    layout,
+    date,
+    await repo.getPreferences(edition.user_id),
+    (await repo.getEditionIssue(edition.id, dayBefore(date)))?.briefing_stories,
+  );
   await repo.saveEditionIssue(
     edition.id,
     date,
     JSON.stringify(layout),
     briefing,
+    briefed.length ? JSON.stringify(briefed) : null,
   );
   return stories;
 }
@@ -248,7 +340,13 @@ export async function storedIssue(
   const row = await repo.getIssue(userId, date);
   const layout = row ? parseLayout(row.layout) : undefined;
   return row && layout
-    ? { date, layout, briefing: row.briefing, created_at: row.created_at }
+    ? {
+        date,
+        layout,
+        briefing: row.briefing,
+        briefing_stories: parseBriefedStories(row.briefing_stories),
+        created_at: row.created_at,
+      }
     : undefined;
 }
 
@@ -261,7 +359,13 @@ export async function storedEditionIssue(
   const row = await repo.getEditionIssue(editionId, date);
   const layout = row ? parseLayout(row.layout) : undefined;
   return row && layout
-    ? { date, layout, briefing: row.briefing, created_at: row.created_at }
+    ? {
+        date,
+        layout,
+        briefing: row.briefing,
+        briefing_stories: parseBriefedStories(row.briefing_stories),
+        created_at: row.created_at,
+      }
     : undefined;
 }
 
@@ -285,6 +389,7 @@ export async function editionIssueFor(
         await editionPick(repo, edition, date),
       ),
       briefing: null,
+      briefing_stories: [],
       created_at: null,
     }
   );
@@ -305,6 +410,7 @@ export async function issueFor(
       date,
       layout: await composeLayout(repo, ownerId, date, readerId),
       briefing: null,
+      briefing_stories: [],
       created_at: null,
     }
   );

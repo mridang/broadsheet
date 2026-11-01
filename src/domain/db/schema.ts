@@ -215,6 +215,8 @@ export const issues = sqliteTable(
     date: text('date').notNull(),
     layout: text('layout').notNull(),
     briefing: text('briefing'),
+    /** The stories the note covers, as JSON {id, category} (migration 0019). */
+    briefing_stories: text('briefing_stories'),
     created_at: text('created_at').default(sql`(datetime('now'))`),
   },
   (table) => [primaryKey({ columns: [table.user_id, table.date] })],
@@ -248,6 +250,7 @@ export const edition_issues = sqliteTable(
     date: text('date').notNull(),
     layout: text('layout').notNull(),
     briefing: text('briefing'),
+    briefing_stories: text('briefing_stories'),
     created_at: text('created_at').default(sql`(datetime('now'))`),
   },
   (table) => [primaryKey({ columns: [table.edition_id, table.date] })],
@@ -487,4 +490,23 @@ export const notification_rules = sqliteTable(
 export const user_activity = sqliteTable('user_activity', {
   user_id: integer('user_id').primaryKey(),
   last_seen_on: text('last_seen_on').notNull(),
+});
+
+/**
+ * What a person chose about clustering and the editor's note (migration
+ * 0019). Absent until they change something; the column defaults apply.
+ */
+export const preferences = sqliteTable('preferences', {
+  user_id: integer('user_id').primaryKey(),
+  story_clustering: integer('story_clustering').notNull().default(1),
+  cluster_mode: text('cluster_mode').notNull().default('related'),
+  cluster_mark_read: integer('cluster_mark_read').notNull().default(0),
+  briefing_enabled: integer('briefing_enabled').notNull().default(1),
+  briefing_story_count: integer('briefing_story_count').notNull().default(5),
+  briefing_length: text('briefing_length').notNull().default('medium'),
+  briefing_style: text('briefing_style').notNull().default('bullets'),
+  briefing_read_filter: text('briefing_read_filter')
+    .notNull()
+    .default('unread'),
+  updated_at: text('updated_at').default(sql`(datetime('now'))`),
 });

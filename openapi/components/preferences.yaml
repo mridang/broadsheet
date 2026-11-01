@@ -1,0 +1,65 @@
+Preferences:
+  type: object
+  required: [story_clustering, cluster_mode, cluster_mark_read, briefing]
+  properties:
+    story_clustering:
+      type: boolean
+      description: Print the same story from several sources once. Clusters are only found while the server's Vectorize index is bound.
+    cluster_mode:
+      type: string
+      enum: [title, related]
+      description: '`title` folds only copies whose headlines match; `related` also folds those that mean the same.'
+    cluster_mark_read:
+      type: boolean
+      description: Opening one copy of a story marks its other copies read.
+    briefing:
+      $ref: '#/BriefingPreferences'
+BriefingPreferences:
+  type: object
+  required: [enabled, story_count, length, style, read_filter]
+  properties:
+    enabled:
+      type: boolean
+      description: Write an editor's note on each day's paper.
+    story_count:
+      type: integer
+      enum: [5, 10, 15, 20, 25]
+    length:
+      type: string
+      enum: [short, medium, detailed]
+    style:
+      type: string
+      enum: [editorial, bullets, headlines]
+    read_filter:
+      type: string
+      enum: [unread, focus]
+      description: '`focus` covers only stories the person trained the paper to like.'
+PreferenceChanges:
+  type: object
+  additionalProperties: false
+  properties:
+    story_clustering:
+      type: boolean
+    cluster_mode:
+      type: string
+      enum: [title, related]
+    cluster_mark_read:
+      type: boolean
+    briefing:
+      type: object
+      additionalProperties: false
+      properties:
+        enabled:
+          type: boolean
+        story_count:
+          type: integer
+          enum: [5, 10, 15, 20, 25]
+        length:
+          type: string
+          enum: [short, medium, detailed]
+        style:
+          type: string
+          enum: [editorial, bullets, headlines]
+        read_filter:
+          type: string
+          enum: [unread, focus]

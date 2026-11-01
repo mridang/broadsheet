@@ -29,6 +29,23 @@ interface UidContext {
   readonly uid: number;
 }
 
+/**
+ * Note the other copies of these clustered stories as read, when the person
+ * asked for that (`cluster_mark_read`).
+ */
+export async function readCopies(
+  repo: Repository,
+  uid: number,
+  ids: readonly number[],
+): Promise<void> {
+  if (!(await repo.getPreferences(uid)).cluster_mark_read) return;
+  for (const id of ids) {
+    for (const sibling of await repo.clusterSiblingIds(uid, id)) {
+      await repo.markRead(uid, sibling);
+    }
+  }
+}
+
 /** A read as the API shows it. */
 interface ReadResource {
   readonly article_id: string;
@@ -42,7 +59,9 @@ interface ReadResource {
  * `DELETE /api/users/self/reads/:article_id`: mark it unread again. 204, or
  * 404 when it was not read.
  *
- * Both answer 401/403 when not signed in or cross-site.
+ * Both answer 401/403 when not signed in or cross-site. With the person's
+ * `cluster_mark_read` preference on, a story's other copies (from sources
+ * they follow) are noted as read with it.
  */
 export function createReadItem(
   resolver: CurrentUserResolver = requestCookieResolver,
@@ -58,10 +77,10 @@ export function createReadItem(
       handle: async (_input, { request, uid }) => {
         const id = parseFeedId(idOf(request));
         if (id === undefined) return undefined;
-        return {
-          id,
-          first: await new Repository(getDatabase()).markRead(uid, id),
-        };
+        const repo = new Repository(getDatabase());
+        const first = await repo.markRead(uid, id);
+        if (first !== undefined) await readCopies(repo, uid, [id]);
+        return { id, first };
       },
       encode: (result) => {
         if (!result || result.first === undefined) {
@@ -119,7 +138,7 @@ export function parseBulkReads(
 /**
  * `POST /api/users/self/reads`: note many stories read at once. 200 with the
  * ids now read (unknown ones are left out), 400 for a bad body, 401/403 when
- * not signed in or cross-site.
+ * not signed in or cross-site. Their other copies are read too, as for one.
  */
 export function createReadsCollection(
   resolver: CurrentUserResolver = requestCookieResolver,
@@ -141,8 +160,12 @@ export function createReadsCollection(
       if (!parsed.ok) throw problems.badRequest(parsed.error);
       return parsed.ids;
     },
-    handle: async (ids, { uid }) =>
-      new Repository(getDatabase()).markManyRead(uid, ids),
+    handle: async (ids, { uid }) => {
+      const repo = new Repository(getDatabase());
+      const done = await repo.markManyRead(uid, ids);
+      await readCopies(repo, uid, done);
+      return done;
+    },
     encode: (done) =>
       ok({
         items: done.map((id): ReadResource => ({ article_id: String(id) })),

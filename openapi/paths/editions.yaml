@@ -25,6 +25,72 @@ issue:
         $ref: '../components/common.yaml#/responses/NotFound'
       '429':
         $ref: '../components/common.yaml#/responses/TooManyRequests'
+issues:
+  get:
+    operationId: listIssues
+    tags: [editions]
+    summary: List the papers the person was given, newest first.
+    description: Rate limited by the `RL_API` binding. `self` is the person's default edition.
+    parameters:
+      - $ref: '../components/common.yaml#/parameters/Cursor'
+      - $ref: '../components/common.yaml#/parameters/Limit'
+    responses:
+      '200':
+        description: One page of issues.
+        content:
+          application/json:
+            schema:
+              $ref: '../components/issue.yaml#/IssuePage'
+      '400':
+        $ref: '../components/common.yaml#/responses/BadRequest'
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'
+  post:
+    operationId: publishIssue
+    tags: [editions]
+    summary: Lay one day's paper out again, with a fresh editor's note.
+    description: Rate limited by the `RL_API` binding. Writing the note calls Workers AI, unless the person turned the note off. A day the person has no edition for is a 404.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/issue.yaml#/IssueRequest'
+    responses:
+      '200':
+        description: The day's issue, laid out again in place of the one stored.
+        headers:
+          Location:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: '../components/issue.yaml#/Issue'
+      '201':
+        description: The day's issue, laid out for the first time.
+        headers:
+          Location:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: '../components/issue.yaml#/Issue'
+      '400':
+        $ref: '../components/common.yaml#/responses/BadRequest'
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '403':
+        $ref: '../components/common.yaml#/responses/Forbidden'
+      '404':
+        $ref: '../components/common.yaml#/responses/NotFound'
+      '415':
+        $ref: '../components/common.yaml#/responses/UnsupportedMediaType'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'
 collection:
   post:
     operationId: addEdition

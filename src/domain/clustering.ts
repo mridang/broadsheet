@@ -1,14 +1,26 @@
 /**
  * @packageDocumentation
  *
- * Finding the same story told by different sources. Each article of an
- * edition is embedded once with Workers AI and its vector kept in Vectorize
- * (keyed by article id), so a rerun only embeds what is new. The edition's
- * vectors are then compared in memory: articles from different sources whose
- * vectors are close enough form a cluster, which the paper prints once.
+ * Finding the same story told by different sources, in NewsBlur's two tiers.
+ * Titles first: two stories whose titles normalise the same, or share most of
+ * their significant words, are one story (a same-source copy with the same
+ * title joins too). Then meaning: each article is embedded once with Workers
+ * AI and its vector kept in Vectorize (keyed by article id, so a rerun only
+ * embeds what is new), and stories from different sources whose vectors are
+ * close join when their titles also share enough words. Candidate pairs come
+ * from an index of shared title words, skipping words too common to tell
+ * stories apart. Matches merge by union-find into clusters of at most
+ * {@link MAX_CLUSTER} spanning two or more sources.
  */
 import type { Database } from '@/domain/db/database';
 import { Repository, type Clusterable } from '@/domain/repository';
+import {
+  MIN_TITLE_LENGTH,
+  fuzzyMatch,
+  normaliseTitle,
+  relatedMatch,
+  significantWords,
+} from '@/domain/titles';
 import { logInfo } from '@/utils/logging';
 
 /** The Workers AI model articles are embedded with (768 dimensions). */
@@ -17,15 +29,23 @@ export const EMBEDDING_MODEL = '@cf/baai/bge-base-en-v1.5';
 /** How similar (cosine) two articles must be to count as one story. */
 export const SAME_STORY = 0.86;
 
+/** The most stories one cluster holds. */
+export const MAX_CLUSTER = 10;
+
+/** A title word in more stories than this is too common to pair them by. */
+const COMMON_WORD = 50;
+
 /** Texts per embedding request, and ids per Vectorize lookup. */
 const EMBED_BATCH = 50;
 const LOOKUP_BATCH = 20;
 
-/** An article and its embedding. */
-export interface Embedded {
+/** An article as clustering compares it: its title, source and embedding. */
+export interface ClusterItem {
   readonly id: number;
   readonly source_id: number;
-  readonly vector: readonly number[];
+  readonly title: string | null;
+  readonly feed_title?: string | null;
+  readonly vector?: readonly number[];
 }
 
 /** The cosine similarity of two vectors (0 when either is all zeros). */
@@ -43,28 +63,104 @@ export function cosine(a: readonly number[], b: readonly number[]): number {
   return na && nb ? dot / Math.sqrt(na * nb) : 0;
 }
 
+/** Union-find over indexes, refusing a union that would pass `cap` members. */
+class Groups {
+  readonly #parent: number[];
+  readonly #size: number[];
+
+  constructor(
+    n: number,
+    readonly cap: number,
+  ) {
+    this.#parent = Array.from({ length: n }, (_, i) => i);
+    this.#size = Array.from({ length: n }, () => 1);
+  }
+
+  find(i: number): number {
+    let root = i;
+    while (this.#parent[root] !== root) root = this.#parent[root] ?? root;
+    this.#parent[i] = root;
+    return root;
+  }
+
+  union(i: number, j: number): void {
+    const a = this.find(i);
+    const b = this.find(j);
+    if (a === b) return;
+    const size = (this.#size[a] ?? 1) + (this.#size[b] ?? 1);
+    if (size > this.cap) return;
+    this.#parent[b] = a;
+    this.#size[a] = size;
+  }
+}
+
+/** Every pair of items that share a title word not too common to count. */
+function candidatePairs(words: readonly Set<string>[]): [number, number][] {
+  const index = new Map<string, number[]>();
+  words.forEach((set, i) => {
+    for (const w of set) index.set(w, [...(index.get(w) ?? []), i]);
+  });
+  const seen = new Set<string>();
+  const pairs: [number, number][] = [];
+  for (const members of index.values()) {
+    if (members.length > COMMON_WORD) continue;
+    for (let x = 0; x < members.length; x++) {
+      for (let y = x + 1; y < members.length; y++) {
+        const i = members[x] ?? 0;
+        const j = members[y] ?? 0;
+        const key = `${i}:${j}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        pairs.push([i, j]);
+      }
+    }
+  }
+  return pairs;
+}
+
 /**
- * Group near-duplicates: each article joins the first group whose first
- * member it is at least `threshold` similar to and that has nothing from its
- * own source yet, else starts a group. Only groups spanning two or more
- * sources are returned, as lists of article ids.
+ * Group the same story told more than once. Exact titles join whatever their
+ * source; fuzzy titles and close embeddings (at least `threshold` similar,
+ * confirmed by shared title words) join only across sources. Returns groups
+ * of article ids that span two or more sources, each at most
+ * {@link MAX_CLUSTER} long.
  */
-export function groupNearDuplicates(
-  items: readonly Embedded[],
+export function clusterGroups(
+  items: readonly ClusterItem[],
   threshold: number = SAME_STORY,
 ): number[][] {
-  const groups: Embedded[][] = [];
-  for (const item of items) {
-    const home = groups.find(
-      (g) =>
-        g[0] !== undefined &&
-        cosine(g[0].vector, item.vector) >= threshold &&
-        !g.some((m) => m.source_id === item.source_id),
-    );
-    if (home) home.push(item);
-    else groups.push([item]);
+  const words = items.map((it) => significantWords(it.title, it.feed_title));
+  const groups = new Groups(items.length, MAX_CLUSTER);
+  const exact = new Map<string, number>();
+  items.forEach((it, i) => {
+    const key = normaliseTitle(it.title);
+    if (key.length < MIN_TITLE_LENGTH) return;
+    const first = exact.get(key);
+    if (first === undefined) exact.set(key, i);
+    else groups.union(first, i);
+  });
+  for (const [i, j] of candidatePairs(words)) {
+    const a = items[i];
+    const b = items[j];
+    if (!a || !b || a.source_id === b.source_id) continue;
+    const wa = words[i] ?? new Set<string>();
+    const wb = words[j] ?? new Set<string>();
+    const close =
+      a.vector && b.vector && cosine(a.vector, b.vector) >= threshold;
+    if (fuzzyMatch(wa, wb) || (close && relatedMatch(wa, wb))) {
+      groups.union(i, j);
+    }
   }
-  return groups.filter((g) => g.length > 1).map((g) => g.map((m) => m.id));
+  const byRoot = new Map<number, number[]>();
+  items.forEach((_, i) => {
+    const root = groups.find(i);
+    byRoot.set(root, [...(byRoot.get(root) ?? []), i]);
+  });
+  return [...byRoot.values()]
+    .filter(
+      (members) => new Set(members.map((i) => items[i]?.source_id)).size > 1,
+    )
+    .map((members) => members.map((i) => items[i]?.id ?? 0));
 }
 
 /** What an article is embedded from: its title and the start of its summary. */
@@ -151,10 +247,10 @@ export async function clusterEdition(
   for (const [id, values] of await embedAll(env, index, fresh, edition)) {
     vectors.set(id, values);
   }
-  const groups = groupNearDuplicates(
-    articles.flatMap((a) => {
+  const groups = clusterGroups(
+    articles.map((a) => {
       const vector = vectors.get(a.id);
-      return vector ? [{ id: a.id, source_id: a.source_id, vector }] : [];
+      return { ...a, ...(vector ? { vector } : {}) };
     }),
   );
   await repo.writeClusters(edition, groups);

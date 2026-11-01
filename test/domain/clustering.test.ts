@@ -4,7 +4,8 @@ import {
   clusterEdition,
   cosine,
   embeddingText,
-  groupNearDuplicates,
+  MAX_CLUSTER,
+  clusterGroups,
 } from '@/domain/clustering';
 import { databaseFrom, type Database } from '@/domain/db/database';
 import { Repository } from '@/domain/repository';
@@ -25,33 +26,166 @@ describe('cosine', () => {
   });
 });
 
-describe('groupNearDuplicates', () => {
-  it('groups close vectors from different sources', () => {
+const QUAKE = 'Powerful earthquake strikes coastal city overnight';
+
+describe('clusterGroups', () => {
+  it('joins the same headline from two sources without embeddings', () => {
     expect(
-      groupNearDuplicates([
-        { id: 1, source_id: 1, vector: [1, 0] },
-        { id: 2, source_id: 2, vector: [0.99, 0.05] },
-        { id: 3, source_id: 3, vector: [0, 1] },
+      clusterGroups([
+        { id: 1, source_id: 1, title: QUAKE },
+        { id: 2, source_id: 2, title: `${QUAKE}!` },
+        { id: 3, source_id: 3, title: 'Local team wins the cup final' },
       ]),
     ).toEqual([[1, 2]]);
   });
 
-  it('keeps two stories from the same source apart', () => {
+  it('folds a same-source copy with the same headline into the cluster', () => {
     expect(
-      groupNearDuplicates([
-        { id: 1, source_id: 1, vector: [1, 0] },
-        { id: 2, source_id: 1, vector: [1, 0] },
+      clusterGroups([
+        { id: 1, source_id: 1, title: QUAKE },
+        { id: 2, source_id: 1, title: QUAKE },
+        { id: 3, source_id: 2, title: QUAKE },
+      ]),
+    ).toEqual([[1, 2, 3]]);
+  });
+
+  it('keeps the same headline twice from one source alone', () => {
+    expect(
+      clusterGroups([
+        { id: 1, source_id: 1, title: QUAKE },
+        { id: 2, source_id: 1, title: QUAKE },
       ]),
     ).toEqual([]);
   });
 
-  it('honours the threshold given', () => {
+  it('ignores an exact match on a headline too short to tell', () => {
+    expect(
+      clusterGroups([
+        { id: 1, source_id: 1, title: 'Updates' },
+        { id: 2, source_id: 2, title: 'Updates' },
+      ]),
+    ).toEqual([]);
+  });
+
+  it('joins headlines that share most of their words across sources', () => {
+    expect(
+      clusterGroups([
+        {
+          id: 1,
+          source_id: 1,
+          title: 'Apple unveils new iPhone camera battery design',
+        },
+        {
+          id: 2,
+          source_id: 2,
+          title: 'Apple unveils iPhone with new camera and battery',
+        },
+      ]),
+    ).toEqual([[1, 2]]);
+  });
+
+  it('does not join a fuzzy match from one source', () => {
+    expect(
+      clusterGroups([
+        {
+          id: 1,
+          source_id: 1,
+          title: 'Apple unveils new iPhone camera battery design',
+        },
+        {
+          id: 2,
+          source_id: 1,
+          title: 'Apple unveils iPhone with new camera and battery',
+        },
+      ]),
+    ).toEqual([]);
+  });
+
+  it('joins close embeddings whose headlines share enough words', () => {
+    expect(
+      clusterGroups([
+        {
+          id: 1,
+          source_id: 1,
+          title: 'Central bank raises interest rates sharply amid inflation',
+          vector: [1, 0],
+        },
+        {
+          id: 2,
+          source_id: 2,
+          title: 'Rates rise again as central bank fights inflation pressure',
+          vector: [0.99, 0.05],
+        },
+      ]),
+    ).toEqual([[1, 2]]);
+  });
+
+  it('refuses close embeddings whose headlines share too little', () => {
+    expect(
+      clusterGroups([
+        {
+          id: 1,
+          source_id: 1,
+          title: 'Central bank raises rates',
+          vector: [1, 0],
+        },
+        {
+          id: 2,
+          source_id: 2,
+          title: 'Markets tumble on the news',
+          vector: [1, 0],
+        },
+      ]),
+    ).toEqual([]);
+  });
+
+  it('refuses embeddings below the threshold', () => {
     const items = [
-      { id: 1, source_id: 1, vector: [1, 0] },
-      { id: 2, source_id: 2, vector: [1, 1] },
+      {
+        id: 1,
+        source_id: 1,
+        title: 'Central bank raises interest rates sharply amid inflation',
+        vector: [1, 0],
+      },
+      {
+        id: 2,
+        source_id: 2,
+        title: 'Rates rise again as central bank fights inflation pressure',
+        vector: [1, 1],
+      },
     ];
-    expect(groupNearDuplicates(items, 0.9)).toEqual([]);
-    expect(groupNearDuplicates(items, 0.7)).toEqual([[1, 2]]);
+    expect(clusterGroups(items, 0.9)).toEqual([]);
+    expect(clusterGroups(items, 0.7)).toEqual([[1, 2]]);
+  });
+
+  it('leaves out the words of the feed’s own name', () => {
+    expect(
+      clusterGroups([
+        {
+          id: 1,
+          source_id: 1,
+          title: 'Daily Planet Daily Planet news roundup today',
+          feed_title: 'Daily Planet',
+        },
+        {
+          id: 2,
+          source_id: 2,
+          title: 'Daily Planet weather roundup sport today',
+          feed_title: 'Daily Planet',
+        },
+      ]),
+    ).toEqual([]);
+  });
+
+  it(`holds at most ${MAX_CLUSTER} stories in one cluster`, () => {
+    const many = Array.from({ length: MAX_CLUSTER + 3 }, (_, i) => ({
+      id: i + 1,
+      source_id: i + 1,
+      title: QUAKE,
+    }));
+    const groups = clusterGroups(many);
+    expect(groups[0]).toHaveLength(MAX_CLUSTER);
+    expect(groups.every((g) => g.length <= MAX_CLUSTER)).toBe(true);
   });
 });
 
@@ -63,13 +197,20 @@ describe('embeddingText', () => {
         source_id: 1,
         title: 'T',
         summary: 'x'.repeat(500),
+        feed_title: null,
       }),
     ).toBe(`T\n${'x'.repeat(400)}`);
   });
 
   it('copes with neither', () => {
     expect(
-      embeddingText({ id: 1, source_id: 1, title: null, summary: null }),
+      embeddingText({
+        id: 1,
+        source_id: 1,
+        title: null,
+        summary: null,
+        feed_title: null,
+      }),
     ).toBe('');
   });
 });

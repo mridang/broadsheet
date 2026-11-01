@@ -16,6 +16,7 @@ import {
   type Tier,
   type Training,
 } from '@/domain/render/tiers';
+import { matchTier } from '@/domain/titles';
 
 /** One story as the paper prints it. */
 export interface LaidStory {
@@ -23,6 +24,28 @@ export interface LaidStory {
   readonly tier: Tier;
   /** The other sources that covered the same story. */
   readonly also: readonly string[];
+  /** The other copies folded into this one (absent in older stored issues). */
+  readonly siblings?: readonly Sibling[];
+}
+
+/**
+ * Another source's copy of a story the paper prints once. `tier` is 'title'
+ * when the headlines match, 'related' when only the embeddings joined them.
+ */
+export interface Sibling {
+  readonly id: number;
+  readonly source: string;
+  readonly url: string;
+  readonly tier: 'title' | 'related';
+}
+
+/**
+ * How a reader wants clusters printed: not at all (`clustering` false), or
+ * folding only copies with matching titles (`mode` 'title') or every copy.
+ */
+export interface ClusterOptions {
+  readonly clustering?: boolean;
+  readonly mode?: 'title' | 'related';
 }
 
 /** One feed's desk: its heading and its stories in print order. */
@@ -62,26 +85,35 @@ const byline = (a: Article): string => a.source || hostOf(a.url);
 /**
  * Keep one article per cluster across the whole paper: the one the reader
  * likes most, then one its desk has room to print (in `printable`), then the
- * weightiest. Returns the ids dropped, the other sources
- * each kept article stands for, and how many sources covered each cluster.
+ * weightiest. A copy folds into it unless the reader asked for title matches
+ * only and its headline differs, or it is from the same source and only the
+ * embeddings joined them; a copy that does not fold prints on its own.
+ * Returns the ids dropped, the copies each kept article stands for (and their
+ * sources' names), and how many sources covered each cluster.
  */
 export function collapseClusters(
   articles: readonly Article[],
   training: readonly Training[] = [],
   printable?: ReadonlySet<number>,
+  options: ClusterOptions = {},
 ): {
   readonly dropped: ReadonlySet<number>;
   readonly also: ReadonlyMap<number, readonly string[]>;
+  readonly siblings: ReadonlyMap<number, readonly Sibling[]>;
   readonly coverage: ReadonlyMap<number, number>;
 } {
+  const dropped = new Set<number>();
+  const also = new Map<number, string[]>();
+  const siblings = new Map<number, Sibling[]>();
+  const coverage = new Map<number, number>();
+  if (options.clustering === false) {
+    return { dropped, also, siblings, coverage };
+  }
   const members = new Map<number, Article[]>();
   for (const a of articles) {
     if (a.cluster_id === null) continue;
     members.set(a.cluster_id, [...(members.get(a.cluster_id) ?? []), a]);
   }
-  const dropped = new Set<number>();
-  const also = new Map<number, string[]>();
-  const coverage = new Map<number, number>();
   for (const [cluster, group] of members) {
     if (group.length < 2) continue;
     const [kept, ...rest] = group.toSorted(
@@ -91,28 +123,59 @@ export function collapseClusters(
         weight(y) - weight(x),
     );
     if (!kept) continue;
-    rest.forEach((a) => dropped.add(a.id));
-    const names = [...new Set(rest.map(byline))].filter(
-      (n) => n !== byline(kept),
+    const folded = rest
+      .map((a) => ({ a, tier: matchTier(kept.title, a.title) }))
+      .filter(
+        ({ a, tier }) =>
+          tier === 'title' ||
+          (options.mode !== 'title' && a.source_id !== kept.source_id),
+      );
+    if (!folded.length) continue;
+    folded.forEach(({ a }) => dropped.add(a.id));
+    also.set(
+      kept.id,
+      [...new Set(folded.map(({ a }) => byline(a)))].filter(
+        (n) => n !== byline(kept),
+      ),
     );
-    also.set(kept.id, names);
-    coverage.set(cluster, new Set(group.map((a) => a.source_id)).size);
+    siblings.set(
+      kept.id,
+      folded.map(({ a, tier }) => ({
+        id: a.id,
+        source: byline(a),
+        url: a.url,
+        tier,
+      })),
+    );
+    coverage.set(
+      cluster,
+      new Set([kept, ...folded.map(({ a }) => a)].map((a) => a.source_id)).size,
+    );
   }
-  return { dropped, also, coverage };
+  return { dropped, also, siblings, coverage };
 }
 
 /** The most stories one feed's desk prints; the rest stay in the archive. */
 export const DESK_STORIES = 14;
 
-/** Lay out a paper from its sections' desks and the reader's training. */
+/**
+ * Lay out a paper from its sections' desks, the reader's training and how
+ * they want clusters printed.
+ */
 export function layOut(
   groups: readonly DeskGroup[],
   training: readonly Training[] = [],
+  options: ClusterOptions = {},
 ): Layout {
   const all = groups.flatMap((g) => g.desks.flatMap((d) => d.articles));
   // Which stories make their desk's cap before any copy is dropped: keeping
   // one of those means a story several desks carried is never cut from all.
-  const allCoverage = collapseClusters(all, training).coverage;
+  const allCoverage = collapseClusters(
+    all,
+    training,
+    undefined,
+    options,
+  ).coverage;
   const printable = new Set(
     groups.flatMap((g) =>
       g.desks.flatMap((d) =>
@@ -122,10 +185,11 @@ export function layOut(
       ),
     ),
   );
-  const { dropped, also, coverage } = collapseClusters(
+  const { dropped, also, siblings, coverage } = collapseClusters(
     all,
     training,
     printable,
+    options,
   );
   return {
     groups: groups.map((group) => ({
@@ -145,6 +209,7 @@ export function layOut(
             id: a.id,
             tier: tiers[i] ?? 'standard',
             also: also.get(a.id) ?? [],
+            siblings: siblings.get(a.id) ?? [],
           })),
         };
       }),
@@ -169,6 +234,18 @@ export function topStories(layout: Layout, n: number): number[] {
 
 const TIERS: readonly string[] = ['lead', 'feature', 'standard', 'brief'];
 
+const isSibling = (v: unknown): v is Sibling => {
+  const s = v as Sibling;
+  return (
+    typeof s === 'object' &&
+    s !== null &&
+    Number.isInteger(s.id) &&
+    typeof s.source === 'string' &&
+    typeof s.url === 'string' &&
+    (s.tier === 'title' || s.tier === 'related')
+  );
+};
+
 const isStory = (v: unknown): v is LaidStory => {
   const s = v as LaidStory;
   return (
@@ -177,7 +254,9 @@ const isStory = (v: unknown): v is LaidStory => {
     Number.isInteger(s.id) &&
     TIERS.includes(s.tier) &&
     Array.isArray(s.also) &&
-    s.also.every((n) => typeof n === 'string')
+    s.also.every((n) => typeof n === 'string') &&
+    (s.siblings === undefined ||
+      (Array.isArray(s.siblings) && s.siblings.every(isSibling)))
   );
 };
 

@@ -62,7 +62,7 @@ const same = (a: string, b: string): boolean =>
   a.localeCompare(b, undefined, { sensitivity: 'base' }) === 0;
 
 /** Whether one classifier matches the story (case-insensitively). */
-function matches(story: Classifiable, c: Training): boolean {
+export function matches(story: Classifiable, c: Training): boolean {
   switch (c.kind) {
     case 'author':
       return !!story.author && same(story.author, c.value);

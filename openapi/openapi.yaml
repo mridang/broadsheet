@@ -27,6 +27,7 @@ tags:
   - name: notifications
   - name: push
   - name: sections
+  - name: preferences
   - name: reads
   - name: saves
   - name: searches
@@ -45,6 +46,8 @@ paths:
     $ref: './paths/editions.yaml#/item'
   /api/editions/{id}/issues/{date}:
     $ref: './paths/editions.yaml#/editionIssue'
+  /api/editions/self/issues:
+    $ref: './paths/editions.yaml#/issues'
   /api/editions/self/issues/{date}:
     $ref: './paths/editions.yaml#/issue'
   /api/articles/{id}/answers:
@@ -93,6 +96,8 @@ paths:
     $ref: './paths/searches.yaml#/item'
   /api/users/self/reads:
     $ref: './paths/reads.yaml#/collection'
+  /api/users/self/preferences:
+    $ref: './paths/preferences.yaml#/item'
   /api/users/self/reads/{article_id}:
     $ref: './paths/reads.yaml#/item'
   /api/users/self/saves:

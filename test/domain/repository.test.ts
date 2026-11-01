@@ -5,6 +5,7 @@ import { databaseFrom, type Database } from '@/domain/db/database';
 import {
   anyWordQuery,
   FETCH_HISTORY_LIMIT,
+  DEFAULT_PREFERENCES,
   ftsQuery,
   MAX_BACKOFF_MINUTES,
   Repository,
@@ -1416,5 +1417,114 @@ describe('sectionPath', () => {
     expect(sectionPath([section(1, 'A', 2), section(2, 'B', 1)], 1)).toBe(
       'B · A',
     );
+  });
+});
+
+describe('preferences', () => {
+  it('gives the defaults to someone who changed nothing', async () => {
+    expect(await new Repository(db).getPreferences(1)).toEqual(
+      DEFAULT_PREFERENCES,
+    );
+  });
+
+  it('keeps a change and the defaults beside it', async () => {
+    const repo = new Repository(db);
+    await repo.updatePreferences(1, { cluster_mode: 'title' });
+    await repo.updatePreferences(1, { briefing_story_count: 15 });
+    expect(await repo.getPreferences(1)).toEqual({
+      ...DEFAULT_PREFERENCES,
+      cluster_mode: 'title',
+      briefing_story_count: 15,
+    });
+    expect(await repo.getPreferences(2)).toEqual(DEFAULT_PREFERENCES);
+  });
+});
+
+describe('cluster siblings, issue lists and source counts', () => {
+  const story = (n: number, over: Partial<ScrapedItem> = {}): ScrapedItem => ({
+    url: `https://s.test/${n}`,
+    title: 'Quake',
+    source: 'S',
+    favicon: '',
+    summary: '',
+    image: '',
+    published_at: '',
+    points: 0,
+    ...over,
+  });
+
+  it('lists the other copies the person can read', async () => {
+    const repo = new Repository(db);
+    const user = await upsertUser(db, { sub: 'a', email: 'a@b.c' });
+    const a = await addFeed(db, user.id, 'https://a.test/rss');
+    const b = await addFeed(db, user.id, 'https://b.test/rss');
+    await repo.writeEdition(a!.source_id, '2026-11-01', [story(1)]);
+    await repo.writeEdition(b!.source_id, '2026-11-01', [story(2)]);
+    await repo.writeEdition(99, '2026-11-01', [story(3)]);
+    const ids = (await repo.editionArticles('2026-11-01')).map((x) => x.id);
+    await repo.writeClusters('2026-11-01', [ids]);
+    const [first, second] = ids;
+    expect(await repo.clusterSiblingIds(user.id, first!)).toEqual([second]);
+  });
+
+  it('lists no copies of a story in no cluster, or not the person’s', async () => {
+    const repo = new Repository(db);
+    const user = await upsertUser(db, { sub: 'a', email: 'a@b.c' });
+    const a = await addFeed(db, user.id, 'https://a.test/rss');
+    await repo.writeEdition(a!.source_id, '2026-11-01', [story(1)]);
+    const [only] = await repo.editionArticles('2026-11-01');
+    expect(await repo.clusterSiblingIds(user.id, only!.id)).toEqual([]);
+    expect(await repo.clusterSiblingIds(user.id + 1, only!.id)).toEqual([]);
+  });
+
+  it('carries the source title for clustering', async () => {
+    const repo = new Repository(db);
+    const user = await upsertUser(db, { sub: 'a', email: 'a@b.c' });
+    const a = await addFeed(db, user.id, 'https://a.test/rss', 'Alpha');
+    await repo.writeEdition(a!.source_id, '2026-11-01', [story(1)]);
+    const [row] = await repo.editionArticles('2026-11-01');
+    expect(row).toHaveProperty('feed_title');
+  });
+
+  it('lists a person’s issues newest first, before a date', async () => {
+    const repo = new Repository(db);
+    for (const d of ['2026-10-30', '2026-10-31', '2026-11-01']) {
+      await repo.saveIssue(1, d, '{"groups":[]}', d);
+    }
+    await repo.saveIssue(2, '2026-11-01', '{"groups":[]}', null);
+    expect((await repo.listIssues(1, 2)).map((i) => i.date)).toEqual([
+      '2026-11-01',
+      '2026-10-31',
+    ]);
+    expect(
+      (await repo.listIssues(1, 5, '2026-10-31')).map((i) => i.date),
+    ).toEqual(['2026-10-30']);
+  });
+
+  it('keeps the stories a stored note covers', async () => {
+    const repo = new Repository(db);
+    await repo.saveIssue(1, '2026-11-01', '{"groups":[]}', 'N', '[1]');
+    expect((await repo.getIssue(1, '2026-11-01'))?.briefing_stories).toBe(
+      '[1]',
+    );
+  });
+
+  it('counts each source’s stories since a date', async () => {
+    const repo = new Repository(db);
+    await repo.writeEdition(1, '2026-10-01', [story(1)]);
+    await repo.writeEdition(1, '2026-10-20', [story(2), story(3)]);
+    const counts = await repo.sourceCounts([1, 2], '2026-10-15');
+    expect(counts.get(1)).toBe(2);
+    expect(counts.has(2)).toBe(false);
+  });
+
+  it('lists the sources of what a person read', async () => {
+    const repo = new Repository(db);
+    const user = await upsertUser(db, { sub: 'a', email: 'a@b.c' });
+    const a = await addFeed(db, user.id, 'https://a.test/rss');
+    await repo.writeEdition(a!.source_id, '2026-11-01', [story(1)]);
+    const [row] = await repo.editionArticles('2026-11-01');
+    await repo.markRead(user.id, row!.id);
+    expect([...(await repo.readSourceIds(user.id))]).toEqual([a!.source_id]);
   });
 });

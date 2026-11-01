@@ -15,6 +15,7 @@ import {
   eq,
   getTableColumns,
   gt,
+  gte,
   inArray,
   isNull,
   lt,
@@ -30,6 +31,7 @@ import {
   classifiers,
   clusters,
   issues,
+  preferences,
   conversations,
   edition_issues,
   editions,
@@ -222,6 +224,36 @@ export interface Clusterable {
   readonly source_id: number;
   readonly title: string | null;
   readonly summary: string | null;
+  /** The source's own title, whose words say nothing about the story. */
+  readonly feed_title: string | null;
+}
+/** What a person chose about clustering and the editor's note. */
+export interface Preferences {
+  readonly story_clustering: boolean;
+  readonly cluster_mode: 'title' | 'related';
+  readonly cluster_mark_read: boolean;
+  readonly briefing_enabled: boolean;
+  readonly briefing_story_count: number;
+  readonly briefing_length: 'short' | 'medium' | 'detailed';
+  readonly briefing_style: 'editorial' | 'bullets' | 'headlines';
+  readonly briefing_read_filter: 'unread' | 'focus';
+}
+/** The preferences of someone who has changed nothing. */
+export const DEFAULT_PREFERENCES: Preferences = {
+  story_clustering: true,
+  cluster_mode: 'related',
+  cluster_mark_read: false,
+  briefing_enabled: true,
+  briefing_story_count: 5,
+  briefing_length: 'medium',
+  briefing_style: 'bullets',
+  briefing_read_filter: 'unread',
+};
+/** One day in a person's list of stored issues. */
+export interface IssueListing {
+  readonly date: string;
+  readonly briefing: string | null;
+  readonly created_at: string | null;
 }
 /** A person's stored paper for one day; `layout` is JSON. */
 export type StoredIssue = typeof issues.$inferSelect;
@@ -1370,8 +1402,10 @@ export class Repository {
         source_id: articles.source_id,
         title: articles.title,
         summary: articles.summary,
+        feed_title: sources.title,
       })
       .from(articles)
+      .leftJoin(sources, eq(articles.source_id, sources.id))
       .where(eq(articles.edition, edition))
       .orderBy(asc(articles.id));
   }
@@ -1436,13 +1470,25 @@ export class Repository {
     date: string,
     layout: string,
     briefing: string | null,
+    briefingStories: string | null = null,
   ): Promise<void> {
     await this.#db
       .insert(issues)
-      .values({ user_id: userId, date, layout, briefing })
+      .values({
+        user_id: userId,
+        date,
+        layout,
+        briefing,
+        briefing_stories: briefingStories,
+      })
       .onConflictDoUpdate({
         target: [issues.user_id, issues.date],
-        set: { layout, briefing, created_at: sql`(datetime('now'))` },
+        set: {
+          layout,
+          briefing,
+          briefing_stories: briefingStories,
+          created_at: sql`(datetime('now'))`,
+        },
       });
   }
 
@@ -1542,13 +1588,25 @@ export class Repository {
     date: string,
     layout: string,
     briefing: string | null,
+    briefingStories: string | null = null,
   ): Promise<void> {
     await this.#db
       .insert(edition_issues)
-      .values({ edition_id: editionId, date, layout, briefing })
+      .values({
+        edition_id: editionId,
+        date,
+        layout,
+        briefing,
+        briefing_stories: briefingStories,
+      })
       .onConflictDoUpdate({
         target: [edition_issues.edition_id, edition_issues.date],
-        set: { layout, briefing, created_at: sql`(datetime('now'))` },
+        set: {
+          layout,
+          briefing,
+          briefing_stories: briefingStories,
+          created_at: sql`(datetime('now'))`,
+        },
       });
   }
 
@@ -1779,6 +1837,135 @@ export class Repository {
       .orderBy(sql`count(distinct ${theirs.user_id}) desc`, asc(sources.id))
       .limit(limit);
     return rows.map((r) => ({ ...r, followers: Number(r.followers) }));
+  }
+
+  /**
+   * How many stories each of these sources published in editions from
+   * `since` (YYYY-MM-DD) on, by source id; absent sources published none.
+   */
+  async sourceCounts(
+    sourceIds: readonly number[],
+    since: string,
+  ): Promise<Map<number, number>> {
+    const counts = new Map<number, number>();
+    for (const part of chunks([...new Set(sourceIds)], IN_CHUNK)) {
+      const rows = await this.#db
+        .select({ id: articles.source_id, n: sql<number>`count(*)` })
+        .from(articles)
+        .where(
+          and(inArray(articles.source_id, part), gte(articles.edition, since)),
+        )
+        .groupBy(articles.source_id);
+      rows.forEach((r) => counts.set(r.id, Number(r.n)));
+    }
+    return counts;
+  }
+
+  /** The sources of the stories a person has read. */
+  async readSourceIds(userId: number): Promise<Set<number>> {
+    const rows = await this.#db
+      .selectDistinct({ id: articles.source_id })
+      .from(reads)
+      .innerJoin(articles, eq(reads.article_id, articles.id))
+      .where(eq(reads.user_id, userId));
+    return new Set(rows.map((r) => r.id));
+  }
+
+  /** A person's preferences, with the defaults for what they never set. */
+  async getPreferences(userId: number): Promise<Preferences> {
+    const row = await this.#db.query.preferences.findFirst({
+      where: eq(preferences.user_id, userId),
+    });
+    if (!row) return DEFAULT_PREFERENCES;
+    return {
+      story_clustering: row.story_clustering === 1,
+      cluster_mode: row.cluster_mode === 'title' ? 'title' : 'related',
+      cluster_mark_read: row.cluster_mark_read === 1,
+      briefing_enabled: row.briefing_enabled === 1,
+      briefing_story_count: row.briefing_story_count,
+      briefing_length:
+        row.briefing_length === 'short' || row.briefing_length === 'detailed'
+          ? row.briefing_length
+          : 'medium',
+      briefing_style:
+        row.briefing_style === 'editorial' || row.briefing_style === 'headlines'
+          ? row.briefing_style
+          : 'bullets',
+      briefing_read_filter:
+        row.briefing_read_filter === 'focus' ? 'focus' : 'unread',
+    };
+  }
+
+  /** Change some of a person's preferences; returns all of them. */
+  async updatePreferences(
+    userId: number,
+    changes: Partial<Preferences>,
+  ): Promise<Preferences> {
+    const next = { ...(await this.getPreferences(userId)), ...changes };
+    const row = {
+      story_clustering: next.story_clustering ? 1 : 0,
+      cluster_mode: next.cluster_mode,
+      cluster_mark_read: next.cluster_mark_read ? 1 : 0,
+      briefing_enabled: next.briefing_enabled ? 1 : 0,
+      briefing_story_count: next.briefing_story_count,
+      briefing_length: next.briefing_length,
+      briefing_style: next.briefing_style,
+      briefing_read_filter: next.briefing_read_filter,
+      updated_at: sql`(datetime('now'))`,
+    };
+    await this.#db
+      .insert(preferences)
+      .values({ user_id: userId, ...row })
+      .onConflictDoUpdate({ target: preferences.user_id, set: row });
+    return next;
+  }
+
+  /**
+   * The other members of an article's cluster that the person can read (from
+   * sources they follow), or none when it belongs to no cluster.
+   */
+  async clusterSiblingIds(
+    userId: number,
+    articleId: number,
+  ): Promise<number[]> {
+    const article = await this.getArticle(userId, articleId);
+    if (!article || article.cluster_id === null) return [];
+    const rows = await this.#db
+      .selectDistinct({ id: articles.id })
+      .from(articles)
+      .innerJoin(subscriptions, eq(articles.source_id, subscriptions.source_id))
+      .where(
+        and(
+          eq(articles.cluster_id, article.cluster_id),
+          eq(subscriptions.user_id, userId),
+        ),
+      );
+    return rows.map((r) => r.id).filter((id) => id !== articleId);
+  }
+
+  /**
+   * A person's stored issues, newest first: at most `limit`, each before the
+   * date `before` when given.
+   */
+  listIssues(
+    userId: number,
+    limit: number,
+    before?: string,
+  ): Promise<IssueListing[]> {
+    return this.#db
+      .select({
+        date: issues.date,
+        briefing: issues.briefing,
+        created_at: issues.created_at,
+      })
+      .from(issues)
+      .where(
+        before === undefined
+          ? eq(issues.user_id, userId)
+          : and(eq(issues.user_id, userId), lt(issues.date, before)),
+      )
+      .orderBy(desc(issues.date))
+      .limit(limit);
   }
 }
 

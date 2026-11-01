@@ -128,3 +128,40 @@ describe('DELETE /api/users/self/reads/:article_id', () => {
     expect((await unread(story)).status).toBe(401);
   });
 });
+
+describe('POST /api/users/self/reads/:article_id with copies', () => {
+  let copy: number;
+
+  beforeEach(async () => {
+    const repo = new Repository(db);
+    const { source_id } = (await repo.addFeed(7, 'https://b.test/f'))!;
+    await repo.writeEdition(source_id, '2026-10-20', [
+      {
+        url: 'https://y/1',
+        title: 'One',
+        source: 'y',
+        favicon: '',
+        summary: '',
+        image: '',
+        published_at: '',
+        points: 0,
+      },
+    ]);
+    copy = (await repo.sourceArticles(source_id, '2026-10-20'))[0]!.id;
+    await repo.writeClusters('2026-10-20', [[story, copy]]);
+  });
+
+  it('leaves the other copies unread by default', async () => {
+    await read(story);
+    expect([...(await new Repository(db).readState(7)).ids]).toEqual([story]);
+  });
+
+  it('marks the other copies read when the person asked for that', async () => {
+    const repo = new Repository(db);
+    await repo.updatePreferences(7, { cluster_mark_read: true });
+    await read(story);
+    expect([...(await repo.readState(7)).ids].toSorted()).toEqual(
+      [story, copy].toSorted(),
+    );
+  });
+});

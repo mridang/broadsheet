@@ -101,6 +101,72 @@ describe('collapseClusters', () => {
   });
 });
 
+describe('collapseClusters options', () => {
+  const kept = article({
+    id: 1,
+    source: 'A',
+    title: 'Mars rover lands safely on red planet',
+    cluster_id: 9,
+    points: 50,
+  });
+  const twin = article({
+    id: 2,
+    source_id: 2,
+    source: 'B',
+    url: 'https://b.test/1',
+    title: 'Mars rover lands safely on red planet',
+    cluster_id: 9,
+  });
+  const related = article({
+    id: 3,
+    source_id: 3,
+    source: 'C',
+    title: 'NASA probe touches down',
+    cluster_id: 9,
+  });
+
+  it('lists each folded copy with how it matched', () => {
+    expect(collapseClusters([kept, twin, related]).siblings.get(1)).toEqual([
+      { id: 2, source: 'B', url: 'https://b.test/1', tier: 'title' },
+      { id: 3, source: 'C', url: 'https://example.com/a', tier: 'related' },
+    ]);
+  });
+
+  it('folds only matching headlines in title mode', () => {
+    const out = collapseClusters([kept, twin, related], [], undefined, {
+      mode: 'title',
+    });
+    expect([...out.dropped]).toEqual([2]);
+    expect(out.coverage.get(9)).toBe(2);
+  });
+
+  it('folds nothing with clustering off', () => {
+    const out = collapseClusters([kept, twin], [], undefined, {
+      clustering: false,
+    });
+    expect(out.dropped.size).toBe(0);
+  });
+
+  it('prints a same-source copy only the meaning joined on its own', () => {
+    const own = article({
+      id: 4,
+      source: 'A',
+      title: 'Space agency celebrates',
+      cluster_id: 9,
+    });
+    expect(collapseClusters([kept, own]).dropped.has(4)).toBe(false);
+  });
+
+  it('folds a same-source copy with the same headline', () => {
+    const own = article({
+      id: 4,
+      title: 'Mars rover lands safely on red planet',
+      cluster_id: 9,
+    });
+    expect(collapseClusters([kept, own]).dropped.has(4)).toBe(true);
+  });
+});
+
 describe('layOut', () => {
   it('keeps a covered story whose heavier copy its desk has no room for', () => {
     const crowd = Array.from({ length: DESK_STORIES }, (_, i) =>
@@ -219,6 +285,10 @@ describe('parseLayout', () => {
       '{"groups":[{"name":null,"desks":[{"feed_id":1,"title":"t","url":"u","stories":[{"id":1,"tier":"huge","also":[]}]}]}]}',
     ],
     ['null', 'null'],
+    [
+      'a bad copy',
+      '{"groups":[{"name":null,"desks":[{"feed_id":1,"title":"t","url":"u","stories":[{"id":1,"tier":"lead","also":[],"siblings":[{"id":2,"source":"s","url":"u","tier":"near"}]}]}]}]}',
+    ],
   ])('refuses %s', (_name, stored) => {
     expect(parseLayout(stored)).toBeUndefined();
   });

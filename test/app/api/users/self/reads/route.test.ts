@@ -92,3 +92,29 @@ describe('POST /api/users/self/reads', () => {
     expect((await readMany({ article_ids: [String(story)] })).status).toBe(401);
   });
 });
+
+describe('POST /api/users/self/reads with copies', () => {
+  it('marks the other copies read when the person asked for that', async () => {
+    const repo = new Repository(db);
+    const { source_id } = (await repo.addFeed(7, 'https://b.test/f'))!;
+    await repo.writeEdition(source_id, '2026-10-20', [
+      {
+        url: 'https://y/1',
+        title: 'One',
+        source: 'y',
+        favicon: '',
+        summary: '',
+        image: '',
+        published_at: '',
+        points: 0,
+      },
+    ]);
+    const copy = (await repo.sourceArticles(source_id, '2026-10-20'))[0]!.id;
+    await repo.writeClusters('2026-10-20', [[story, copy]]);
+    await repo.updatePreferences(7, { cluster_mark_read: true });
+    await readMany({ article_ids: [String(story)] });
+    expect([...(await repo.readState(7)).ids].toSorted()).toEqual(
+      [story, copy].toSorted(),
+    );
+  });
+});

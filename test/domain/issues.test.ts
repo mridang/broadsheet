@@ -2,8 +2,9 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import { databaseFrom, type Database } from '@/domain/db/database';
 import {
-  briefingPrompt,
+  briefingFor,
   composeLayout,
+  dayBefore,
   editionIssueFor,
   editionPick,
   isIssueDate,
@@ -12,12 +13,11 @@ import {
   publishIssue,
   storedEditionIssue,
   storedIssue,
-  writeBriefing,
 } from '@/domain/issues';
 import { storyIds } from '@/domain/render/layout';
 import {
+  DEFAULT_PREFERENCES,
   Repository,
-  type Article,
   type CustomEdition,
 } from '@/domain/repository';
 import type { ScrapedItem } from '@/lib/scraping';
@@ -64,6 +64,20 @@ beforeEach(async () => {
 });
 
 describe('composeLayout', () => {
+  it('prints every copy of a clustered story when the reader turned clustering off', async () => {
+    const other = await repo.addFeed(uid, 'https://y.test/rss', 'Y');
+    await repo.writeEdition(other!.source_id, DAY, [
+      item(1, { url: 'https://y.test/1' }),
+    ]);
+    const ids = (await repo.editionArticles(DAY))
+      .filter((a) => a.title === 'Story 1')
+      .map((a) => a.id);
+    await repo.writeClusters(DAY, [ids]);
+    expect(storyIds(await composeLayout(repo, uid, DAY, uid))).toHaveLength(2);
+    await repo.updatePreferences(uid, { story_clustering: false });
+    expect(storyIds(await composeLayout(repo, uid, DAY, uid))).toHaveLength(3);
+  });
+
   it('lays out the day’s stories of the person’s feeds', async () => {
     const layout = await composeLayout(repo, uid, DAY, uid);
     expect(storyIds(layout)).toHaveLength(2);
@@ -110,58 +124,115 @@ describe('composeLayout', () => {
   });
 });
 
-describe('briefingPrompt', () => {
-  it('lists each story with the start of its summary', () => {
-    const prompt = briefingPrompt([
-      { title: 'One', summary: 'About one' } as Article,
-      { title: 'Two', summary: '' } as Article,
-    ]);
-    expect(prompt).toContain('- One: About one');
-    expect(prompt).toContain('- Two\n'.trimEnd());
-  });
-});
-
-describe('writeBriefing', () => {
-  it('returns the model’s note, trimmed', async () => {
-    expect(await writeBriefing(envWith('  A big day. '), [{} as Article])).toBe(
-      'A big day.',
-    );
-  });
-
-  it('asks nothing when there are no stories', async () => {
-    const env = envWith('x');
-    expect(await writeBriefing(env, [])).toBeNull();
-    expect(env.AI.run).not.toHaveBeenCalled();
-  });
-
-  it('gives no note when the model answers with nothing', async () => {
-    expect(await writeBriefing(envWith(''), [{} as Article])).toBeNull();
-  });
-
-  it('logs a model failure and gives no note', async () => {
-    const error = jest
-      .spyOn(console, 'error')
-      .mockImplementation(() => undefined);
-    expect(
-      await writeBriefing(envWith(new Error('down')), [{} as Article]),
-    ).toBeNull();
-    expect(String(error.mock.calls[0]?.[0])).toContain('briefing.failed');
-    error.mockRestore();
-  });
-});
-
 describe('publishIssue', () => {
-  it('stores the layout and the note for the day', async () => {
-    expect(await publishIssue(db, envWith('Note.'), uid, DAY)).toBe(2);
+  // A note needs three stories.
+  beforeEach(async () => {
+    await repo.writeEdition(sourceId, DAY, [item(1), item(2), item(3)]);
+  });
+
+  it('stores the layout, the note and the stories it covers', async () => {
+    expect(await publishIssue(db, envWith('Note.'), uid, DAY)).toBe(3);
     const issue = await storedIssue(repo, uid, DAY);
     expect(issue?.briefing).toBe('Note.');
-    expect(storyIds(issue!.layout)).toHaveLength(2);
+    expect(storyIds(issue!.layout)).toHaveLength(3);
+    expect(issue?.briefing_stories).toHaveLength(3);
+    expect(issue?.briefing_stories[0]).toMatchObject({
+      category: 'infrequent',
+    });
   });
 
   it('replaces the day’s issue when run again', async () => {
     await publishIssue(db, envWith('First.'), uid, DAY);
     await publishIssue(db, envWith('Second.'), uid, DAY);
     expect((await storedIssue(repo, uid, DAY))?.briefing).toBe('Second.');
+  });
+
+  it('asks the model nothing when the reader turned the note off', async () => {
+    await repo.updatePreferences(uid, { briefing_enabled: false });
+    const env = envWith('Note.');
+    await publishIssue(db, env, uid, DAY);
+    expect(env.AI.run).not.toHaveBeenCalled();
+    expect(await storedIssue(repo, uid, DAY)).toMatchObject({
+      briefing: null,
+      briefing_stories: [],
+    });
+  });
+
+  it('stores no note when too few stories qualify', async () => {
+    await repo.writeEdition(sourceId, DAY, [item(1), item(2)]);
+    const env = envWith('Note.');
+    await publishIssue(db, env, uid, DAY);
+    expect(env.AI.run).not.toHaveBeenCalled();
+  });
+
+  it('covers the reader’s chosen number of stories', async () => {
+    await repo.writeEdition(
+      sourceId,
+      DAY,
+      Array.from({ length: 12 }, (_, i) => item(i + 1)),
+    );
+    // One source gives at most three, whatever the count.
+    await repo.updatePreferences(uid, { briefing_story_count: 10 });
+    await publishIssue(db, envWith('Note.'), uid, DAY);
+    expect((await storedIssue(repo, uid, DAY))?.briefing_stories).toHaveLength(
+      3,
+    );
+  });
+});
+
+describe('briefingFor', () => {
+  it('leaves out stories the previous note covered', async () => {
+    await repo.writeEdition(sourceId, DAY, [
+      item(1),
+      item(2),
+      item(3),
+      item(4),
+    ]);
+    const layout = await composeLayout(repo, uid, DAY, uid);
+    const all = await repo.sourceArticles(sourceId, DAY);
+    const story4 = all.find((a) => a.title === 'Story 4')!;
+    const before = await briefingFor(
+      repo,
+      envWith('Note.'),
+      uid,
+      layout,
+      DAY,
+      DEFAULT_PREFERENCES,
+    );
+    expect(before.briefed.map((b) => b.id)).toContain(story4.id);
+    const after = await briefingFor(
+      repo,
+      envWith('Note.'),
+      uid,
+      layout,
+      DAY,
+      DEFAULT_PREFERENCES,
+      JSON.stringify([{ id: story4.id, category: 'top_stories' }]),
+    );
+    expect(after.briefed.map((b) => b.id)).not.toContain(story4.id);
+  });
+
+  it('stores no stories when the model wrote no note', async () => {
+    await repo.writeEdition(sourceId, DAY, [item(1), item(2), item(3)]);
+    const layout = await composeLayout(repo, uid, DAY, uid);
+    expect(
+      (
+        await briefingFor(
+          repo,
+          envWith(''),
+          uid,
+          layout,
+          DAY,
+          DEFAULT_PREFERENCES,
+        )
+      ).briefed,
+    ).toEqual([]);
+  });
+});
+
+describe('dayBefore', () => {
+  it('steps back over a month end', () => {
+    expect(dayBefore('2026-11-01')).toBe('2026-10-31');
   });
 });
 
@@ -278,9 +349,10 @@ describe('custom editions', () => {
   });
 
   it('stores an issue with a note that reads back by edition', async () => {
+    await repo.writeEdition(sourceId, DAY, [item(1), item(2), item(3)]);
     const stored = await repo.addCustomEdition(uid, { name: 'Weekend' });
     expect(await publishEditionIssue(db, envWith('Note.'), stored, DAY)).toBe(
-      2,
+      3,
     );
     const issue = await storedEditionIssue(repo, stored.id, DAY);
     expect(issue?.briefing).toBe('Note.');
