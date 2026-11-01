@@ -16,6 +16,7 @@ import {
 import { clusterEdition } from '@/domain/clustering';
 import { databaseFrom } from '@/domain/db/database';
 import { publishEditionIssue, publishIssue } from '@/domain/issues';
+import { sendIssueReady } from '@/domain/notify';
 import { Repository } from '@/domain/repository';
 import {
   FETCH_FAILED,
@@ -42,7 +43,7 @@ const AI_STEP = {
  * each as its own step (retried on its own, so one slow or broken feed neither
  * holds up nor reruns the others), cluster the edition's near-duplicates,
  * backfill the recent HN editions, then lay out and store each reader's issue
- * as its own step. A
+ * as its own step and push a notice to their browsers that it is ready. A
  * source that still fails after its retries has the failure recorded on it and
  * the run moves on. The edition is the day the run was started, so a step
  * replayed after midnight still writes the same day.
@@ -96,6 +97,18 @@ export class DailyScrape extends WorkflowEntrypoint<CloudflareEnv> {
       } catch (error) {
         logError({
           event: 'issue.failed',
+          user: reader,
+          error: errorMessage(error),
+        });
+        continue;
+      }
+      try {
+        await step.do(`notify user ${reader}`, () =>
+          sendIssueReady(this.env, db, reader, edition),
+        );
+      } catch (error) {
+        logError({
+          event: 'push.failed',
           user: reader,
           error: errorMessage(error),
         });

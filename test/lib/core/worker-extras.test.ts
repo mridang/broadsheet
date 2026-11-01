@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, jest } from '@jest/globals';
 const calls: string[] = [];
 const failing = new Set<number>();
 const failingIssues = new Set<number>();
+const failingPushes = new Set<number>();
 
 jest.unstable_mockModule(
   'cloudflare:workers',
@@ -82,6 +83,19 @@ jest.unstable_mockModule('@/domain/issues', () => ({
   },
 }));
 
+jest.unstable_mockModule('@/domain/notify', () => ({
+  sendIssueReady: async (
+    _env: unknown,
+    _db: unknown,
+    user: number,
+    date: string,
+  ) => {
+    calls.push(`push:${user}:${date}`);
+    if (failingPushes.has(user)) throw new Error('database down');
+    return { sent: 1, failed: 0, removed: 0 };
+  },
+}));
+
 const { default: extraHandlers, DailyScrape } =
   await import('@/lib/core/worker-extras');
 
@@ -105,6 +119,7 @@ afterEach(() => {
   calls.length = 0;
   failing.clear();
   failingIssues.clear();
+  failingPushes.clear();
   jest.restoreAllMocks();
 });
 
@@ -125,8 +140,12 @@ describe('DailyScrape', () => {
       'step:list readers',
       'step:lay out issue for user 7',
       'issue:7:2026-11-01',
+      'step:notify user 7',
+      'push:7:2026-11-01',
       'step:lay out issue for user 8',
       'issue:8:2026-11-01',
+      'step:notify user 8',
+      'push:8:2026-11-01',
       'step:list custom editions',
       'step:lay out issue for edition 30',
       'edition:30:2026-11-01',
@@ -153,6 +172,28 @@ describe('DailyScrape issues', () => {
     await run();
     expect(String(error.mock.calls[0]?.[0])).toContain('issue.failed');
     expect(calls).toContain('issue:8:2026-11-01');
+  });
+});
+
+describe('DailyScrape notifications', () => {
+  it('does not notify a reader whose issue failed', async () => {
+    jest.spyOn(console, 'log').mockImplementation(() => undefined);
+    jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    failingIssues.add(7);
+    await run();
+    expect(calls).not.toContain('push:7:2026-11-01');
+    expect(calls).toContain('push:8:2026-11-01');
+  });
+
+  it('logs a notification that fails and notifies the next reader', async () => {
+    jest.spyOn(console, 'log').mockImplementation(() => undefined);
+    const error = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    failingPushes.add(7);
+    await run();
+    expect(String(error.mock.calls[0]?.[0])).toContain('push.failed');
+    expect(calls).toContain('push:8:2026-11-01');
   });
 });
 
