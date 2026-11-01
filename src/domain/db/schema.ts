@@ -444,3 +444,16 @@ export const savedSearches = sqliteTable('saved_searches', {
   feed_id: integer('feed_id'),
   created_at: text('created_at').default(sql`(datetime('now'))`),
 });
+
+/** One fetch of a source: when, whether it worked and why not. */
+export const fetchHistory = sqliteTable(
+  'fetch_history',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    source_id: integer('source_id').notNull(),
+    fetched_at: text('fetched_at').default(sql`(datetime('now'))`),
+    ok: integer('ok').notNull(),
+    message: text('message'),
+  },
+  (table) => [index('idx_fetch_history_source').on(table.source_id, table.id)],
+);

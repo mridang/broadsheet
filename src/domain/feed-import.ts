@@ -2,7 +2,8 @@
  * @packageDocumentation
  *
  * Following many feeds at once, from an OPML file or from topics: the feeds
- * are checked, the new ones followed and filed under sections.
+ * are checked, the new ones followed and filed under sections (nested ones
+ * for nested folders).
  */
 
 import { parseFeedInput, MAX_NAME_LENGTH } from '@/domain/api/feed-resource';
@@ -29,19 +30,59 @@ export interface ImportSummary {
   readonly feeds: readonly Feed[];
 }
 
+/**
+ * An address as it is compared to find a feed already followed: the scheme,
+ * a leading `www.`, the fragment and a trailing slash do not tell feeds apart.
+ */
+export function comparable(address: string | null | undefined): string {
+  if (!address) return '';
+  try {
+    const url = new URL(address.trim());
+    const path = url.pathname.replace(/\/+$/, '');
+    return `${url.hostname.replace(/^www\./, '')}${url.port}${path}${url.search}`.toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
 /** Follow every valid entry the person does not already follow. */
 export async function importFeeds(
   repo: Repository,
   uid: number,
   entries: readonly OpmlFeed[],
 ): Promise<ImportSummary> {
-  const sections = new Map(
-    (await repo.listSections(uid)).map((s) => [s.name.toLowerCase(), s.id]),
+  const all = await repo.listSections(uid);
+  /** Section ids by parent and lower-cased name. */
+  const sectionIds = new Map(
+    all.map((s) => [`${s.parent_id ?? ''}/${s.name.toLowerCase()}`, s.id]),
+  );
+  const followed = await repo.listFeeds(uid);
+  const addresses = new Set(followed.map((f) => comparable(f.url)));
+  const sites = new Set(
+    followed.flatMap((f) => (f.site_url ? [comparable(f.site_url)] : [])),
   );
   const rejected: { url: string; reason: string }[] = [];
   const feeds: Feed[] = [];
   let skipped = 0;
   let sectionsAdded = 0;
+  const sectionFor = async (
+    path: readonly string[],
+  ): Promise<number | null> => {
+    let parent: number | null = null;
+    for (const raw of path) {
+      const name = raw.trim().slice(0, MAX_NAME_LENGTH);
+      if (!name) continue;
+      const key = `${parent ?? ''}/${name.toLowerCase()}`;
+      let id = sectionIds.get(key);
+      if (id === undefined) {
+        id = (await repo.addSection(uid, name, undefined, parent)).id;
+        sectionIds.set(key, id);
+        sectionsAdded += 1;
+      }
+      parent = id;
+    }
+    return parent;
+  };
   for (const entry of entries) {
     const checked = parseFeedInput({ url: entry.url });
     if (!checked.ok) {
@@ -51,7 +92,13 @@ export async function importFeeds(
       });
       continue;
     }
-    if (await repo.getFeedByUrl(uid, checked.url)) {
+    const address = comparable(checked.url);
+    const site = comparable(entry.site_url);
+    if (
+      addresses.has(address) ||
+      (site !== '' && sites.has(site)) ||
+      (await repo.getFeedByUrl(uid, checked.url))
+    ) {
       skipped += 1;
       continue;
     }
@@ -61,20 +108,19 @@ export async function importFeeds(
       rejected.push({ url: checked.url, reason: 'could not be added.' });
       continue;
     }
-    const name = entry.section?.trim().slice(0, MAX_NAME_LENGTH);
-    let filed = feed;
-    if (name) {
-      let sectionId = sections.get(name.toLowerCase());
-      if (sectionId === undefined) {
-        sectionId = (await repo.addSection(uid, name)).id;
-        sections.set(name.toLowerCase(), sectionId);
-        sectionsAdded += 1;
-      }
-      filed =
-        (await repo.updateFeed(uid, feed.id, { section_id: sectionId })) ??
-        feed;
-    }
-    feeds.push(filed);
+    addresses.add(address);
+    if (site !== '') sites.add(site);
+    const sectionId = await sectionFor(entry.sections ?? []);
+    const changes = {
+      ...(sectionId !== null ? { section_id: sectionId } : {}),
+      // The person's own name for a feed the source already names otherwise.
+      ...(title && feed.title !== title ? { title } : {}),
+    };
+    feeds.push(
+      Object.keys(changes).length
+        ? ((await repo.updateFeed(uid, feed.id, changes)) ?? feed)
+        : feed,
+    );
   }
   return {
     added: feeds.length,

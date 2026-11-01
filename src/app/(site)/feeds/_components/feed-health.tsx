@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react';
 
+import { RetryFeedButton } from '@/app/(site)/feeds/_components/retry-feed-button';
 import type { FeedStatistics } from '@/domain/repository';
 
 /** Failures in a row from which a feed counts as broken. */
@@ -14,8 +15,10 @@ export function isBroken(
 
 /** A feed's last fetch and recent output, flagged when it keeps failing. */
 export function FeedHealth({
+  id,
   statistics,
 }: {
+  readonly id: number;
   readonly statistics: FeedStatistics | undefined;
 }): ReactElement | null {
   if (!statistics) return null;
@@ -29,12 +32,18 @@ export function FeedHealth({
         >
           Broken: {statistics.fail_count} fetches failed
           {statistics.last_error ? ` (${statistics.last_error})` : ''}.{' '}
+          <RetryFeedButton id={id} />{' '}
         </strong>
       ) : null}
       {statistics.last_fetched_at
         ? `Last fetched ${statistics.last_fetched_at} UTC`
         : 'Not fetched yet'}
       {` · ${stories} ${stories === 1 ? 'story' : 'stories'} in the last 7 editions`}
+      {` · ${statistics.average_stories_per_month} a month`}
+      {` · ${statistics.subscribers} ${statistics.subscribers === 1 ? 'reader' : 'readers'}`}
+      {statistics.update_minutes !== null
+        ? ` · asks for ${statistics.update_minutes} minutes between fetches`
+        : ''}
     </div>
   );
 }

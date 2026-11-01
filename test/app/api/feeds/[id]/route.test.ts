@@ -1,4 +1,11 @@
-import { afterEach, beforeEach, describe, expect, it } from '@jest/globals';
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  jest,
+} from '@jest/globals';
 
 import { databaseFrom, type Database } from '@/domain/db/database';
 import { Repository } from '@/domain/repository';
@@ -6,6 +13,7 @@ import { SESSION_COOKIE } from '@/domain/auth/app';
 import { APP_MIGRATIONS } from '../../../../lib/core/db/migrations';
 import {
   installCloudflareContext,
+  settleBackground,
   sqliteD1,
 } from '../../../../lib/core/db/sqlite-d1';
 import {
@@ -16,6 +24,13 @@ import {
 const addFeed = (d: Database, u: number, url: string, t?: string) =>
   new Repository(d).addFeed(u, url, t);
 const listFeeds = (d: Database, u: number) => new Repository(d).listFeeds(u);
+
+const refreshSource = jest.fn<(...args: unknown[]) => Promise<unknown>>(
+  async () => ({ ok: true, n: 0 }),
+);
+jest.unstable_mockModule('@/domain/scraping/index', () => ({
+  refreshSource,
+}));
 
 const { PATCH, DELETE } = await import('@/app/api/feeds/[id]/route');
 
@@ -179,5 +194,63 @@ describe('PATCH /api/feeds/:id', () => {
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
     expect((await patch(mine, '{"muted":true}')).status).toBe(401);
+  });
+});
+
+describe('PATCH /api/feeds/:id with a new address', () => {
+  it('follows the new address in its place and fetches it', async () => {
+    refreshSource.mockClear();
+    const res = await patch(
+      mine,
+      JSON.stringify({ url: 'https://new.test/f' }),
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({
+      id: String(mine),
+      url: 'https://new.test/f',
+    });
+    await settleBackground();
+    expect(refreshSource).toHaveBeenCalledTimes(1);
+    expect((await listFeeds(db, 7)).map((f) => f.url)).toEqual([
+      'https://new.test/f',
+    ]);
+  });
+
+  it('answers 409 as a problem when they already follow that address', async () => {
+    await addFeed(db, 7, 'https://other.test/f');
+    const res = await patch(
+      mine,
+      JSON.stringify({ url: 'https://other.test/f' }),
+    );
+    expect(res.status).toBe(409);
+    expect(res.headers.get('content-type')).toBe('application/problem+json');
+    expect((await listFeeds(db, 7)).map((f) => f.url)).toContain(
+      'https://a.test/feed.xml',
+    );
+  });
+
+  it('changes nothing else, and does not refetch, when the address is the same', async () => {
+    refreshSource.mockClear();
+    const res = await patch(
+      mine,
+      JSON.stringify({ url: 'https://a.test/feed.xml', title: 'Kept' }),
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ title: 'Kept' });
+    await settleBackground();
+    expect(refreshSource).not.toHaveBeenCalled();
+  });
+
+  it('answers 400 for an address that is not http(s)', async () => {
+    expect(
+      (await patch(mine, JSON.stringify({ url: 'ftp://x/f' }))).status,
+    ).toBe(400);
+  });
+
+  it('answers 404 for another person’s feed', async () => {
+    auth = await cookieFor(8);
+    expect(
+      (await patch(mine, JSON.stringify({ url: 'https://new.test/f' }))).status,
+    ).toBe(404);
   });
 });

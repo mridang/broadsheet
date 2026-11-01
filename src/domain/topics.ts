@@ -14,6 +14,8 @@ export interface TopicFeed {
 export interface Topic {
   readonly id: string;
   readonly name: string;
+  /** One line on what the topic covers. */
+  readonly description: string;
   readonly feeds: readonly TopicFeed[];
 }
 
@@ -22,6 +24,7 @@ export const TOPICS: readonly Topic[] = [
   {
     id: 'world',
     name: 'World news',
+    description: 'Headlines and reporting from around the globe.',
     feeds: [
       { title: 'BBC News', url: 'https://feeds.bbci.co.uk/news/world/rss.xml' },
       { title: 'NPR News', url: 'https://feeds.npr.org/1001/rss.xml' },
@@ -34,6 +37,7 @@ export const TOPICS: readonly Topic[] = [
   {
     id: 'technology',
     name: 'Technology',
+    description: 'Software, hardware and the industry around them.',
     feeds: [
       { title: 'Hacker News', url: 'https://hnrss.org/frontpage' },
       {
@@ -46,6 +50,7 @@ export const TOPICS: readonly Topic[] = [
   {
     id: 'science',
     name: 'Science',
+    description: 'Discoveries, research and space.',
     feeds: [
       {
         title: 'Quanta Magazine',
@@ -61,6 +66,7 @@ export const TOPICS: readonly Topic[] = [
   {
     id: 'business',
     name: 'Business',
+    description: 'Markets, companies and the economy.',
     feeds: [
       {
         title: 'BBC Business',
@@ -72,6 +78,7 @@ export const TOPICS: readonly Topic[] = [
   {
     id: 'design',
     name: 'Design',
+    description: 'Craft, typography and the web.',
     feeds: [
       { title: 'A List Apart', url: 'https://alistapart.com/main/feed/' },
       {
@@ -83,6 +90,7 @@ export const TOPICS: readonly Topic[] = [
   {
     id: 'culture',
     name: 'Culture',
+    description: 'Film, music, books and the arts.',
     feeds: [
       {
         title: 'The Guardian: Culture',

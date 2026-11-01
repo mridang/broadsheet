@@ -80,6 +80,10 @@ FeedChanges:
       type: [string, 'null']
       maxLength: 200
       description: The person's own name for the feed; null or blank goes back to the feed's own.
+    url:
+      type: string
+      maxLength: 2048
+      description: A new address for the feed, the way out of a feed that moved. The person follows that address in its place; 409 when they already follow it.
     muted:
       type: boolean
       description: False also forgets any time a mute was to run out.
@@ -97,7 +101,20 @@ FeedChanges:
       description: One of the person's sections, or null for none.
 FeedStatistics:
   type: object
-  required: [fail_count, stories_per_day]
+  required:
+    [
+      fail_count,
+      subscribers,
+      active_subscribers,
+      story_count,
+      stories_last_month,
+      average_stories_per_month,
+      stories_per_day,
+      stories_per_month,
+      stories_per_weekday,
+      stories_per_hour,
+      fetch_history,
+    ]
   properties:
     last_fetched_at:
       type: string
@@ -109,6 +126,58 @@ FeedStatistics:
     fail_count:
       type: integer
       description: Fetches that failed in a row.
+    update_minutes:
+      type: integer
+      description: Minutes the feed asks to be left between fetches, when it says.
+    subscribers:
+      type: integer
+      description: People following the feed.
+    active_subscribers:
+      type: integer
+      description: Those of them who have it unmuted.
+    story_count:
+      type: integer
+    stories_last_month:
+      type: integer
+      description: Stories first seen in the last 30 days.
+    average_stories_per_month:
+      type: number
+    stories_per_month:
+      type: array
+      description: Stories per month, newest first, at most 12 months.
+      items:
+        type: object
+        required: [month, count]
+        properties:
+          month:
+            type: string
+            pattern: '^[0-9]{4}-[0-9]{2}$'
+          count:
+            type: integer
+    stories_per_weekday:
+      type: object
+      description: Stories by day of the week, 0 being Sunday.
+      additionalProperties:
+        type: integer
+    stories_per_hour:
+      type: object
+      description: Stories by hour of the day (UTC) they were published.
+      additionalProperties:
+        type: integer
+    fetch_history:
+      type: array
+      description: The latest fetches, newest first, at most 25.
+      items:
+        type: object
+        required: [ok]
+        properties:
+          fetched_at:
+            type: string
+            format: date-time
+          ok:
+            type: boolean
+          message:
+            type: string
     stories_per_day:
       type: array
       description: Stories per edition day, newest first, at most 14 days.

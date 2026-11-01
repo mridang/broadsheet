@@ -15,6 +15,7 @@ import { AddSectionForm } from '@/app/(site)/feeds/_components/add-section-form'
 import { FeedSettingsForm } from '@/app/(site)/feeds/_components/feed-settings-form';
 import { ExportFeedsButton } from '@/app/(site)/feeds/_components/export-feeds-button';
 import { FeedHealth } from '@/app/(site)/feeds/_components/feed-health';
+import { ImportFeedsForm } from '@/app/(site)/feeds/_components/import-feeds-form';
 import { RefreshFeedsButton } from '@/app/(site)/feeds/_components/refresh-feeds-button';
 import { RemoveFeedButton } from '@/app/(site)/feeds/_components/remove-feed-button';
 import { SuggestedFeeds } from '@/app/(site)/feeds/_components/suggested-feeds';
@@ -25,7 +26,16 @@ export const dynamic = 'force-dynamic';
 /** The tab title of the feed manager. */
 export const metadata: Metadata = { title: 'Your feeds' };
 
-export default async function FeedsPage() {
+export default async function FeedsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    added?: string;
+    skipped?: string;
+    rejected?: string;
+  }>;
+}) {
+  const imported = await searchParams;
   const user = await getCurrentUser();
   if (!user) redirect('/login');
   const repo = new Repository(getDatabase());
@@ -60,6 +70,14 @@ export default async function FeedsPage() {
       />
       <div className="mt-8">
         <AddFeedForm />
+        <ImportFeedsForm />
+        {imported.added !== undefined ? (
+          <p role="status">
+            Imported {Number(imported.added) || 0} feeds, skipped{' '}
+            {Number(imported.skipped) || 0} already followed and rejected{' '}
+            {Number(imported.rejected) || 0}.
+          </p>
+        ) : null}
       </div>
       <ul className="mt-8 space-y-3">
         {feeds.map((f) => (
@@ -71,9 +89,10 @@ export default async function FeedsPage() {
               <RemoveFeedButton id={f.id} />
             </div>
             <div className="mt-4 space-y-3 border-t border-line pt-4">
-              <FeedHealth statistics={stats.get(f.id)} />
+              <FeedHealth id={f.id} statistics={stats.get(f.id)} />
               <FeedSettingsForm
                 id={f.id}
+                url={f.url}
                 title={f.title ?? ''}
                 muted={f.muted}
                 sectionId={f.section_id}

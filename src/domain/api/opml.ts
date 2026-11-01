@@ -9,11 +9,17 @@
 /** Media type of an OPML document. */
 export const OPML_TYPE = 'text/x-opml';
 
-/** A feed found in an OPML document, with the folder it sat under. */
+/** Deepest folder nesting kept when reading OPML; deeper feeds sit at this level. */
+export const MAX_OPML_DEPTH = 8;
+
+/** A feed found in an OPML document, with the folders it sat under. */
 export interface OpmlFeed {
   readonly url: string;
   readonly title?: string;
-  readonly section?: string;
+  /** The feed's website, from `htmlUrl`. */
+  readonly site_url?: string;
+  /** The folders from the outermost in, empty for none. */
+  readonly sections?: readonly string[];
 }
 
 /** The feeds of an OPML document, or why it could not be read. */
@@ -133,11 +139,14 @@ export function parseOpml(text: string): OpmlParse {
       const url = attrs.get('xmlurl')?.trim();
       const label = (attrs.get('text') ?? attrs.get('title') ?? '').trim();
       if (url) {
-        const section = folders[0];
+        const site = attrs.get('htmlurl')?.trim();
         feeds.push({
           url,
           ...(label ? { title: label } : {}),
-          ...(section ? { section } : {}),
+          ...(site ? { site_url: site } : {}),
+          ...(folders.length
+            ? { sections: folders.slice(0, MAX_OPML_DEPTH) }
+            : {}),
         });
       }
       if (!tag.trimEnd().endsWith('/')) {
@@ -152,37 +161,75 @@ export function parseOpml(text: string): OpmlParse {
   return { ok: true, feeds };
 }
 
-/** A feed and its section name, for {@link buildOpml}. */
+/** A feed to write, filed under the section with id `section_id` if any. */
 export interface OpmlEntry {
   readonly url: string;
   readonly title: string;
   /** The feed's website, written as `htmlUrl`. */
   readonly site_url?: string;
-  readonly section?: string;
+  readonly section_id?: number | null;
 }
 
-/** An OPML 2.0 document with the entries grouped under their sections. */
+/** A section to write as a folder; a null parent is top level. */
+export interface OpmlSection {
+  readonly id: number;
+  readonly name: string;
+  readonly parent_id: number | null;
+}
+
+/**
+ * An OPML 2.0 document: feeds with no section first, then each section as a
+ * folder holding its feeds and its sub-sections. Empty sections are left out.
+ */
 export function buildOpml(
   title: string,
   entries: readonly OpmlEntry[],
-  sections: readonly string[],
+  sections: readonly OpmlSection[],
+  now: Date = new Date(),
 ): string {
   const outline = (e: OpmlEntry, indent: string): string =>
-    `${indent}<outline type="rss" text="${escapeXml(e.title)}" title="${escapeXml(e.title)}" xmlUrl="${escapeXml(e.url)}"${e.site_url ? ` htmlUrl="${escapeXml(e.site_url)}"` : ''}/>`;
-  const lines = [
+    `${indent}<outline type="rss" version="RSS" text="${escapeXml(e.title)}" title="${escapeXml(e.title)}" xmlUrl="${escapeXml(e.url)}"${e.site_url ? ` htmlUrl="${escapeXml(e.site_url)}"` : ''}/>`;
+  const known = new Set(sections.map((s) => s.id));
+  const inside = (id: number | null): OpmlEntry[] =>
+    entries.filter((e) =>
+      id === null
+        ? e.section_id == null || !known.has(e.section_id)
+        : e.section_id === id,
+    );
+  const folder = (
+    section: OpmlSection,
+    depth: number,
+    seen: Set<number>,
+  ): string[] => {
+    if (seen.has(section.id)) return [];
+    const path = new Set(seen).add(section.id);
+    const indent = '  '.repeat(depth);
+    const body = [
+      ...inside(section.id).map((e) => outline(e, `${indent}  `)),
+      ...sections
+        .filter((s) => s.parent_id === section.id)
+        .flatMap((s) => folder(s, depth + 1, path)),
+    ];
+    return body.length
+      ? [
+          `${indent}<outline text="${escapeXml(section.name)}" title="${escapeXml(section.name)}">`,
+          ...body,
+          `${indent}</outline>`,
+        ]
+      : [];
+  };
+  const stamp = now.toUTCString();
+  return [
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<opml version="2.0">',
-    `  <head><title>${escapeXml(title)}</title></head>`,
+    `  <head><title>${escapeXml(title)}</title><dateCreated>${stamp}</dateCreated><dateModified>${stamp}</dateModified></head>`,
     '  <body>',
-    ...entries.filter((e) => !e.section).map((e) => outline(e, '    ')),
-  ];
-  for (const name of sections) {
-    const inside = entries.filter((e) => e.section === name);
-    if (!inside.length) continue;
-    lines.push(`    <outline text="${escapeXml(name)}">`);
-    lines.push(...inside.map((e) => outline(e, '      ')));
-    lines.push('    </outline>');
-  }
-  lines.push('  </body>', '</opml>', '');
-  return lines.join('\n');
+    ...inside(null).map((e) => outline(e, '    ')),
+    ...sections
+      .filter((s) => s.parent_id === null || !known.has(s.parent_id))
+      .flatMap((s) => folder(s, 2, new Set())),
+    '  </body>',
+    '</opml>',
+    '',
+  ].join('\n');
 }

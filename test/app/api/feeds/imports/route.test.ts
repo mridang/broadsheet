@@ -140,14 +140,19 @@ describe('POST /api/feeds/imports', () => {
     expect(await repo.listFeeds(7)).toEqual([]);
   });
 
-  it('files feeds nested in folders under the top-level folder', async () => {
+  it('creates nested sections for nested folders', async () => {
     await post(
       opml(
         '<outline text="A"><outline text="B"><outline xmlUrl="https://a.test/1"/></outline></outline>',
       ),
       'text/x-opml',
     );
-    expect((await repo.listSections(7)).map((s) => s.name)).toEqual(['A']);
+    const sections = await repo.listSections(7);
+    expect(sections.map((s) => [s.name, s.parent_id])).toEqual([
+      ['A', null],
+      ['B', sections[0]!.id],
+    ]);
+    expect((await repo.listFeeds(7))[0]?.section_id).toBe(sections[1]!.id);
   });
 
   it('answers 400 for more than 500 feeds', async () => {

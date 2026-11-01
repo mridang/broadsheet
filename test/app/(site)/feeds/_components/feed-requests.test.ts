@@ -4,7 +4,9 @@ import {
   addSection,
   editFeed,
   fetchOpml,
+  importOpml,
   importTopics,
+  retryFeed,
   followFeed,
   removeSection,
   refreshFeeds,
@@ -164,5 +166,49 @@ describe('fetchOpml', () => {
   it('throws when refused', async () => {
     answer(refusal('No.'));
     await expect(fetchOpml()).rejects.toBeInstanceOf(ProblemError);
+  });
+});
+
+describe('importOpml', () => {
+  it('posts the file as OPML and returns what was done', async () => {
+    const spy = answer(
+      new Response('{"added":2,"skipped":1,"rejected":[]}', { status: 201 }),
+    );
+    const file = new Blob(['<opml/>']);
+    expect(await importOpml(file)).toEqual({
+      added: 2,
+      skipped: 1,
+      rejected: [],
+    });
+    const [url, init] = spy.mock.calls[0]!;
+    expect(url).toBe('/api/feeds/imports');
+    expect(init).toMatchObject({
+      method: 'POST',
+      headers: { 'Content-Type': 'text/x-opml' },
+      body: file,
+    });
+  });
+
+  it('throws the server’s words when refused', async () => {
+    answer(refusal('Too big.'));
+    await expect(importOpml(new Blob(['x']))).rejects.toBeInstanceOf(
+      ProblemError,
+    );
+  });
+});
+
+describe('retryFeed', () => {
+  it('posts to that feed’s refreshes', async () => {
+    const spy = answer(new Response('{}'));
+    await retryFeed(4);
+    expect(spy.mock.calls[0]).toEqual([
+      '/api/feeds/4/refreshes',
+      { method: 'POST' },
+    ]);
+  });
+
+  it('throws the server’s words when the fetch failed again', async () => {
+    answer(refusal('The feed could not be fetched.'));
+    await expect(retryFeed(4)).rejects.toBeInstanceOf(ProblemError);
   });
 });

@@ -183,7 +183,9 @@ describe('parseFeedChanges', () => {
     [{ muted: 'yes' }, 'muted: must be true or false.'],
     [{ section_id: 5 }, 'section_id: not a section id.'],
     [{ section_id: 'abc' }, 'section_id: not a section id.'],
-    [{ url: 'https://x' }, 'url: not a member of a feed that can be changed.'],
+    [{ url: 'ftp://x/f' }, 'url: must be an http or https address.'],
+    [{ url: '' }, 'url: required.'],
+    [{ color: 'red' }, 'color: not a member of a feed that can be changed.'],
     [
       { muted_until: 'next week' },
       'muted_until: must be an RFC 3339 date-time.',
@@ -196,6 +198,15 @@ describe('parseFeedChanges', () => {
     [{ position: 2.5 }, 'position: must be a whole number from 0 to 10000.'],
   ])('refuses %j, naming the field', (body, error) => {
     expect(parseFeedChanges(body)).toEqual({ ok: false, errors: [error] });
+  });
+});
+
+describe('parseFeedChanges with a new address', () => {
+  it('accepts a trimmed http(s) address', () => {
+    expect(parseFeedChanges({ url: ' https://new.test/f ' })).toEqual({
+      ok: true,
+      changes: { url: 'https://new.test/f' },
+    });
   });
 });
 

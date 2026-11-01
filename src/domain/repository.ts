@@ -33,6 +33,7 @@ import {
   conversations,
   edition_issues,
   editions,
+  fetchHistory,
   messages,
   reads,
   saves,
@@ -84,12 +85,38 @@ export interface FeedStatistics {
   readonly last_fetched_at: string | null;
   readonly last_error: string | null;
   readonly fail_count: number;
+  /** Minutes the feed asks to be left between fetches, when it says. */
+  readonly update_minutes: number | null;
+  /** People following the feed, and how many of them have it unmuted. */
+  readonly subscribers: number;
+  readonly active_subscribers: number;
+  /** Stories kept, and those first seen in the last 30 days. */
+  readonly story_count: number;
+  readonly stories_last_month: number;
   /** Stories per edition day, newest first. */
   readonly stories_per_day: readonly {
     readonly date: string;
     readonly count: number;
   }[];
+  /** Stories per month (`YYYY-MM`), newest first, and their mean. */
+  readonly stories_per_month: readonly {
+    readonly month: string;
+    readonly count: number;
+  }[];
+  readonly average_stories_per_month: number;
+  /** Stories by day of the week (0 = Sunday) and hour of the day (UTC). */
+  readonly stories_per_weekday: Readonly<Record<string, number>>;
+  readonly stories_per_hour: Readonly<Record<string, number>>;
+  /** The latest fetches, newest first. */
+  readonly fetch_history: readonly {
+    readonly fetched_at: string | null;
+    readonly ok: boolean;
+    readonly message: string | null;
+  }[];
 }
+
+/** How many fetches of a source are remembered. */
+export const FETCH_HISTORY_LIMIT = 25;
 
 /** The parts of a feed a person can change; null clears the title or section. */
 export interface FeedChanges {
@@ -99,6 +126,8 @@ export interface FeedChanges {
   readonly muted_until?: string | null;
   readonly section_id?: number | null;
   readonly position?: number;
+  /** A new address for the feed: follow another source in its place. */
+  readonly url?: string;
 }
 /** The parts of a section a person can change; a null parent is top level. */
 export interface SectionChanges {
@@ -504,6 +533,16 @@ export class Repository {
     if (changes.muted === false) set.muted_until = null;
     if (changes.section_id !== undefined) set.section_id = changes.section_id;
     if (changes.position !== undefined) set.position = changes.position;
+    if (changes.url !== undefined) {
+      await this.#db
+        .insert(sources)
+        .values({ url: changes.url })
+        .onConflictDoNothing({ target: sources.url });
+      const target = await this.#db.query.sources.findFirst({
+        where: eq(sources.url, changes.url),
+      });
+      if (target) set.source_id = target.id;
+    }
     if (Object.keys(set).length) {
       await this.#db
         .update(subscriptions)
@@ -593,6 +632,22 @@ export class Repository {
                 : {}),
             },
       )
+      .where(eq(sources.id, sourceId));
+    await this.#db.insert(fetchHistory).values({
+      source_id: sourceId,
+      ok: error ? 0 : 1,
+      message: error ?? null,
+    });
+    await this.#db.run(
+      sql`DELETE FROM fetch_history WHERE source_id = ${sourceId} AND id NOT IN (SELECT id FROM fetch_history WHERE source_id = ${sourceId} ORDER BY id DESC LIMIT ${FETCH_HISTORY_LIMIT})`,
+    );
+  }
+
+  /** Forget a source's failures so the next fetch starts clean. */
+  async clearFailures(sourceId: number): Promise<void> {
+    await this.#db
+      .update(sources)
+      .set({ last_error: null, fail_count: 0 })
       .where(eq(sources.id, sourceId));
   }
 
@@ -1172,13 +1227,91 @@ export class Repository {
       .groupBy(articles.edition)
       .orderBy(desc(articles.edition))
       .limit(days);
+    const where = (extra?: ReturnType<typeof sql>) =>
+      and(eq(articles.source_id, source.id), extra);
+    const bucket = async (
+      expression: ReturnType<typeof sql>,
+      extra: ReturnType<typeof sql>,
+    ): Promise<Map<string, number>> => {
+      const found = await this.#db
+        .select({
+          key: sql<string | null>`${expression}`,
+          count: sql<number>`count(*)`,
+        })
+        .from(articles)
+        .where(where(extra))
+        .groupBy(expression);
+      return new Map(
+        found.flatMap((r) =>
+          r.key === null ? [] : [[r.key, Number(r.count)] as const],
+        ),
+      );
+    };
+    const months = (
+      await this.#db
+        .select({
+          month: sql<string>`substr(${articles.edition}, 1, 7)`,
+          count: sql<number>`count(*)`,
+        })
+        .from(articles)
+        .where(where(sql`${articles.edition} is not null`))
+        .groupBy(sql`substr(${articles.edition}, 1, 7)`)
+        .orderBy(desc(sql`substr(${articles.edition}, 1, 7)`))
+        .limit(12)
+    ).map((r) => ({ month: r.month, count: Number(r.count) }));
+    const weekdays = await bucket(
+      sql`strftime('%w', ${articles.edition})`,
+      sql`${articles.edition} is not null`,
+    );
+    const hours = await bucket(
+      sql`strftime('%H', ${articles.published_at})`,
+      sql`${articles.published_at} is not null`,
+    );
+    const [totals] = await this.#db
+      .select({
+        total: sql<number>`count(*)`,
+        recent: sql<number>`coalesce(sum(${articles.edition} >= date('now', '-30 day')), 0)`,
+      })
+      .from(articles)
+      .where(where());
+    const [followers] = await this.#db
+      .select({
+        all: sql<number>`count(*)`,
+        active: sql<number>`coalesce(sum(${subscriptions.muted} = 0), 0)`,
+      })
+      .from(subscriptions)
+      .where(eq(subscriptions.source_id, source.id));
+    const history = await this.#db
+      .select()
+      .from(fetchHistory)
+      .where(eq(fetchHistory.source_id, source.id))
+      .orderBy(desc(fetchHistory.id))
+      .limit(FETCH_HISTORY_LIMIT);
     return {
       last_fetched_at: source.last_fetched_at,
       last_error: source.last_error,
       fail_count: source.fail_count,
+      update_minutes: source.update_minutes,
+      subscribers: Number(followers?.all ?? 0),
+      active_subscribers: Number(followers?.active ?? 0),
+      story_count: Number(totals?.total ?? 0),
+      stories_last_month: Number(totals?.recent ?? 0),
       stories_per_day: rows.map((r) => ({
         date: r.date ?? '',
         count: Number(r.count),
+      })),
+      stories_per_month: months,
+      average_stories_per_month: months.length
+        ? Math.round(
+            (months.reduce((n, m) => n + m.count, 0) / months.length) * 10,
+          ) / 10
+        : 0,
+      stories_per_weekday: Object.fromEntries(weekdays),
+      stories_per_hour: Object.fromEntries(hours),
+      fetch_history: history.map((h) => ({
+        fetched_at: h.fetched_at,
+        ok: h.ok !== 0,
+        message: h.message,
       })),
     };
   }

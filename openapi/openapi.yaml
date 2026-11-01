@@ -63,6 +63,8 @@ paths:
     $ref: './paths/feeds.yaml#/item'
   /api/feeds/imports:
     $ref: './paths/feeds.yaml#/imports'
+  /api/feeds/{id}/refreshes:
+    $ref: './paths/feeds.yaml#/retries'
   /api/feeds/{id}/statistics:
     $ref: './paths/feeds.yaml#/statistics'
   /api/feeds/suggestions:

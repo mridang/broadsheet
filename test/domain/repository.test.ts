@@ -4,6 +4,7 @@ import { sql } from 'drizzle-orm';
 import { databaseFrom, type Database } from '@/domain/db/database';
 import {
   anyWordQuery,
+  FETCH_HISTORY_LIMIT,
   ftsQuery,
   MAX_BACKOFF_MINUTES,
   Repository,
@@ -676,7 +677,7 @@ describe('feedStatistics', () => {
     await repo.writeEdition(feed.source_id, '2026-10-19', [story(1)]);
     await repo.writeEdition(feed.source_id, '2026-10-20', [story(2), story(3)]);
     await repo.recordFetch(feed.source_id, 'boom');
-    expect(await repo.feedStatistics(1, feed.id)).toEqual({
+    expect(await repo.feedStatistics(1, feed.id)).toMatchObject({
       last_fetched_at: null,
       last_error: 'boom',
       fail_count: 1,
@@ -693,6 +694,95 @@ describe('feedStatistics', () => {
   it('is undefined for a feed that is not theirs', async () => {
     const feed = (await addFeed(db, 1, 'https://a.test/f'))!;
     expect(await new Repository(db).feedStatistics(2, feed.id)).toBeUndefined();
+  });
+
+  it('counts stories by month, weekday and hour, and the readers', async () => {
+    const repo = new Repository(db);
+    const feed = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await addFeed(db, 2, 'https://a.test/f');
+    await repo.updateFeed(
+      2,
+      (await repo.getFeedByUrl(2, 'https://a.test/f'))!.id,
+      { muted: true },
+    );
+    const at = (n: number, published_at: string) => ({
+      ...story(n),
+      published_at,
+    });
+    await repo.writeEdition(feed.source_id, '2026-09-14', [
+      at(1, '2026-09-14T08:30:00Z'),
+    ]);
+    await repo.writeEdition(feed.source_id, '2026-10-19', [
+      at(2, '2026-10-19T08:00:00Z'),
+      at(3, '2026-10-19T21:00:00Z'),
+    ]);
+    const stats = await repo.feedStatistics(1, feed.id);
+    expect(stats).toMatchObject({
+      story_count: 3,
+      subscribers: 2,
+      active_subscribers: 1,
+      stories_per_month: [
+        { month: '2026-10', count: 2 },
+        { month: '2026-09', count: 1 },
+      ],
+      average_stories_per_month: 1.5,
+      stories_per_weekday: { '1': 3 },
+      stories_per_hour: { '08': 2, '21': 1 },
+    });
+  });
+
+  it('remembers the latest fetches, newest first, and forgets the oldest', async () => {
+    const repo = new Repository(db);
+    const feed = (await addFeed(db, 1, 'https://a.test/f'))!;
+    for (let n = 0; n < FETCH_HISTORY_LIMIT + 3; n += 1) {
+      await repo.recordFetch(feed.source_id, n % 2 ? `bad ${n}` : undefined);
+    }
+    const history = (await repo.feedStatistics(1, feed.id))!.fetch_history;
+    expect(history).toHaveLength(FETCH_HISTORY_LIMIT);
+    expect(history[0]).toMatchObject({
+      ok: false,
+      message: `bad ${FETCH_HISTORY_LIMIT + 2}`,
+    });
+    expect(history[1]).toMatchObject({ ok: true, message: null });
+  });
+
+  it('reports the update interval a feed asks for', async () => {
+    const feed = (await addFeed(db, 1, 'https://a.test/f'))!;
+    expect(
+      (await new Repository(db).feedStatistics(1, feed.id))!.update_minutes,
+    ).toBeNull();
+  });
+});
+
+describe('clearFailures', () => {
+  it('forgets the failures but keeps the history', async () => {
+    const repo = new Repository(db);
+    const feed = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await repo.recordFetch(feed.source_id, 'boom');
+    await repo.clearFailures(feed.source_id);
+    expect(await repo.feedStatistics(1, feed.id)).toMatchObject({
+      fail_count: 0,
+      last_error: null,
+      fetch_history: [{ ok: false, message: 'boom' }],
+    });
+  });
+});
+
+describe('updateFeed with a new address', () => {
+  it('follows the new address in the feed’s place, keeping its settings', async () => {
+    const repo = new Repository(db);
+    const feed = (await addFeed(db, 1, 'https://old.test/f'))!;
+    await repo.updateFeed(1, feed.id, { title: 'Mine' });
+    const moved = await repo.updateFeed(1, feed.id, {
+      url: 'https://new.test/f',
+    });
+    expect(moved).toMatchObject({
+      id: feed.id,
+      url: 'https://new.test/f',
+      title: 'Mine',
+    });
+    expect(moved!.source_id).not.toBe(feed.source_id);
+    expect(await repo.getFeedByUrl(1, 'https://old.test/f')).toBeUndefined();
   });
 });
 

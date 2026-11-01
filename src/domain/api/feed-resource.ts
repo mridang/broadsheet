@@ -162,7 +162,14 @@ export function parseFeedChanges(
   const changes: { -readonly [K in keyof FeedChanges]: FeedChanges[K] } = {};
   for (const key of Object.keys(body)) {
     if (
-      !['title', 'muted', 'muted_until', 'section_id', 'position'].includes(key)
+      ![
+        'title',
+        'url',
+        'muted',
+        'muted_until',
+        'section_id',
+        'position',
+      ].includes(key)
     ) {
       errors.push(`${key}: not a member of a feed that can be changed.`);
     }
@@ -174,6 +181,11 @@ export function parseFeedChanges(
     else if (title.trim().length > MAX_NAME_LENGTH) {
       errors.push('title: too long.');
     } else changes.title = title.trim() || null;
+  }
+  if ('url' in body) {
+    const address = parseFeedInput({ url: body['url'] });
+    if (address.ok) changes.url = address.url;
+    else errors.push(...address.errors);
   }
   if ('muted' in body) {
     const muted = body['muted'];

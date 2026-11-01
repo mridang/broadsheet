@@ -69,3 +69,12 @@ describe('GET /api/topics', () => {
     expect(res.headers.get('content-type')).toBe('application/problem+json');
   });
 });
+
+describe('GET /api/topics descriptions', () => {
+  it('describes every topic', async () => {
+    const body = (await (await get()).json()) as {
+      items: { description: string }[];
+    };
+    expect(body.items.every((t) => t.description.length > 0)).toBe(true);
+  });
+});

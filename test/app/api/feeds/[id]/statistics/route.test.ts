@@ -62,7 +62,7 @@ describe('GET /api/feeds/:id/statistics', () => {
     await repo.recordFetch(feed.source_id, 'timeout');
     const res = await get(String(feed.id));
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({
+    expect(await res.json()).toMatchObject({
       last_fetched_at: expect.stringMatching(
         /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/,
       ),
@@ -76,7 +76,16 @@ describe('GET /api/feeds/:id/statistics', () => {
     const feed = (await repo.addFeed(7, 'https://a.test/f'))!;
     expect(await (await get(String(feed.id))).json()).toEqual({
       fail_count: 0,
+      subscribers: 1,
+      active_subscribers: 1,
+      story_count: 0,
+      stories_last_month: 0,
+      average_stories_per_month: 0,
       stories_per_day: [],
+      stories_per_month: [],
+      stories_per_weekday: {},
+      stories_per_hour: {},
+      fetch_history: [],
     });
   });
 

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from '@jest/globals';
 
 import { databaseFrom } from '@/domain/db/database';
-import { importFeeds } from '@/domain/feed-import';
+import { comparable, importFeeds } from '@/domain/feed-import';
 import { Repository } from '@/domain/repository';
 import { APP_MIGRATIONS } from '../lib/core/db/migrations';
 import { sqliteD1 } from '../lib/core/db/sqlite-d1';
@@ -16,9 +16,9 @@ describe('importFeeds', () => {
   it('follows new feeds, filing them under sections it creates or reuses', async () => {
     await repo.addSection(1, 'tech');
     const summary = await importFeeds(repo, 1, [
-      { url: 'https://a.test/1', title: 'One', section: 'Tech' },
-      { url: 'https://a.test/2', section: 'News' },
-      { url: 'https://a.test/3', section: 'News' },
+      { url: 'https://a.test/1', title: 'One', sections: ['Tech'] },
+      { url: 'https://a.test/2', sections: ['News'] },
+      { url: 'https://a.test/3', sections: ['News'] },
     ]);
     expect(summary).toMatchObject({
       added: 3,
@@ -38,7 +38,7 @@ describe('importFeeds', () => {
   it('skips feeds already followed and rejects invalid ones', async () => {
     await repo.addFeed(1, 'https://a.test/1');
     const summary = await importFeeds(repo, 1, [
-      { url: 'https://a.test/1', section: 'Ignored' },
+      { url: 'https://a.test/1', sections: ['Ignored'] },
       { url: 'ftp://a.test/2' },
       { url: 'nonsense' },
     ]);
@@ -48,5 +48,65 @@ describe('importFeeds', () => {
       'nonsense',
     ]);
     expect(await repo.listSections(1)).toEqual([]);
+  });
+});
+
+describe('importFeeds nesting, matching and names', () => {
+  it('creates nested sections for nested folders, reusing those that exist', async () => {
+    await importFeeds(repo, 1, [
+      { url: 'https://a.test/1', sections: ['A', 'B'] },
+      { url: 'https://a.test/2', sections: ['a', 'B'] },
+      { url: 'https://a.test/3', sections: ['A'] },
+    ]);
+    const sections = await repo.listSections(1);
+    expect(sections.map((s) => [s.name, s.parent_id])).toEqual([
+      ['A', null],
+      ['B', sections[0]!.id],
+    ]);
+    expect((await repo.listFeeds(1)).map((f) => f.section_id)).toEqual([
+      sections[1]!.id,
+      sections[1]!.id,
+      sections[0]!.id,
+    ]);
+  });
+
+  it('treats the same feed under another scheme, www or slash as already followed', async () => {
+    await repo.addFeed(1, 'https://www.a.test/feed/');
+    const summary = await importFeeds(repo, 1, [
+      { url: 'http://a.test/feed' },
+      { url: 'https://a.test/feed#top' },
+    ]);
+    expect(summary).toMatchObject({ added: 0, skipped: 2 });
+  });
+
+  it('treats a feed whose website the person already follows as followed', async () => {
+    const feed = (await repo.addFeed(1, 'https://a.test/feed'))!;
+    await repo.recordDetails(
+      feed.source_id,
+      { site_url: 'https://a.test/' } as never,
+      [],
+    );
+    const summary = await importFeeds(repo, 1, [
+      { url: 'https://a.test/other.xml', site_url: 'http://www.a.test' },
+    ]);
+    expect(summary).toMatchObject({ added: 0, skipped: 1 });
+  });
+
+  it('keeps the name in the file as the person’s own when the feed is named otherwise', async () => {
+    await repo.addFeed(2, 'https://a.test/f', 'The Source Name');
+    await importFeeds(repo, 1, [{ url: 'https://a.test/f', title: 'My Name' }]);
+    expect((await repo.listFeeds(1))[0]?.title).toBe('My Name');
+    expect((await repo.listFeeds(2))[0]?.title).toBe('The Source Name');
+  });
+});
+
+describe('comparable', () => {
+  it('is empty for nothing or a non-address', () => {
+    expect(comparable(undefined)).toBe('');
+    expect(comparable('nonsense')).toBe('');
+  });
+  it('ignores scheme, www, fragment and trailing slashes but not the query', () => {
+    expect(comparable('HTTPS://www.A.test/x/#f')).toBe('a.test/x');
+    expect(comparable('https://a.test/x?y=1')).toBe('a.test/x?y=1');
   });
 });

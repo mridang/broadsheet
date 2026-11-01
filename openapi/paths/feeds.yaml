@@ -100,7 +100,7 @@ item:
     operationId: changeFeed
     tags: [feeds]
     summary: Rename, mute (for good or for a time), reorder or file a feed under a section.
-    description: Rate limited by the `RL_API` binding. Only the members sent are changed. A `section_id` that is not one of the person's sections is a 400. An id that cannot name a feed is a 404.
+    description: Rate limited by the `RL_API` binding. Only the members sent are changed. A `section_id` that is not one of the person's sections is a 400. An id that cannot name a feed is a 404. A new `url` is refused with 409 when the person already follows it.
     parameters:
       - name: id
         in: path
@@ -129,6 +129,12 @@ item:
         $ref: '../components/common.yaml#/responses/Forbidden'
       '404':
         $ref: '../components/common.yaml#/responses/NotFound'
+      '409':
+        description: The person already follows a feed at the new `url`.
+        content:
+          application/problem+json:
+            schema:
+              $ref: '../components/common.yaml#/schemas/Problem'
       '415':
         $ref: '../components/common.yaml#/responses/UnsupportedMediaType'
       '429':
@@ -188,7 +194,7 @@ imports:
     operationId: importFeeds
     tags: [feeds]
     summary: Follow many feeds at once from an OPML file or from topics.
-    description: Folders in an OPML file become sections, as do the topics. Feeds already followed are skipped and invalid ones rejected, neither failing the request. Rate limited by the `RL_API` binding.
+    description: Folders in an OPML file become sections, nested folders nested sections (to 8 levels), as do the topics. A feed counts as already followed when its address (ignoring scheme, `www.` and a trailing slash) or its `htmlUrl` matches one the person follows. A feed's name from the file becomes the person's own name for it when the feed is known under another. Feeds already followed are skipped and invalid ones rejected, neither failing the request. Rate limited by the `RL_API` binding.
     requestBody:
       required: true
       content:
@@ -290,3 +296,37 @@ suggestions:
         $ref: '../components/common.yaml#/responses/Unauthorized'
       '429':
         $ref: '../components/common.yaml#/responses/TooManyRequests'
+retries:
+  post:
+    operationId: retryFeed
+    tags: [feeds]
+    summary: Fetch one feed again now, forgetting its failures.
+    description: The way out of a broken feed. A refresh is not stored, so the result is the response. Rate limited by the `RL_API` binding.
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: '^[1-9][0-9]{0,14}$'
+    responses:
+      '200':
+        description: The feed fetched; its statistics as they are now.
+        content:
+          application/json:
+            schema:
+              $ref: '../components/feed.yaml#/FeedStatistics'
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '403':
+        $ref: '../components/common.yaml#/responses/Forbidden'
+      '404':
+        $ref: '../components/common.yaml#/responses/NotFound'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'
+      '502':
+        description: The feed could not be fetched; the detail says why.
+        content:
+          application/problem+json:
+            schema:
+              $ref: '../components/common.yaml#/schemas/Problem'

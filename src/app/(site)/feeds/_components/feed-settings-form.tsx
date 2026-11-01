@@ -17,12 +17,14 @@ export interface SectionOption {
 /** The name, mute switch and section of one row of the feed manager. */
 export function FeedSettingsForm({
   id,
+  url,
   title,
   muted,
   sectionId,
   sections,
 }: Readonly<{
   id: number;
+  url: string;
   title: string;
   muted: boolean;
   sectionId: number | null;
@@ -33,9 +35,11 @@ export function FeedSettingsForm({
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const section = String(form.get('section_id') ?? '');
+    const address = String(form.get('url') ?? '').trim();
     void run(
       () =>
         editFeed(id, {
+          ...(address && address !== url ? { url: address } : {}),
           title: String(form.get('title') ?? '').trim() || null,
           muted: form.get('muted') === 'on',
           section_id: section || null,
@@ -53,6 +57,13 @@ export function FeedSettingsForm({
           defaultValue={title}
           maxLength={200}
           className={fieldClass('w-full sm:w-auto sm:flex-1')}
+        />
+        <input
+          name="url"
+          type="url"
+          aria-label="Address"
+          defaultValue={url}
+          maxLength={2048}
         />
         <select
           name="section_id"

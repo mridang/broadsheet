@@ -235,7 +235,9 @@ describe('GET /api/feeds', () => {
     expect(res.headers.get('content-type')).toBe('text/x-opml; charset=utf-8');
     expect(res.headers.get('vary')).toBe('Accept');
     const xml = await res.text();
-    expect(xml).toContain('<outline text="Tech &amp; Co">');
+    expect(xml).toContain(
+      '<outline text="Tech &amp; Co" title="Tech &amp; Co">',
+    );
     expect(xml).toContain('xmlUrl="https://a.test/2"');
   });
 

@@ -32,6 +32,7 @@ export async function refreshFeeds(): Promise<void> {
 /** What can be changed about a feed; null clears the title or section. */
 export interface FeedEdit {
   readonly title?: string | null;
+  readonly url?: string;
   readonly muted?: boolean;
   readonly section_id?: string | null;
 }
@@ -87,4 +88,27 @@ export async function fetchOpml(): Promise<Blob> {
   });
   await ensureOk(res);
   return res.blob();
+}
+
+/** What an import did (`POST /api/feeds/imports`). */
+export interface ImportResult {
+  readonly added: number;
+  readonly skipped: number;
+  readonly rejected: readonly unknown[];
+}
+
+/** Follow the feeds of an OPML file (`POST /api/feeds/imports`). */
+export async function importOpml(file: Blob): Promise<ImportResult> {
+  const res = await fetch('/api/feeds/imports', {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/x-opml' },
+    body: file,
+  });
+  await ensureOk(res);
+  return (await res.json()) as ImportResult;
+}
+
+/** Fetch one feed again, forgetting its failures (`POST /api/feeds/:id/refreshes`). */
+export async function retryFeed(id: number): Promise<void> {
+  await ensureOk(await fetch(`/api/feeds/${id}/refreshes`, { method: 'POST' }));
 }

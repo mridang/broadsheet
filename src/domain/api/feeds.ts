@@ -88,23 +88,20 @@ export function wantsOpml(request: Request): boolean {
 
 /** The feeds as an OPML download, folders being the sections. */
 function opmlResponse({ feeds, sections }: FeedList): Response {
-  const names = new Map(sections.map((s) => [s.id, s.name]));
   const xml = buildOpml(
     'Broadsheet feeds',
     feeds.map((f) => ({
       url: f.url,
       title: f.title ?? f.url,
       ...(f.site_url ? { site_url: f.site_url } : {}),
-      ...(f.section_id !== null && names.has(f.section_id)
-        ? { section: names.get(f.section_id) }
-        : {}),
+      section_id: f.section_id,
     })),
-    sections.map((s) => s.name),
+    sections,
   );
   return new Response(xml, {
     headers: {
       'Content-Type': `${OPML_TYPE}; charset=utf-8`,
-      'Content-Disposition': 'attachment; filename="broadsheet.opml"',
+      'Content-Disposition': `attachment; filename="broadsheet-${new Date().toISOString().slice(0, 10)}.opml"`,
       'Cache-Control': 'private, no-store',
       Vary: 'Accept',
     },
@@ -275,7 +272,34 @@ export function createFeedItem(
             'section_id: no such section.',
           ]);
         }
-        return repo.updateFeed(uid, id, changes);
+        if (changes.url !== undefined) {
+          const current = await repo.getFeed(uid, id);
+          if (!current) return undefined;
+          const taken = await repo.getFeedByUrl(uid, changes.url);
+          if (taken && taken.id !== id) {
+            throw problem(
+              409,
+              '/problems/conflict',
+              'Conflict',
+              'The person already follows a feed at that address.',
+              { errors: ['url: already followed.'] },
+            );
+          }
+          if (changes.url === current.url) {
+            const { url: _same, ...rest } = changes;
+            void _same;
+            return repo.updateFeed(uid, id, rest);
+          }
+        }
+        const updated = await repo.updateFeed(uid, id, changes);
+        if (updated && changes.url !== undefined) {
+          runInBackground(
+            refreshSource(getDatabase(), getEnv(), sourceOf(updated)).catch(
+              () => undefined,
+            ),
+          );
+        }
+        return updated;
       },
       encode: (feed) =>
         feed
@@ -399,7 +423,9 @@ export function createFeedStatistics(
 export const feedStatistics = createFeedStatistics();
 
 /** The API's view of {@link FeedStatistics}; absent members are unknown. */
-function statisticsResource(stats: FeedStatistics): Record<string, unknown> {
+export function statisticsResource(
+  stats: FeedStatistics,
+): Record<string, unknown> {
   const fetched = stats.last_fetched_at
     ? rfc3339(stats.last_fetched_at)
     : undefined;
@@ -407,7 +433,25 @@ function statisticsResource(stats: FeedStatistics): Record<string, unknown> {
     ...(fetched ? { last_fetched_at: fetched } : {}),
     ...(stats.last_error ? { last_error: stats.last_error } : {}),
     fail_count: stats.fail_count,
+    ...(stats.update_minutes !== null
+      ? { update_minutes: stats.update_minutes }
+      : {}),
+    subscribers: stats.subscribers,
+    active_subscribers: stats.active_subscribers,
+    story_count: stats.story_count,
+    stories_last_month: stats.stories_last_month,
+    average_stories_per_month: stats.average_stories_per_month,
     stories_per_day: stats.stories_per_day,
+    stories_per_month: stats.stories_per_month,
+    stories_per_weekday: stats.stories_per_weekday,
+    stories_per_hour: stats.stories_per_hour,
+    fetch_history: stats.fetch_history.map((h) => ({
+      ...((h.fetched_at ? rfc3339(h.fetched_at) : undefined)
+        ? { fetched_at: rfc3339(h.fetched_at!) }
+        : {}),
+      ok: h.ok,
+      ...(h.message ? { message: h.message } : {}),
+    })),
   };
 }
 
@@ -451,7 +495,7 @@ async function decodeImport(request: Request): Promise<ImportInput> {
       return topic.feeds.map((f) => ({
         url: f.url,
         title: f.title,
-        section: topic.name,
+        sections: [topic.name],
       }));
     });
     return { kind: 'topics', feeds };
@@ -533,3 +577,49 @@ export function createFeedImports(
 
 /** The imports controller bound to the production resolver. */
 export const feedImports = createFeedImports();
+
+/**
+ * `POST /api/feeds/:id/refreshes`: fetch one feed again now, forgetting its
+ * failures first, as the way out of a broken feed. 200 with its statistics
+ * once the fetch worked, 502 when it failed again (the statistics say why),
+ * 404 when there is no such feed.
+ */
+export function createFeedRetries(
+  resolver: CurrentUserResolver = requestCookieResolver,
+): ApiController<UidContext> {
+  return new ApiController<UidContext>({
+    context: async (request) => ({
+      request,
+      uid: await liveUid(request, resolver),
+    }),
+  }).on<null, Response | undefined>({
+    method: 'POST',
+    handle: async (_input, { request, uid }) => {
+      const id = statisticsId(request);
+      const repo = new Repository(getDatabase());
+      const feed = id === undefined ? undefined : await repo.getFeed(uid, id);
+      if (!feed) return undefined;
+      await repo.clearFailures(feed.source_id);
+      const outcome = await refreshSource(
+        getDatabase(),
+        getEnv(),
+        sourceOf(feed),
+      );
+      const stats = await repo.feedStatistics(uid, feed.id);
+      return outcome.ok && stats
+        ? Response.json(statisticsResource(stats), {
+            headers: { 'Cache-Control': 'no-store' },
+          })
+        : problem(
+            502,
+            '/problems/upstream-failed',
+            'Bad gateway',
+            `The feed could not be fetched: ${stats?.last_error ?? 'unknown error'}`,
+          );
+    },
+    encode: (response) => response ?? problems.notFound('feed'),
+  });
+}
+
+/** The retry controller bound to the production resolver. */
+export const feedRetries = createFeedRetries();

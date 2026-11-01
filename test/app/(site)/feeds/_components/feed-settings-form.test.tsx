@@ -7,6 +7,7 @@ const form = (muted: boolean, sectionId: number | null) =>
   html(
     <FeedSettingsForm
       id={3}
+      url="https://a.test/f"
       title="Mine"
       muted={muted}
       sectionId={sectionId}
@@ -18,6 +19,10 @@ const form = (muted: boolean, sectionId: number | null) =>
   );
 
 describe('FeedSettingsForm', () => {
+  it('shows the feed’s address to change', () => {
+    expect(form(false, null)).toContain('value="https://a.test/f"');
+  });
+
   it('shows the feed’s current name', () => {
     expect(form(false, null)).toContain('value="Mine"');
   });

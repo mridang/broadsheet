@@ -14,7 +14,7 @@ describe('parseOpml', () => {
     expect(parsed).toEqual({
       ok: true,
       feeds: [
-        { url: 'https://a.test/f', title: 'HN & Co', section: 'Tech' },
+        { url: 'https://a.test/f', title: 'HN & Co', sections: ['Tech'] },
         { url: 'https://b.test/f', title: 'Lone' },
       ],
     });
@@ -29,7 +29,7 @@ describe('parseOpml', () => {
     expect(parsed).toEqual({
       ok: true,
       feeds: [
-        { url: 'https://a.test/1', section: 'A' },
+        { url: 'https://a.test/1', sections: ['A', 'B'] },
         { url: 'https://a.test/2' },
       ],
     });
@@ -71,21 +71,81 @@ describe('buildOpml', () => {
       'T & T',
       [
         { url: 'https://a.test/f?a=1&b=2', title: 'One "1"' },
-        { url: 'https://b.test/f', title: 'Two', section: 'News' },
+        { url: 'https://b.test/f', title: 'Two', section_id: 1 },
       ],
-      ['News', 'Empty'],
+      [
+        { id: 1, name: 'News', parent_id: null },
+        { id: 2, name: 'Empty', parent_id: null },
+      ],
     );
     expect(xml).toContain('<title>T &amp; T</title>');
     expect(xml).toContain('xmlUrl="https://a.test/f?a=1&amp;b=2"');
-    expect(xml).toContain('<outline text="News">');
+    expect(xml).toContain('<outline text="News" title="News">');
     expect(xml).not.toContain('Empty');
     expect(parseOpml(xml)).toEqual({
       ok: true,
       feeds: [
         { url: 'https://a.test/f?a=1&b=2', title: 'One "1"' },
-        { url: 'https://b.test/f', title: 'Two', section: 'News' },
+        { url: 'https://b.test/f', title: 'Two', sections: ['News'] },
       ],
     });
+  });
+
+  it('nests sub-sections as nested folders and round-trips them', () => {
+    const xml = buildOpml(
+      'T',
+      [{ url: 'https://a.test/f', title: 'A', section_id: 2 }],
+      [
+        { id: 1, name: 'Outer', parent_id: null },
+        { id: 2, name: 'Inner', parent_id: 1 },
+      ],
+    );
+    expect(parseOpml(xml)).toEqual({
+      ok: true,
+      feeds: [
+        { url: 'https://a.test/f', title: 'A', sections: ['Outer', 'Inner'] },
+      ],
+    });
+  });
+
+  it('puts a feed whose section is unknown at the top and survives a parent cycle', () => {
+    const xml = buildOpml(
+      'T',
+      [{ url: 'https://a.test/f', title: 'A', section_id: 9 }],
+      [
+        { id: 1, name: 'X', parent_id: 2 },
+        { id: 2, name: 'Y', parent_id: 1 },
+      ],
+    );
+    expect(parseOpml(xml)).toEqual({
+      ok: true,
+      feeds: [{ url: 'https://a.test/f', title: 'A' }],
+    });
+  });
+
+  it('dates the document', () => {
+    const xml = buildOpml('T', [], [], new Date('2026-01-02T03:04:05Z'));
+    expect(xml).toContain(
+      '<dateCreated>Fri, 02 Jan 2026 03:04:05 GMT</dateCreated>',
+    );
+  });
+});
+
+describe('parseOpml details', () => {
+  it('reads htmlUrl and clamps very deep folders', () => {
+    const deep =
+      '<outline text="f">'.repeat(12) +
+      '<outline xmlUrl="https://a.test/f" htmlUrl="https://a.test/"/>' +
+      '</outline>'.repeat(12);
+    const parsed = parseOpml(doc(deep));
+    expect(parsed).toMatchObject({ ok: true });
+    const feed = (
+      parsed as unknown as {
+        feeds: { site_url?: string; sections?: string[] }[];
+      }
+    ).feeds[0];
+    expect(feed?.site_url).toBe('https://a.test/');
+    expect(feed?.sections).toHaveLength(8);
   });
 });
 
@@ -137,7 +197,7 @@ describe('parseOpml robustness', () => {
     expect(Date.now() - started).toBeLessThan(1000);
   });
 
-  it('survives deep nesting', () => {
+  it('survives deep nesting, keeping the first eight levels', () => {
     const depth = 5000;
     const xml = doc(
       '<outline text="F">'.repeat(depth) +
@@ -146,7 +206,7 @@ describe('parseOpml robustness', () => {
     );
     expect(parseOpml(xml)).toEqual({
       ok: true,
-      feeds: [{ url: 'https://a.test/f', section: 'F' }],
+      feeds: [{ url: 'https://a.test/f', sections: Array(8).fill('F') }],
     });
   });
 });
