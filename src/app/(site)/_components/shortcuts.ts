@@ -69,3 +69,15 @@ export function step(
   const to = current + (move === 'next' ? 1 : -1);
   return Math.min(count - 1, Math.max(0, to));
 }
+
+/**
+ * The story that has focus, by index: the one whose card holds the focused
+ * element, so a story's own Listen or Save button counts as that story.
+ */
+export function focusedStory(
+  cards: ReadonlyArray<Readonly<{ contains(node: unknown): boolean }>>,
+  active: unknown,
+): number {
+  if (!active) return -1;
+  return cards.findIndex((card) => card.contains(active));
+}

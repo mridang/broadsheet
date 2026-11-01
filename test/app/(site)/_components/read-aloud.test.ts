@@ -42,8 +42,28 @@ describe('webSpeech', () => {
     const onEnd = jest.fn();
     webSpeech(h)?.play('Hello', onEnd);
     spoken[0]?.onend?.();
+    expect(onEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores the late end of a cancelled reading once it restarts', () => {
+    const { host: h, spoken } = host();
+    const reader = webSpeech(h);
+    const onEnd = jest.fn();
+    reader?.play('One', onEnd);
+    reader?.stop();
+    reader?.play('One', onEnd);
+    onEnd.mockClear();
     spoken[0]?.onerror?.();
-    expect(onEnd).toHaveBeenCalledTimes(2);
+    expect(onEnd).not.toHaveBeenCalled();
+  });
+
+  it('ends the story being read when another starts', () => {
+    const { host: h } = host();
+    const reader = webSpeech(h);
+    const first = jest.fn();
+    reader?.play('One', first);
+    reader?.play('Two', () => undefined);
+    expect(first).toHaveBeenCalledTimes(1);
   });
 
   it('stops by cancelling the speech', () => {

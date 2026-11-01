@@ -21,15 +21,30 @@ export function webSpeech(host: SpeechHost): ReadAloud | null {
   const synth = host.speechSynthesis;
   const Utterance = host.SpeechSynthesisUtterance;
   if (!synth || !Utterance) return null;
+  // What is being read now. The browser ends a cancelled utterance a moment
+  // later, so a stale end is ignored rather than stopping the next one.
+  let active: {
+    utterance: SpeechSynthesisUtterance;
+    onEnd: () => void;
+  } | null = null;
+  const finish = (utterance?: SpeechSynthesisUtterance) => {
+    if (!active || (utterance && active.utterance !== utterance)) return;
+    const { onEnd } = active;
+    active = null;
+    onEnd();
+  };
   return {
     play(text, onEnd) {
+      finish();
       synth.cancel();
       const utterance = new Utterance(text);
-      utterance.onend = onEnd;
-      utterance.onerror = onEnd;
+      utterance.onend = () => finish(utterance);
+      utterance.onerror = () => finish(utterance);
+      active = { utterance, onEnd };
       synth.speak(utterance);
     },
     stop() {
+      finish();
       synth.cancel();
     },
   };

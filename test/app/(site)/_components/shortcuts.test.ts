@@ -2,6 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 
 import {
   SHORTCUTS,
+  focusedStory,
   isTyping,
   shortcutFor,
   step,
@@ -84,5 +85,22 @@ describe('SHORTCUTS', () => {
       's',
       '?',
     ]);
+  });
+});
+
+describe('focusedStory', () => {
+  const button = { name: 'listen' };
+  const cards = [
+    { contains: () => false },
+    { contains: (node: unknown) => node === button },
+  ];
+
+  it('finds the story whose card holds the focused element', () => {
+    expect(focusedStory(cards, button)).toBe(1);
+  });
+
+  it('is -1 when nothing in a story has focus', () => {
+    expect(focusedStory(cards, { name: 'elsewhere' })).toBe(-1);
+    expect(focusedStory(cards, null)).toBe(-1);
   });
 });
