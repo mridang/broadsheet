@@ -3235,6 +3235,15 @@ export class Repository {
       );
   }
 
+  /** The ids of the articles this person shares. */
+  async sharedArticleIds(userId: number): Promise<Set<number>> {
+    const rows = await this.#db
+      .select({ id: shares.article_id })
+      .from(shares)
+      .where(eq(shares.user_id, userId));
+    return new Set(rows.map((r) => r.id));
+  }
+
   /**
    * Stories people shared (shares are public), newest first, holding any word
    * of `query` when given, each annotated with who shared it and their comment.

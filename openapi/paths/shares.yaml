@@ -1,0 +1,95 @@
+collection:
+  get:
+    operationId: listShares
+    tags: [shares]
+    summary: List the stories people shared, newest first.
+    description: Rate limited by the `RL_API` binding. Shares are public to everyone signed in, and name the sharer by id and name only.
+    parameters:
+      - name: user_id
+        in: query
+        description: Only these people's shares, repeated or comma separated (at most 100); everyone's when left out.
+        schema:
+          type: array
+          items:
+            type: string
+            pattern: '^[1-9][0-9]{0,14}$'
+        style: form
+        explode: true
+      - $ref: '../components/common.yaml#/parameters/Limit'
+      - $ref: '../components/common.yaml#/parameters/Cursor'
+    responses:
+      '200':
+        description: One page of shared stories.
+        content:
+          application/json:
+            schema:
+              $ref: '../components/share.yaml#/SharePage'
+      '400':
+        $ref: '../components/common.yaml#/responses/BadRequest'
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'
+item:
+  parameters:
+    - $ref: '../components/common.yaml#/parameters/ArticleId'
+  post:
+    operationId: shareStory
+    tags: [shares]
+    summary: Share a story from the person's feeds, with an optional comment.
+    description: Rate limited by the `RL_API` binding. The body may be left out. Sharing a story again replaces its comment and answers 200.
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            $ref: '../components/share.yaml#/ShareInput'
+    responses:
+      '200':
+        description: The story was shared already; its comment is now the one sent.
+        headers:
+          Location:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: '../components/share.yaml#/Share'
+      '201':
+        description: The story is shared.
+        headers:
+          Location:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: '../components/share.yaml#/Share'
+      '400':
+        $ref: '../components/common.yaml#/responses/BadRequest'
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '403':
+        $ref: '../components/common.yaml#/responses/Forbidden'
+      '404':
+        $ref: '../components/common.yaml#/responses/NotFound'
+      '415':
+        $ref: '../components/common.yaml#/responses/UnsupportedMediaType'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'
+  delete:
+    operationId: unshareStory
+    tags: [shares]
+    summary: Stop sharing a story.
+    description: Rate limited by the `RL_API` binding.
+    responses:
+      '204':
+        description: The story is no longer shared.
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '403':
+        $ref: '../components/common.yaml#/responses/Forbidden'
+      '404':
+        $ref: '../components/common.yaml#/responses/NotFound'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'

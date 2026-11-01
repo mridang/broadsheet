@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from '@jest/globals';
 import { sql } from 'drizzle-orm';
 
+import { ShareRepository } from '@/domain/shares';
 import { databaseFrom, type Database } from '@/domain/db/database';
 import {
   anyWordQuery,
@@ -967,6 +968,30 @@ describe('storyCounts', () => {
     await repo.writeEdition(feed.source_id, '2026-10-20', [story(1), story(2)]);
     expect(await repo.storyCounts(1)).toEqual(new Map([[feed.id, 2]]));
     expect(await repo.storyCounts(2)).toEqual(new Map());
+  });
+});
+
+describe('sharedArticleIds', () => {
+  it('names the stories this person shares, and only theirs', async () => {
+    const repo = new Repository(db);
+    await repo.upsertUser({ sub: 'g1', email: 'a@b.com' });
+    const feed = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await repo.writeEdition(feed.source_id, '2026-10-20', [
+      {
+        url: 'https://x/1',
+        title: 'T',
+        source: '',
+        favicon: '',
+        summary: '',
+        image: '',
+        published_at: '',
+        points: 0,
+      },
+    ]);
+    const [a] = await repo.sourceArticles(feed.source_id, '2026-10-20');
+    await new ShareRepository(db).share(1, a!.id, null);
+    expect(await repo.sharedArticleIds(1)).toEqual(new Set([a!.id]));
+    expect(await repo.sharedArticleIds(2)).toEqual(new Set());
   });
 });
 

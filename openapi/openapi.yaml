@@ -36,6 +36,7 @@ tags:
   - name: saves
   - name: searches
   - name: sessions
+  - name: shares
   - name: sources
   - name: tokens
   - name: topics
@@ -158,6 +159,10 @@ paths:
     $ref: './paths/saves.yaml#/feeds'
   /api/users/self/saves/{article_id}:
     $ref: './paths/saves.yaml#/item'
+  /api/users/self/shares/{article_id}:
+    $ref: './paths/shares.yaml#/item'
+  /api/shares:
+    $ref: './paths/shares.yaml#/collection'
   /api/users/self/notifications/rules:
     $ref: './paths/notifications.yaml#/rules'
   /api/users/self/notifications/rules/{id}:
