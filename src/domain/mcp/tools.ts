@@ -80,9 +80,42 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
         repo.listFeeds(uid),
         repo.listSections(uid),
       ]);
+      // The full header of every feed is long; get_feed has it for one.
       return {
-        feeds: feeds.map(feedResource),
+        feeds: feeds.map((feed) => {
+          return Object.fromEntries(
+            Object.entries(feedResource(feed)).filter(
+              ([key]) => key !== 'metadata',
+            ),
+          );
+        }),
         sections: sections.map(sectionResource),
+      };
+    },
+  }),
+  tool({
+    name: 'get_feed',
+    title: 'Get a feed',
+    description:
+      'Get one followed feed with its details (site, description, icon, every element of its header) and how its fetching is doing.',
+    input: z.object({ feed_id: id('feed') }),
+    readOnly: true,
+    run: async ({ feed_id }, { uid, db }) => {
+      const repo = new Repository(db);
+      const feed = await repo.getFeed(uid, feed_id);
+      if (!feed) throw new ToolFailure('There is no such feed.');
+      const stats = await repo.feedStatistics(uid, feed_id);
+      return {
+        feed: feedResource(feed),
+        ...(stats
+          ? {
+              statistics: {
+                fail_count: stats.fail_count,
+                stories_per_day: stats.stories_per_day,
+                ...(stats.last_error ? { last_error: stats.last_error } : {}),
+              },
+            }
+          : {}),
       };
     },
   }),
@@ -196,13 +229,17 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
         .describe(
           'Continue after this article id (the next_before of the last call).',
         ),
+      feed_id: id('feed')
+        .optional()
+        .describe('Only articles from this followed feed.'),
     }),
     readOnly: true,
-    run: async ({ query, limit, before }, { uid, db }) => {
+    run: async ({ query, limit, before, feed_id }, { uid, db }) => {
       const rows = await new Repository(db).searchArticles(uid, {
         q: query,
         limit,
         ...(before !== undefined ? { before } : {}),
+        ...(feed_id !== undefined ? { feed: feed_id } : {}),
       });
       const items = rows.slice(0, limit);
       return {

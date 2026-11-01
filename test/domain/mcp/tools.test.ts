@@ -63,6 +63,31 @@ describe('list_feeds', () => {
   });
 });
 
+describe('list_feeds without headers', () => {
+  it('leaves each feed header for get_feed', async () => {
+    await seed();
+    const { feeds } = (await run('list_feeds')) as { feeds: object[] };
+    expect(feeds[0]).not.toHaveProperty('metadata');
+  });
+});
+
+describe('get_feed', () => {
+  it('returns the feed with its header and statistics', async () => {
+    const { feedId } = await seed();
+    expect(await run('get_feed', { feed_id: feedId })).toMatchObject({
+      feed: { url: 'https://a.test/feed', metadata: [] },
+      statistics: { fail_count: 0 },
+    });
+  });
+
+  it("refuses another person's feed", async () => {
+    const other = (await new Repository(db).addFeed(2, 'https://o.test/f'))!;
+    await expect(run('get_feed', { feed_id: other.id })).rejects.toThrow(
+      'There is no such feed.',
+    );
+  });
+});
+
 describe('follow_feed', () => {
   it('follows a new feed and fetches it', async () => {
     expect(
@@ -135,6 +160,27 @@ describe('search_articles', () => {
       next_before?: number;
     };
     expect(first.next_before).toEqual(expect.any(Number));
+  });
+
+  it('narrows to one feed', async () => {
+    const { feedId } = await seed();
+    const other = (await new Repository(db).addFeed(1, 'https://b.test/feed'))!;
+    await new Repository(db).writeEdition(other.source_id, '2026-11-01', [
+      item('https://b.test/1', 'Rust elsewhere'),
+    ]);
+    const found = (await run('search_articles', {
+      query: 'Rust',
+      feed_id: feedId,
+    })) as { articles: { title: string }[] };
+    expect(found.articles.map((a) => a.title)).toEqual(['Rust ships']);
+  });
+
+  it("finds nothing in another person's feed", async () => {
+    await seed();
+    const other = (await new Repository(db).addFeed(2, 'https://o.test/f'))!;
+    expect(
+      await run('search_articles', { query: 'Rust', feed_id: other.id }),
+    ).toEqual({ articles: [] });
   });
 
   it('finds nothing from feeds others follow', async () => {
