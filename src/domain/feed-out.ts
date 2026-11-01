@@ -1,8 +1,8 @@
 /**
  * @packageDocumentation
  *
- * `/feed.xml?token=`: a person's saves (optionally one tag), one section or
- * their whole edition as Atom, for a feed reader that has no session. The
+ * `/feed.xml?token=`: a person's saves (optionally one tag), the passages they
+ * highlighted, one section or their whole edition as Atom, for a feed reader that has no session. The
  * token says which; only its SHA-256 is stored, so the token in the address
  * is the whole credential. This is a protocol endpoint outside `/api`, so its
  * errors are plain text.
@@ -60,6 +60,19 @@ function entryOf(
   };
 }
 
+/**
+ * A saved story's highlights as the text of an entry: each passage quoted, then
+ * the saver's note, as NewsBlur's highlights feed shows them.
+ */
+export function highlightsText(
+  highlights: readonly string[],
+  notes: string | null,
+): string {
+  return [...highlights.map((h) => `“${h}”`), ...(notes ? [notes] : [])].join(
+    '\n\n',
+  );
+}
+
 /** Whether a story with this verdict belongs in a feed with this filter. */
 export function keeps(filter: FeedFilter, score: Verdict): boolean {
   if (filter === 'focus') return score > 0;
@@ -89,6 +102,21 @@ async function contentOf(
       entries: saves.map((s) =>
         entryOf(s.article, origin, when(s.saved_at, now), {
           content: bodies.get(s.article.id),
+          categories: s.tags,
+        }),
+      ),
+    };
+  }
+  if (token.scope === 'highlights') {
+    const marked = (await repo.listSaves(token.user_id))
+      .filter((s) => s.highlights?.length)
+      .slice(0, 100);
+    return {
+      title: 'Highlights',
+      site: `${origin}/saved`,
+      entries: marked.map((s) =>
+        entryOf(s.article, origin, when(s.saved_at, now), {
+          content: highlightsText(s.highlights ?? [], s.notes ?? null),
           categories: s.tags,
         }),
       ),

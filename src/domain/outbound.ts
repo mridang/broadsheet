@@ -55,7 +55,13 @@ export interface Webhook {
 }
 
 /** What a feed token shows. */
-export const FEED_SCOPES = ['saves', 'section', 'edition', 'search'] as const;
+export const FEED_SCOPES = [
+  'saves',
+  'section',
+  'edition',
+  'search',
+  'highlights',
+] as const;
 
 /** One kind of feed. */
 export type FeedScope = (typeof FEED_SCOPES)[number];

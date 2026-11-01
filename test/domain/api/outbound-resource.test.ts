@@ -172,6 +172,7 @@ describe('parseFeedTokenInput', () => {
       { scope: 'search', search_id: '5' },
       { scope: 'search', search_id: 5 },
     ],
+    [{ scope: 'highlights' }, { scope: 'highlights' }],
   ])('accepts %j', (body, value) => {
     expect(parseFeedTokenInput(body)).toEqual({ ok: true, value });
   });
@@ -179,7 +180,7 @@ describe('parseFeedTokenInput', () => {
   it.each([
     [
       { scope: 'all' },
-      'scope: must be one of saves, section, edition, search.',
+      'scope: must be one of saves, section, edition, search, highlights.',
     ],
     [{ scope: 'edition', tag: 'x' }, 'tag: only for a saves feed.'],
     [{ scope: 'saves', tag: ' ' }, 'tag: must be a non-blank string.'],
@@ -192,6 +193,10 @@ describe('parseFeedTokenInput', () => {
     [
       { scope: 'search', search_id: '5', filter: 'focus' },
       'filter: a search feed keeps every story it finds.',
+    ],
+    [
+      { scope: 'highlights', filter: 'unread' },
+      'filter: a highlights feed keeps every highlight.',
     ],
     [
       { scope: 'section', section_id: 'x' },

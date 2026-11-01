@@ -56,6 +56,7 @@ describe('matchesRule', () => {
     [{ kind: 'author', value: '^fer', is_regex: true }, true],
     [{ kind: 'tag', value: 'release' }, true],
     [{ kind: 'tag', value: 'beta' }, false],
+    [{ kind: 'prompt', value: 'Rust releases' }, false],
     [{ kind: 'title', value: '(a+)+', is_regex: true }, false],
   ] as const)('%j matches: %s', (over, yes) => {
     expect(matchesRule(rule(over), story)).toBe(yes);

@@ -20,6 +20,7 @@ import { RefreshFeedsButton } from '@/app/(site)/feeds/_components/refresh-feeds
 import { RemoveFeedButton } from '@/app/(site)/feeds/_components/remove-feed-button';
 import { SuggestedFeeds } from '@/app/(site)/feeds/_components/suggested-feeds';
 import { TrendingFeeds } from '@/app/(site)/feeds/_components/trending-feeds';
+import { feedVerdictCounts } from '@/domain/classifier-counts';
 import { parseSourceQuery } from '@/domain/api/source-resource';
 import { RemoveSectionButton } from '@/app/(site)/feeds/_components/remove-section-button';
 
@@ -72,6 +73,26 @@ export default async function FeedsPage({
       ),
     ),
   );
+  const [training, prompted] = await Promise.all([
+    repo.listClassifiers(user.id),
+    repo.promptMatches(user.id),
+  ]);
+  const counts = new Map(
+    await Promise.all(
+      feeds.map(
+        async (f) =>
+          [
+            f.id,
+            feedVerdictCounts(
+              await repo.unreadSourceArticles(user.id, f.source_id),
+              f,
+              training,
+              prompted,
+            ),
+          ] as const,
+      ),
+    ),
+  );
   const options = sections.map((s) => ({
     id: s.id,
     name: sectionPath(sections, s.id),
@@ -109,7 +130,11 @@ export default async function FeedsPage({
               <RemoveFeedButton id={f.id} />
             </div>
             <div className="mt-4 space-y-3 border-t border-line pt-4">
-              <FeedHealth id={f.id} statistics={stats.get(f.id)} />
+              <FeedHealth
+                id={f.id}
+                statistics={stats.get(f.id)}
+                counts={counts.get(f.id)}
+              />
               <FeedSettingsForm
                 id={f.id}
                 url={f.url}

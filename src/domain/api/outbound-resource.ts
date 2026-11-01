@@ -223,7 +223,8 @@ export function feedTokenResource(
 }
 
 /**
- * Check a feed token body: `scope` saves, section, edition or search. `filter` (all,
+ * Check a feed token body: `scope` saves, section, edition, search or
+ * highlights (the passages the person marked in their saves). `filter` (all,
  * unread or focus) keeps a section or edition feed to stories not disliked or
  * only liked ones, as NewsBlur's folder feeds do. `tag` narrows
  * saves to one tag; `section_id` is required for, and only allowed with, a
@@ -278,6 +279,8 @@ export function parseFeedTokenInput(
       errors.push('filter: a saves feed keeps every saved story.');
     } else if (scope === 'search' && filter !== 'all') {
       errors.push('filter: a search feed keeps every story it finds.');
+    } else if (scope === 'highlights' && filter !== 'all') {
+      errors.push('filter: a highlights feed keeps every highlight.');
     }
   }
   return checked(errors, () => ({

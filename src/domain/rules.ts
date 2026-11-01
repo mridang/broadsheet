@@ -4,8 +4,9 @@
  * Whether a notification rule matches a story, as NewsBlur's classifier
  * notifications decide: in the rule's scope (one feed, one section or every
  * feed), then a phrase found in the title, text or address, the same author,
- * one of the tags, or a regular expression (case-insensitive) over the title,
- * author, text or address.
+ * one of the tags, a regular expression (case-insensitive) over the title,
+ * author, text or address, or an AI prompt, which Workers AI judges (see
+ * `notify`) rather than this module.
  *
  * NewsBlur stops a slow regular expression with a timer; a Worker has no
  * threads to do that with, so a pattern that can backtrack without end (a
@@ -49,7 +50,7 @@ export type RuledStory = Pick<
 };
 
 /** Whether the story is in the rule's feed, section or anywhere. */
-function inScope(rule: NotificationRule, story: RuledStory): boolean {
+export function inScope(rule: NotificationRule, story: RuledStory): boolean {
   if (rule.scope === 'feed') return story.feed_id === rule.feed_id;
   if (rule.scope === 'section') return story.section_id === rule.section_id;
   return true;
@@ -86,5 +87,7 @@ export function matchesRule(
         : !!story.author && story.author === rule.value;
     case 'tag':
       return (story.tags ?? []).includes(rule.value);
+    case 'prompt':
+      return false;
   }
 }

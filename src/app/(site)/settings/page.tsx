@@ -31,6 +31,7 @@ function scopeText(
   sections: ReadonlyMap<number, string>,
 ): string {
   if (token.scope === 'edition') return 'The whole edition';
+  if (token.scope === 'highlights') return 'Highlights';
   if (token.scope === 'section') {
     return `Section: ${sections.get(token.section_id ?? 0) ?? 'removed'}`;
   }

@@ -43,6 +43,25 @@ export function readAnswer(out: unknown): boolean | undefined {
   return undefined;
 }
 
+/**
+ * Ask the model whether one story matches `prompt`: true or false, or
+ * undefined when it gave no answer. Throws when the model cannot be reached.
+ */
+export async function askPrompt(
+  ai: Pick<Ai, 'run'>,
+  prompt: string,
+  story: { readonly title: string | null; readonly summary: string | null },
+): Promise<boolean | undefined> {
+  const out = await ai.run(PROMPT_MODEL, {
+    messages: [
+      { role: 'system', content: SYSTEM },
+      { role: 'user', content: promptQuestion(prompt, story) },
+    ],
+    max_tokens: 3,
+  });
+  return readAnswer(out);
+}
+
 /** Whether a classifier's scope reaches a feed. */
 function reaches(
   c: {
@@ -91,14 +110,7 @@ export async function scorePrompts(
       left -= 1;
       asked += 1;
       try {
-        const out = await env.AI.run(PROMPT_MODEL, {
-          messages: [
-            { role: 'system', content: SYSTEM },
-            { role: 'user', content: promptQuestion(classifier.value, story) },
-          ],
-          max_tokens: 3,
-        });
-        const matched = readAnswer(out);
+        const matched = await askPrompt(env.AI, classifier.value, story);
         if (matched !== undefined) answers.set(story.id, matched);
         await repo.recordUsage(userId, 'classifier');
       } catch (error) {

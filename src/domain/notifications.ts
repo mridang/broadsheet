@@ -57,8 +57,18 @@ export interface NotifiableStory {
   readonly summary: string | null;
 }
 
-/** What a notification rule matches on, as NewsBlur's classifier notifications do. */
-export const RULE_KINDS = ['title', 'author', 'tag', 'text', 'url'] as const;
+/**
+ * What a notification rule matches on, as NewsBlur's classifier notifications
+ * do; `prompt` asks Workers AI whether the story matches the reader's words.
+ */
+export const RULE_KINDS = [
+  'title',
+  'author',
+  'tag',
+  'text',
+  'url',
+  'prompt',
+] as const;
 
 /** One kind of rule. */
 export type RuleKind = (typeof RULE_KINDS)[number];

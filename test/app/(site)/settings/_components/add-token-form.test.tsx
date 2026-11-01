@@ -17,6 +17,7 @@ describe('tokenRequest', () => {
       { scope: 'saves', tag: 'rust' },
     ],
     [{ feed: 'edition', tag: 'ignored' }, { scope: 'edition' }],
+    [{ feed: 'highlights', filter: 'focus' }, { scope: 'highlights' }],
     [{ feed: 'section:4' }, { scope: 'section', section_id: '4' }],
     [
       { feed: 'section:4', filter: 'focus' },

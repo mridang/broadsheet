@@ -2006,6 +2006,30 @@ export class Repository {
     return new Map(rows.map((r) => [r.feed_id, Number(r.count)]));
   }
 
+  /**
+   * The newest stories of one source the person has not opened, at most
+   * `limit`, each address once (the latest copy), for counting them by verdict.
+   */
+  async unreadSourceArticles(
+    userId: number,
+    sourceId: number,
+    limit = 300,
+  ): Promise<Article[]> {
+    const rows = await this.#db
+      .select()
+      .from(articles)
+      .where(
+        and(
+          eq(articles.source_id, sourceId),
+          sql`not exists (select 1 from reads r join articles a on a.id = r.article_id where r.user_id = ${userId} and a.url = ${articles.url})`,
+        ),
+      )
+      .orderBy(desc(articles.id))
+      .limit(limit);
+    const seen = new Set<string>();
+    return rows.filter((r) => !seen.has(r.url) && !!seen.add(r.url));
+  }
+
   /** How much of the person's archive there is, overall and per feed. */
   async archiveStats(userId: number): Promise<ArchiveStats> {
     const [feeds, perFeed, [totals], [saved], [read]] = await Promise.all([

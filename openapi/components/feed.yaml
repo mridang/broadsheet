@@ -140,6 +140,7 @@ FeedStatistics:
     - stories_per_weekday
     - stories_per_hour
     - fetch_history
+    - classifier_counts
 
   properties:
     last_fetched_at:
@@ -197,6 +198,20 @@ FeedStatistics:
     archive_count:
       type: integer
       description: Stories whose full text has been kept.
+    classifier_counts:
+      type: object
+      required: [focus, neutral, hidden]
+      description: The caller's unread stories in the feed (the newest 300) by how their training scores them, as NewsBlur's per-feed focus, neutral and hidden counts.
+      properties:
+        focus:
+          type: integer
+          description: Stories training likes.
+        neutral:
+          type: integer
+          description: Stories training neither likes nor dislikes.
+        hidden:
+          type: integer
+          description: Stories training dislikes.
     last_load_time_ms:
       type: integer
       description: How long the last timed fetch took.

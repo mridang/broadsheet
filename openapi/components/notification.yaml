@@ -34,7 +34,8 @@ NotificationRuleInput:
   properties:
     kind:
       type: string
-      enum: [title, author, tag, text, url]
+      enum: [title, author, tag, text, url, prompt]
+      description: With `prompt`, the value is the reader's own words and Workers AI judges each new story in scope against them, each question counting against the daily AI classifier budget.
     value:
       type: string
       minLength: 1
@@ -63,7 +64,7 @@ NotificationRule:
       type: string
     kind:
       type: string
-      enum: [title, author, tag, text, url]
+      enum: [title, author, tag, text, url, prompt]
     value:
       type: string
     is_regex:

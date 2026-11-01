@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from '@jest/globals';
 
 import { databaseFrom, type Database } from '@/domain/db/database';
-import { keeps, serveFeed } from '@/domain/feed-out';
+import { highlightsText, keeps, serveFeed } from '@/domain/feed-out';
 import { OutboundRepository, type FeedTokenInput } from '@/domain/outbound';
 import { Repository } from '@/domain/repository';
 import { sha256Hex } from '@/lib/outbound/tokens';
@@ -101,6 +101,25 @@ describe('serveFeed', () => {
     expect(xml).toContain('<updated>2026-10-02T00:00:00Z</updated>');
   });
 
+  it('serves only the saves with highlights, quoting them', async () => {
+    const { articleId } = await paper();
+    const repo = new Repository(db);
+    const [beta] = await repo.searchArticles(1, { q: 'Beta', limit: 1 });
+    await repo.saveArticle(1, articleId, []);
+    await repo.saveArticle(1, beta!.id, []);
+    await repo.annotateSave(1, articleId, {
+      highlights: ['Alpha body'],
+      notes: 'Worth it',
+    });
+    const xml = await (
+      await fetchFeed(`?token=${await token({ scope: 'highlights' })}`)
+    ).text();
+    expect(xml).toContain(': Highlights</title>');
+    expect(xml).toContain('<title>Alpha</title>');
+    expect(xml).not.toContain('<title>Beta</title>');
+    expect(xml).toContain('“Alpha body”\n\nWorth it');
+  });
+
   it('refuses a request without a token in plain text', async () => {
     const res = await fetchFeed('');
     expect(res.status).toBe(400);
@@ -136,6 +155,16 @@ describe('serveFeed', () => {
     const t = await token({ scope: 'section', section_id: sectionId });
     await new Repository(db).removeSection(1, sectionId);
     expect((await fetchFeed(`?token=${t}`)).status).toBe(404);
+  });
+});
+
+describe('highlightsText', () => {
+  it('quotes each passage, then the note', () => {
+    expect(highlightsText(['a', 'b'], 'n')).toBe('“a”\n\n“b”\n\nn');
+  });
+
+  it('leaves out a missing note', () => {
+    expect(highlightsText(['a'], null)).toBe('“a”');
   });
 });
 

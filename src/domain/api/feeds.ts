@@ -44,6 +44,10 @@ import {
   type Section,
   type FeedStatistics,
 } from '@/domain/repository';
+import {
+  feedClassifierCounts,
+  type ClassifierCounts,
+} from '@/domain/classifier-counts';
 import { discoverFeed, refreshSource } from '@/domain/scraping/index';
 import { getEnv, runInBackground } from '@/lib/core/runtime';
 import { getDatabase } from '@/domain/db/database';
@@ -438,13 +442,13 @@ export function createFeedStatistics(
       request,
       uid: await liveUid(request, resolver),
     }),
-  }).on<null, FeedStatistics | undefined>({
+  }).on<null, CountedStatistics | undefined>({
     method: 'GET',
     handle: async (_input, { request, uid }) => {
       const id = statisticsId(request);
       return id === undefined
         ? undefined
-        : new Repository(getDatabase()).feedStatistics(uid, id);
+        : countedStatistics(new Repository(getDatabase()), uid, id);
     },
     encode: (stats) =>
       stats
@@ -458,9 +462,31 @@ export function createFeedStatistics(
 /** The statistics controller bound to the production resolver. */
 export const feedStatistics = createFeedStatistics();
 
-/** The API's view of {@link FeedStatistics}; absent members are unknown. */
+/** A feed's statistics with its unread stories counted by verdict. */
+export type CountedStatistics = FeedStatistics & {
+  readonly classifier_counts: ClassifierCounts;
+};
+
+/** The statistics of one of the person's feeds with its classifier counts. */
+async function countedStatistics(
+  repo: Repository,
+  uid: number,
+  id: number,
+): Promise<CountedStatistics | undefined> {
+  const [feed, stats] = await Promise.all([
+    repo.getFeed(uid, id),
+    repo.feedStatistics(uid, id),
+  ]);
+  if (!feed || !stats) return undefined;
+  return {
+    ...stats,
+    classifier_counts: await feedClassifierCounts(repo, uid, feed),
+  };
+}
+
+/** The API's view of {@link CountedStatistics}; absent members are unknown. */
 export function statisticsResource(
-  stats: FeedStatistics,
+  stats: CountedStatistics,
 ): Record<string, unknown> {
   const fetched = stats.last_fetched_at
     ? rfc3339(stats.last_fetched_at)
@@ -485,6 +511,7 @@ export function statisticsResource(
       ? { next_fetch_at: rfc3339(stats.next_fetch_at) }
       : {}),
     archive_count: stats.archive_count,
+    classifier_counts: stats.classifier_counts,
     ...(stats.fetch_history[0]?.duration_ms != null
       ? { last_load_time_ms: stats.fetch_history[0].duration_ms }
       : {}),
@@ -649,7 +676,7 @@ export function createFeedRetries(
         getEnv(),
         sourceOf(feed),
       );
-      const stats = await repo.feedStatistics(uid, feed.id);
+      const stats = await countedStatistics(repo, uid, feed.id);
       return outcome.ok && stats
         ? Response.json(statisticsResource(stats), {
             headers: { 'Cache-Control': 'no-store' },

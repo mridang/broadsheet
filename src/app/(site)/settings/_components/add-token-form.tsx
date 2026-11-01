@@ -24,6 +24,7 @@ export function tokenRequest(form: FormData): TokenRequest {
     };
   }
   if (choice === 'edition') return { scope: 'edition', ...filtered };
+  if (choice === 'highlights') return { scope: 'highlights' };
   const tag = String(form.get('tag') ?? '').trim();
   return tag ? { scope: 'saves', tag } : { scope: 'saves' };
 }
@@ -77,6 +78,7 @@ export function AddTokenForm({
           className={fieldClass()}
         >
           <option value="saves">Saved stories</option>
+          <option value="highlights">Highlights</option>
           <option value="edition">The whole edition</option>
           {sections.map((s) => (
             <option key={s.id} value={`section:${s.id}`}>

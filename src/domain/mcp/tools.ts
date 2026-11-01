@@ -32,6 +32,7 @@ import {
   parseSectionInput,
 } from '@/domain/api/section-resource';
 import type { Database } from '@/domain/db/database';
+import { feedClassifierCounts } from '@/domain/classifier-counts';
 import { rank, verdict } from '@/domain/render/tiers';
 import {
   Repository,
@@ -312,7 +313,10 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
       const repo = new Repository(db);
       const feed = await repo.getFeed(uid, feed_id);
       if (!feed) throw new ToolFailure('There is no such feed.');
-      const stats = await repo.feedStatistics(uid, feed_id);
+      const [stats, counts] = await Promise.all([
+        repo.feedStatistics(uid, feed_id),
+        feedClassifierCounts(repo, uid, feed),
+      ]);
       return {
         feed: feedResource(feed),
         ...(stats
@@ -320,6 +324,7 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
               statistics: {
                 fail_count: stats.fail_count,
                 stories_per_day: stats.stories_per_day,
+                classifier_counts: counts,
                 ...(stats.last_error ? { last_error: stats.last_error } : {}),
               },
             }

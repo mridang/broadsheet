@@ -418,6 +418,43 @@ describe('notifyNewStories rules and activity', () => {
     ).toBe(1);
   });
 
+  it('notifies about stories Workers AI says match a prompt rule', async () => {
+    const { user } = await following(['Rust 1', 'Go', 'Rust 2']);
+    await new NotificationRepository(db).addRule(user.id, {
+      kind: 'prompt',
+      value: 'news about Rust',
+      is_regex: false,
+      scope: 'all',
+      channels: ['webhook'],
+    });
+    const run = jest.fn(async (_model: string, input: unknown) => ({
+      response: (
+        input as { messages: { content: string }[] }
+      ).messages[1]!.content.includes('Story: Rust')
+        ? 'Yes'
+        : 'No',
+    }));
+    const AI = { run } as unknown as Ai;
+    expect(
+      (await notifyNewStories({ AI }, db, user.id, '2026-10-02')).stories,
+    ).toBe(2);
+    expect(run).toHaveBeenCalledTimes(3);
+  });
+
+  it('matches nothing with a prompt rule when Workers AI is missing', async () => {
+    const { user } = await following(['Rust 1']);
+    await new NotificationRepository(db).addRule(user.id, {
+      kind: 'prompt',
+      value: 'news about Rust',
+      is_regex: false,
+      scope: 'all',
+      channels: ['webhook'],
+    });
+    expect(
+      (await notifyNewStories({}, db, user.id, '2026-10-02')).stories,
+    ).toBe(0);
+  });
+
   it('tells nobody who has been away for more than 90 days', async () => {
     const { user } = await notifying(['webhook'], 'unread', ['One']);
     await new NotificationRepository(db).noteSeen(user.id, '2026-06-01');

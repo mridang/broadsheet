@@ -87,6 +87,30 @@ describe('GET /api/feeds/:id/statistics', () => {
       stories_per_weekday: {},
       stories_per_hour: {},
       fetch_history: [],
+      classifier_counts: { focus: 0, neutral: 0, hidden: 0 },
+    });
+  });
+
+  it('counts the unread stories as focus, neutral and hidden', async () => {
+    const feed = (await repo.addFeed(7, 'https://a.test/f'))!;
+    await repo.writeEdition(
+      feed.source_id,
+      '2026-10-02',
+      ['Rust wins', 'Go news', 'Cats'].map((title, i) => ({
+        url: `https://x/${i}`,
+        title,
+        source: 'Src',
+        favicon: '',
+        summary: '',
+        image: '',
+        published_at: '',
+        points: 0,
+      })),
+    );
+    await repo.addClassifier(7, { kind: 'title', value: 'rust', score: 1 });
+    await repo.addClassifier(7, { kind: 'title', value: 'cats', score: -1 });
+    expect(await (await get(String(feed.id))).json()).toMatchObject({
+      classifier_counts: { focus: 1, neutral: 1, hidden: 1 },
     });
   });
 

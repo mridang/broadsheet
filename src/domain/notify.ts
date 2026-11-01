@@ -17,13 +17,17 @@ import { getDatabase, type Database } from '@/domain/db/database';
 import { storyEmail, type EmailEnvironment } from '@/domain/api/emails';
 import {
   NotificationRepository,
+  type FollowedStory,
   type NotifiableStory,
+  type NotificationRule,
   type NotificationChannel,
   type NotificationFilter,
 } from '@/domain/notifications';
 import { OutboundRepository, type WebhookEvent } from '@/domain/outbound';
 import { verdict, type Verdict } from '@/domain/render/tiers';
-import { matchesRule } from '@/domain/rules';
+import { askPrompt, PROMPT_BATCH } from '@/domain/prompts';
+import { inScope, matchesRule } from '@/domain/rules';
+import { budget } from '@/domain/api/usage';
 import { Repository, type User } from '@/domain/repository';
 import { runInBackground } from '@/lib/core/runtime';
 import { signatureHeaders } from '@/lib/outbound/signature';
@@ -260,7 +264,11 @@ export const STORIES_PER_FEED = 3;
 export const DAILY_NOTIFICATION_EMAILS = 25;
 
 /** What notifying needs: the VAPID identity and the mail binding. */
-export type NotifyEnvironment = PushEnvironment & EmailEnvironment;
+export type NotifyEnvironment = PushEnvironment &
+  EmailEnvironment & {
+    /** Workers AI, which judges stories against prompt rules. */
+    readonly AI?: Pick<Ai, 'run'>;
+  };
 
 /** What one round of story notifications came to. */
 export interface StoryNotifications {
@@ -423,13 +431,52 @@ export async function notifyNewStories(
       edition,
     );
     for (const rule of rules) {
-      const matched = followed.filter((story) => matchesRule(rule, story));
+      const matched =
+        rule.kind === 'prompt'
+          ? await promptMatches(env, repo, userId, rule, followed)
+          : followed.filter((story) => matchesRule(rule, story));
       for (const story of matched.slice(0, STORIES_PER_FEED)) {
         await deliverStory(delivery, story, rule.channels, story);
       }
     }
   }
   return totals;
+}
+
+/**
+ * The stories in a prompt rule's scope that Workers AI says match it, at most
+ * {@link STORIES_PER_FEED}. Each question counts against the person's daily AI
+ * classifier budget, as the prompt classifiers' do; none are asked without
+ * Workers AI, and a question the model fails or will not answer matches
+ * nothing.
+ */
+export async function promptMatches(
+  env: NotifyEnvironment,
+  repo: Repository,
+  userId: number,
+  rule: NotificationRule,
+  followed: readonly FollowedStory[],
+): Promise<FollowedStory[]> {
+  if (!env.AI) return [];
+  const candidates = followed
+    .filter((story) => inScope(rule, story))
+    .slice(0, PROMPT_BATCH);
+  let left = (await budget(repo, userId, 'classifier')).remaining;
+  const matched: FollowedStory[] = [];
+  for (const story of candidates) {
+    if (matched.length >= STORIES_PER_FEED || left <= 0) break;
+    left -= 1;
+    try {
+      if (await askPrompt(env.AI, rule.value, story)) matched.push(story);
+      await repo.recordUsage(userId, 'classifier');
+    } catch (error) {
+      logError({
+        event: 'notification.prompt.failed',
+        error: errorMessage(error),
+      });
+    }
+  }
+  return matched;
 }
 
 /**

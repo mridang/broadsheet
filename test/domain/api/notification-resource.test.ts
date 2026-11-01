@@ -101,14 +101,35 @@ describe('parseNotificationRuleInput', () => {
         channels: ['webhook'],
       },
     ],
+    [
+      {
+        kind: 'prompt',
+        value: 'stories about Rust',
+        scope: 'feed',
+        feed_id: '3',
+        channels: ['web'],
+      },
+      {
+        kind: 'prompt',
+        value: 'stories about Rust',
+        is_regex: false,
+        scope: 'feed',
+        feed_id: 3,
+        channels: ['web'],
+      },
+    ],
   ])('accepts %j', (body, value) => {
     expect(parseNotificationRuleInput(body)).toEqual({ ok: true, value });
   });
 
   it.each([
     [
-      { kind: 'prompt', value: 'x', channels: ['web'] },
-      'kind: must be one of title, author, tag, text, url.',
+      { kind: 'feed', value: 'x', channels: ['web'] },
+      'kind: must be one of title, author, tag, text, url, prompt.',
+    ],
+    [
+      { kind: 'prompt', value: 'x', is_regex: true, channels: ['web'] },
+      'is_regex: only for title, author, text, url.',
     ],
     [
       { kind: 'tag', value: 'x', is_regex: true, channels: ['web'] },

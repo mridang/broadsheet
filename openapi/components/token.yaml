@@ -5,7 +5,8 @@ FeedTokenInput:
   properties:
     scope:
       type: string
-      enum: [saves, section, edition, search]
+      enum: [saves, section, edition, search, highlights]
+      description: '`highlights` lists the saved stories the person highlighted passages in, each entry quoting the passages and then their note.'
     tag:
       type: string
       minLength: 1
@@ -22,7 +23,7 @@ FeedTokenInput:
       type: string
       enum: [all, unread, focus]
       default: all
-      description: For a section or edition feed, `unread` leaves out disliked stories and `focus` keeps only liked ones. A saves or search feed is always `all`.
+      description: For a section or edition feed, `unread` leaves out disliked stories and `focus` keeps only liked ones. A saves, search or highlights feed is always `all`.
 FeedToken:
   type: object
   required: [id, scope, filter]
@@ -31,7 +32,7 @@ FeedToken:
       type: string
     scope:
       type: string
-      enum: [saves, section, edition, search]
+      enum: [saves, section, edition, search, highlights]
     tag:
       type: string
     section_id:

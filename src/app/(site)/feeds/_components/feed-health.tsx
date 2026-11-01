@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 
 import { RetryFeedButton } from '@/app/(site)/feeds/_components/retry-feed-button';
+import type { ClassifierCounts } from '@/domain/classifier-counts';
 import type { FeedStatistics } from '@/domain/repository';
 
 /** Failures in a row from which a feed counts as broken. */
@@ -17,9 +18,12 @@ export function isBroken(
 export function FeedHealth({
   id,
   statistics,
+  counts,
 }: {
   readonly id: number;
   readonly statistics: FeedStatistics | undefined;
+  /** The feed's unread stories by verdict, when counted. */
+  readonly counts?: ClassifierCounts | undefined;
 }): ReactElement | null {
   if (!statistics) return null;
   const stories = statistics.stories_per_day.reduce((n, d) => n + d.count, 0);
@@ -43,6 +47,9 @@ export function FeedHealth({
       {` · ${statistics.subscribers} ${statistics.subscribers === 1 ? 'reader' : 'readers'}`}
       {statistics.update_minutes !== null
         ? ` · asks for ${statistics.update_minutes} minutes between fetches`
+        : ''}
+      {counts
+        ? ` · unread ${counts.focus} focus, ${counts.neutral} neutral, ${counts.hidden} hidden`
         : ''}
     </div>
   );

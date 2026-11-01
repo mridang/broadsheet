@@ -59,12 +59,13 @@ export function AddRuleForm({
           <option value="url">Address</option>
           <option value="author">Author</option>
           <option value="tag">Tag</option>
+          <option value="prompt">AI prompt</option>
         </select>
         <input
           name="value"
           type="text"
           maxLength={200}
-          placeholder="Phrase or pattern"
+          placeholder="Phrase, pattern or prompt"
           required
           className={fieldClass('w-full sm:flex-1')}
         />
