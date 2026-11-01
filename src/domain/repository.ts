@@ -46,6 +46,8 @@ import {
   saves,
   shares,
   savedSearches,
+  shares,
+  feed_recommendations,
   sections,
   sources,
   subscription_sections,
@@ -612,6 +614,8 @@ export interface Passage {
   readonly text: string;
   /** The day it was published, else the day of its edition. */
   readonly date: string | null;
+  /** What a person added: a saver's note and highlights, a sharer's comment. */
+  readonly annotation?: string;
 }
 /** Narrows a {@link Repository.retrievePassages} search. */
 export interface PassageQuery {
@@ -635,10 +639,33 @@ export interface ArchiveSummary {
   }[];
   readonly tags: readonly { readonly tag: string; readonly count: number }[];
 }
+/** How a trending list ranks sources, after NewsBlur's trending sites. */
+export type TrendingKind = 'popular' | 'rising' | 'hidden' | 'new';
+/** A source on a trending list or in a search, with how many follow it. */
+export interface RankedSource {
+  readonly id: number;
+  readonly url: string;
+  readonly title: string | null;
+  readonly followers: number;
+  /** Whether the person asking follows it. */
+  readonly followed: boolean;
+}
+/** A feed put forward for everyone. */
+export type FeedRecommendation = typeof feed_recommendations.$inferSelect;
+/** The person's saves at a glance. */
+export interface SavedSummary {
+  readonly saves: number;
+  readonly tags: ArchiveSummary['tags'];
+  readonly top_sources: ArchiveSummary['top_sources'];
+  readonly recent: readonly {
+    readonly id: number;
+    readonly title: string | null;
+  }[];
+}
 /** A conversation as a list shows it. */
 export type ConversationSummary = typeof conversations.$inferSelect;
 /** What Ask AI or the assistant may be asked: its daily budget. */
-export type UsageKind = 'answer' | 'assistant' | 'classifier';
+export type UsageKind = 'answer' | 'assistant' | 'classifier' | 'transcription';
 /** A story like another, from any source, and whether the person follows its source. */
 export interface DiscoveredArticle {
   readonly article: ArticleSummary;
@@ -681,6 +708,21 @@ export function anyWordQuery(question: string): string {
     .split(/[^\p{L}\p{N}]+/u)
     .filter((w) => w.length >= 3 && !STOPWORDS.has(w));
   return [...new Set(words)].map((w) => `"${w}"`).join(' OR ');
+}
+
+/** A saver's note and highlights as a passage's annotation, when there are any. */
+function savedAnnotation(
+  notes: string | null,
+  highlights: string,
+): { annotation?: string } {
+  const marked = tagsOf(highlights);
+  const parts = [
+    notes ? `Note: ${notes}` : '',
+    marked.length
+      ? `Highlights: ${marked.map((h) => `"${h}"`).join('; ')}`
+      : '',
+  ].filter(Boolean);
+  return parts.length ? { annotation: parts.join('\n') } : {};
 }
 
 /** Longest conversation title, in characters. */
@@ -3166,7 +3208,11 @@ export class Repository {
   ): Promise<Passage[]> {
     const match = anyWordQuery(query);
     return this.#db
-      .select(this.#passageColumns())
+      .select({
+        ...this.#passageColumns(),
+        notes: saves.notes,
+        highlights: saves.highlights,
+      })
       .from(saves)
       .innerJoin(articles, eq(saves.article_id, articles.id))
       .where(
@@ -3181,7 +3227,47 @@ export class Repository {
         ),
       )
       .orderBy(desc(saves.created_at), desc(saves.article_id))
+      .limit(limit)
+      .then((rows) =>
+        rows.map(({ notes, highlights, ...p }) => ({
+          ...p,
+          ...savedAnnotation(notes, highlights),
+        })),
+      );
+  }
+
+  /**
+   * Stories people shared (shares are public), newest first, holding any word
+   * of `query` when given, each annotated with who shared it and their comment.
+   */
+  async sharedPassages({
+    query = '',
+    limit = 10,
+  }: {
+    query?: string;
+    limit?: number;
+  }): Promise<Passage[]> {
+    const match = anyWordQuery(query);
+    const rows = await this.#db
+      .select({
+        ...this.#passageColumns(),
+        sharer: users.name,
+        comments: shares.comments,
+      })
+      .from(shares)
+      .innerJoin(articles, eq(shares.article_id, articles.id))
+      .innerJoin(users, eq(users.id, shares.user_id))
+      .where(
+        match
+          ? sql`${articles.id} IN (SELECT rowid FROM articles_fts WHERE articles_fts MATCH ${match})`
+          : undefined,
+      )
+      .orderBy(desc(shares.created_at), desc(shares.id))
       .limit(limit);
+    return rows.map(({ sharer, comments, ...p }) => ({
+      ...p,
+      annotation: `Shared by ${sharer || 'a reader'}${comments ? `: ${comments}` : ''}`,
+    }));
   }
 
   /** The stories the person opened in the last `days` days, newest first. */
@@ -3215,6 +3301,59 @@ export class Repository {
       .where(and(eq(articles.id, id), this.#reachable(userId)))
       .limit(1);
     return row;
+  }
+
+  /** The person's saves at a glance: how many, their tags, sources and newest saves. */
+  async savedSummary(userId: number): Promise<SavedSummary> {
+    const count = sql<number>`count(*)`;
+    const [total] = await this.#db
+      .select({ n: count })
+      .from(saves)
+      .where(eq(saves.user_id, userId));
+    const sourcesSaved = await this.#db
+      .select({ source: articles.source, count })
+      .from(saves)
+      .innerJoin(articles, eq(saves.article_id, articles.id))
+      .where(
+        and(
+          eq(saves.user_id, userId),
+          sql`coalesce(${articles.source}, '') <> ''`,
+        ),
+      )
+      .groupBy(articles.source)
+      .orderBy(desc(count), asc(articles.source))
+      .limit(5);
+    const recent = await this.#db
+      .select({ id: articles.id, title: articles.title })
+      .from(saves)
+      .innerJoin(articles, eq(saves.article_id, articles.id))
+      .where(eq(saves.user_id, userId))
+      .orderBy(desc(saves.created_at), desc(saves.article_id))
+      .limit(5);
+    return {
+      saves: Number(total?.n ?? 0),
+      tags: (await this.archiveSummary(userId)).tags,
+      top_sources: sourcesSaved.map((r) => ({
+        source: r.source ?? '',
+        count: Number(r.count),
+      })),
+      recent,
+    };
+  }
+
+  /** A saver's note and highlights on one story, as an annotation, if they saved it. */
+  async saveAnnotation(
+    userId: number,
+    articleId: number,
+  ): Promise<string | undefined> {
+    const [row] = await this.#db
+      .select({ notes: saves.notes, highlights: saves.highlights })
+      .from(saves)
+      .where(and(eq(saves.user_id, userId), eq(saves.article_id, articleId)))
+      .limit(1);
+    return row
+      ? savedAnnotation(row.notes, row.highlights).annotation
+      : undefined;
   }
 
   /** Counts of what the person's archive holds, with their busiest sources and tags. */
@@ -3669,6 +3808,170 @@ export class Repository {
       );
     }
     return out;
+  }
+
+  /** How many people follow each source, as a subquery. */
+  #followerCounts() {
+    return this.#db
+      .select({
+        source_id: subscriptions.source_id,
+        followers: sql<number>`count(*)`.as('followers'),
+      })
+      .from(subscriptions)
+      .groupBy(subscriptions.source_id)
+      .as('counts');
+  }
+
+  /** Sources ranked one way, with whether `userId` follows each. */
+  async #ranked(
+    userId: number,
+    score: ReturnType<typeof sql<number>>,
+    where: ReturnType<typeof and>,
+    limit: number,
+  ): Promise<RankedSource[]> {
+    const counts = this.#followerCounts();
+    const followed = new Set((await this.#followed(userId)).map((r) => r.id));
+    const rows = await this.#db
+      .select({
+        id: sources.id,
+        url: sources.url,
+        title: sources.title,
+        followers: counts.followers,
+      })
+      .from(sources)
+      .innerJoin(counts, eq(counts.source_id, sources.id))
+      .where(where)
+      .orderBy(desc(score), desc(counts.followers), asc(sources.id))
+      .limit(limit);
+    return rows.map((r) => ({
+      ...r,
+      followers: Number(r.followers),
+      followed: followed.has(r.id),
+    }));
+  }
+
+  /**
+   * Trending sites over the last `days` days, after NewsBlur's discover lists:
+   * `popular` has the most followers; `rising` gained the most followers for
+   * its size; `hidden` gems are small (at most 50 followers) but most read and
+   * saved per follower; `new` arrivals were first followed in the window.
+   */
+  async trendingSites(
+    userId: number,
+    kind: TrendingKind,
+    days: number,
+    limit: number,
+  ): Promise<RankedSource[]> {
+    const since = sql`datetime('now', ${`-${days} days`})`;
+    const counts = this.#followerCounts();
+    const recentFollows = sql<number>`(SELECT count(*) FROM subscriptions s2 WHERE s2.source_id = ${sources.id} AND s2.created_at >= ${since})`;
+    const engagement = sql<number>`(
+      (SELECT count(*) FROM reads r JOIN articles a ON a.id = r.article_id
+        WHERE a.source_id = ${sources.id} AND r.created_at >= ${since})
+      + (SELECT count(*) FROM saves v JOIN articles a ON a.id = v.article_id
+        WHERE a.source_id = ${sources.id} AND v.created_at >= ${since})
+    )`;
+    switch (kind) {
+      case 'popular':
+        return this.#ranked(
+          userId,
+          sql<number>`${counts.followers}`,
+          and(),
+          limit,
+        );
+      case 'rising':
+        return this.#ranked(
+          userId,
+          sql<number>`${recentFollows} * 1.0 / ${counts.followers}`,
+          and(sql`${recentFollows} > 0`),
+          limit,
+        );
+      case 'hidden':
+        return this.#ranked(
+          userId,
+          sql<number>`${engagement} * 1.0 / ${counts.followers}`,
+          and(sql`${counts.followers} <= 50`, sql`${engagement} > 0`),
+          limit,
+        );
+      case 'new':
+        return this.#ranked(
+          userId,
+          sql<number>`${counts.followers}`,
+          and(
+            sql`(SELECT min(s3.created_at) FROM subscriptions s3 WHERE s3.source_id = ${sources.id}) >= ${since}`,
+          ),
+          limit,
+        );
+    }
+  }
+
+  /**
+   * Sources anyone follows whose title or address holds `q` (NewsBlur's feed
+   * autocomplete), most followed first.
+   */
+  searchSources(
+    userId: number,
+    q: string,
+    limit: number,
+  ): Promise<RankedSource[]> {
+    const like = `%${q.replace(/[%_\\]/g, (c) => `\\${c}`)}%`;
+    return this.#ranked(
+      userId,
+      sql<number>`${this.#followerCounts().followers}`,
+      and(
+        or(
+          sql`${sources.title} LIKE ${like} ESCAPE '\\'`,
+          sql`${sources.url} LIKE ${like} ESCAPE '\\'`,
+        ),
+      ),
+      limit,
+    );
+  }
+
+  /** Put a feed forward for everyone; it waits for a curator. */
+  async addRecommendation(
+    userId: number,
+    input: { url: string; title?: string; description: string },
+  ): Promise<FeedRecommendation> {
+    const [row] = await this.#db
+      .insert(feed_recommendations)
+      .values({
+        user_id: userId,
+        url: input.url,
+        title: input.title ?? null,
+        description: input.description,
+      })
+      .returning();
+    return row!;
+  }
+
+  /** Recommendations with this status: approved ones last decided first, others newest first. */
+  listRecommendations(
+    status: 'pending' | 'approved' | 'declined',
+  ): Promise<FeedRecommendation[]> {
+    return this.#db
+      .select()
+      .from(feed_recommendations)
+      .where(eq(feed_recommendations.status, status))
+      .orderBy(
+        desc(
+          sql`coalesce(${feed_recommendations.decided_at}, ${feed_recommendations.created_at})`,
+        ),
+        desc(feed_recommendations.id),
+      );
+  }
+
+  /** Approve or decline a recommendation; undefined when there is none. */
+  async decideRecommendation(
+    id: number,
+    status: 'approved' | 'declined',
+  ): Promise<FeedRecommendation | undefined> {
+    const [row] = await this.#db
+      .update(feed_recommendations)
+      .set({ status, decided_at: sql`datetime('now')` })
+      .where(eq(feed_recommendations.id, id))
+      .returning();
+    return row;
   }
 }
 

@@ -33,6 +33,7 @@ export interface UsageResource {
   readonly assistant: BudgetResource;
   /** The stories AI prompt classifiers may judge today. */
   readonly classifiers: BudgetResource;
+  readonly transcriptions: BudgetResource;
 }
 
 /** How much of the `kind` budget the person has used today. */
@@ -67,19 +68,19 @@ export async function overBudget(
 ): Promise<Response | undefined> {
   const { remaining, limit } = await budget(repo, uid, kind, now);
   if (remaining > 0) return undefined;
-  const what =
-    kind === 'answer'
-      ? 'Ask AI questions'
-      : kind === 'assistant'
-        ? 'assistant questions'
-        : 'AI classifier checks';
+  const what = {
+    answer: 'Ask AI questions',
+    assistant: 'assistant questions',
+    classifier: 'AI classifier checks',
+    transcription: 'spoken questions',
+  }[kind];
   return problems.rateLimited(
     `You have used all ${limit} ${what} for today. They reset at midnight UTC.`,
     usageDay(now).retryAfter,
   );
 }
 
-/** `GET /api/users/self/usage`: today's Ask AI, assistant and AI classifier budgets. 401 when not signed in. */
+/** `GET /api/users/self/usage`: today's Ask AI, assistant, AI classifier and spoken-question budgets. 401 when not signed in. */
 export function createUsageItem(
   resolver: CurrentUserResolver = requestCookieResolver,
 ): ApiController<{ readonly uid: number }> {
@@ -93,6 +94,7 @@ export function createUsageItem(
         answers: await budget(repo, uid, 'answer'),
         assistant: await budget(repo, uid, 'assistant'),
         classifiers: await budget(repo, uid, 'classifier'),
+        transcriptions: await budget(repo, uid, 'transcription'),
       };
     },
     encode: (body) => ok(body, { headers: { 'Cache-Control': 'no-store' } }),

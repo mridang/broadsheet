@@ -14,9 +14,17 @@ export interface AskTurn {
 }
 
 /** What to ask: a preset by id or the reader's own question, and the turns it follows. */
+/** The choices that go with any question: the turns it follows, the model and thinking. */
+interface AskOptions {
+  readonly history?: readonly AskTurn[];
+  readonly model?: string;
+  readonly thinking?: boolean;
+}
+
+/** What to ask: a preset by id or the reader's own question, with its options. */
 export type AskInput =
-  | { readonly question_id: string; readonly history?: readonly AskTurn[] }
-  | { readonly question: string; readonly history?: readonly AskTurn[] };
+  | (AskOptions & { readonly question_id: string })
+  | (AskOptions & { readonly question: string });
 
 /** An answer, with what was asked and how many questions are left today. */
 export interface AskAnswer {
@@ -37,4 +45,15 @@ export async function askArticle(
   });
   await ensureOk(res);
   return (await res.json()) as AskAnswer;
+}
+
+/** Turn a recorded question into text (`POST /api/transcriptions`). */
+export async function transcribeAudio(audio: Blob): Promise<string> {
+  const res = await fetch('/api/transcriptions', {
+    method: 'POST',
+    headers: { 'Content-Type': audio.type || 'audio/webm' },
+    body: audio,
+  });
+  await ensureOk(res);
+  return ((await res.json()) as { text: string }).text;
 }

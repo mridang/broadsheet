@@ -57,6 +57,46 @@ describe('GET /api/feeds/:id/similar', () => {
     });
   });
 
+  it('pages five at a time with a cursor', async () => {
+    const mine = (await repo.addFeed(7, 'https://shared.test/f'))!;
+    await repo.addFeed(8, 'https://shared.test/f');
+    for (let i = 0; i < 6; i++)
+      await repo.addFeed(8, `https://extra${i}.test/f`);
+    const first = (await (await similar(mine.id)).json()) as {
+      next?: string;
+      items: unknown[];
+    };
+    expect(first.items).toHaveLength(5);
+    const cursor = new URL(first.next!).searchParams.get('cursor')!;
+    const second = (await (
+      await GET(
+        new Request(
+          `https://app.test/api/feeds/${mine.id}/similar?cursor=${cursor}`,
+          { headers: auth },
+        ),
+        { params: Promise.resolve({ id: String(mine.id) }) },
+      )
+    ).json()) as { next?: string; items: unknown[] };
+    expect([second.items.length, second.next]).toEqual([1, undefined]);
+  });
+
+  it('answers 400 for a bad cursor', async () => {
+    const mine = (await repo.addFeed(7, 'https://shared.test/f'))!;
+    expect(
+      (
+        await GET(
+          new Request(
+            `https://app.test/api/feeds/${mine.id}/similar?cursor=x`,
+            {
+              headers: auth,
+            },
+          ),
+          { params: Promise.resolve({ id: String(mine.id) }) },
+        )
+      ).status,
+    ).toBe(400);
+  });
+
   it.each(['999', 'abc'])('answers 404 for feed %j', async (id) => {
     expect((await similar(id)).status).toBe(404);
   });

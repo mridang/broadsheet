@@ -2,12 +2,19 @@ collection:
   get:
     operationId: listTrendingSources
     tags: [sources]
-    summary: List the feeds trending across the app.
-    description: Rate limited by the `RL_API` binding. Ranks sources across everyone, not only the ones the person follows, by distinct readers (`reads`), seconds spent (`read_time`) or new followers weighted by how recently they followed (`follows`, from a score of four) within the `window`, most first. Sources with no story in a year are left out.
+    summary: List the feeds trending across the app, or search them.
+    description: With `q`, a search of the sources anyone follows whose title or address holds it (NewsBlur's feed autocomplete), most followed first, as one page of RankedSource items saying whether the caller follows each; `order`, `window` and `cursor` are then refused. Without `q`, rate limited by the `RL_API` binding. Ranks sources across everyone, not only the ones the person follows, by distinct readers (`reads`), seconds spent (`read_time`) or new followers weighted by how recently they followed (`follows`, from a score of four) within the `window`, most first. Sources with no story in a year are left out.
     parameters:
+      - name: q
+        in: query
+        description: Search text, from 2 to 200 characters.
+        schema:
+          type: string
+          minLength: 2
+          maxLength: 200
       - name: order
         in: query
-        required: true
+        description: Required unless searching with `q`.
         schema:
           type: string
           enum: [reads, read_time, follows]
@@ -35,7 +42,17 @@ collection:
         content:
           application/json:
             schema:
-              $ref: '../components/source.yaml#/SourcePage'
+              oneOf:
+                - $ref: '../components/source.yaml#/SourcePage'
+                - type: object
+                  required: [self, items]
+                  properties:
+                    self:
+                      type: string
+                    items:
+                      type: array
+                      items:
+                        $ref: '../components/discover.yaml#/RankedSource'
       '400':
         $ref: '../components/common.yaml#/responses/BadRequest'
       '401':

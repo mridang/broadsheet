@@ -122,7 +122,7 @@ messages:
     operationId: askAssistant
     tags: [conversations]
     summary: Ask the archive assistant a question.
-    description: Rate limited by the `RL_AI` binding, and by a daily budget (`GET /api/users/self/usage`) answered with 429 and `Retry-After` until midnight UTC. The assistant searches the person's followed sources, saves and reads with tools (full-text search with a date range and source, saved stories by tag, recent reads, one story in full, an archive summary) and cites the stories it used; it can cite only stories it was given. The first question titles the conversation. The question and the answer are both kept as turns; when the model fails nothing is kept.
+    description: Rate limited by the `RL_AI` binding, and by a daily budget (`GET /api/users/self/usage`) answered with 429 and `Retry-After` until midnight UTC. The assistant searches the person's followed sources, saves and reads with tools (full-text search with a date range and source, saved stories by tag with their notes and highlights, a summary of the saves, stories readers shared with their comments, recent reads, one story in full, an archive summary) and cites the stories it used; it can cite only stories it was given. The first question titles the conversation. The question and the answer are both kept as turns; when the model fails nothing is kept.
     requestBody:
       required: true
       content:

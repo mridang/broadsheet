@@ -41,6 +41,7 @@ const CLASSES: Readonly<Record<OwnClass, ClassSpec>> = {
 const AI_PATHS = [
   /^\/api\/articles\/[^/]+\/answers$/,
   /^\/api\/conversations\/[^/]+\/messages$/,
+  /^\/api\/transcriptions$/,
 ];
 
 /** The class of a request this app counts specially, or undefined when it is one of the classes every app has. */

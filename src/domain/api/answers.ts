@@ -10,7 +10,12 @@
 import {
   AnswerUnavailable,
   articlePrompt,
+  cacheKey,
   complete,
+  modelFor,
+  streamAnswer,
+  withoutThinking,
+  type AnswerModelName,
   parseAnswerRequest,
   parseQuestion,
   type AnswerModel,
@@ -48,6 +53,10 @@ export interface AnswerResource {
   readonly question_id?: string;
   readonly question: string;
   readonly answer: string;
+  /** The model picked. */
+  readonly model: AnswerModelName;
+  /** Whether the model that thinks first answered. */
+  readonly thinking: boolean;
   /** Whether the answer was given before and served again. */
   readonly cached: boolean;
   /** Questions left today. */
@@ -106,13 +115,75 @@ async function readAnswerRequest(request: Request): Promise<AnswerRequest> {
   return input.value;
 }
 
+/** Whether the caller asked for the answer as a stream of server-sent events. */
+export function wantsStream(request: Request): boolean {
+  return (request.headers.get('accept') ?? '').includes('text/event-stream');
+}
+
+/** One server-sent event. */
+export function sseEvent(event: string, data: unknown): string {
+  return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+}
+
 /**
- * `POST /api/articles/:id/answers` {question_id | question, history?}: 200
- * with the answer. A preset question with no history is answered once and
- * then served from the cache (`cached`, not counted against the budget). 400
- * for a bad question, 415 for a body that is not JSON, 404 when the article is
- * not from a source the person follows, 429 when today's budget is used up,
- * 502 when the model fails, 401/403 when not signed in or cross-site.
+ * The answer as server-sent events, after NewsBlur's streamed answers:
+ * `start`, a `chunk` for each piece of text, then `complete` with the whole
+ * answer resource (once it is kept and counted), or `error` when the model
+ * fails part way.
+ */
+function streamed(
+  pieces: AsyncGenerator<string>,
+  finish: (answer: string) => Promise<AnswerResource>,
+): Response {
+  const encoder = new TextEncoder();
+  const body = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const send = (event: string, data: unknown) =>
+        controller.enqueue(encoder.encode(sseEvent(event, data)));
+      send('start', {});
+      let text = '';
+      try {
+        for await (const piece of pieces) {
+          text += piece;
+          send('chunk', { text: piece });
+        }
+        const answer = withoutThinking(text);
+        if (!answer) throw new AnswerUnavailable('The model gave no answer.');
+        send('complete', await finish(answer));
+      } catch (error) {
+        logWarn({
+          event: 'assistant.failed',
+          error: error instanceof Error ? error.message : String(error),
+        });
+        send('error', {
+          detail: 'The assistant could not answer just now. Try again later.',
+        });
+      }
+      controller.close();
+    },
+  });
+  return new Response(body, {
+    headers: {
+      'Content-Type': 'text/event-stream; charset=utf-8',
+      'Cache-Control': 'no-store',
+    },
+  });
+}
+
+/** A checked question, and whether to stream its answer. */
+interface AnswerCall extends AnswerRequest {
+  readonly stream: boolean;
+}
+
+/**
+ * `POST /api/articles/:id/answers` {question_id | question, history?, model?,
+ * thinking?}: 200 with the answer, or with `Accept: text/event-stream` the
+ * answer as server-sent events. A preset question with no history is answered
+ * once per model and then served from the cache (`cached`, not counted
+ * against the budget). 400 for a bad question, 415 for a body that is not
+ * JSON, 404 when the article is not from a source the person follows, 429
+ * when today's budget is used up, 502 when the model fails, 401/403 when not
+ * signed in or cross-site.
  */
 export function createAnswersCollection(
   resolver: CurrentUserResolver = requestCookieResolver,
@@ -122,10 +193,14 @@ export function createAnswersCollection(
       request,
       uid: await liveUid(request, resolver),
     }),
-  }).on<AnswerRequest, AnswerResource | Response>({
+  }).on<AnswerCall, AnswerResource | Response>({
     method: 'POST',
-    decode: readAnswerRequest,
-    handle: async ({ question, history }, { request, uid }) => {
+    decode: async (request) => ({
+      ...(await readAnswerRequest(request)),
+      stream: wantsStream(request),
+    }),
+    handle: async (call, { request, uid }) => {
+      const { question, history } = call;
       const repo = new Repository(getDatabase());
       const id = parseFeedId(parentIdOf(request));
       const article =
@@ -136,44 +211,53 @@ export function createAnswersCollection(
         question.kind === 'preset'
           ? question.preset.question
           : question.question;
-      const answered = (
+      const answered = async (
         answer: string,
         cached: boolean,
-        remaining: number,
-      ) => ({
+      ): Promise<AnswerResource> => ({
         article_id: String(article.id),
         ...(preset ? { question_id: preset.id } : {}),
         question: text,
         answer,
+        model: call.model,
+        thinking: call.thinking,
         cached,
-        remaining,
+        remaining: (await budget(repo, uid, 'answer')).remaining,
       });
-      const cacheable = preset !== undefined && !history.length;
-      const cached = cacheable
-        ? await repo.cachedAnswer(uid, article.id, preset.id)
+      const key =
+        preset && !history.length ? cacheKey(preset.id, call) : undefined;
+      const cached = key
+        ? await repo.cachedAnswer(uid, article.id, key)
         : undefined;
       if (cached !== undefined) {
         await repo.recordUsage(uid, 'answer', true);
-        return answered(
-          cached,
-          true,
-          (await budget(repo, uid, 'answer')).remaining,
-        );
+        const resource = await answered(cached, true);
+        return call.stream
+          ? streamed(
+              (async function* () {
+                yield cached;
+              })(),
+              async () => resource,
+            )
+          : resource;
       }
       const refusal = await overBudget(repo, uid, 'answer');
       if (refusal) return refusal;
-      try {
-        const answer = await complete(
-          answerModel(),
-          articlePrompt(article, text, history),
-        );
+      const prompt = articlePrompt(article, text, history);
+      const keep = async (answer: string): Promise<AnswerResource> => {
         await repo.recordUsage(uid, 'answer');
-        if (cacheable)
-          await repo.storeAnswer(uid, article.id, preset.id, answer);
-        return answered(
-          answer,
-          false,
-          (await budget(repo, uid, 'answer')).remaining,
+        if (key) await repo.storeAnswer(uid, article.id, key, answer);
+        return answered(answer, false);
+      };
+      if (call.stream) {
+        return streamed(
+          streamAnswer(answerModel(), prompt, modelFor(call)),
+          keep,
+        );
+      }
+      try {
+        return await keep(
+          await complete(answerModel(), prompt, modelFor(call)),
         );
       } catch (error) {
         if (error instanceof AnswerUnavailable) {

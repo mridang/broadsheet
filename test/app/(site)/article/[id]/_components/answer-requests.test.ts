@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
 
-import { askArticle } from '@/app/(site)/article/[id]/_components/answer-requests';
+import {
+  askArticle,
+  transcribeAudio,
+} from '@/app/(site)/article/[id]/_components/answer-requests';
 import { ProblemError } from '@/components/api/problem-message';
 
 afterEach(() => {
@@ -40,6 +43,33 @@ describe('askArticle', () => {
       }),
     );
     await expect(askArticle(4, { question: 'Why?' })).rejects.toBeInstanceOf(
+      ProblemError,
+    );
+  });
+});
+
+describe('transcribeAudio', () => {
+  it('posts the recording as audio and resolves with its text', async () => {
+    const spy = jest
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(Response.json({ text: 'Hi' }));
+    const audio = new Blob([new Uint8Array([1])], { type: 'audio/ogg' });
+    await expect(transcribeAudio(audio)).resolves.toBe('Hi');
+    expect(spy).toHaveBeenCalledWith('/api/transcriptions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'audio/ogg' },
+      body: audio,
+    });
+  });
+
+  it('throws the server’s words when refused', async () => {
+    jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ title: 'No', detail: 'Too long.' }), {
+        status: 413,
+        headers: { 'Content-Type': 'application/problem+json' },
+      }),
+    );
+    await expect(transcribeAudio(new Blob([]))).rejects.toBeInstanceOf(
       ProblemError,
     );
   });

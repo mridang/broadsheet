@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from '@jest/globals';
+import { sql } from 'drizzle-orm';
 
 import { ASSISTANT_TOOLS, ToolRunner } from '@/domain/assistant-tools';
 import { databaseFrom, type Database } from '@/domain/db/database';
@@ -48,6 +49,8 @@ describe('ASSISTANT_TOOLS', () => {
     expect(ASSISTANT_TOOLS.map((t) => t.function.name)).toEqual([
       'search_stories',
       'search_saved_stories',
+      'saved_summary',
+      'search_shared_stories',
       'recent_reads',
       'get_story',
       'archive_summary',
@@ -151,5 +154,57 @@ describe('ToolRunner', () => {
     expect(await tools().run({ name: 'rm', arguments: {} })).toBe(
       'There is no tool called rm.',
     );
+  });
+});
+
+describe('ToolRunner on saves and shares', () => {
+  beforeEach(async () => {
+    await db.run(
+      sql`UPDATE saves SET notes = 'Read again', highlights = '["borrow checker"]' WHERE article_id = ${rust}`,
+    );
+    await db.run(
+      sql`INSERT INTO users (id, google_sub, email, name, session_epoch) VALUES (2, 'g2', 'b@b.com', 'Bea', 0)`,
+    );
+    await db.run(
+      sql`INSERT INTO shares (user_id, article_id, comments) VALUES (2, ${other}, 'Worth it')`,
+    );
+  });
+
+  it('shows a saver’s note and highlights with saved stories', async () => {
+    const out = await tools().run({
+      name: 'search_saved_stories',
+      arguments: { tag: 'lang' },
+    });
+    expect(out).toContain('Note: Read again');
+    expect(out).toContain('Highlights: "borrow checker"');
+  });
+
+  it('shows them when reading a saved story in full', async () => {
+    expect(
+      await tools().run({ name: 'get_story', arguments: { id: rust } }),
+    ).toContain('Note: Read again');
+  });
+
+  it('searches shared stories with who shared them', async () => {
+    const runner = tools();
+    const out = await runner.run({
+      name: 'search_shared_stories',
+      arguments: { query: 'private' },
+    });
+    expect(out).toContain('Shared by Bea: Worth it');
+    expect(runner.seen.has(other)).toBe(true);
+  });
+
+  it('summarises the saves', async () => {
+    const runner = tools();
+    expect(
+      JSON.parse(await runner.run({ name: 'saved_summary', arguments: {} })),
+    ).toMatchObject({
+      saves: 1,
+      tags: [{ tag: 'lang', count: 1 }],
+      top_sources: [{ source: 'LWN', count: 1 }],
+      recent: [{ id: rust, title: 'Rust borrow' }],
+    });
+    expect(runner.seen.has(rust)).toBe(true);
   });
 });

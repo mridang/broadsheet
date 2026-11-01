@@ -18,6 +18,7 @@ import {
 import { parentIdOf } from '@/domain/api/answers';
 import { parseFeedId } from '@/domain/api/feed-resource';
 import { ApiController, page, problems } from '@/lib/core/api';
+import { pageRequest, type PageRequest } from '@/domain/api/paging';
 import { getDatabase } from '@/domain/db/database';
 import {
   Repository,
@@ -105,7 +106,7 @@ const PERSONAL = { 'Cache-Control': 'private, no-cache' };
 /**
  * `GET /api/feeds/:id/similar`: up to {@link MAX_SIMILAR} sources that people
  * who follow this feed's source also follow, and the caller does not, each
- * with its newest headlines, as a single page. 404 when the feed is not the
+ * with its newest headlines, five a page by default (`limit`, `cursor`). 404 when the feed is not the
  * caller's, 401 when not signed in.
  */
 export function createSimilarFeeds(
@@ -118,20 +119,47 @@ export function createSimilarFeeds(
         uid: await liveUid(request, resolver),
       }),
     },
-  ).on<null, SimilarSource[] | undefined>({
+  ).on<PageRequest, { items: SimilarSource[]; next?: number } | undefined>({
     method: 'GET',
-    handle: async (_input, { request, uid }) => {
-      const id = parseFeedId(parentIdOf(request));
-      return id !== undefined
-        ? new Repository(getDatabase()).similarSources(uid, id, MAX_SIMILAR)
-        : undefined;
+    decode: (request) => {
+      const query = new URL(request.url).searchParams;
+      if (query.get('limit') === null) {
+        const limited = new URL(request.url);
+        limited.searchParams.set('limit', String(MAX_SIMILAR));
+        return pageRequest(new Request(limited));
+      }
+      return pageRequest(request);
     },
-    encode: (items) =>
-      items
-        ? page(items.map(similarSourceResource), undefined, PERSONAL)
+    handle: async ({ after, limit }, { request, uid }) => {
+      const id = parseFeedId(parentIdOf(request));
+      if (id === undefined) return undefined;
+      const all = await new Repository(getDatabase()).similarSources(
+        uid,
+        id,
+        MAX_SIMILAR_SOURCES,
+      );
+      if (!all) return undefined;
+      const start = after ? Number(after.key) : 0;
+      const items = all.slice(start, start + limit);
+      return start + limit < all.length
+        ? { items, next: start + limit }
+        : { items };
+    },
+    encode: (found) =>
+      found
+        ? page(
+            found.items.map(similarSourceResource),
+            found.next === undefined
+              ? undefined
+              : { key: String(found.next), id: String(found.next) },
+            PERSONAL,
+          )
         : problems.notFound('feed'),
   });
 }
+
+/** How many similar sources are ranked before paging through them. */
+const MAX_SIMILAR_SOURCES = 50;
 
 /** The similar-feeds controller bound to the production resolver. */
 export const similarFeeds = createSimilarFeeds();

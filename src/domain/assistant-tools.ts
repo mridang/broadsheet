@@ -2,9 +2,10 @@
  * @packageDocumentation
  *
  * The tools the archive assistant may call, after NewsBlur's: search the
- * archive (with a date range and a source), search the saved stories (by tag),
- * list what was read recently, read one story in full, and get a summary of
- * what the archive holds. Each runs as the person through the
+ * archive (with a date range and a source), search the saved stories (by tag,
+ * with their notes and highlights) and summarise them, search what readers
+ * shared (with their comments), list what was read recently, read one story in
+ * full, and get a summary of what the archive holds. Each runs as the person through the
  * {@link Repository}, so it only ever sees their followed sources, saves and
  * reads. A {@link ToolRunner} remembers every story it handed the model, so an
  * answer can cite only those.
@@ -69,6 +70,34 @@ export const ASSISTANT_TOOLS: readonly ToolDefinition[] = [
         properties: {
           query: text('Words to look for; leave out to list saves.'),
           tag: text('Only saves the reader tagged with this.'),
+          limit: whole(
+            `How many stories (default 10, at most ${MAX_RESULTS}).`,
+          ),
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'saved_summary',
+      description:
+        "An overview of the reader's saves: how many, their tags, the sources they save most and their newest saves. Use before searching saves.",
+      parameters: { type: 'object', properties: {} },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'search_shared_stories',
+      description:
+        'Search the stories readers shared, with who shared each and their comment. Use to find what other people are recommending or discussing.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: text(
+            'Words to look for; leave out to list the newest shares.',
+          ),
           limit: whole(
             `How many stories (default 10, at most ${MAX_RESULTS}).`,
           ),
@@ -184,6 +213,18 @@ export class ToolRunner {
             limit: count(args['limit'], 10, MAX_RESULTS),
           }),
         );
+      case 'saved_summary': {
+        const summary = await this.#repo.savedSummary(this.#uid);
+        for (const r of summary.recent) this.#seen.set(r.id, r.title);
+        return JSON.stringify(summary);
+      }
+      case 'search_shared_stories':
+        return this.show(
+          await this.#repo.sharedPassages({
+            query: str(args['query']),
+            limit: count(args['limit'], 10, MAX_RESULTS),
+          }),
+        );
       case 'recent_reads':
         return this.show(
           await this.#repo.recentReadPassages(
@@ -199,9 +240,13 @@ export class ToolRunner {
           : undefined;
         if (!article) return `No story with id ${String(args['id'])}.`;
         this.#seen.set(article.id, article.title);
+        const annotation = await this.#repo.saveAnnotation(
+          this.#uid,
+          article.id,
+        );
         return storyBlock(
           `id="${article.id}"`,
-          `${article.title ?? ''} (${article.source ?? ''})\n${article.summary ?? ''}\n${(article.body_text ?? '').slice(0, STORY_LENGTH)}`,
+          `${article.title ?? ''} (${article.source ?? ''})\n${article.summary ?? ''}\n${(article.body_text ?? '').slice(0, STORY_LENGTH)}${annotation ? `\n${annotation}` : ''}`,
         );
       }
       case 'archive_summary':

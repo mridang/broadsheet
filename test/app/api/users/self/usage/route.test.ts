@@ -51,6 +51,7 @@ describe('GET /api/users/self/usage', () => {
     expect(await res.json()).toMatchObject({
       answers: { used: 1, limit: DAILY_LIMITS.answer },
       assistant: { used: 0, limit: DAILY_LIMITS.assistant },
+      transcriptions: { used: 0, limit: DAILY_LIMITS.transcription },
     });
   });
 

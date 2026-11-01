@@ -21,6 +21,7 @@ tags:
   - name: answers
   - name: briefings
   - name: classifiers
+  - name: discover
   - name: editions
   - name: conversations
   - name: emails
@@ -89,6 +90,22 @@ paths:
     $ref: './paths/feeds.yaml#/statistics'
   /api/feeds/{id}/similar:
     $ref: './paths/feeds.yaml#/similar'
+  /api/feeds/trending:
+    $ref: './paths/discover.yaml#/trending'
+  /api/feeds/conversions:
+    $ref: './paths/discover.yaml#/conversions'
+  /api/feeds/recommendations:
+    $ref: './paths/discover.yaml#/recommendations'
+  /api/feeds/recommendations/{id}:
+    $ref: './paths/discover.yaml#/recommendation'
+  /api/podcasts:
+    $ref: './paths/discover.yaml#/podcasts'
+  /api/subreddits:
+    $ref: './paths/discover.yaml#/subreddits'
+  /api/news/topics:
+    $ref: './paths/discover.yaml#/newsTopics'
+  /api/transcriptions:
+    $ref: './paths/transcriptions.yaml#/collection'
   /api/feeds/suggestions:
     $ref: './paths/feeds.yaml#/suggestions'
   /api/feeds/refreshes:

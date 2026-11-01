@@ -19,6 +19,15 @@ Question:
       type: string
       minLength: 1
       maxLength: 500
+    model:
+      type: string
+      enum: [fast, large, mistral]
+      default: fast
+      description: The Workers AI model that answers.
+    thinking:
+      type: boolean
+      default: false
+      description: Answer with a model that reasons first; its reasoning is left out of the answer.
     history:
       type: array
       description: The earlier turns a follow-up builds on. A preset with history is not cached.
@@ -36,7 +45,7 @@ Question:
             maxLength: 4000
 Answer:
   type: object
-  required: [article_id, question, answer, cached, remaining]
+  required: [article_id, question, answer, model, thinking, cached, remaining]
   properties:
     article_id:
       type: string
@@ -47,6 +56,11 @@ Answer:
       type: string
     answer:
       type: string
+    model:
+      type: string
+      enum: [fast, large, mistral]
+    thinking:
+      type: boolean
     cached:
       type: boolean
       description: Whether the answer was given before and served again; a cached answer does not count against the budget.
@@ -133,7 +147,7 @@ Budget:
       format: date-time
 Usage:
   type: object
-  required: [answers, assistant, classifiers]
+  required: [answers, assistant, classifiers, transcriptions]
   properties:
     answers:
       $ref: '#/Budget'
@@ -142,3 +156,5 @@ Usage:
     classifiers:
       $ref: '#/Budget'
       description: The stories AI prompt classifiers may judge today.
+    transcriptions:
+      $ref: '#/Budget'

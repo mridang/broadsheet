@@ -7,7 +7,12 @@ import {
   jest,
 } from '@jest/globals';
 
-import { DAILY_LIMITS, presetQuestion } from '@/domain/assistant';
+import {
+  ANSWER_MODELS,
+  DAILY_LIMITS,
+  THINKING_MODEL,
+  presetQuestion,
+} from '@/domain/assistant';
 import { databaseFrom, type Database } from '@/domain/db/database';
 import { Repository } from '@/domain/repository';
 import { SESSION_COOKIE } from '@/domain/auth/app';
@@ -88,9 +93,69 @@ describe('POST /api/articles/:id/answers', () => {
       article_id: String(story),
       question: 'What is it about?',
       answer: 'It is about rust.',
+      model: 'fast',
+      thinking: false,
       cached: false,
       remaining: DAILY_LIMITS.answer - 1,
     });
+  });
+
+  it('asks the model the reader picked, and the thinking one when asked', async () => {
+    await ask(story, '{"question":"Q","model":"large"}');
+    await ask(story, '{"question":"Q","thinking":true}');
+    expect(run.mock.calls.map((c) => c[0])).toEqual([
+      ANSWER_MODELS.large,
+      THINKING_MODEL,
+    ]);
+  });
+
+  it('caches a preset per model', async () => {
+    await ask(story, '{"question_id":"bullets"}');
+    const res = await ask(story, '{"question_id":"bullets","model":"large"}');
+    expect(await res.json()).toMatchObject({ cached: false, model: 'large' });
+    expect(run).toHaveBeenCalledTimes(2);
+  });
+
+  it('streams the answer as server-sent events when asked', async () => {
+    run.mockResolvedValue(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(
+            new TextEncoder().encode(
+              'data: {"response":"It is "}\n\ndata: {"response":"rust."}\n\ndata: [DONE]\n\n',
+            ),
+          );
+          controller.close();
+        },
+      }),
+    );
+    const res = await ask(story, '{"question_id":"bullets"}', {
+      Accept: 'text/event-stream',
+    });
+    expect(res.headers.get('content-type')).toContain('text/event-stream');
+    const text = await res.text();
+    expect(text).toContain('event: chunk\ndata: {"text":"It is "}');
+    expect(text).toContain('event: complete');
+    expect(text).toContain('"answer":"It is rust."');
+    expect(await new Repository(db).cachedAnswer(7, story, 'bullets')).toBe(
+      'It is rust.',
+    );
+  });
+
+  it('streams a cached answer too', async () => {
+    await ask(story, '{"question_id":"bullets"}');
+    const res = await ask(story, '{"question_id":"bullets"}', {
+      Accept: 'text/event-stream',
+    });
+    expect(await res.text()).toContain('"cached":true');
+  });
+
+  it('ends a stream with an error event when the model fails', async () => {
+    run.mockRejectedValue(new Error('down'));
+    const res = await ask(story, '{"question":"Q"}', {
+      Accept: 'text/event-stream',
+    });
+    expect(await res.text()).toContain('event: error');
   });
 
   it('answers a preset by id, naming it', async () => {

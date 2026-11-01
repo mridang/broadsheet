@@ -1,0 +1,321 @@
+/**
+ * @packageDocumentation
+ *
+ * Finding feeds, after NewsBlur's discover: turning a newsletter, blog,
+ * subreddit or YouTube channel address into its feed, building a Google News
+ * feed for a search or a topic, and reading the answers of the public search
+ * services (iTunes for podcasts, Reddit for subreddits). Nothing here touches
+ * the database or the network; the controllers in `api/discover` do.
+ */
+
+/** The kind of site a feed address belongs to. */
+export type Platform =
+  | 'substack'
+  | 'medium'
+  | 'ghost'
+  | 'buttondown'
+  | 'beehiiv'
+  | 'convertkit'
+  | 'revue'
+  | 'reddit'
+  | 'youtube'
+  | 'google-news'
+  | 'direct'
+  | 'generic';
+
+/** A feed found for an address. */
+export interface Conversion {
+  readonly feed_url: string;
+  readonly platform: Platform;
+  readonly title?: string;
+}
+
+/** A name from an address segment: dashes to spaces, each word capitalised. */
+function titled(slug: string): string {
+  return slug
+    .replace(/[-_]+/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .trim();
+}
+
+/** Whether an address already looks like a feed. */
+function looksLikeFeed(url: string): boolean {
+  return /\/(feed|rss|atom)(\/|\.xml)?$|\.(xml|rss|atom)$/i.test(url);
+}
+
+/**
+ * The feed of a newsletter, blog, subreddit or YouTube channel address, after
+ * NewsBlur's newsletter conversion: Substack, Medium, Ghost, Buttondown,
+ * Beehiiv, ConvertKit and Revue by their own rules; a subreddit as its `.rss`;
+ * a YouTube channel (`/channel/UC…`) as its videos feed; an address that is
+ * already a feed as it is; anything else with `/feed` added. Undefined for
+ * something that is not an `http(s)` address.
+ */
+export function convertToFeed(input: string): Conversion | undefined {
+  const text = input.trim();
+  if (/^[a-z][\w+.-]*:\/\//i.test(text) && !/^https?:\/\//i.test(text)) {
+    return undefined;
+  }
+  let url: URL;
+  try {
+    url = new URL(/^https?:\/\//i.test(text) ? text : `https://${text}`);
+  } catch {
+    return undefined;
+  }
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') return undefined;
+  const host = url.hostname.toLowerCase();
+  const base = `${url.origin}${url.pathname}`.replace(/\/+$/, '');
+  const [first = '', second = ''] = url.pathname.split('/').filter(Boolean);
+  if (host.endsWith('.substack.com')) {
+    const name = host.slice(0, -'.substack.com'.length);
+    return {
+      feed_url: `https://${name}.substack.com/feed`,
+      platform: 'substack',
+      title: titled(name),
+    };
+  }
+  if (host === 'medium.com' || host.endsWith('.medium.com')) {
+    if (host !== 'medium.com') {
+      return { feed_url: `${url.origin}/feed`, platform: 'medium' };
+    }
+    if (!first) return undefined;
+    return {
+      feed_url: `https://medium.com/feed/${first}`,
+      platform: 'medium',
+      title: titled(first.replace(/^@/, '')),
+    };
+  }
+  if (host.endsWith('.ghost.io') || url.pathname.includes('/ghost/')) {
+    return {
+      feed_url: `${url.origin}/rss/`,
+      platform: 'ghost',
+    };
+  }
+  if (host === 'buttondown.email' || host === 'buttondown.com') {
+    if (!first) return undefined;
+    return {
+      feed_url: `https://buttondown.com/${first}/rss`,
+      platform: 'buttondown',
+      title: titled(first),
+    };
+  }
+  if (host.endsWith('.beehiiv.com')) {
+    return { feed_url: `${url.origin}/feed`, platform: 'beehiiv' };
+  }
+  if (host.endsWith('.ck.page') || host.endsWith('convertkit.com')) {
+    return { feed_url: `${base}/rss`, platform: 'convertkit' };
+  }
+  if (host.endsWith('getrevue.co') || host.endsWith('revue.co')) {
+    const name = first === 'profile' ? second : first;
+    if (!name) return undefined;
+    return {
+      feed_url: `https://www.getrevue.co/profile/${name}/feed`,
+      platform: 'revue',
+      title: titled(name),
+    };
+  }
+  if (host === 'reddit.com' || host.endsWith('.reddit.com')) {
+    if (first !== 'r' || !second) return undefined;
+    return {
+      feed_url: `https://www.reddit.com/r/${second}/.rss`,
+      platform: 'reddit',
+      title: `r/${second}`,
+    };
+  }
+  if (host === 'youtube.com' || host.endsWith('.youtube.com')) {
+    if (first === 'channel' && /^UC[\w-]{22}$/.test(second)) {
+      return {
+        feed_url: `https://www.youtube.com/feeds/videos.xml?channel_id=${second}`,
+        platform: 'youtube',
+      };
+    }
+    const list = url.searchParams.get('list');
+    if (first === 'playlist' && list) {
+      return {
+        feed_url: `https://www.youtube.com/feeds/videos.xml?playlist_id=${encodeURIComponent(list)}`,
+        platform: 'youtube',
+      };
+    }
+    return undefined;
+  }
+  if (looksLikeFeed(base)) return { feed_url: base, platform: 'direct' };
+  return { feed_url: `${base}/feed`, platform: 'generic' };
+}
+
+/** A Google News topic: its name and the id its feed is built from. */
+export interface NewsTopic {
+  readonly id: string;
+  readonly name: string;
+  readonly token: string;
+}
+
+/** Google News' own sections, with the tokens their topic feeds use. */
+export const GOOGLE_NEWS_TOPICS: readonly NewsTopic[] = [
+  {
+    id: 'WORLD',
+    name: 'World',
+    token: 'CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx1YlY4U0FtVnVHZ0pWVXlnQVAB',
+  },
+  {
+    id: 'NATION',
+    name: 'Nation',
+    token: 'CAAqIggKIhxDQkFTRHdvSkwyMHZNRFY2TVdZeUVnSmxiaWdBUAE',
+  },
+  {
+    id: 'BUSINESS',
+    name: 'Business',
+    token: 'CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx6TVdZU0FtVnVHZ0pWVXlnQVAB',
+  },
+  {
+    id: 'TECHNOLOGY',
+    name: 'Technology',
+    token: 'CAAqJggKIiBDQkFTRWdvSUwyMHZNRGRqTVhZU0FtVnVHZ0pWVXlnQVAB',
+  },
+  {
+    id: 'ENTERTAINMENT',
+    name: 'Entertainment',
+    token: 'CAAqJggKIiBDQkFTRWdvSUwyMHZNREpxYW5RU0FtVnVHZ0pWVXlnQVAB',
+  },
+  {
+    id: 'SPORTS',
+    name: 'Sports',
+    token: 'CAAqJggKIiBDQkFTRWdvSUwyMHZNRFp1ZEdvU0FtVnVHZ0pWVXlnQVAB',
+  },
+  {
+    id: 'SCIENCE',
+    name: 'Science',
+    token: 'CAAqJggKIiBDQkFTRWdvSUwyMHZNRFp0Y1RjU0FtVnVHZ0pWVXlnQVAB',
+  },
+  {
+    id: 'HEALTH',
+    name: 'Health',
+    token: 'CAAqIQgKIhtDQkFTRGdvSUwyMHZNR3QwTlRFU0FtVnVLQUFQAQ',
+  },
+];
+
+/** What a Google News feed is built from: a search or a topic, in a language and region. */
+export interface NewsFeedRequest {
+  readonly query?: string;
+  readonly topic?: string;
+  readonly language?: string;
+  readonly region?: string;
+}
+
+/**
+ * The Google News feed for a topic (one of {@link GOOGLE_NEWS_TOPICS}) or a
+ * search, in a language (`en`) and region (`US`). Undefined when neither a
+ * known topic nor a query is given, or the language or region is not a code.
+ */
+export function googleNewsFeed(
+  request: NewsFeedRequest,
+): Conversion | undefined {
+  const language = request.language ?? 'en';
+  const region = (request.region ?? 'US').toUpperCase();
+  if (
+    !/^[a-z]{2}(-[A-Za-z]{2,4})?$/.test(language) ||
+    !/^[A-Z]{2}$/.test(region)
+  ) {
+    return undefined;
+  }
+  const where = `hl=${language}&gl=${region}&ceid=${region}:${language}`;
+  const topic = GOOGLE_NEWS_TOPICS.find(
+    (t) => t.id === request.topic?.toUpperCase(),
+  );
+  if (topic) {
+    return {
+      feed_url: `https://news.google.com/rss/topics/${topic.token}?${where}`,
+      platform: 'google-news',
+      title: `Google News - ${topic.name}`,
+    };
+  }
+  const query = request.query?.trim();
+  if (!query) return undefined;
+  return {
+    feed_url: `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&${where}`,
+    platform: 'google-news',
+    title: `Google News - ${query}`,
+  };
+}
+
+/** A podcast found by search, with its feed. */
+export interface Podcast {
+  readonly name: string;
+  readonly author?: string;
+  readonly artwork?: string;
+  readonly feed_url: string;
+  readonly genre?: string;
+  readonly episodes?: number;
+  readonly link?: string;
+}
+
+/** A string member, or undefined. */
+function str(value: unknown): string | undefined {
+  return typeof value === 'string' && value ? value : undefined;
+}
+
+/** The podcasts in an iTunes Search answer that have a feed. */
+export function podcastsFrom(body: unknown): Podcast[] {
+  const results = (body as { results?: unknown } | null)?.results;
+  if (!Array.isArray(results)) return [];
+  return results.flatMap((raw: unknown) => {
+    const r = (raw ?? {}) as Record<string, unknown>;
+    const feed = str(r['feedUrl']);
+    if (!feed) return [];
+    const episodes = r['trackCount'];
+    return [
+      {
+        name: str(r['collectionName']) ?? feed,
+        ...(str(r['artistName']) ? { author: str(r['artistName']) } : {}),
+        ...(str(r['artworkUrl100'])
+          ? { artwork: str(r['artworkUrl100']) }
+          : {}),
+        feed_url: feed,
+        ...(str(r['primaryGenreName'])
+          ? { genre: str(r['primaryGenreName']) }
+          : {}),
+        ...(typeof episodes === 'number' ? { episodes } : {}),
+        ...(str(r['collectionViewUrl'])
+          ? { link: str(r['collectionViewUrl']) }
+          : {}),
+      },
+    ];
+  });
+}
+
+/** A subreddit found by search, with its feed. */
+export interface Subreddit {
+  readonly name: string;
+  readonly title?: string;
+  readonly description?: string;
+  readonly subscribers?: number;
+  readonly feed_url: string;
+  readonly link: string;
+}
+
+/** The subreddits in a Reddit listing, leaving out the ones marked for adults. */
+export function subredditsFrom(body: unknown): Subreddit[] {
+  const children = (body as { data?: { children?: unknown } } | null)?.data
+    ?.children;
+  if (!Array.isArray(children)) return [];
+  return children.flatMap((child: unknown) => {
+    const d = ((child as { data?: unknown } | null)?.data ?? {}) as Record<
+      string,
+      unknown
+    >;
+    const name = str(d['display_name']);
+    if (!name || !/^\w+$/.test(name) || d['over18'] === true) return [];
+    const subscribers = d['subscribers'];
+    return [
+      {
+        name,
+        ...(str(d['title']) ? { title: str(d['title']) } : {}),
+        ...(str(d['public_description'])
+          ? { description: str(d['public_description']) }
+          : {}),
+        ...(typeof subscribers === 'number' ? { subscribers } : {}),
+        feed_url: `https://www.reddit.com/r/${name}/.rss`,
+        link: `https://www.reddit.com/r/${name}`,
+      },
+    ];
+  });
+}

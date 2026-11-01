@@ -2820,3 +2820,83 @@ describe('prompt scores', () => {
     expect((await repo.getPreferences(1)).mark_read_on_scroll).toBe(true);
   });
 });
+
+describe('trendingSites and searchSources', () => {
+  /** Three people; a popular source, a rising one, a quiet but well-read one. */
+  async function setup(): Promise<Repository> {
+    const repo = new Repository(db);
+    for (const uid of [1, 2, 3])
+      await addFeed(db, uid, 'https://popular.test/f', 'Popular');
+    const quiet = (await addFeed(db, 2, 'https://quiet.test/f', 'Quiet Gem'))!;
+    await db.run(
+      sql`UPDATE subscriptions SET created_at = datetime('now', '-30 days')`,
+    );
+    await db.run(
+      sql`UPDATE sources SET created_at = datetime('now', '-30 days')`,
+    );
+    await addFeed(db, 3, 'https://rising.test/f', 'Rising');
+    await repo.writeEdition(quiet.source_id, '2026-10-20', [story({})]);
+    const [a] = await repo.sourceArticles(quiet.source_id, '2026-10-20');
+    await repo.markRead(2, a!.id);
+    return repo;
+  }
+
+  it.each([
+    [
+      'popular',
+      [
+        'https://popular.test/f',
+        'https://quiet.test/f',
+        'https://rising.test/f',
+      ],
+    ],
+    ['rising', ['https://rising.test/f']],
+    ['hidden', ['https://quiet.test/f']],
+    ['new', ['https://rising.test/f']],
+  ] as const)('ranks %s sources', async (kind, urls) => {
+    const repo = await setup();
+    expect(
+      (await repo.trendingSites(1, kind, 7, 10)).map((s) => s.url),
+    ).toEqual(urls);
+  });
+
+  it('says which trending sources the person follows, with follower counts', async () => {
+    const repo = await setup();
+    expect((await repo.trendingSites(1, 'popular', 7, 1))[0]).toMatchObject({
+      followers: 3,
+      followed: true,
+    });
+  });
+
+  it('searches sources by title or address, escaping wildcards', async () => {
+    const repo = await setup();
+    expect((await repo.searchSources(1, 'gem', 10)).map((s) => s.url)).toEqual([
+      'https://quiet.test/f',
+    ]);
+    expect(await repo.searchSources(1, '%', 10)).toEqual([]);
+  });
+});
+
+describe('feed recommendations', () => {
+  it('waits for a curator, then lists approved ones last decided first', async () => {
+    const repo = new Repository(db);
+    const a = await repo.addRecommendation(1, {
+      url: 'https://a.test/f',
+      description: 'Good',
+    });
+    const b = await repo.addRecommendation(1, {
+      url: 'https://b.test/f',
+      title: 'B',
+      description: 'Also good',
+    });
+    expect(
+      (await repo.listRecommendations('pending')).map((r) => r.id),
+    ).toEqual([b.id, a.id]);
+    await repo.decideRecommendation(a.id, 'approved');
+    await repo.decideRecommendation(b.id, 'declined');
+    expect(
+      (await repo.listRecommendations('approved')).map((r) => r.id),
+    ).toEqual([a.id]);
+    expect(await repo.decideRecommendation(999, 'approved')).toBeUndefined();
+  });
+});

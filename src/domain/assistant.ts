@@ -19,6 +19,29 @@ export const ANSWER_MODEL = '@cf/meta/llama-3.1-8b-instruct-fast';
 /** The model the assistant runs on: it can call tools. */
 export const ASSISTANT_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 
+/**
+ * The models a reader may pick for Ask AI, by name, after NewsBlur's model
+ * choice. All are Workers AI models, so none needs a key of its own.
+ */
+export const ANSWER_MODELS = {
+  fast: ANSWER_MODEL,
+  large: ASSISTANT_MODEL,
+  mistral: '@cf/mistralai/mistral-small-3.1-24b-instruct',
+} as const;
+
+/** A model a reader may pick for Ask AI. */
+export type AnswerModelName = keyof typeof ANSWER_MODELS;
+
+/** The model that thinks before it answers, for Ask AI's `thinking`. */
+export const THINKING_MODEL = '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b';
+
+/** Any Workers AI model this module asks. */
+export type ModelId =
+  (typeof ANSWER_MODELS)[AnswerModelName] | typeof THINKING_MODEL;
+
+/** The model that turns speech into text, for spoken questions. */
+export const TRANSCRIPTION_MODEL = '@cf/openai/whisper-large-v3-turbo';
+
 /** Longest question accepted, in characters. */
 export const MAX_QUESTION_LENGTH = 500;
 
@@ -36,6 +59,7 @@ export const DAILY_LIMITS = {
   answer: 50,
   assistant: 30,
   classifier: 500,
+  transcription: 20,
 } as const;
 
 /** One message of a chat prompt. */
@@ -68,8 +92,14 @@ export interface ToolCall {
 /** The part of the `AI` binding an answer needs. */
 export interface AnswerModel {
   run(
-    model: typeof ANSWER_MODEL | typeof ASSISTANT_MODEL,
-    input: { messages: ChatMessage[]; tools?: readonly ToolDefinition[] },
+    model: ModelId | typeof TRANSCRIPTION_MODEL,
+    input:
+      | {
+          messages: ChatMessage[];
+          tools?: readonly ToolDefinition[];
+          stream?: boolean;
+        }
+      | { audio: string },
   ): Promise<unknown>;
 }
 
@@ -146,6 +176,33 @@ export type ArticleQuestion =
 export interface AnswerRequest {
   readonly question: ArticleQuestion;
   readonly history: readonly ChatMessage[];
+  /** The model picked; `fast` unless the reader chose. */
+  readonly model: AnswerModelName;
+  /** Whether to answer with the model that thinks first. */
+  readonly thinking: boolean;
+}
+
+/** The Workers AI model a checked request is answered by. */
+export function modelFor(
+  request: Pick<AnswerRequest, 'model' | 'thinking'>,
+): ModelId {
+  return request.thinking ? THINKING_MODEL : ANSWER_MODELS[request.model];
+}
+
+/**
+ * The key a preset answer is cached under: the preset, and the model and
+ * thinking that gave it (NewsBlur caches per model), so a different pick asks
+ * afresh.
+ */
+export function cacheKey(
+  presetId: string,
+  request: Pick<AnswerRequest, 'model' | 'thinking'>,
+): string {
+  return request.thinking
+    ? `${presetId}:thinking`
+    : request.model === 'fast'
+      ? presetId
+      : `${presetId}:${request.model}`;
 }
 
 /** A checked request body, or what was wrong with it. */
@@ -214,7 +271,19 @@ function parseHistory(value: unknown, errors: string[]): ChatMessage[] {
 export function parseAnswerRequest(
   body: Readonly<Record<string, unknown>>,
 ): Checked<AnswerRequest> {
-  const errors = strangers(body, ['question_id', 'question', 'history']);
+  const errors = strangers(body, [
+    'question_id',
+    'question',
+    'history',
+    'model',
+    'thinking',
+  ]);
+  const model = body['model'] ?? 'fast';
+  if (typeof model !== 'string' || !(model in ANSWER_MODELS)) {
+    errors.push(`model: one of ${Object.keys(ANSWER_MODELS).join(', ')}.`);
+  }
+  const thinking = body['thinking'] ?? false;
+  if (typeof thinking !== 'boolean') errors.push('thinking: true or false.');
   let question: ArticleQuestion | undefined;
   if ('question_id' in body === 'question' in body) {
     errors.push('question_id or question: send exactly one.');
@@ -236,7 +305,15 @@ export function parseAnswerRequest(
   const history = parseHistory(body['history'], errors);
   return errors.length || !question
     ? { ok: false, errors }
-    : { ok: true, value: { question, history } };
+    : {
+        ok: true,
+        value: {
+          question,
+          history,
+          model: model as AnswerModelName,
+          thinking: thinking === true,
+        },
+      };
 }
 
 /**
@@ -309,7 +386,7 @@ export function articlePrompt(
 export function passageBlock(p: Passage): string {
   return storyBlock(
     `id="${p.id}"`,
-    `${p.title ?? ''} (${p.source ?? ''}, ${p.date ?? 'undated'})\n${p.summary ?? ''}\n${p.text}`,
+    `${p.title ?? ''} (${p.source ?? ''}, ${p.date ?? 'undated'})\n${p.summary ?? ''}\n${p.text}${p.annotation ? `\n${p.annotation}` : ''}`,
   );
 }
 
@@ -330,10 +407,12 @@ export function archivePrompt(
       role: 'system',
       content:
         "You answer questions about a reader's archive: the stories from the feeds they " +
-        'follow, the ones they saved (with their own tags) and the ones they read. ' +
+        'follow, the ones they saved (with their own tags, notes and highlights), the ' +
+        'ones they read, and the stories other readers shared with their comments. ' +
         `Today is ${today}. Use the tools to search before answering, more than once ` +
         'if the question needs it; never guess what the archive holds. Answer only ' +
-        'from stories you were given, cite each one you use as [#id] with its id, and ' +
+        'from stories you were given, cite each one you use as [#id] with its id, use ' +
+        'Markdown (short paragraphs, bullet lists, bold) for readability, and ' +
         'say so when nothing in the archive answers the question. ' +
         DATA_ONLY,
     },
@@ -368,14 +447,19 @@ export class AnswerUnavailable extends Error {}
 /** Ask the model once; its raw reply, or {@link AnswerUnavailable}. */
 async function ask(
   model: AnswerModel | undefined,
-  name: typeof ANSWER_MODEL | typeof ASSISTANT_MODEL,
-  input: { messages: ChatMessage[]; tools?: readonly ToolDefinition[] },
-): Promise<{ response?: unknown; tool_calls?: unknown } | null> {
+  name: ModelId | typeof TRANSCRIPTION_MODEL,
+  input: Parameters<AnswerModel['run']>[1],
+): Promise<{
+  response?: unknown;
+  tool_calls?: unknown;
+  text?: unknown;
+} | null> {
   if (!model) throw new AnswerUnavailable('No model is bound.');
   try {
     return (await model.run(name, input)) as {
       response?: unknown;
       tool_calls?: unknown;
+      text?: unknown;
     } | null;
   } catch (error) {
     throw new AnswerUnavailable(
@@ -393,12 +477,95 @@ function replyText(out: { response?: unknown } | null): string {
   return response.trim();
 }
 
-/** Ask the model; the text of its reply, or {@link AnswerUnavailable}. */
+/** A reply with the reasoning of a thinking model (`<think>…</think>`) taken out. */
+export function withoutThinking(text: string): string {
+  return text.replace(/<think>[\s\S]*?(<\/think>|$)/g, '').trim();
+}
+
+/** Ask the model (`fast` unless named); the text of its reply, or {@link AnswerUnavailable}. */
 export async function complete(
   model: AnswerModel | undefined,
   messages: ChatMessage[],
+  name: ModelId = ANSWER_MODEL,
 ): Promise<string> {
-  return replyText(await ask(model, ANSWER_MODEL, { messages }));
+  const text = withoutThinking(replyText(await ask(model, name, { messages })));
+  if (!text) throw new AnswerUnavailable('The model gave no answer.');
+  return text;
+}
+
+/**
+ * Ask the model for a streamed reply: the pieces of its text as they come.
+ * Throws {@link AnswerUnavailable} when the model cannot be asked.
+ */
+export async function* streamAnswer(
+  model: AnswerModel | undefined,
+  messages: ChatMessage[],
+  name: ModelId = ANSWER_MODEL,
+): AsyncGenerator<string> {
+  if (!model) throw new AnswerUnavailable('No model is bound.');
+  let out: unknown;
+  try {
+    out = await model.run(name, { messages, stream: true });
+  } catch (error) {
+    throw new AnswerUnavailable(
+      error instanceof Error ? error.message : String(error),
+    );
+  }
+  if (!(out instanceof ReadableStream)) {
+    const text = replyText(out as { response?: unknown } | null);
+    yield text;
+    return;
+  }
+  yield* modelStreamText(out as ReadableStream<Uint8Array>);
+}
+
+/**
+ * The text pieces of a Workers AI event stream: each `data:` line holds
+ * `{"response": "…"}`, and `data: [DONE]` ends it.
+ */
+export async function* modelStreamText(
+  stream: ReadableStream<Uint8Array>,
+): AsyncGenerator<string> {
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  let buffered = '';
+  for (;;) {
+    const { done, value } = await reader.read();
+    buffered += done
+      ? decoder.decode()
+      : decoder.decode(value, { stream: true });
+    const lines = buffered.split('\n');
+    buffered = done ? '' : (lines.pop() ?? '');
+    for (const line of lines) {
+      const data = line.startsWith('data:') ? line.slice(5).trim() : '';
+      if (!data || data === '[DONE]') continue;
+      try {
+        const piece = (JSON.parse(data) as { response?: unknown }).response;
+        if (typeof piece === 'string' && piece) yield piece;
+      } catch {
+        // A line that is not JSON carries no text.
+      }
+    }
+    if (done) return;
+  }
+}
+
+/** Largest recording accepted for a spoken question, in bytes. */
+export const MAX_AUDIO_BYTES = 10 * 1024 * 1024;
+
+/** Turn a spoken question into text with Whisper, or {@link AnswerUnavailable}. */
+export async function transcribe(
+  model: AnswerModel | undefined,
+  audio: Uint8Array,
+): Promise<string> {
+  let binary = '';
+  for (let i = 0; i < audio.length; i += 0x8000) {
+    binary += String.fromCharCode(...audio.subarray(i, i + 0x8000));
+  }
+  const out = await ask(model, TRANSCRIPTION_MODEL, { audio: btoa(binary) });
+  const text = typeof out?.text === 'string' ? out.text.trim() : '';
+  if (!text) throw new AnswerUnavailable('Nothing could be heard.');
+  return text;
 }
 
 /** The tool calls in a reply, with their arguments as objects. */

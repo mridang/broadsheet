@@ -425,7 +425,7 @@ similar:
     operationId: listSimilarFeeds
     tags: [feeds]
     summary: Sources like one of the person's feeds.
-    description: Rate limited by the `RL_API` binding. Sources that people who follow this feed's source also follow, and the person does not, most shared first, each with its newest headlines; at most five, as one page. Another person's feed is a 404.
+    description: Rate limited by the `RL_API` binding. Sources that people who follow this feed's source also follow, and the person does not, most shared first, each with its newest headlines; five a page by default. Another person's feed is a 404.
     parameters:
       - name: id
         in: path
@@ -433,6 +433,8 @@ similar:
         schema:
           type: string
           pattern: '^[1-9][0-9]{0,14}$'
+      - $ref: '../components/common.yaml#/parameters/Limit'
+      - $ref: '../components/common.yaml#/parameters/Cursor'
     responses:
       '200':
         description: The similar sources.
@@ -444,11 +446,14 @@ similar:
               properties:
                 self:
                   type: string
+                next:
+                  type: string
                 items:
                   type: array
-                  maxItems: 5
                   items:
                     $ref: '../components/feed.yaml#/SimilarFeed'
+      '400':
+        $ref: '../components/common.yaml#/responses/BadRequest'
       '401':
         $ref: '../components/common.yaml#/responses/Unauthorized'
       '404':

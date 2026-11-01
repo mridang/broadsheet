@@ -1,6 +1,15 @@
 import { describe, expect, it, jest } from '@jest/globals';
 
 import {
+  ANSWER_MODELS,
+  THINKING_MODEL,
+  TRANSCRIPTION_MODEL,
+  cacheKey,
+  modelFor,
+  modelStreamText,
+  streamAnswer,
+  transcribe,
+  withoutThinking,
   ANSWER_MODEL,
   ASSISTANT_MODEL,
   AnswerUnavailable,
@@ -81,8 +90,16 @@ describe('parseAnswerRequest', () => {
       value: {
         question: { kind: 'custom', question: 'why?' },
         history: [{ role: 'user', content: 'a' }],
+        model: 'fast',
+        thinking: false,
       },
     });
+  });
+
+  it('accepts a model and thinking', () => {
+    expect(
+      parseAnswerRequest({ question: 'q', model: 'large', thinking: true }),
+    ).toMatchObject({ ok: true, value: { model: 'large', thinking: true } });
   });
 
   it.each([
@@ -94,6 +111,8 @@ describe('parseAnswerRequest', () => {
     [{ question_id: 'nope' }, expect.stringMatching(/^question_id: one of/)],
     [{ question: ' ' }, 'question: must not be blank.'],
     [{ question: 'a', extra: 1 }, 'extra: not a member of this request.'],
+    [{ question: 'a', model: 'gpt' }, expect.stringMatching(/^model: one of/)],
+    [{ question: 'a', thinking: 'yes' }, 'thinking: true or false.'],
     [
       { question: 'a', history: 'x' },
       `history: an array of at most ${HISTORY_TURNS} turns.`,
@@ -331,7 +350,9 @@ describe('converse', () => {
     ).resolves.toBe('Done.');
     expect(tool).toHaveBeenCalledWith({ name: 't', arguments: {} });
     expect(run.mock.calls[1]?.[0]).toBe(ASSISTANT_MODEL);
-    expect(run.mock.calls[1]?.[1].messages.at(-1)).toEqual({
+    expect(
+      (run.mock.calls[1]?.[1] as { messages: unknown[] }).messages.at(-1),
+    ).toEqual({
       role: 'tool',
       name: 't',
       content: 'result',
@@ -340,7 +361,7 @@ describe('converse', () => {
 
   it('offers no tools in the last round, so the model must answer', async () => {
     const run = jest.fn<AnswerModel['run']>(async (_m, input) =>
-      input.tools
+      'tools' in input && input.tools
         ? { tool_calls: [{ name: 't', arguments: {} }] }
         : { response: 'Finally.' },
     );
@@ -385,5 +406,119 @@ describe('starterQuestions', () => {
     expect(questions).toContain('Compare what I saved under "rust" and "go"');
     expect(questions).toContain('What has LWN covered recently?');
     expect(questions).toHaveLength(6);
+  });
+});
+
+describe('modelFor and cacheKey', () => {
+  it.each([
+    [{ model: 'fast', thinking: false }, ANSWER_MODELS.fast, 'bullets'],
+    [{ model: 'large', thinking: false }, ANSWER_MODELS.large, 'bullets:large'],
+    [{ model: 'mistral', thinking: true }, THINKING_MODEL, 'bullets:thinking'],
+  ] as const)('picks the model and cache key for %j', (pick, model, key) => {
+    expect(modelFor(pick)).toBe(model);
+    expect(cacheKey('bullets', pick)).toBe(key);
+  });
+});
+
+describe('withoutThinking', () => {
+  it('takes out a thinking model’s reasoning, even unfinished', () => {
+    expect(withoutThinking('<think>hmm</think> Answer.')).toBe('Answer.');
+    expect(withoutThinking('<think>still going')).toBe('');
+  });
+});
+
+describe('complete with a model', () => {
+  it('asks the named model and strips its thinking', async () => {
+    const run = jest.fn<AnswerModel['run']>(async () => ({
+      response: '<think>x</think>Yes.',
+    }));
+    await expect(complete({ run }, [], THINKING_MODEL)).resolves.toBe('Yes.');
+    expect(run.mock.calls[0]?.[0]).toBe(THINKING_MODEL);
+  });
+
+  it('is unavailable when only thinking came back', async () => {
+    const run = jest.fn<AnswerModel['run']>(async () => ({
+      response: '<think>x</think>',
+    }));
+    await expect(complete({ run }, [])).rejects.toBeInstanceOf(
+      AnswerUnavailable,
+    );
+  });
+});
+
+/** A Workers AI event stream of these lines. */
+function eventStream(text: string): ReadableStream<Uint8Array> {
+  const bytes = new TextEncoder().encode(text);
+  return new ReadableStream({
+    start(controller) {
+      controller.enqueue(bytes.slice(0, 7));
+      controller.enqueue(bytes.slice(7));
+      controller.close();
+    },
+  });
+}
+
+/** Every piece a generator yields. */
+async function collect(pieces: AsyncIterable<string>): Promise<string[]> {
+  const out: string[] = [];
+  for await (const piece of pieces) out.push(piece);
+  return out;
+}
+
+describe('modelStreamText', () => {
+  it('reads the text pieces across chunk boundaries, skipping what is not text', async () => {
+    expect(
+      await collect(
+        modelStreamText(
+          eventStream(
+            'data: {"response":"Hel"}\n\ndata: {"response":"lo"}\n\ndata: nope\n\ndata: [DONE]\n\n',
+          ),
+        ),
+      ),
+    ).toEqual(['Hel', 'lo']);
+  });
+});
+
+describe('streamAnswer', () => {
+  it('asks for a stream and yields its pieces', async () => {
+    const run = jest.fn<AnswerModel['run']>(async () =>
+      eventStream('data: {"response":"Hi"}\n\n'),
+    );
+    expect(await collect(streamAnswer({ run }, []))).toEqual(['Hi']);
+    expect(run.mock.calls[0]?.[1]).toMatchObject({ stream: true });
+  });
+
+  it('yields a whole reply when the model does not stream', async () => {
+    const run = jest.fn<AnswerModel['run']>(async () => ({ response: 'All' }));
+    expect(await collect(streamAnswer({ run }, []))).toEqual(['All']);
+  });
+
+  it('is unavailable with no model, or when the model fails', async () => {
+    await expect(collect(streamAnswer(undefined, []))).rejects.toBeInstanceOf(
+      AnswerUnavailable,
+    );
+    const run = jest.fn<AnswerModel['run']>(async () => {
+      throw new Error('down');
+    });
+    await expect(collect(streamAnswer({ run }, []))).rejects.toBeInstanceOf(
+      AnswerUnavailable,
+    );
+  });
+});
+
+describe('transcribe', () => {
+  it('sends the audio to Whisper as base64 and answers with the text', async () => {
+    const run = jest.fn<AnswerModel['run']>(async () => ({ text: ' Hello ' }));
+    await expect(transcribe({ run }, new Uint8Array([104, 105]))).resolves.toBe(
+      'Hello',
+    );
+    expect(run).toHaveBeenCalledWith(TRANSCRIPTION_MODEL, { audio: 'aGk=' });
+  });
+
+  it('is unavailable when nothing was heard', async () => {
+    const run = jest.fn<AnswerModel['run']>(async () => ({ text: '' }));
+    await expect(
+      transcribe({ run }, new Uint8Array([1])),
+    ).rejects.toBeInstanceOf(AnswerUnavailable);
   });
 });

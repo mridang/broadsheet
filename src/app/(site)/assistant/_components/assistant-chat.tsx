@@ -8,6 +8,7 @@ import {
   type Turn,
 } from '@/app/(site)/assistant/_components/assistant-requests';
 import { useApiAction } from '@/components/api/use-api-action';
+import { Markdown } from '@/components/site/markdown';
 import { MAX_QUESTION_LENGTH } from '@/domain/assistant';
 import { buttonClass } from '@/components/ui/button';
 import { CARD, fieldClass } from '@/components/ui/field';
@@ -28,14 +29,7 @@ function TurnView({ turn }: Readonly<{ turn: Turn }>): ReactElement {
       <strong className="block text-xs font-semibold opacity-70">
         {turn.role === 'user' ? 'You' : 'Assistant'}
       </strong>
-      {turn.content
-        .split(/\n+/)
-        .filter(Boolean)
-        .map((line, i) => (
-          <p key={i} className="mt-1">
-            {line}
-          </p>
-        ))}
+      <Markdown text={turn.content} className="mt-1 space-y-2" />
       {turn.citations.length ? (
         <ol className="mt-3 space-y-1 border-t border-line pt-3">
           {turn.citations.map((c) => (

@@ -672,7 +672,7 @@ export const rivers = sqliteTable(
 );
 
 /**
- * A briefing written for a person (migration 0027): one per slot of their
+ * A briefing written for a person (migration 0029): one per slot of their
  * day (`morning`, `afternoon`, `evening`, or `custom` at their own time) and
  * local date. `stories` is a JSON array of {id, category}; `sections` the
  * JSON array of section keys it has; `status` is `complete` or `failed`.
@@ -719,5 +719,26 @@ export const prompt_scores = sqliteTable(
   (table) => [
     primaryKey({ columns: [table.classifier_id, table.article_id] }),
     index('idx_prompt_scores_user').on(table.user_id),
+  ],
+);
+
+/**
+ * A feed someone put forward for everyone (migration 0029): `status` is
+ * `pending` until a curator makes it `approved` or `declined`, at `decided_at`.
+ */
+export const feed_recommendations = sqliteTable(
+  'feed_recommendations',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    user_id: integer('user_id').notNull(),
+    url: text('url').notNull(),
+    title: text('title'),
+    description: text('description').notNull(),
+    status: text('status').notNull().default('pending'),
+    created_at: text('created_at').default(sql`(datetime('now'))`),
+    decided_at: text('decided_at'),
+  },
+  (table) => [
+    index('idx_feed_recommendations_status').on(table.status, table.decided_at),
   ],
 );
