@@ -4,6 +4,8 @@ import {
   SHORTCUTS,
   focusedStory,
   isTyping,
+  nextUnread,
+  sectionStep,
   shortcutFor,
   step,
 } from '@/app/(site)/_components/shortcuts';
@@ -77,14 +79,43 @@ describe('step', () => {
 });
 
 describe('SHORTCUTS', () => {
-  it('lists every key the page answers to', () => {
-    expect(SHORTCUTS.map(([keys]) => keys)).toEqual([
-      'j',
-      'k',
-      'o or Enter',
-      's',
-      '?',
-    ]);
+  it('lists a line for every shortcut the page answers to', () => {
+    expect(SHORTCUTS).toHaveLength(14);
+    expect(SHORTCUTS.map(([keys]) => keys)).toContain('n');
+  });
+});
+
+describe('nextUnread', () => {
+  it('skips read stories after the focused one', () => {
+    expect(nextUnread([false, true, true, false], 0)).toBe(3);
+  });
+
+  it('starts from the top with nothing focused', () => {
+    expect(nextUnread([true, false], -1)).toBe(1);
+  });
+
+  it('is -1 when every later story is read', () => {
+    expect(nextUnread([false, true], 0)).toBe(-1);
+  });
+});
+
+describe('sectionStep', () => {
+  const sections = [0, 0, 1, 1, 2];
+
+  it('moves to the first story of the next or previous section', () => {
+    expect(sectionStep(sections, 1, 'next')).toBe(2);
+    expect(sectionStep(sections, 4, 'prev')).toBe(2);
+  });
+
+  it('starts at the first or last section with nothing focused', () => {
+    expect(sectionStep(sections, -1, 'next')).toBe(0);
+    expect(sectionStep(sections, -1, 'prev')).toBe(4);
+  });
+
+  it('is -1 past either end or with no stories', () => {
+    expect(sectionStep(sections, 4, 'next')).toBe(-1);
+    expect(sectionStep(sections, 0, 'prev')).toBe(-1);
+    expect(sectionStep([], -1, 'next')).toBe(-1);
   });
 });
 

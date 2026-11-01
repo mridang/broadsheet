@@ -44,3 +44,10 @@ export function markRead(articleId: number): void {
     keepalive: true,
   }).catch(() => undefined);
 }
+
+/** Mark the story unread again (`DELETE .../reads/:id`); a failure is not reported. */
+export function markUnread(articleId: number): void {
+  void fetch(`/api/users/self/reads/${articleId}`, {
+    method: 'DELETE',
+  }).catch(() => undefined);
+}

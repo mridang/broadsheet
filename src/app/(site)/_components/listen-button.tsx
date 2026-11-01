@@ -36,6 +36,7 @@ export function ListenButton({
     <button
       type="button"
       className="listen focus-ring"
+      data-action="listen"
       aria-pressed={playing}
       aria-label={`${playing ? 'Stop reading' : 'Listen to'} ${title}`}
       onClick={() => {

@@ -25,7 +25,7 @@ export function AskBox({ id }: Readonly<{ id: number }>): ReactElement {
     ask(String(new FormData(event.currentTarget).get('question') ?? ''));
   };
   return (
-    <section className="ask" aria-label="Ask about this story">
+    <section id="ask" className="ask" aria-label="Ask about this story">
       <h2>Ask about this story</h2>
       <p>
         {PRESET_QUESTIONS.map((preset) => (

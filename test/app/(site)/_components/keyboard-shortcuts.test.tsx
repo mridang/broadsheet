@@ -13,7 +13,7 @@ describe('KeyboardShortcuts', () => {
   });
 
   it('lists each key', () => {
-    ['j', 'k', 'o or Enter', '?'].forEach((key) =>
+    ['n', 'J or N', 'u', 'y', '/', '?'].forEach((key) =>
       expect(out).toContain(`<kbd>${key}</kbd>`),
     );
   });

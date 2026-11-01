@@ -1,12 +1,35 @@
 /** What a key on the front page does; `null` leaves the key to the browser. */
-export type Shortcut = 'next' | 'prev' | 'open' | 'save' | 'help';
+export type Shortcut =
+  | 'next'
+  | 'prev'
+  | 'next-unread'
+  | 'next-section'
+  | 'prev-section'
+  | 'open'
+  | 'full-text'
+  | 'ask'
+  | 'save'
+  | 'read'
+  | 'listen'
+  | 'reload'
+  | 'search'
+  | 'help';
 
 /** The keys, as the help overlay lists them. */
 export const SHORTCUTS: ReadonlyArray<readonly [keys: string, does: string]> = [
-  ['j', 'Next story'],
-  ['k', 'Previous story'],
+  ['j or ↓', 'Next story'],
+  ['k, p, b or ↑', 'Previous story'],
+  ['n', 'Next unread story'],
+  ['J or N', 'Next section'],
+  ['K or P', 'Previous section'],
   ['o or Enter', 'Open the focused story'],
+  ['X', 'Read the focused story’s full text'],
+  ['i', 'Ask about the focused story'],
   ['s', 'Save or unsave the focused story'],
+  ['u', 'Mark the focused story read or unread'],
+  ['y', 'Listen to the focused story, or stop'],
+  ['r', 'Reload the paper'],
+  ['/', 'Search'],
   ['?', 'Show or hide these shortcuts'],
 ];
 
@@ -26,14 +49,38 @@ export function shortcutFor(press: KeyPress): Shortcut | null {
   if (press.altKey || press.ctrlKey || press.metaKey) return null;
   switch (press.key) {
     case 'j':
+    case 'ArrowDown':
       return 'next';
     case 'k':
+    case 'p':
+    case 'b':
+    case 'ArrowUp':
       return 'prev';
+    case 'n':
+      return 'next-unread';
+    case 'J':
+    case 'N':
+      return 'next-section';
+    case 'K':
+    case 'P':
+      return 'prev-section';
     case 'o':
     case 'Enter':
       return 'open';
+    case 'X':
+      return 'full-text';
+    case 'i':
+      return 'ask';
     case 's':
       return 'save';
+    case 'u':
+      return 'read';
+    case 'y':
+      return 'listen';
+    case 'r':
+      return 'reload';
+    case '/':
+      return 'search';
     case '?':
       return 'help';
     default:
@@ -80,4 +127,33 @@ export function focusedStory(
 ): number {
   if (!active) return -1;
   return cards.findIndex((card) => card.contains(active));
+}
+
+/**
+ * The first unread story after `current`, or -1 when every later one is read
+ * (NewsBlur's `n`).
+ */
+export function nextUnread(read: readonly boolean[], current: number): number {
+  return read.findIndex((isRead, i) => i > current && !isRead);
+}
+
+/**
+ * The first story of the next or previous section, given each story's
+ * section, or -1 when there is none that way. With nothing focused, the
+ * next section is the first and the previous is the last.
+ */
+export function sectionStep(
+  sections: readonly number[],
+  current: number,
+  move: 'next' | 'prev',
+): number {
+  if (!sections.length) return -1;
+  const here = current < 0 ? undefined : sections[current];
+  const first = (section: number) => sections.indexOf(section);
+  const order = [...new Set(sections)];
+  if (here === undefined) {
+    return first(move === 'next' ? order[0]! : order[order.length - 1]!);
+  }
+  const at = order.indexOf(here) + (move === 'next' ? 1 : -1);
+  return at >= 0 && at < order.length ? first(order[at]!) : -1;
 }

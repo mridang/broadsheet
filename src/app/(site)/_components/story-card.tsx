@@ -85,6 +85,7 @@ export async function StoryCard({
           {article.body_text ? (
             <a
               className="more textlink focus-ring"
+              data-action="full-text"
               href={`/article/${article.id}`}
             >
               Full text
