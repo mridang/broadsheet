@@ -68,7 +68,7 @@ export default async function ArticlePage({
           {article.summary}
         </p>
       ) : null}
-      <p className="mt-6 flex flex-wrap gap-x-5 gap-y-2 border-y border-line py-3 text-sm">
+      <div className="mt-6 flex flex-wrap items-start gap-x-5 gap-y-2 border-y border-line py-3 text-sm">
         <a
           className={ROW_LINK}
           href={article.url}
@@ -89,7 +89,7 @@ export default async function ArticlePage({
             Back to the {article.edition} edition
           </a>
         ) : null}
-      </p>
+      </div>
       {paragraphs.length ? (
         <div className="mt-8 space-y-5 font-(family-name:--font-source-serif) text-lg leading-8 text-ink/90">
           {paragraphs.map((text, i) => (
