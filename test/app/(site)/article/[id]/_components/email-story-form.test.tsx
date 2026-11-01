@@ -8,10 +8,12 @@ describe('emailRequest', () => {
     form.set('to', 'a@b.co, c@d.co');
     form.set('comment', ' Look ');
     form.set('copy_me', 'on');
+    form.set('from_name', ' Ann ');
     expect(emailRequest(form)).toEqual({
       to: 'a@b.co, c@d.co',
       comment: 'Look',
       copy_me: true,
+      from_name: 'Ann',
     });
   });
 

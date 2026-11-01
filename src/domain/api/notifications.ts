@@ -14,11 +14,15 @@ import { parseFeedId } from '@/domain/api/feed-resource';
 import { idOf } from '@/domain/api/feeds';
 import {
   notificationResource,
+  notificationRuleResource,
   parseNotificationInput,
+  parseNotificationRuleInput,
 } from '@/domain/api/notification-resource';
 import { getDatabase } from '@/domain/db/database';
 import {
   NotificationRepository,
+  type NotificationRule,
+  type NotificationRuleInput,
   type NotificationSetting,
 } from '@/domain/notifications';
 import {
@@ -115,3 +119,89 @@ export function createNotificationItem(
 
 /** The notification controller bound to the production resolver. */
 export const notificationItem = createNotificationItem();
+
+/**
+ * `POST /api/users/self/notifications/rules` {kind, value, is_regex?, scope?,
+ * feed_id?, section_id?, channels}: be told about new stories a classifier
+ * matches, as NewsBlur's classifier notifications do. 201 with the rule and
+ * its `Location`; 400 for a bad body (or a feed or section that is not the
+ * person's), 415 for a non-JSON body, 401/403 when not signed in or
+ * cross-site.
+ */
+export function createNotificationRules(
+  resolver: CurrentUserResolver = requestCookieResolver,
+): ApiController<UidContext> {
+  return new ApiController<UidContext>({
+    context: async (request) => ({
+      request,
+      uid: await liveUid(request, resolver),
+    }),
+  }).on<NotificationRuleInput, NotificationRule>({
+    method: 'POST',
+    decode: async (request) => {
+      const body = await readJsonObject(
+        request,
+        'The notification rule must be a JSON object.',
+      );
+      if (!body.ok) throw body.response;
+      const input = parseNotificationRuleInput(body.value);
+      if (!input.ok) {
+        throw problems.badRequest(
+          'The notification rule is not valid.',
+          input.errors,
+        );
+      }
+      return input.value;
+    },
+    handle: async (input, { uid }) => {
+      const rule = await new NotificationRepository(getDatabase()).addRule(
+        uid,
+        input,
+      );
+      if (!rule) {
+        throw problems.badRequest('The notification rule is not valid.', [
+          input.feed_id !== undefined
+            ? 'feed_id: must name one of your feeds.'
+            : 'section_id: must name one of your sections.',
+        ]);
+      }
+      return rule;
+    },
+    encode: (rule) =>
+      created(
+        notificationRuleResource(rule),
+        `/api/users/self/notifications/rules/${rule.id}`,
+      ),
+  });
+}
+
+/** The rule collection bound to the production resolver. */
+export const notificationRules = createNotificationRules();
+
+/**
+ * `DELETE /api/users/self/notifications/rules/:id`: stop a rule. 204, 404
+ * when the person has no such rule, 401/403 when not signed in or cross-site.
+ */
+export function createNotificationRuleItem(
+  resolver: CurrentUserResolver = requestCookieResolver,
+): ApiController<UidContext> {
+  return new ApiController<UidContext>({
+    context: async (request) => ({
+      request,
+      uid: await liveUid(request, resolver),
+    }),
+  }).on<null, boolean>({
+    method: 'DELETE',
+    handle: async (_input, { request, uid }) => {
+      const id = parseFeedId(idOf(request));
+      return id !== undefined
+        ? new NotificationRepository(getDatabase()).removeRule(uid, id)
+        : false;
+    },
+    encode: (removed) =>
+      removed ? noContent() : problems.notFound('notification rule'),
+  });
+}
+
+/** The rule item bound to the production resolver. */
+export const notificationRuleItem = createNotificationRuleItem();

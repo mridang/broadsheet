@@ -10,6 +10,8 @@ import { Repository } from '@/domain/repository';
 
 import { AddTokenForm } from '@/app/(site)/settings/_components/add-token-form';
 import { AddWebhookForm } from '@/app/(site)/settings/_components/add-webhook-form';
+import { AddRuleForm } from '@/app/(site)/settings/_components/add-rule-form';
+import { RemoveRuleButton } from '@/app/(site)/settings/_components/remove-rule-button';
 import { FeedNotificationForm } from '@/app/(site)/settings/_components/feed-notification-form';
 import { PushSettings } from '@/app/(site)/settings/_components/push-settings';
 import { RemoveWebhookButton } from '@/app/(site)/settings/_components/remove-webhook-button';
@@ -40,16 +42,16 @@ export default async function SettingsPage() {
   const db = getDatabase();
   const outbound = new OutboundRepository(db);
   const repo = new Repository(db);
-  const [pushes, hooks, tokens, sections, feeds, notifying] = await Promise.all(
-    [
+  const [pushes, hooks, tokens, sections, feeds, notifying, rules] =
+    await Promise.all([
       outbound.pushSubscriptions(user.id),
       outbound.listWebhooks(user.id),
       outbound.listFeedTokens(user.id),
       repo.listSections(user.id),
       repo.listFeeds(user.id),
       new NotificationRepository(db).feedNotifications(user.id),
-    ],
-  );
+      new NotificationRepository(db).rules(user.id),
+    ]);
   const settings = new Map(notifying.map((n) => [n.feed_id, n]));
   const names = new Map(sections.map((s) => [s.id, s.name]));
 
@@ -88,6 +90,37 @@ export default async function SettingsPage() {
                   filter={settings.get(f.id)?.filter ?? 'unread'}
                   channels={settings.get(f.id)?.channels ?? []}
                 />
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </PageSection>
+      <PageSection
+        id="story-rules"
+        title="Story rules"
+        description="Be told about any new story whose title, text, address, author or tag matches, in one feed, one section or every feed."
+      >
+        <AddRuleForm
+          feeds={feeds.map((f) => ({
+            id: f.id,
+            title: f.title || hostOf(f.url),
+          }))}
+          sections={sections.map((s) => ({ id: s.id, name: s.name }))}
+        />
+        {rules.length ? (
+          <ul className={list}>
+            {rules.map((rule) => (
+              <li className={row} key={rule.id}>
+                <div className="min-w-0">
+                  <strong className="block truncate text-sm font-semibold">
+                    {rule.kind} {rule.is_regex ? 'matches' : 'has'} “
+                    {rule.value}”
+                  </strong>
+                  <div className="text-xs text-subtle">
+                    {rule.channels.join(', ')}
+                  </div>
+                </div>
+                <RemoveRuleButton id={rule.id} />
               </li>
             ))}
           </ul>

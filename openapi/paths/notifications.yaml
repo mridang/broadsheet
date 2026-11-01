@@ -66,3 +66,55 @@ item:
         $ref: '../components/common.yaml#/responses/NotFound'
       '429':
         $ref: '../components/common.yaml#/responses/TooManyRequests'
+rules:
+  post:
+    operationId: addNotificationRule
+    tags: [notifications]
+    summary: Be told about new stories a classifier matches.
+    description: Rate limited by the `RL_API` binding. After each daily scrape, up to three new stories a rule matches are sent by each channel; a story goes out once even when several feeds or rules find it. A phrase matches case-insensitively (an author exactly); with `is_regex` the value is a case-insensitive regular expression over the title, author, text or address, and a pattern that could backtrack without end (a repeated group that repeats, or a back-reference) is refused. Nobody away for more than 90 days is notified.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/notification.yaml#/NotificationRuleInput'
+    responses:
+      '201':
+        description: The rule is added.
+        headers:
+          Location:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: '../components/notification.yaml#/NotificationRule'
+      '400':
+        $ref: '../components/common.yaml#/responses/BadRequest'
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '403':
+        $ref: '../components/common.yaml#/responses/Forbidden'
+      '415':
+        $ref: '../components/common.yaml#/responses/UnsupportedMediaType'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'
+rule:
+  parameters:
+    - $ref: '../components/common.yaml#/parameters/Id'
+  delete:
+    operationId: removeNotificationRule
+    tags: [notifications]
+    summary: Stop a notification rule.
+    description: Rate limited by the `RL_API` binding.
+    responses:
+      '204':
+        description: The rule is gone.
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '403':
+        $ref: '../components/common.yaml#/responses/Forbidden'
+      '404':
+        $ref: '../components/common.yaml#/responses/NotFound'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'

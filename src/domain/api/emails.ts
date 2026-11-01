@@ -173,7 +173,7 @@ export function createArticleEmails(
       if ((await counts.storyEmailsToday(user.id)) >= DAILY_STORY_EMAILS) {
         return 'quota';
       }
-      const sender = user.name || user.email;
+      const sender = input.from_name || user.name || user.email;
       try {
         await mail.send({
           from: { email: from, name: `${sender} via ${BRAND_NAME}` },

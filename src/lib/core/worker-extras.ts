@@ -92,9 +92,14 @@ export class DailyScrape extends WorkflowEntrypoint<CloudflareEnv> {
     const clustered = await step.do('cluster edition', AI_STEP, () =>
       clusterEdition(db, this.env, edition),
     );
-    const notified = await step.do('list notified readers', () =>
-      new NotificationRepository(db).notifiedUserIds(),
-    );
+    const notified = await step.do('list notified readers', async () => {
+      const notifications = new NotificationRepository(db);
+      const [feeds, rules] = await Promise.all([
+        notifications.notifiedUserIds(),
+        notifications.ruleUserIds(),
+      ]);
+      return [...new Set([...feeds, ...rules])].toSorted((a, b) => a - b);
+    });
     for (const reader of notified) {
       try {
         await step.do(`notify new stories for user ${reader}`, () =>

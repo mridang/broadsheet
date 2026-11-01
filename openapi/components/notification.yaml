@@ -27,3 +27,56 @@ Notification:
       enum: [unread, focus]
     channels:
       $ref: '#/NotificationChannels'
+NotificationRuleInput:
+  type: object
+  additionalProperties: false
+  required: [kind, value, channels]
+  properties:
+    kind:
+      type: string
+      enum: [title, author, tag, text, url]
+    value:
+      type: string
+      minLength: 1
+      maxLength: 200
+    is_regex:
+      type: boolean
+      default: false
+      description: Only for title, author, text and url.
+    scope:
+      type: string
+      enum: [feed, section, all]
+      default: all
+    feed_id:
+      type: string
+      description: Required with `feed`, and only allowed with it.
+    section_id:
+      type: string
+      description: Required with `section`, and only allowed with it.
+    channels:
+      $ref: '#/NotificationChannels'
+NotificationRule:
+  type: object
+  required: [id, kind, value, is_regex, scope, channels]
+  properties:
+    id:
+      type: string
+    kind:
+      type: string
+      enum: [title, author, tag, text, url]
+    value:
+      type: string
+    is_regex:
+      type: boolean
+    scope:
+      type: string
+      enum: [feed, section, all]
+    feed_id:
+      type: string
+    section_id:
+      type: string
+    channels:
+      $ref: '#/NotificationChannels'
+    created_at:
+      type: string
+      format: date-time

@@ -18,10 +18,12 @@ import { storyEmail, type EmailEnvironment } from '@/domain/api/emails';
 import {
   NotificationRepository,
   type NotifiableStory,
+  type NotificationChannel,
   type NotificationFilter,
 } from '@/domain/notifications';
 import { OutboundRepository, type WebhookEvent } from '@/domain/outbound';
 import { verdict } from '@/domain/render/tiers';
+import { matchesRule } from '@/domain/rules';
 import { Repository, type User } from '@/domain/repository';
 import { runInBackground } from '@/lib/core/runtime';
 import { signatureHeaders } from '@/lib/outbound/signature';
@@ -240,14 +242,108 @@ export function notifies(
   return filter === 'focus' ? score > 0 : score >= 0;
 }
 
+/** How long someone may be away before notifications stop, in days. */
+export const INACTIVE_DAYS = 90;
+
+/** Whether a person last seen on `lastSeen` is still active on `edition`. */
+export function stillActive(
+  lastSeen: string | undefined,
+  edition: string,
+): boolean {
+  if (!lastSeen) return true;
+  const away = (Date.parse(edition) - Date.parse(lastSeen)) / 86_400_000;
+  return !(away > INACTIVE_DAYS);
+}
+
+/** Everything delivering one story needs. */
+interface Delivery {
+  readonly env: NotifyEnvironment;
+  readonly db: Database;
+  readonly userId: number;
+  readonly user: Pick<User, 'id' | 'email'> | undefined;
+  readonly notifications: NotificationRepository;
+  readonly outbound: OutboundRepository;
+  readonly fetcher: SafeFetcher | undefined;
+  readonly totals: {
+    stories: number;
+    pushed: number;
+    emailed: number;
+    hooked: number;
+  };
+}
+
 /**
- * Tell the person about the new stories in `edition` from each feed they set
- * to notify, as NewsBlur does: only stories they have not been told about,
- * at most {@link STORIES_PER_FEED} a feed, not disliked ones (unread) or only
- * liked ones (focus), by each channel the feed names. Web pushes go to every
- * subscribed browser; emails go to the person's own address, at most
- * {@link DAILY_NOTIFICATION_EMAILS} a day and only once Email Sending is set
- * up; webhooks get a `story` event.
+ * Tell the person about one story, from `feed`, by each of `channels`. Does
+ * nothing when the story was already claimed (by another feed or rule, or an
+ * earlier run).
+ */
+async function deliverStory(
+  d: Delivery,
+  feed: { readonly feed_id: number; readonly feed_title: string },
+  channels: readonly NotificationChannel[],
+  story: NotifiableStory,
+): Promise<void> {
+  if (!(await d.notifications.claimDelivery(d.userId, story.id))) return;
+  d.totals.stories += 1;
+  const title = story.title || story.url;
+  if (channels.includes('web')) {
+    const pushed = await pushToBrowsers(
+      d.env,
+      d.outbound,
+      d.userId,
+      {
+        title: feed.feed_title,
+        body: title,
+        tag: `story-${story.id}`,
+        url: `${BRAND_URL}/article/${story.id}`,
+      },
+      d.fetcher,
+    );
+    d.totals.pushed += pushed.sent;
+  }
+  if (
+    channels.includes('email') &&
+    d.user &&
+    (await emailNotification(
+      d.env,
+      d.notifications,
+      d.user,
+      feed.feed_title,
+      story,
+    ))
+  ) {
+    d.totals.emailed += 1;
+  }
+  if (channels.includes('webhook')) {
+    d.totals.hooked += await deliverWebhooks(
+      d.db,
+      d.userId,
+      'story',
+      {
+        article_id: String(story.id),
+        feed_id: String(feed.feed_id),
+        feed_title: feed.feed_title,
+        title,
+        url: story.url,
+        ...(story.summary ? { summary: story.summary } : {}),
+      },
+      d.fetcher,
+    );
+  }
+}
+
+/**
+ * Tell the person about the new stories in `edition`, as NewsBlur does.
+ *
+ * Each feed they set to notify sends the stories they have not been told
+ * about, at most {@link STORIES_PER_FEED} a feed, not disliked ones (unread)
+ * or only liked ones (focus). Each notification rule then sends the stories
+ * from its feed, section or every feed that it matches, at most
+ * {@link STORIES_PER_FEED} a rule. A story goes out once, whichever feed or
+ * rule found it first. Web pushes go to every subscribed browser; emails go
+ * to the person's own address, at most {@link DAILY_NOTIFICATION_EMAILS} a day
+ * and only once Email Sending is set up; webhooks get a `story` event. Nobody
+ * away for more than {@link INACTIVE_DAYS} days is told anything.
  */
 export async function notifyNewStories(
   env: NotifyEnvironment,
@@ -258,65 +354,45 @@ export async function notifyNewStories(
 ): Promise<StoryNotifications> {
   const totals = { stories: 0, pushed: 0, emailed: 0, hooked: 0 };
   const notifications = new NotificationRepository(db);
-  const settings = await notifications.feedNotifications(userId);
-  if (!settings.length) return totals;
+  const [settings, rules] = await Promise.all([
+    notifications.feedNotifications(userId),
+    notifications.rules(userId),
+  ]);
+  if (!settings.length && !rules.length) return totals;
+  if (!stillActive(await notifications.lastSeen(userId), edition))
+    return totals;
   const repo = new Repository(db);
-  const outbound = new OutboundRepository(db);
   const [training, user] = await Promise.all([
     repo.listClassifiers(userId),
     repo.getUser(userId),
   ]);
+  const delivery: Delivery = {
+    env,
+    db,
+    userId,
+    user,
+    notifications,
+    outbound: new OutboundRepository(db),
+    fetcher,
+    totals,
+  };
   for (const setting of settings) {
     const fresh = (
       await notifications.undeliveredStories(userId, setting.source_id, edition)
     ).filter((story) => notifies(setting.filter, verdict(story, training)));
     for (const story of fresh.slice(0, STORIES_PER_FEED)) {
-      if (!(await notifications.claimDelivery(userId, story.id))) continue;
-      totals.stories += 1;
-      const title = story.title || story.url;
-      if (setting.channels.includes('web')) {
-        const pushed = await pushToBrowsers(
-          env,
-          outbound,
-          userId,
-          {
-            title: setting.feed_title,
-            body: title,
-            tag: `story-${story.id}`,
-            url: `${BRAND_URL}/article/${story.id}`,
-          },
-          fetcher,
-        );
-        totals.pushed += pushed.sent;
-      }
-      if (
-        setting.channels.includes('email') &&
-        user &&
-        (await emailNotification(
-          env,
-          notifications,
-          user,
-          setting.feed_title,
-          story,
-        ))
-      ) {
-        totals.emailed += 1;
-      }
-      if (setting.channels.includes('webhook')) {
-        totals.hooked += await deliverWebhooks(
-          db,
-          userId,
-          'story',
-          {
-            article_id: String(story.id),
-            feed_id: String(setting.feed_id),
-            feed_title: setting.feed_title,
-            title,
-            url: story.url,
-            ...(story.summary ? { summary: story.summary } : {}),
-          },
-          fetcher,
-        );
+      await deliverStory(delivery, setting, setting.channels, story);
+    }
+  }
+  if (rules.length) {
+    const followed = await notifications.undeliveredFollowedStories(
+      userId,
+      edition,
+    );
+    for (const rule of rules) {
+      const matched = followed.filter((story) => matchesRule(rule, story));
+      for (const story of matched.slice(0, STORIES_PER_FEED)) {
+        await deliverStory(delivery, story, rule.channels, story);
       }
     }
   }

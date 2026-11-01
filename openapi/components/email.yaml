@@ -17,6 +17,10 @@ EmailInput:
       type: string
       maxLength: 2048
       description: The sender's note, shown above the story.
+    from_name:
+      type: string
+      maxLength: 200
+      description: The name the email goes out under, instead of the account's.
     copy_me:
       type: boolean
       default: true

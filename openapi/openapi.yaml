@@ -99,6 +99,10 @@ paths:
     $ref: './paths/saves.yaml#/collection'
   /api/users/self/saves/{article_id}:
     $ref: './paths/saves.yaml#/item'
+  /api/users/self/notifications/rules:
+    $ref: './paths/notifications.yaml#/rules'
+  /api/users/self/notifications/rules/{id}:
+    $ref: './paths/notifications.yaml#/rule'
   /api/users/self/notifications/{feed_id}:
     $ref: './paths/notifications.yaml#/item'
   /api/users/self/push/subscriptions:

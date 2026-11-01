@@ -278,6 +278,8 @@ export interface EmailInput {
   readonly comment?: string;
   /** Whether the sender gets a copy (true unless they say not). */
   readonly copy_me: boolean;
+  /** The name the email goes out under, instead of the account's. */
+  readonly from_name?: string;
 }
 
 /** Most addresses one story email may go to. */
@@ -310,12 +312,27 @@ function addressesOf(to: unknown): string[] | undefined {
 /**
  * Check an email body: `to` is one to {@link MAX_RECIPIENTS} addresses (a
  * list, or one string separated by commas or spaces), `comment` an optional
- * note of at most 2,048 characters, `copy_me` an optional boolean.
+ * note of at most 2,048 characters, `copy_me` an optional boolean, and
+ * `from_name` an optional name to send under (NewsBlur asks for one).
  */
 export function parseEmailInput(
   body: Readonly<Record<string, unknown>>,
 ): Checked<EmailInput> {
-  const errors = strangers(body, ['to', 'comment', 'copy_me'], 'an email');
+  const errors = strangers(
+    body,
+    ['to', 'comment', 'copy_me', 'from_name'],
+    'an email',
+  );
+  const fromName = body['from_name'];
+  if (
+    fromName !== undefined &&
+    (typeof fromName !== 'string' ||
+      !fromName.trim() ||
+      fromName.length > MAX_NAME_LENGTH ||
+      /[<>"\r\n]/.test(fromName))
+  ) {
+    errors.push('from_name: must be a plain name.');
+  }
   const to = addressesOf(body['to']);
   if (!to?.length || to.length > MAX_RECIPIENTS || !to.every(isAddress)) {
     errors.push(`to: must be 1 to ${MAX_RECIPIENTS} email addresses.`);
@@ -338,5 +355,6 @@ export function parseEmailInput(
       ? { comment: comment.trim() }
       : {}),
     copy_me: copyMe !== false,
+    ...(typeof fromName === 'string' ? { from_name: fromName.trim() } : {}),
   }));
 }

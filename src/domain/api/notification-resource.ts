@@ -6,9 +6,18 @@
  * client puts to set them.
  */
 
+import { parseFeedId, rfc3339 } from '@/domain/api/feed-resource';
+import { MAX_RULE_LENGTH, regexProblem } from '@/domain/rules';
 import {
   NOTIFICATION_CHANNELS,
   NOTIFICATION_FILTERS,
+  REGEX_KINDS,
+  RULE_KINDS,
+  RULE_SCOPES,
+  type NotificationRule,
+  type NotificationRuleInput,
+  type RuleKind,
+  type RuleScope,
   type NotificationChannel,
   type NotificationFilter,
   type NotificationSetting,
@@ -66,6 +75,136 @@ export function parseNotificationInput(
         ok: true,
         value: {
           filter: filter as NotificationFilter,
+          channels: [...new Set(channels as NotificationChannel[])],
+        },
+      };
+}
+
+/** Errors for `channels` unless it is a non-empty list of known channels. */
+function channelErrors(channels: unknown): string[] {
+  return Array.isArray(channels) &&
+    channels.length > 0 &&
+    channels.every((c) =>
+      (NOTIFICATION_CHANNELS as readonly unknown[]).includes(c),
+    )
+    ? []
+    : [
+        `channels: must be a non-empty list of ${NOTIFICATION_CHANNELS.join(', ')}.`,
+      ];
+}
+
+/** A notification rule as the API shows it. */
+export interface NotificationRuleResource {
+  readonly id: string;
+  readonly kind: RuleKind;
+  readonly value: string;
+  readonly is_regex: boolean;
+  readonly scope: RuleScope;
+  readonly feed_id?: string;
+  readonly section_id?: string;
+  readonly channels: readonly NotificationChannel[];
+  readonly created_at?: string;
+}
+
+/** The API's view of a stored rule. */
+export function notificationRuleResource(
+  rule: Readonly<NotificationRule>,
+): NotificationRuleResource {
+  const at = rule.created_at ? rfc3339(rule.created_at) : undefined;
+  return {
+    id: String(rule.id),
+    kind: rule.kind,
+    value: rule.value,
+    is_regex: rule.is_regex,
+    scope: rule.scope,
+    ...(rule.feed_id !== undefined ? { feed_id: String(rule.feed_id) } : {}),
+    ...(rule.section_id !== undefined
+      ? { section_id: String(rule.section_id) }
+      : {}),
+    channels: rule.channels,
+    ...(at ? { created_at: at } : {}),
+  };
+}
+
+/**
+ * Check a rule body: `kind` title, author, tag, text or url; `value` a
+ * non-blank phrase of at most 200 characters, or with `is_regex` a regular
+ * expression that cannot backtrack without end (title, author, text and url
+ * only); `scope` feed (with `feed_id`), section (with `section_id`) or all
+ * (the default); `channels` as for a feed.
+ */
+export function parseNotificationRuleInput(
+  body: Readonly<Record<string, unknown>>,
+): Checked<NotificationRuleInput> {
+  const allowed = [
+    'kind',
+    'value',
+    'is_regex',
+    'scope',
+    'feed_id',
+    'section_id',
+    'channels',
+  ];
+  const errors = Object.keys(body)
+    .filter((key) => !allowed.includes(key))
+    .map((key) => `${key}: not a member of a notification rule.`);
+  const {
+    kind,
+    value,
+    is_regex: isRegex = false,
+    scope = 'all',
+    feed_id: feedId,
+    section_id: sectionId,
+    channels,
+  } = body;
+  if (!(RULE_KINDS as readonly unknown[]).includes(kind)) {
+    errors.push(`kind: must be one of ${RULE_KINDS.join(', ')}.`);
+  }
+  if (typeof isRegex !== 'boolean') {
+    errors.push('is_regex: must be true or false.');
+  } else if (isRegex && !(REGEX_KINDS as readonly unknown[]).includes(kind)) {
+    errors.push(`is_regex: only for ${REGEX_KINDS.join(', ')}.`);
+  }
+  if (
+    typeof value !== 'string' ||
+    !value.trim() ||
+    value.length > MAX_RULE_LENGTH
+  ) {
+    errors.push(
+      `value: must be non-blank text of at most ${MAX_RULE_LENGTH} characters.`,
+    );
+  } else if (isRegex === true) {
+    const problem = regexProblem(value);
+    if (problem) errors.push(`value: ${problem}.`);
+  }
+  if (!(RULE_SCOPES as readonly unknown[]).includes(scope)) {
+    errors.push(`scope: must be one of ${RULE_SCOPES.join(', ')}.`);
+  }
+  const feed = typeof feedId === 'string' ? parseFeedId(feedId) : undefined;
+  const section =
+    typeof sectionId === 'string' ? parseFeedId(sectionId) : undefined;
+  if (scope === 'feed' && feed === undefined) {
+    errors.push('feed_id: must name one of your feeds.');
+  } else if (scope !== 'feed' && feedId !== undefined) {
+    errors.push('feed_id: only for a feed rule.');
+  }
+  if (scope === 'section' && section === undefined) {
+    errors.push('section_id: must name one of your sections.');
+  } else if (scope !== 'section' && sectionId !== undefined) {
+    errors.push('section_id: only for a section rule.');
+  }
+  errors.push(...channelErrors(channels));
+  return errors.length
+    ? { ok: false, errors }
+    : {
+        ok: true,
+        value: {
+          kind: kind as RuleKind,
+          value: isRegex ? (value as string) : (value as string).trim(),
+          is_regex: isRegex as boolean,
+          scope: scope as RuleScope,
+          ...(feed !== undefined ? { feed_id: feed } : {}),
+          ...(section !== undefined ? { section_id: section } : {}),
           channels: [...new Set(channels as NotificationChannel[])],
         },
       };

@@ -13,11 +13,14 @@ export function emailRequest(form: FormData): {
   readonly to: string;
   readonly comment?: string;
   readonly copy_me: boolean;
+  readonly from_name?: string;
 } {
   const comment = String(form.get('comment') ?? '').trim();
+  const name = String(form.get('from_name') ?? '').trim();
   return {
     to: String(form.get('to') ?? ''),
     ...(comment ? { comment } : {}),
+    ...(name ? { from_name: name } : {}),
     copy_me: form.get('copy_me') === 'on',
   };
 }
@@ -67,6 +70,14 @@ export function EmailStoryForm({
             placeholder="Addresses, separated by commas"
             aria-label="Who to send it to"
             required
+            className={fieldClass()}
+          />
+          <input
+            name="from_name"
+            type="text"
+            maxLength={200}
+            placeholder="Your name"
+            aria-label="The name to send it under"
             className={fieldClass()}
           />
           <textarea

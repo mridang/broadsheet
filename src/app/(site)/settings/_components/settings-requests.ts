@@ -87,3 +87,28 @@ export async function setNotification(
   // Stopping a feed that did not notify is already done.
   if (res.status !== 404 || request.channels.length) await ensureOk(res);
 }
+
+/** A new notification rule, as the form fills it in. */
+export interface RuleRequest {
+  readonly kind: string;
+  readonly value: string;
+  readonly is_regex: boolean;
+  readonly scope: string;
+  readonly feed_id?: string;
+  readonly section_id?: string;
+  readonly channels: readonly string[];
+}
+
+/** Add a notification rule (`POST /api/users/self/notifications/rules`). */
+export async function addRule(request: RuleRequest): Promise<void> {
+  await postJson<unknown>('/api/users/self/notifications/rules', request);
+}
+
+/** Remove a notification rule (`DELETE /api/users/self/notifications/rules/:id`). */
+export async function removeRule(id: number): Promise<void> {
+  await ensureOk(
+    await fetch(`/api/users/self/notifications/rules/${id}`, {
+      method: 'DELETE',
+    }),
+  );
+}

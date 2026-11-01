@@ -7,6 +7,7 @@ import {
   notifies,
   notifyNewStories,
   sendIssueReady,
+  stillActive,
   STORIES_PER_FEED,
 } from '@/domain/notify';
 import { Repository } from '@/domain/repository';
@@ -352,5 +353,72 @@ describe('notifyNewStories', () => {
         url: 'https://x/0',
       },
     });
+  });
+});
+
+describe('stillActive', () => {
+  it.each([
+    [undefined, true],
+    ['2026-07-04', true],
+    ['2026-07-03', false],
+  ])('last seen %s is active on 2026-10-02: %s', (seen, yes) => {
+    expect(stillActive(seen, '2026-10-02')).toBe(yes);
+  });
+});
+
+describe('notifyNewStories rules and activity', () => {
+  /** Person 1 follows one feed with these stories today and no feed notifications. */
+  async function following(titles: readonly string[]) {
+    const repo = new Repository(db);
+    const user = await repo.upsertUser({ sub: 'g', email: 'me@b.co' });
+    const feed = (await repo.addFeed(user.id, 'https://a.test/f', 'Feed'))!;
+    await repo.writeEdition(
+      feed.source_id,
+      '2026-10-02',
+      titles.map((t, i) => story(`https://x/${i}`, t)),
+    );
+    return { user, feed };
+  }
+
+  it('notifies about stories a rule matches, at most three a rule', async () => {
+    const { user } = await following([
+      'Rust 1',
+      'Rust 2',
+      'Rust 3',
+      'Rust 4',
+      'Go',
+    ]);
+    await new NotificationRepository(db).addRule(user.id, {
+      kind: 'title',
+      value: 'rust',
+      is_regex: false,
+      scope: 'all',
+      channels: ['webhook'],
+    });
+    expect(
+      (await notifyNewStories({}, db, user.id, '2026-10-02')).stories,
+    ).toBe(STORIES_PER_FEED);
+  });
+
+  it('tells about a story once when a feed and a rule both find it', async () => {
+    const { user } = await notifying(['webhook'], 'unread', ['Rust']);
+    await new NotificationRepository(db).addRule(user.id, {
+      kind: 'title',
+      value: 'rust',
+      is_regex: false,
+      scope: 'all',
+      channels: ['webhook'],
+    });
+    expect(
+      (await notifyNewStories({}, db, user.id, '2026-10-02')).stories,
+    ).toBe(1);
+  });
+
+  it('tells nobody who has been away for more than 90 days', async () => {
+    const { user } = await notifying(['webhook'], 'unread', ['One']);
+    await new NotificationRepository(db).noteSeen(user.id, '2026-06-01');
+    expect(
+      (await notifyNewStories({}, db, user.id, '2026-10-02')).stories,
+    ).toBe(0);
   });
 });

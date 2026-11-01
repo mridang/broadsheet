@@ -114,6 +114,7 @@ jest.unstable_mockModule('@/domain/notify', () => ({
 jest.unstable_mockModule('@/domain/notifications', () => ({
   NotificationRepository: class {
     notifiedUserIds = async () => [7];
+    ruleUserIds = async () => [7, 9];
   },
 }));
 
@@ -161,6 +162,8 @@ describe('DailyScrape', () => {
       'step:list notified readers',
       'step:notify new stories for user 7',
       'notice:7:2026-11-01',
+      'step:notify new stories for user 9',
+      'notice:9:2026-11-01',
       'step:backfill recent editions',
       'backfillRecent:7',
       'step:list readers',

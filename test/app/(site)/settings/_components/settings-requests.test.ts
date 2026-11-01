@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
 
-import { setNotification } from '@/app/(site)/settings/_components/settings-requests';
+import {
+  addRule,
+  removeRule,
+  setNotification,
+} from '@/app/(site)/settings/_components/settings-requests';
 
 /** Stand in for fetch, answering every call with `status`. */
 function answering(status: number) {
@@ -37,5 +41,37 @@ describe('setNotification', () => {
     await expect(
       setNotification(4, { filter: 'unread', channels: ['web'] }),
     ).rejects.toThrow();
+  });
+});
+
+describe('addRule and removeRule', () => {
+  const rule = {
+    kind: 'title',
+    value: 'x',
+    is_regex: false,
+    scope: 'all',
+    channels: ['web'],
+  };
+
+  it('posts a rule and deletes one by id', async () => {
+    const calls = answering(201);
+    jest
+      .mocked(globalThis.fetch)
+      .mockImplementationOnce(async (input, init) => {
+        calls.push({ input: String(input), init });
+        return Response.json({ id: '1' }, { status: 201 });
+      });
+    await addRule(rule);
+    await removeRule(7);
+    expect(calls.map((c) => [c.input, c.init?.method])).toEqual([
+      ['/api/users/self/notifications/rules', 'POST'],
+      ['/api/users/self/notifications/rules/7', 'DELETE'],
+    ]);
+  });
+
+  it('throws the server’s refusal', async () => {
+    answering(400);
+    await expect(addRule(rule)).rejects.toThrow();
+    await expect(removeRule(7)).rejects.toThrow();
   });
 });

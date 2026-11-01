@@ -25,6 +25,7 @@ import { isSameOriginPost } from '@/lib/web-security';
 import { appOrigin } from '@/lib/core/origin';
 import { getEnv } from '@/lib/core/runtime';
 import { problems } from '@/lib/core/api';
+import { noteActivityLater } from '@/domain/activity';
 
 /** Methods that never change data and so need no origin check. */
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
@@ -177,7 +178,9 @@ export async function liveUid(
   request: Request,
   resolver: CurrentUserResolver = requestCookieResolver,
 ): Promise<number> {
-  return orThrow(await requireLiveUid(request, resolver));
+  const uid = orThrow(await requireLiveUid(request, resolver));
+  noteActivityLater(uid);
+  return uid;
 }
 
 /** Like {@link requireUser}, but throws the refusal — for an {@link ApiController} context. */

@@ -73,7 +73,7 @@ async function contentOf(
   token: FeedToken,
   origin: string,
   now: string,
-): Promise<{ title: string; entries: AtomEntry[] } | undefined> {
+): Promise<{ title: string; site?: string; entries: AtomEntry[] } | undefined> {
   const repo = new Repository(db);
   const outbound = new OutboundRepository(db);
   if (token.scope === 'saves') {
@@ -83,6 +83,9 @@ async function contentOf(
     const bodies = await outbound.bodies(saves.map((s) => s.article.id));
     return {
       title: token.tag ? `Saved: ${token.tag}` : 'Saved stories',
+      site: token.tag
+        ? `${origin}/saved?tag=${encodeURIComponent(token.tag)}`
+        : `${origin}/saved`,
       entries: saves.map((s) =>
         entryOf(s.article, origin, when(s.saved_at, now), {
           content: bodies.get(s.article.id),
@@ -146,7 +149,7 @@ export async function serveFeed(
       id: `${origin}/feed.xml#${row.id}`,
       title: `${BRAND_NAME}: ${content.title}`,
       self: `${origin}/feed.xml`,
-      site: origin,
+      site: content.site ?? origin,
       updated,
       entries: content.entries,
     }),

@@ -175,3 +175,14 @@ describe('serveFeed filters and content', () => {
     expect(xml).not.toContain('<title>Alpha</title>');
   });
 });
+
+describe('serveFeed links', () => {
+  it('links a saves feed to its page on the site', async () => {
+    const xml = await (
+      await fetchFeed(`?token=${await token({ scope: 'saves', tag: 'a b' })}`)
+    ).text();
+    expect(xml).toContain(
+      '<link rel="alternate" href="https://paper.test/saved?tag=a%20b"/>',
+    );
+  });
+});

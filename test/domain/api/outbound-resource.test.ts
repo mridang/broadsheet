@@ -235,6 +235,10 @@ describe('parseEmailInput', () => {
       { to: ['a@b.co', 'c@d.co', 'e@f.co'], comment: 'Look', copy_me: false },
     ],
     [
+      { to: 'a@b.co', from_name: ' Ann ' },
+      { to: ['a@b.co'], copy_me: true, from_name: 'Ann' },
+    ],
+    [
       { to: ['a@b.co', 'a@b.co'], comment: ' ' },
       { to: ['a@b.co'], copy_me: true },
     ],
@@ -256,6 +260,11 @@ describe('parseEmailInput', () => {
     ],
     [{ to: 'a@b.co', copy_me: 'yes' }, 'copy_me: must be true or false.'],
     [{ to: 'a@b.co', cc: 'x' }, 'cc: not a member of an email.'],
+    [{ to: 'a@b.co', from_name: ' ' }, 'from_name: must be a plain name.'],
+    [
+      { to: 'a@b.co', from_name: 'Eve <e@x.co>' },
+      'from_name: must be a plain name.',
+    ],
   ])('refuses %j', (body, error) => {
     const result = parseEmailInput(body);
     expect(!result.ok && result.errors).toContain(error);

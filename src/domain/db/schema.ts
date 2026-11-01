@@ -459,3 +459,31 @@ export const fetchHistory = sqliteTable(
   },
   (table) => [index('idx_fetch_history_source').on(table.source_id, table.id)],
 );
+
+/**
+ * A classifier that notifies: any new story whose `kind` (title, author, tag,
+ * text or url) matches `value` (a regular expression when `is_regex` is 1), in
+ * one feed, one section or every feed (`scope`), by each of `channels`.
+ */
+export const notification_rules = sqliteTable(
+  'notification_rules',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    user_id: integer('user_id').notNull(),
+    kind: text('kind').notNull(),
+    value: text('value').notNull(),
+    is_regex: integer('is_regex').notNull().default(0),
+    scope: text('scope').notNull().default('all'),
+    subscription_id: integer('subscription_id'),
+    section_id: integer('section_id'),
+    channels: text('channels').notNull().default('[]'),
+    created_at: text('created_at').default(sql`(datetime('now'))`),
+  },
+  (table) => [index('idx_notification_rules_user').on(table.user_id)],
+);
+
+/** The day (YYYY-MM-DD) a person last used the app. */
+export const user_activity = sqliteTable('user_activity', {
+  user_id: integer('user_id').primaryKey(),
+  last_seen_on: text('last_seen_on').notNull(),
+});
