@@ -291,3 +291,270 @@ describe('TOOLS', () => {
     }
   });
 });
+
+describe('follow_feed into a section', () => {
+  it('files the new feed', async () => {
+    const section = await new Repository(db).addSection(1, 'Tech');
+    expect(
+      await run('follow_feed', {
+        url: 'https://n.test/rss',
+        section_id: section.id,
+      }),
+    ).toMatchObject({ feed: { section_id: String(section.id) } });
+  });
+
+  it("refuses another person's section", async () => {
+    const section = await new Repository(db).addSection(2, 'Theirs');
+    await expect(
+      run('follow_feed', { url: 'https://n.test/rss', section_id: section.id }),
+    ).rejects.toThrow('There is no such section.');
+  });
+});
+
+describe('search_articles by read state', () => {
+  it.each([
+    ['unread', ['Go ships']],
+    ['read', ['Rust ships']],
+  ])('keeps only %s stories', async (read_filter, titles) => {
+    const { articleId } = await seed();
+    await new Repository(db).markRead(1, articleId);
+    const found = (await run('search_articles', {
+      query: '',
+      read_filter,
+    })) as {
+      articles: { title: string }[];
+    };
+    expect(found.articles.map((a) => a.title)).toEqual(titles);
+  });
+});
+
+describe('get_account', () => {
+  it('names the person with their counts', async () => {
+    await seed();
+    expect(await run('get_account')).toEqual({
+      email: 'a@b.com',
+      feeds: 1,
+      sections: 0,
+      saved: 0,
+      classifiers: 0,
+    });
+  });
+});
+
+describe('organize_feed', () => {
+  it('renames, mutes and files a feed', async () => {
+    const { feedId } = await seed();
+    const section = await new Repository(db).addSection(1, 'Tech');
+    expect(
+      await run('organize_feed', {
+        feed_id: feedId,
+        title: 'Mine',
+        muted: true,
+        section_id: section.id,
+      }),
+    ).toMatchObject({
+      feed: { title: 'Mine', muted: true, section_id: String(section.id) },
+    });
+  });
+
+  it('takes a feed out of its section', async () => {
+    const { feedId } = await seed();
+    const section = await new Repository(db).addSection(1, 'Tech');
+    await run('organize_feed', { feed_id: feedId, section_id: section.id });
+    const { feed } = (await run('organize_feed', {
+      feed_id: feedId,
+      section_id: null,
+    })) as { feed: object };
+    expect(feed).not.toHaveProperty('section_id');
+  });
+
+  it("refuses another person's feed", async () => {
+    const other = (await new Repository(db).addFeed(2, 'https://o.test/f'))!;
+    await expect(
+      run('organize_feed', { feed_id: other.id, muted: true }),
+    ).rejects.toThrow('There is no such feed.');
+  });
+
+  it("refuses another person's section", async () => {
+    const { feedId } = await seed();
+    const section = await new Repository(db).addSection(2, 'Theirs');
+    await expect(
+      run('organize_feed', { feed_id: feedId, section_id: section.id }),
+    ).rejects.toThrow('There is no such section.');
+  });
+
+  it('refuses a title that is too long', async () => {
+    const { feedId } = await seed();
+    await expect(
+      run('organize_feed', { feed_id: feedId, title: 'x'.repeat(201) }),
+    ).rejects.toThrow('title: too long.');
+  });
+});
+
+describe('sections', () => {
+  it('adds one', async () => {
+    expect(await run('add_section', { name: 'Tech' })).toMatchObject({
+      section: { name: 'Tech' },
+    });
+  });
+
+  it('refuses a blank name', async () => {
+    await expect(run('add_section', { name: ' ' })).rejects.toThrow(
+      'name: must be a non-blank string.',
+    );
+  });
+
+  it('renames one', async () => {
+    const section = await new Repository(db).addSection(1, 'Tech');
+    expect(
+      await run('update_section', { section_id: section.id, name: 'Science' }),
+    ).toMatchObject({ section: { name: 'Science' } });
+  });
+
+  it("refuses to rename another person's", async () => {
+    const section = await new Repository(db).addSection(2, 'Theirs');
+    await expect(
+      run('update_section', { section_id: section.id, name: 'Mine' }),
+    ).rejects.toThrow('There is no such section.');
+  });
+
+  it('removes one', async () => {
+    const section = await new Repository(db).addSection(1, 'Tech');
+    expect(await run('remove_section', { section_id: section.id })).toEqual({
+      removed: true,
+    });
+  });
+
+  it("refuses to remove another person's", async () => {
+    const section = await new Repository(db).addSection(2, 'Theirs');
+    await expect(
+      run('remove_section', { section_id: section.id }),
+    ).rejects.toThrow('There is no such section.');
+  });
+});
+
+describe('mark_read', () => {
+  it('marks stories by id and counts what happened', async () => {
+    const { articleId } = await seed();
+    await new Repository(db).markRead(1, articleId);
+    expect(
+      await run('mark_read', { article_ids: [articleId, articleId + 1, 999] }),
+    ).toEqual({ marked: 1, already_read: 1, not_found: 1 });
+  });
+
+  it('marks every story of a feed', async () => {
+    const { feedId } = await seed();
+    expect(await run('mark_read', { feed_id: feedId })).toMatchObject({
+      marked: 2,
+    });
+  });
+
+  it('needs ids or a feed', async () => {
+    await expect(run('mark_read')).rejects.toThrow(
+      'Send article_ids or feed_id.',
+    );
+  });
+
+  it("refuses another person's feed", async () => {
+    const other = (await new Repository(db).addFeed(2, 'https://o.test/f'))!;
+    await expect(run('mark_read', { feed_id: other.id })).rejects.toThrow(
+      'There is no such feed.',
+    );
+  });
+});
+
+describe('list_saved', () => {
+  it('lists saves with every tag in use', async () => {
+    const { articleId } = await seed();
+    const repo = new Repository(db);
+    await repo.saveArticle(1, articleId, ['rust']);
+    await repo.saveArticle(1, articleId + 1, ['go']);
+    expect(await run('list_saved', { tag: 'rust' })).toMatchObject({
+      saves: [{ tags: ['rust'] }],
+      tags: ['go', 'rust'],
+    });
+  });
+});
+
+describe('get_briefing', () => {
+  it('lays out the latest edition', async () => {
+    await seed();
+    expect(await run('get_briefing')).toMatchObject({
+      date: '2026-11-01',
+      sections: [{ desks: [{ url: 'https://a.test/feed' }] }],
+    });
+  });
+
+  it('refuses a date that is not on the calendar', async () => {
+    await expect(run('get_briefing', { date: '2026-02-31' })).rejects.toThrow(
+      'That is not a calendar date.',
+    );
+  });
+});
+
+describe('get_trending', () => {
+  it('ranks stories by how many read them', async () => {
+    const { articleId } = await seed();
+    await new Repository(db).markRead(1, articleId);
+    expect(await run('get_trending')).toEqual({
+      articles: [
+        expect.objectContaining({ title: 'Rust ships', read_count: 1 }),
+      ],
+    });
+  });
+});
+
+describe('discover_feeds', () => {
+  it('offers the starter topics', async () => {
+    const found = (await run('discover_feeds')) as { topics: object[] };
+    expect(found.topics.length).toBeGreaterThan(0);
+  });
+
+  it('refuses an unknown topic', async () => {
+    await expect(run('discover_feeds', { topic: 'nope' })).rejects.toThrow(
+      'There is no such topic.',
+    );
+  });
+});
+
+describe('ask_archive', () => {
+  const answering = (response: unknown) => ({
+    run: async () => ({ response }),
+  });
+
+  it('answers in a new conversation and keeps both turns', async () => {
+    await seed();
+    ctx = { ...ctx, model: answering('Rust shipped.') };
+    const result = (await run('ask_archive', {
+      question: 'What shipped?',
+    })) as {
+      conversation_id: string;
+      message: { content: string };
+    };
+    expect([
+      result.message.content,
+      (await new Repository(db).listMessages(Number(result.conversation_id)))
+        .length,
+    ]).toEqual(['Rust shipped.', 2]);
+  });
+
+  it("refuses another person's conversation", async () => {
+    const theirs = await new Repository(db).addConversation(2);
+    ctx = { ...ctx, model: answering('x') };
+    await expect(
+      run('ask_archive', { question: 'Hi', conversation_id: theirs.id }),
+    ).rejects.toThrow('There is no such conversation.');
+  });
+
+  it('says so when no model is bound', async () => {
+    await expect(run('ask_archive', { question: 'Hi' })).rejects.toThrow(
+      'The assistant could not answer just now.',
+    );
+  });
+
+  it('refuses a blank question', async () => {
+    await expect(run('ask_archive', { question: ' ' })).rejects.toThrow(
+      'question: must not be blank.',
+    );
+  });
+});

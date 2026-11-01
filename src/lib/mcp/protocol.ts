@@ -25,6 +25,8 @@ export const ERROR_METHOD_NOT_FOUND = -32601;
 export const ERROR_INVALID_PARAMS = -32602;
 /** Something failed on our side. */
 export const ERROR_INTERNAL = -32603;
+/** No resource at that URI (the MCP spec's code). */
+export const RESOURCE_NOT_FOUND = -32002;
 
 /**
  * The revision to answer an `initialize` with: the client's when we speak it,

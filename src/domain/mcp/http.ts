@@ -27,7 +27,10 @@ import { getDatabase } from '@/domain/db/database';
 import { getEnv, runInBackground } from '@/lib/core/runtime';
 import type { McpAuth } from './auth';
 import { INSTRUCTIONS, SERVER_INFO } from './app';
+import { PROMPTS } from './prompts';
+import { RESOURCES } from './resources';
 import { refresher, TOOLS, type ToolContext } from './tools';
+import { answerModel } from '@/domain/api/answers';
 
 /** The largest message accepted, in bytes. */
 export const MAX_MCP_BYTES = 1024 * 1024;
@@ -37,6 +40,8 @@ export const mcpServer = new McpServer<ToolContext>(
   SERVER_INFO,
   INSTRUCTIONS,
   TOOLS,
+  RESOURCES,
+  PROMPTS,
 );
 
 /** The context the tools run in, for a caller. */
@@ -45,7 +50,13 @@ export type ContextFor = (uid: number) => ToolContext;
 /** The production context: the request's database and background work. */
 const liveContext: ContextFor = (uid) => {
   const db = getDatabase();
-  return { uid, db, refresh: refresher(db, getEnv(), runInBackground) };
+  const model = answerModel();
+  return {
+    uid,
+    db,
+    refresh: refresher(db, getEnv(), runInBackground),
+    ...(model ? { model } : {}),
+  };
 };
 
 /** A JSON reply with the CORS headers. */

@@ -24,6 +24,7 @@ import {
   isPlainObject,
   negotiateVersion,
   replyIdOf,
+  RESOURCE_NOT_FOUND,
   type JsonRpcMessage,
   type JsonRpcResponse,
 } from './protocol';
@@ -59,6 +60,39 @@ export class ToolFailure extends Error {
   }
 }
 
+/**
+ * A resource the server offers: a fixed `uri`, or a `uriTemplate` whose
+ * `match` picks out the parameters of a concrete URI. `read` returns JSON.
+ */
+export interface McpResource<Ctx> {
+  readonly name: string;
+  readonly description: string;
+  readonly uri?: string;
+  readonly uriTemplate?: string;
+  /** For a template: the parameters of `uri`, or undefined when it is not one. */
+  readonly match?: (
+    uri: string,
+  ) => Readonly<Record<string, string>> | undefined;
+  readonly read: (
+    params: Readonly<Record<string, string>>,
+    ctx: Ctx,
+  ) => Promise<object>;
+}
+
+/** A prompt the server offers: a ready-made request for the assistant. */
+export interface McpPrompt {
+  readonly name: string;
+  readonly title: string;
+  readonly description: string;
+  readonly arguments: readonly {
+    readonly name: string;
+    readonly description: string;
+    readonly required?: boolean;
+  }[];
+  /** The text of the request, from its arguments. */
+  readonly render: (args: Readonly<Record<string, string>>) => string;
+}
+
 /** How the server names itself. */
 export interface ServerInfo {
   readonly name: string;
@@ -88,15 +122,75 @@ export class McpServer<Ctx> {
   readonly #info: ServerInfo;
   readonly #instructions: string;
   readonly #tools: ReadonlyMap<string, McpTool<Ctx>>;
+  readonly #resources: readonly McpResource<Ctx>[];
+  readonly #prompts: ReadonlyMap<string, McpPrompt>;
 
   constructor(
     info: ServerInfo,
     instructions: string,
     tools: readonly McpTool<Ctx>[],
+    resources: readonly McpResource<Ctx>[] = [],
+    prompts: readonly McpPrompt[] = [],
   ) {
     this.#info = info;
     this.#instructions = instructions;
     this.#tools = new Map(tools.map((t) => [t.name, t]));
+    this.#resources = resources;
+    this.#prompts = new Map(prompts.map((p) => [p.name, p]));
+  }
+
+  /** Read the resource at a URI. */
+  async #readResource(
+    params: Readonly<Record<string, unknown>>,
+    ctx: Ctx,
+  ): Promise<object> {
+    const uri = params['uri'];
+    if (typeof uri !== 'string') {
+      throw new RpcError(ERROR_INVALID_PARAMS, 'Send the uri.');
+    }
+    for (const resource of this.#resources) {
+      const found = resource.uri === uri ? {} : resource.match?.(uri);
+      if (found) {
+        try {
+          const data = await resource.read(found, ctx);
+          return {
+            contents: [
+              { uri, mimeType: 'application/json', text: JSON.stringify(data) },
+            ],
+          };
+        } catch (error) {
+          if (error instanceof ToolFailure) {
+            throw new RpcError(RESOURCE_NOT_FOUND, error.message, { uri });
+          }
+          throw error;
+        }
+      }
+    }
+    throw new RpcError(RESOURCE_NOT_FOUND, 'Resource not found', { uri });
+  }
+
+  /** Render a prompt with its arguments. */
+  #getPrompt(params: Readonly<Record<string, unknown>>): object {
+    const prompt = this.#prompts.get(String(params['name']));
+    if (!prompt) {
+      throw new RpcError(ERROR_INVALID_PARAMS, 'No such prompt.');
+    }
+    const given = isPlainObject(params['arguments']) ? params['arguments'] : {};
+    const args = Object.fromEntries(
+      Object.entries(given).filter(
+        (entry): entry is [string, string] => typeof entry[1] === 'string',
+      ),
+    );
+    const missing = prompt.arguments.find((a) => a.required && !args[a.name]);
+    if (missing) {
+      throw new RpcError(ERROR_INVALID_PARAMS, `Send ${missing.name}.`);
+    }
+    return {
+      description: prompt.description,
+      messages: [
+        { role: 'user', content: { type: 'text', text: prompt.render(args) } },
+      ],
+    };
   }
 
   /** The tool with this name, if the server offers it. */
@@ -160,7 +254,11 @@ export class McpServer<Ctx> {
       case 'initialize':
         return {
           protocolVersion: negotiateVersion(params['protocolVersion']),
-          capabilities: { tools: { listChanged: false } },
+          capabilities: {
+            tools: { listChanged: false },
+            resources: { listChanged: false, subscribe: false },
+            prompts: { listChanged: false },
+          },
           serverInfo: this.#info,
           instructions: this.#instructions,
         };
@@ -170,6 +268,41 @@ export class McpServer<Ctx> {
         return this.#list();
       case 'tools/call':
         return this.#call(params, ctx);
+      case 'resources/list':
+        return {
+          resources: this.#resources
+            .filter((r) => r.uri)
+            .map((r) => ({
+              uri: r.uri,
+              name: r.name,
+              description: r.description,
+              mimeType: 'application/json',
+            })),
+        };
+      case 'resources/templates/list':
+        return {
+          resourceTemplates: this.#resources
+            .filter((r) => r.uriTemplate)
+            .map((r) => ({
+              uriTemplate: r.uriTemplate,
+              name: r.name,
+              description: r.description,
+              mimeType: 'application/json',
+            })),
+        };
+      case 'resources/read':
+        return this.#readResource(params, ctx);
+      case 'prompts/list':
+        return {
+          prompts: [...this.#prompts.values()].map((p) => ({
+            name: p.name,
+            title: p.title,
+            description: p.description,
+            arguments: p.arguments,
+          })),
+        };
+      case 'prompts/get':
+        return this.#getPrompt(params);
       default:
         throw new RpcError(ERROR_METHOD_NOT_FOUND, 'Method not found');
     }
