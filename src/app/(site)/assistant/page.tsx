@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import { ButtonLink, TextLink } from '@/components/ui/button';
+import { List, ListItem } from '@/components/ui/card';
 import { redirect } from 'next/navigation';
 import type { ReactElement } from 'react';
 
@@ -56,14 +58,11 @@ export default async function AssistantPage({
       />
       <div className="mt-8">
         {current ? (
-          <p className="mb-4 text-sm">
-            <a
-              className="focus-ring rounded-sm font-medium text-accent hover:underline"
-              href="/assistant"
-            >
+          <div className="mb-4">
+            <ButtonLink variant="outline" size="sm" href="/assistant">
               New conversation
-            </a>
-          </p>
+            </ButtonLink>
+          </div>
         ) : null}
         <AssistantChat
           key={current?.id ?? 'new'}
@@ -74,22 +73,19 @@ export default async function AssistantPage({
       </div>
       {past.length ? (
         <PageSection id="past-conversations" title="Past conversations">
-          <ul className="divide-y divide-line">
+          <List>
             {past.map((c) => (
-              <li
+              <ListItem
                 key={c.id}
-                className="flex items-center justify-between gap-3 py-2"
-              >
-                <a
-                  className="focus-ring rounded-sm text-sm font-medium text-ink hover:underline"
-                  href={`/assistant?c=${c.id}`}
-                >
-                  {c.title || 'Untitled conversation'}
-                </a>
-                <DeleteConversationButton id={String(c.id)} />
-              </li>
+                title={
+                  <TextLink href={`/assistant?c=${c.id}`}>
+                    {c.title || 'Untitled conversation'}
+                  </TextLink>
+                }
+                actions={<DeleteConversationButton id={String(c.id)} />}
+              />
             ))}
-          </ul>
+          </List>
         </PageSection>
       ) : null}
     </div>

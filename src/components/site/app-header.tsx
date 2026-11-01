@@ -5,8 +5,9 @@ import type { User } from '@/domain/repository';
 
 import { BrandMark } from '@/components/site/logo';
 import { SignOutButton } from '@/components/site/sign-out-button';
-import { buttonClass } from '@/components/ui/button';
+import { ButtonLink, TextLink } from '@/components/ui/button';
 import { fieldClass } from '@/components/ui/field';
+import { MENU_ITEM, Menu, MenuDivider } from '@/components/ui/menu';
 import { Icon } from '@/components/ui/icons';
 
 /**
@@ -26,16 +27,12 @@ export function AppHeader({
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 sm:px-6 lg:px-8">
         <details className="group lg:hidden">
           <summary
-            className={buttonClass({
-              variant: 'ghost',
-              size: 'sm',
-              className: 'list-none px-2 [&::-webkit-details-marker]:hidden',
-            })}
+            aria-label="Menu"
+            className="focus-ring inline-flex size-10 list-none items-center justify-center rounded-control text-muted transition-colors hover:bg-ink/5 hover:text-ink active:bg-ink/10 [&::-webkit-details-marker]:hidden"
           >
             <Icon name="menu" />
-            <span className="sr-only">Menu</span>
           </summary>
-          <div className="absolute inset-x-0 top-16 max-h-[calc(100dvh-4rem)] overflow-y-auto border-b border-line bg-paper px-4 py-6 shadow-lg sm:px-6">
+          <div className="absolute inset-x-0 top-16 max-h-[calc(100dvh-4rem)] overflow-y-auto border-b border-line bg-paper px-4 py-6 shadow-overlay sm:px-6">
             {menu}
           </div>
         </details>
@@ -69,19 +66,30 @@ export function AppHeader({
         </form>
         <div className="ml-auto flex items-center gap-3 md:ml-0">
           {user ? (
-            <>
-              <span className="hidden max-w-40 truncate text-sm text-muted sm:inline">
-                {user.name || user.email}
-              </span>
-              <SignOutButton />
-            </>
-          ) : (
-            <a
-              className={buttonClass({ variant: 'primary', size: 'sm' })}
-              href="/login"
+            <Menu
+              label="Account"
+              width="w-64"
+              triggerClassName="focus-ring flex size-9 items-center justify-center rounded-full bg-ink/10 text-sm font-semibold text-ink uppercase transition-colors hover:bg-ink/15 active:bg-ink/20"
+              trigger={(user.name || user.email).slice(0, 1)}
             >
+              <div className="px-3 py-2">
+                {user.name ? (
+                  <p className="truncate text-sm font-medium text-ink">
+                    {user.name}
+                  </p>
+                ) : null}
+                <p className="truncate text-xs text-subtle">{user.email}</p>
+              </div>
+              <MenuDivider />
+              <TextLink bare href="/settings" className={MENU_ITEM}>
+                Settings
+              </TextLink>
+              <SignOutButton />
+            </Menu>
+          ) : (
+            <ButtonLink size="sm" href="/login">
               Sign in
-            </a>
+            </ButtonLink>
           )}
         </div>
       </div>

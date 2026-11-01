@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Badge } from '@/components/ui/badge';
 import { redirect } from 'next/navigation';
 
 import { getCurrentUser } from '@/lib/core/auth';
@@ -10,7 +11,6 @@ import { WriteBriefing } from '@/app/(site)/briefings/_components/write-briefing
 import { buttonClass } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
-import { cn } from '@/components/ui/cn';
 
 export const dynamic = 'force-dynamic';
 
@@ -69,16 +69,9 @@ export default async function BriefingsPage({
                   <span>
                     {count} {count === 1 ? 'story' : 'stories'}
                   </span>
-                  <span
-                    className={cn(
-                      'ml-1 rounded-full px-2 py-0.5 text-[11px] font-semibold',
-                      failed
-                        ? 'bg-red-600/10 text-red-700 dark:text-red-400'
-                        : 'bg-ink/5 text-muted',
-                    )}
-                  >
+                  <Badge tone={failed ? 'danger' : 'neutral'} className="ml-1">
                     {failed ? 'Failed' : 'Written'}
-                  </span>
+                  </Badge>
                 </p>
                 <a
                   href={`/briefings/${b.id}`}
@@ -99,7 +92,7 @@ export default async function BriefingsPage({
         </ul>
       ) : (
         <div className="mt-8">
-          <EmptyState title="No briefings yet">
+          <EmptyState icon="briefing" title="No briefings yet">
             Your first briefing is written at the next slot of your day, or now
             with the button above.
           </EmptyState>

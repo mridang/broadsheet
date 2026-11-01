@@ -4,7 +4,10 @@ import { useId, useRef, useState, type ReactElement } from 'react';
 
 import { problemText } from '@/components/api/problem-message';
 import { setShared } from '@/app/(site)/_components/story-requests';
-import { CHIP } from '@/app/(site)/_components/story-actions';
+import { CHIP } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/components/ui/cn';
+import { HINT, textareaClass } from '@/components/ui/field';
 
 /**
  * "Share" on a story, as NewsBlur's share dialog: a popover with an optional
@@ -16,10 +19,16 @@ export function ShareButton({
   articleId,
   shared,
   title,
+  inline = false,
+  summaryClassName = CHIP,
 }: Readonly<{
   articleId: number;
   shared: boolean;
   title: string;
+  /** Opens in place beneath its button (inside a menu), not as a popover. */
+  inline?: boolean;
+  /** The look of the button that opens it. */
+  summaryClassName?: string;
 }>): ReactElement {
   const [isShared, setIsShared] = useState(shared);
   const [comments, setComments] = useState('');
@@ -43,16 +52,23 @@ export function ShareButton({
   }
 
   return (
-    <details ref={panel} className="relative z-10 print:hidden">
+    <details
+      ref={panel}
+      className={cn('relative z-10 print:hidden', inline && 'w-full')}
+    >
       <summary
-        className={CHIP}
+        className={summaryClassName}
         data-action="share"
         aria-label={`${isShared ? 'Shared' : 'Share'} ${title}`}
       >
         {isShared ? '✓ Shared' : 'Share'}
       </summary>
       <form
-        className="pointer-events-auto fixed inset-x-4 bottom-4 z-20 rounded-card border border-line bg-surface p-4 shadow-lg sm:absolute sm:inset-x-auto sm:bottom-auto sm:left-0 sm:mt-2 sm:w-72"
+        className={
+          inline
+            ? 'px-3 pt-1 pb-2'
+            : 'pointer-events-auto fixed inset-x-4 bottom-4 z-20 rounded-card border border-line bg-surface p-4 shadow-overlay sm:absolute sm:inset-x-auto sm:bottom-auto sm:left-0 sm:mt-2 sm:w-72'
+        }
         onSubmit={(e) => {
           e.preventDefault();
           void run(true);
@@ -67,35 +83,26 @@ export function ShareButton({
           maxLength={5000}
           value={comments}
           onChange={(e) => setComments(e.target.value)}
-          className="focus-ring-flush mt-1 w-full rounded-control border border-field bg-paper p-2 text-sm text-ink"
+          className={textareaClass('mt-1.5')}
         />
-        <p className="mt-1 text-xs text-subtle">
-          Anyone signed in sees your share and your name.
-        </p>
+        <p className={HINT}>Anyone signed in sees your share and your name.</p>
         <div className="mt-3 flex items-center gap-2">
-          <button
-            type="submit"
-            disabled={busy}
-            className="focus-ring h-8 rounded-control bg-ink px-3 text-xs font-semibold text-on-ink disabled:opacity-50"
-          >
+          <Button type="submit" size="xs" disabled={busy}>
             {isShared ? 'Update' : 'Share'}
-          </button>
+          </Button>
           {isShared ? (
-            <button
-              type="button"
+            <Button
+              variant="outline"
+              size="xs"
               disabled={busy}
               onClick={() => void run(false)}
-              className="focus-ring h-8 rounded-control border border-field px-3 text-xs font-semibold text-ink disabled:opacity-50"
             >
               Unshare
-            </button>
+            </Button>
           ) : null}
         </div>
         {error ? (
-          <p
-            className="mt-2 text-xs text-red-700 dark:text-red-400"
-            role="alert"
-          >
+          <p className="mt-2 text-xs text-danger" role="alert">
             {error}
           </p>
         ) : null}

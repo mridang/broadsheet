@@ -36,11 +36,11 @@ export async function FeedRail({
   return (
     <nav aria-label="Your feeds">
       <details open className="group">
-        <summary className="focus-ring flex h-8 list-none items-center justify-between rounded-control px-3 text-xs font-semibold tracking-wide text-subtle uppercase hover:text-ink [&::-webkit-details-marker]:hidden">
+        <summary className="focus-ring flex h-8 list-none items-center justify-between rounded-control px-3 text-label font-semibold text-subtle uppercase transition-colors hover:text-ink [&::-webkit-details-marker]:hidden">
           Your feeds
           <span
             aria-hidden="true"
-            className="text-[0.6rem] transition-transform group-open:rotate-90"
+            className="text-xs transition-transform group-open:rotate-90"
           >
             ▶
           </span>
@@ -81,7 +81,7 @@ export async function FeedRail({
           ))}
         </ul>
         <a
-          className="focus-ring mt-2 inline-flex h-8 items-center rounded-control px-3 text-xs font-medium text-subtle hover:text-ink"
+          className="focus-ring mt-2 inline-flex h-8 items-center rounded-control px-3 text-xs font-medium text-subtle transition-colors hover:bg-ink/5 hover:text-ink"
           href="/feeds"
         >
           Manage feeds

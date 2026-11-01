@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent, type ReactElement } from 'react';
+import { useRef, useState, type FormEvent, type ReactElement } from 'react';
 
 import {
   importOpml,
@@ -8,13 +8,13 @@ import {
 } from '@/app/(site)/feeds/_components/feed-requests';
 import { useApiAction } from '@/components/api/use-api-action';
 import { buttonClass } from '@/components/ui/button';
-import { fieldClass } from '@/components/ui/field';
 import { ErrorText } from '@/components/ui/notice';
 
 /** Follow the feeds of an OPML file exported from another reader. */
 export function ImportFeedsForm(): ReactElement {
   const { busy, error, run } = useApiAction();
   const [progress, setProgress] = useState<ImportProgress>();
+  const form = useRef<HTMLFormElement>(null);
   const submit = (event: FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
     const file = new FormData(event.currentTarget).get('file');
@@ -31,28 +31,27 @@ export function ImportFeedsForm(): ReactElement {
   };
   return (
     <>
-      <form
-        className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center"
-        onSubmit={submit}
-      >
-        <input
-          name="file"
-          type="file"
-          accept=".opml,.xml,text/x-opml,text/xml"
-          aria-label="OPML file"
-          className={fieldClass('w-full sm:flex-1')}
-          required
-        />
-        <button
+      <form ref={form} onSubmit={submit}>
+        <label
           className={buttonClass({
             variant: 'outline',
-            className: 'border-line',
+            className:
+              'w-full has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ink sm:w-auto',
           })}
-          type="submit"
-          disabled={busy}
+          aria-disabled={busy}
         >
           Import OPML
-        </button>
+          <input
+            name="file"
+            type="file"
+            accept=".opml,.xml,text/x-opml,text/xml"
+            aria-label="OPML file"
+            className="sr-only"
+            required
+            disabled={busy}
+            onChange={() => form.current?.requestSubmit()}
+          />
+        </label>
       </form>
       {progress ? (
         <p className="mt-2 text-sm text-muted" role="status">

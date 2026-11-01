@@ -11,7 +11,7 @@ export function StoryChanges({
 }: Readonly<{ original: string; current: string }>) {
   return (
     <details className="pointer-events-auto relative z-10 mt-2 text-sm print:hidden">
-      <summary className="focus-ring inline-flex w-fit items-center gap-1 rounded-sm text-xs font-medium text-accent">
+      <summary className="focus-ring inline-flex w-fit items-center gap-1 rounded-control text-xs font-medium text-accent hover:underline">
         Updated · show changes
       </summary>
       <p
@@ -24,12 +24,12 @@ export function StoryChanges({
           ) : c.op === 'del' ? (
             <del
               key={i}
-              className="bg-red-500/10 text-red-800 line-through dark:text-red-300"
+              className="bg-danger/10 text-danger line-through"
             >{`${c.text} `}</del>
           ) : (
             <ins
               key={i}
-              className="bg-green-500/15 text-green-900 no-underline dark:text-green-300"
+              className="bg-success/10 text-success no-underline"
             >{`${c.text} `}</ins>
           ),
         )}

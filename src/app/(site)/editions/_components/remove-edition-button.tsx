@@ -16,12 +16,7 @@ export function RemoveEditionButton({
     <div>
       <button
         type="button"
-        className={buttonClass({
-          variant: 'ghost',
-          size: 'sm',
-          className:
-            'text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950',
-        })}
+        className={buttonClass({ variant: 'danger', size: 'sm' })}
         disabled={busy}
         onClick={() =>
           void run(() => removeEdition(id), 'Could not remove that edition.')

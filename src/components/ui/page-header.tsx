@@ -58,13 +58,46 @@ export function PageSection({
 }>): ReactElement {
   return (
     <section aria-labelledby={id} className="mt-12">
-      <h2 id={id} className="text-lg font-semibold tracking-tight text-ink">
-        {title}
-      </h2>
-      {description ? (
-        <p className="mt-1 text-sm text-muted">{description}</p>
-      ) : null}
+      <SectionHeader id={id} title={title} description={description} />
       <div className="mt-4">{children}</div>
     </section>
+  );
+}
+
+/**
+ * The heading of a group within a page: a title, an optional line beneath,
+ * and the group's own actions (or a "See all" link) on the right.
+ */
+export function SectionHeader({
+  id,
+  as: Tag = 'h2',
+  title,
+  description,
+  actions,
+  className,
+}: Readonly<{
+  id?: string;
+  as?: 'h2' | 'h3';
+  title: ReactNode;
+  description?: ReactNode;
+  actions?: ReactNode;
+  className?: string;
+}>): ReactElement {
+  return (
+    <div className={cn('flex items-end justify-between gap-4', className)}>
+      <div className="min-w-0">
+        <Tag id={id} className="text-lg font-semibold tracking-tight text-ink">
+          {title}
+        </Tag>
+        {description ? (
+          <p className="mt-1 text-sm text-muted">{description}</p>
+        ) : null}
+      </div>
+      {actions ? (
+        <div className="flex shrink-0 items-center gap-2 text-sm">
+          {actions}
+        </div>
+      ) : null}
+    </div>
   );
 }

@@ -17,6 +17,9 @@ import { ROW_LINK } from '@/components/stories/story-row';
 import { ShareButton } from '@/app/(site)/_components/share-button';
 import { StoryChanges } from '@/app/(site)/_components/story-changes';
 import { hasChanges } from '@/domain/render/changes';
+import { TextLink } from '@/components/ui/button';
+import { Icon } from '@/components/ui/icons';
+import { SectionHeader } from '@/components/ui/page-header';
 
 export const dynamic = 'force-dynamic';
 
@@ -88,15 +91,11 @@ export default async function ArticlePage({
           current={article.summary ?? ''}
         />
       ) : null}
-      <div className="mt-6 flex flex-wrap items-start gap-x-5 gap-y-2 border-y border-line py-3 text-sm">
-        <a
-          className={ROW_LINK}
-          href={article.url}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Read the original ↗
-        </a>
+      <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-1 border-y border-line py-2 text-sm">
+        <TextLink bare className={ROW_LINK} href={article.url}>
+          <Icon name="external" className="size-4" />
+          Read the original
+        </TextLink>
         {user ? (
           <ShareButton
             articleId={article.id}
@@ -107,14 +106,18 @@ export default async function ArticlePage({
         {user ? (
           <EmailStoryForm articleId={article.id} mailto={mailtoLink(article)} />
         ) : (
-          <a className={ROW_LINK} href={mailtoLink(article)}>
+          <TextLink bare className={ROW_LINK} href={mailtoLink(article)}>
             Email this story
-          </a>
+          </TextLink>
         )}
         {article.edition ? (
-          <a className={ROW_LINK} href={`/edition/${article.edition}`}>
+          <TextLink
+            bare
+            className={ROW_LINK}
+            href={`/edition/${article.edition}`}
+          >
             Back to the {article.edition} edition
-          </a>
+          </TextLink>
         ) : null}
       </div>
       {paragraphs.length ? (
@@ -131,22 +134,20 @@ export default async function ArticlePage({
       {user ? <AskBox id={article.id} /> : null}
       {similar.length ? (
         <section aria-labelledby="similar" className="mt-12">
-          <h2 id="similar" className="text-base font-semibold">
-            Similar stories
-          </h2>
-          <ul className="mt-3 space-y-2">
+          <SectionHeader id="similar" title="Similar stories" />
+          <ul className="mt-4 divide-y divide-line border-y border-line">
             {similar.map((s) => (
-              <li key={s.article.id} className="text-sm">
-                <a
-                  className="focus-ring rounded-sm font-medium text-ink hover:underline"
+              <li key={s.article.id} className="py-3">
+                <p className="text-xs text-subtle">
+                  {s.article.source || hostOf(s.article.url)}
+                  {s.followed ? '' : ' · not in your feeds'}
+                </p>
+                <TextLink
+                  className="mt-0.5 block text-sm font-medium"
                   href={s.followed ? `/article/${s.article.id}` : s.article.url}
                 >
                   {s.article.title || s.article.url}
-                </a>{' '}
-                <span className="text-muted">
-                  {s.article.source || hostOf(s.article.url)}
-                  {s.followed ? '' : ' · not in your feeds'}
-                </span>
+                </TextLink>
               </li>
             ))}
           </ul>

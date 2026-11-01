@@ -5,10 +5,14 @@ import { cn } from '@/components/ui/cn';
 
 /** The colours of each kind of button. */
 const VARIANTS = {
-  primary: 'bg-ink text-on-ink hover:bg-ink/85',
-  accent: 'bg-highlight text-on-highlight hover:bg-highlight/90',
-  outline: 'border border-field bg-surface text-ink hover:border-ink',
-  ghost: 'text-ink hover:bg-ink/5',
+  primary: 'bg-ink text-on-ink hover:bg-ink/85 active:bg-ink/75',
+  accent:
+    'bg-highlight text-on-highlight hover:bg-highlight/90 active:bg-highlight/80',
+  outline:
+    'border border-field bg-surface text-ink hover:border-ink hover:bg-ink/5 active:bg-ink/10',
+  ghost: 'text-ink hover:bg-ink/5 active:bg-ink/10',
+  danger:
+    'border border-danger/40 bg-surface text-danger hover:border-danger hover:bg-danger/5 active:bg-danger/10',
 } as const;
 
 /**
@@ -16,6 +20,7 @@ const VARIANTS = {
  * sides, for a text-only button that sits inside a field (the Search button).
  */
 const SIZES = {
+  xs: 'h-8 gap-1.5 px-2.5 text-xs',
   sm: 'h-9 gap-1.5 px-3 text-sm',
   md: 'h-10 gap-2 px-4 text-sm',
   wide: 'h-10 gap-2 px-5 text-sm',
@@ -86,16 +91,122 @@ export function ButtonLink({
   href,
   children,
 }: Look & Readonly<{ href: string; children: ReactNode }>): ReactElement {
-  const classes = buttonClass({ variant, size, className });
-  if (isServerHref(href)) {
+  return (
+    <TextLink
+      href={href}
+      bare
+      className={buttonClass({ variant, size, className })}
+    >
+      {children}
+    </TextLink>
+  );
+}
+
+/** The side of each icon button: a square, so the icon sits centred. */
+const ICON_SIZES = {
+  sm: 'size-8',
+  md: 'size-10',
+} as const;
+
+/**
+ * A button that shows only an icon. `label` is required: it is what a screen
+ * reader says and what the tooltip shows, since there are no words to read.
+ */
+export function IconButton({
+  label,
+  size = 'sm',
+  className,
+  children,
+  ...props
+}: Readonly<
+  {
+    label: string;
+    size?: keyof typeof ICON_SIZES;
+  } & Omit<ComponentProps<'button'>, 'aria-label'>
+>): ReactElement {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      className={cn(
+        'focus-ring inline-flex shrink-0 items-center justify-center rounded-control text-muted transition-colors',
+        'hover:bg-ink/5 hover:text-ink active:bg-ink/10',
+        'disabled:cursor-not-allowed disabled:opacity-50 aria-pressed:text-accent',
+        ICON_SIZES[size],
+        className,
+      )}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+}
+
+/** The colour of each kind of text link. */
+const LINK_TONES = {
+  /** Ink, underlined on hover: a link inside a sentence or a list. */
+  ink: 'text-ink hover:underline',
+  /** Quiet grey that darkens on hover: a secondary link beside other text. */
+  muted: 'text-muted hover:text-ink',
+  /** The accent colour: a call to follow the link. */
+  accent: 'text-accent hover:underline',
+} as const;
+
+/**
+ * A link to an address. Our own pages go through the client router; server
+ * routes and other sites are plain `<a>`, and other sites open in a new tab.
+ * `bare` drops the link look, for a component that styles it itself.
+ */
+export function TextLink({
+  href,
+  tone = 'ink',
+  bare = false,
+  external,
+  className,
+  children,
+  ...props
+}: Readonly<
+  {
+    href: string;
+    tone?: keyof typeof LINK_TONES;
+    bare?: boolean;
+    /** Opens in a new tab; on by default for another site's address. */
+    external?: boolean;
+    className?: string;
+    children: ReactNode;
+  } & Omit<ComponentProps<'a'>, 'href' | 'className' | 'children'>
+>): ReactElement {
+  const classes = bare
+    ? className
+    : cn(
+        'focus-ring rounded-sm underline-offset-4 transition-colors',
+        LINK_TONES[tone],
+        className,
+      );
+  const outside = external ?? /^https?:/.test(href);
+  if (outside) {
     return (
-      <a href={href} className={classes}>
+      <a
+        href={href}
+        className={classes}
+        target="_blank"
+        rel="noopener noreferrer"
+        {...props}
+      >
+        {children}
+      </a>
+    );
+  }
+  if (isServerHref(href) || href.startsWith('mailto:')) {
+    return (
+      <a href={href} className={classes} {...props}>
         {children}
       </a>
     );
   }
   return (
-    <Link href={href} className={classes}>
+    <Link href={href} className={classes} {...props}>
       {children}
     </Link>
   );

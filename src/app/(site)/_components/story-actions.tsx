@@ -9,6 +9,10 @@ import {
   type TrainKind,
 } from '@/app/(site)/_components/story-requests';
 import { PhraseTrainer } from '@/app/(site)/_components/phrase-trainer';
+import { CHIP } from '@/components/ui/badge';
+import { IconButton } from '@/components/ui/button';
+import { Icon } from '@/components/ui/icons';
+import { MENU_ITEM } from '@/components/ui/menu';
 
 /** Something about a story the reader can like or dislike. */
 interface Target {
@@ -17,37 +21,34 @@ interface Target {
   readonly label: string;
 }
 
-/** The look of each control: a small pill, tinted while pressed. */
-export const CHIP =
-  'focus-ring pointer-events-auto relative z-10 inline-flex h-7 items-center gap-1 rounded-full border border-line px-2.5 text-xs font-medium text-muted hover:border-field hover:text-ink aria-pressed:border-accent aria-pressed:text-accent disabled:opacity-50';
+export { CHIP } from '@/components/ui/badge';
 
 /**
- * Thumbs up and down on a story's source, a trainer for its feed, author, tags
- * and phrases of the reader's own (see `PhraseTrainer`), and saving the story.
- * Training reloads the page so the paper is set again; saving flips in place.
- * The trainer opens as a panel (a sheet along the bottom on a phone).
+ * Thumbs up and down on a story's source, and a trainer for its feed, author,
+ * tags and phrases of the reader's own (see `PhraseTrainer`), laid out to sit
+ * inside the story's menu. Training reloads the page so the paper is set
+ * again.
  */
 export function StoryActions({
   articleId,
+  saved = false,
   source,
-  saved,
   feedId,
   author,
   tags = [],
   title = '',
 }: Readonly<{
-  articleId: number;
+  /** With it, the save button is shown alongside (outside a story's menu). */
+  articleId?: number;
+  saved?: boolean;
   source: string;
-  saved: boolean;
   feedId?: number;
   author?: string | null;
   tags?: readonly string[];
   title?: string;
 }>): ReactElement {
   const train = useApiAction(() => window.location.reload());
-  const save = useApiAction();
-  const [isSaved, setIsSaved] = useState(saved);
-  const error = train.error ?? save.error;
+  const error = train.error;
   const targets: Target[] = [
     ...(feedId !== undefined
       ? [{ kind: 'feed' as const, value: String(feedId), label: 'This feed' }]
@@ -83,7 +84,8 @@ export function StoryActions({
     ));
 
   return (
-    <span className="inline-flex flex-wrap items-center gap-1.5">
+    <span className="flex flex-wrap items-center gap-1.5 px-1.5 pt-1">
+      <span className="mr-auto px-1.5 text-xs text-subtle">{source}</span>
       <button
         type="button"
         className={CHIP}
@@ -114,9 +116,9 @@ export function StoryActions({
       >
         👎
       </button>
-      <details className="relative print:hidden">
-        <summary className={CHIP}>Train</summary>
-        <div className="pointer-events-auto fixed inset-x-4 bottom-4 z-20 space-y-2 rounded-card border border-line bg-surface p-4 text-sm shadow-lg sm:absolute sm:inset-x-auto sm:bottom-auto sm:left-0 sm:mt-2 sm:w-80">
+      <details className="w-full print:hidden">
+        <summary className={MENU_ITEM}>Train on this story…</summary>
+        <div className="mt-1 space-y-2 px-3 pb-2 text-sm">
           {targets.map((target) => (
             <span
               key={`${target.kind}:${target.value}`}
@@ -131,9 +133,38 @@ export function StoryActions({
           <PhraseTrainer title={title} />
         </div>
       </details>
-      <button
-        type="button"
-        className={CHIP}
+      {articleId !== undefined ? (
+        <SaveButton articleId={articleId} saved={saved} title={title} />
+      ) : null}
+      {error ? (
+        <span className="w-full px-3 text-xs text-danger" role="alert">
+          {error}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+/**
+ * Save a story for later (or let it go), as a bookmark beside the story's
+ * menu. It flips in place.
+ */
+export function SaveButton({
+  articleId,
+  saved,
+  title,
+}: Readonly<{
+  articleId: number;
+  saved: boolean;
+  title: string;
+}>): ReactElement {
+  const save = useApiAction();
+  const [isSaved, setIsSaved] = useState(saved);
+  return (
+    <>
+      <IconButton
+        label={`${isSaved ? 'Saved' : 'Save'} ${title}`.trim()}
+        className="relative z-10"
         data-action="save"
         disabled={save.busy}
         aria-pressed={isSaved}
@@ -144,16 +175,16 @@ export function StoryActions({
           }, 'Could not save.')
         }
       >
-        {isSaved ? 'Saved' : 'Save'}
-      </button>
-      {error ? (
-        <span
-          className="relative z-10 text-xs text-red-700 dark:text-red-400"
-          role="alert"
-        >
-          {error}
+        <Icon
+          name="bookmark"
+          className={isSaved ? 'size-4.5 fill-current' : 'size-4.5'}
+        />
+      </IconButton>
+      {save.error ? (
+        <span className="text-xs text-danger" role="alert">
+          {save.error}
         </span>
       ) : null}
-    </span>
+    </>
   );
 }

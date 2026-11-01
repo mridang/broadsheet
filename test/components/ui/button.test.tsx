@@ -4,7 +4,9 @@ import {
   Button,
   buttonClass,
   ButtonLink,
+  IconButton,
   isServerHref,
+  TextLink,
 } from '@/components/ui/button';
 import { classOf, html } from '../render';
 
@@ -73,5 +75,49 @@ describe('ButtonLink', () => {
     expect(out).toBe(
       `<a href="/auth/login" class="${buttonClass({})}">Sign in</a>`,
     );
+  });
+});
+
+describe('IconButton', () => {
+  it('is named by its label, out loud and as a tooltip', () => {
+    const out = html(<IconButton label="More actions">⋯</IconButton>);
+    expect(out).toContain('aria-label="More actions"');
+    expect(out).toContain('title="More actions"');
+    expect(out).toContain('type="button"');
+  });
+});
+
+describe('TextLink', () => {
+  it('opens another site in a new tab, safely', () => {
+    const out = html(<TextLink href="https://a.test/">A</TextLink>);
+    expect(out).toContain('target="_blank"');
+    expect(out).toContain('rel="noopener noreferrer"');
+  });
+
+  it('stays in the tab for our own pages and server routes', () => {
+    expect(html(<TextLink href="/feeds">F</TextLink>)).not.toContain('target');
+    expect(html(<TextLink href="/auth/login">In</TextLink>)).toContain(
+      'href="/auth/login"',
+    );
+  });
+
+  it('drops its own look when bare', () => {
+    expect(
+      classOf(
+        html(
+          <TextLink href="/x" bare className="underline">
+            x
+          </TextLink>,
+        ),
+        'a',
+      ),
+    ).toBe('underline');
+  });
+});
+
+describe('the danger and extra-small looks', () => {
+  it('are on the scale', () => {
+    expect(buttonClass({ variant: 'danger' })).toContain('text-danger');
+    expect(buttonClass({ size: 'xs' })).toContain('h-8');
   });
 });

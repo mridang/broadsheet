@@ -82,18 +82,14 @@ export default async function FeedPage({
             ))}
           </ol>
         ) : (
-          <EmptyState title="No stories kept from this feed yet">
+          <EmptyState icon="rss" title="No stories kept from this feed yet">
             They appear after the next fetch.
           </EmptyState>
         )}
         <p className="mt-6 flex gap-2">
           {before !== undefined ? (
             <a
-              className={buttonClass({
-                variant: 'outline',
-                size: 'sm',
-                className: 'border-line',
-              })}
+              className={buttonClass({ variant: 'outline', size: 'sm' })}
               href={`/feeds/${id}`}
             >
               ← Newest
@@ -101,11 +97,7 @@ export default async function FeedPage({
           ) : null}{' '}
           {rows.length > PAGE_SIZE && last ? (
             <a
-              className={buttonClass({
-                variant: 'outline',
-                size: 'sm',
-                className: 'border-line',
-              })}
+              className={buttonClass({ variant: 'outline', size: 'sm' })}
               href={`/feeds/${id}?before=${last.id}`}
             >
               Older →

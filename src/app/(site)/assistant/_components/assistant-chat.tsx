@@ -1,5 +1,8 @@
 'use client';
 
+import { Chip } from '@/components/ui/badge';
+import { TextLink, buttonClass } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useState, type FormEvent, type ReactElement } from 'react';
 
 import {
@@ -10,7 +13,6 @@ import {
 import { useApiAction } from '@/components/api/use-api-action';
 import { Markdown } from '@/components/site/markdown';
 import { MAX_QUESTION_LENGTH } from '@/domain/assistant';
-import { buttonClass } from '@/components/ui/button';
 import { CARD, fieldClass } from '@/components/ui/field';
 import { ErrorText } from '@/components/ui/notice';
 import { cn } from '@/components/ui/cn';
@@ -20,13 +22,13 @@ function TurnView({ turn }: Readonly<{ turn: Turn }>): ReactElement {
   return (
     <div
       className={cn(
-        'max-w-[85%] rounded-card px-4 py-3 text-sm leading-relaxed',
+        'max-w-prose rounded-card px-4 py-3 text-sm leading-relaxed sm:max-w-[85%]',
         turn.role === 'user'
-          ? 'ml-auto bg-ink text-on-ink'
+          ? 'ml-auto w-fit bg-ink/6 text-ink'
           : 'border border-line bg-surface text-ink',
       )}
     >
-      <strong className="block text-xs font-semibold opacity-70">
+      <strong className="block text-xs font-semibold text-subtle">
         {turn.role === 'user' ? 'You' : 'Assistant'}
       </strong>
       <Markdown text={turn.content} className="mt-1 space-y-2" />
@@ -34,12 +36,13 @@ function TurnView({ turn }: Readonly<{ turn: Turn }>): ReactElement {
         <ol className="mt-3 space-y-1 border-t border-line pt-3">
           {turn.citations.map((c) => (
             <li key={c.article_id}>
-              <a
-                className="focus-ring rounded-sm text-xs font-medium text-accent hover:underline"
+              <TextLink
+                tone="accent"
+                className="text-xs font-medium"
                 href={c.href}
               >
                 {c.title || `Story ${c.article_id}`}
-              </a>
+              </TextLink>
             </li>
           ))}
         </ol>
@@ -91,19 +94,9 @@ export function AssistantChat({
       {!turns.length && suggestions.length ? (
         <p className="mb-4 flex flex-wrap gap-2">
           {suggestions.map((question) => (
-            <button
-              key={question}
-              type="button"
-              className={buttonClass({
-                variant: 'outline',
-                size: 'sm',
-                className: 'rounded-full border-line',
-              })}
-              disabled={busy}
-              onClick={() => send(question)}
-            >
+            <Chip key={question} disabled={busy} onClick={() => send(question)}>
               {question}
-            </button>
+            </Chip>
           ))}
         </p>
       ) : null}
@@ -115,7 +108,7 @@ export function AssistantChat({
       <form
         className={cn(
           CARD,
-          'mt-6 flex flex-col gap-2 p-2 sm:flex-row sm:items-center',
+          'mt-6 flex flex-col gap-2 p-2 shadow-raised focus-within:border-field sm:flex-row sm:items-center',
         )}
         onSubmit={submit}
       >
@@ -125,14 +118,21 @@ export function AssistantChat({
           placeholder="Ask about anything in your archive"
           maxLength={MAX_QUESTION_LENGTH}
           required
-          className={fieldClass('w-full border-transparent sm:flex-1')}
+          aria-label="Your question"
+          className={fieldClass(
+            'w-full border-transparent hover:border-transparent sm:flex-1',
+          )}
         />
         <button className={buttonClass({})} type="submit" disabled={busy}>
           Ask
         </button>
       </form>
       {busy ? (
-        <p className="mt-3 text-sm text-muted">Searching your archive…</p>
+        <div className="mt-4 max-w-md space-y-2">
+          <Skeleton className="h-3.5 w-3/4" />
+          <Skeleton className="h-3.5 w-1/2" />
+          <p className="text-sm text-muted">Searching your archive…</p>
+        </div>
       ) : null}
       {error ? <ErrorText>{error}</ErrorText> : null}
     </>

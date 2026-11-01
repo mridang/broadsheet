@@ -26,9 +26,9 @@ export function SidebarLink({
       aria-current={active ? 'page' : undefined}
       href={href}
       className={cn(
-        'focus-ring flex h-9 items-center gap-3 rounded-control px-3 text-sm transition-colors',
+        'focus-ring flex h-9 items-center gap-3 rounded-control px-3 text-sm transition-colors active:bg-ink/10',
         active
-          ? 'bg-ink/[0.07] font-semibold text-ink'
+          ? 'bg-ink/5 font-semibold text-ink'
           : 'text-muted hover:bg-ink/5 hover:text-ink',
       )}
     >

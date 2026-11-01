@@ -40,7 +40,7 @@ export default async function EditionsPage() {
       />
       {editions.length ? null : (
         <div className="mt-8">
-          <EmptyState title="No editions yet">
+          <EmptyState icon="editions" title="No editions yet">
             Make one below to get a second paper beside your daily one.
           </EmptyState>
         </div>
@@ -51,22 +51,33 @@ export default async function EditionsPage() {
             <div className="min-w-0 flex-1">
               <strong className="text-base font-semibold">
                 <a
-                  className="focus-ring rounded-sm hover:text-accent"
+                  className="focus-ring rounded-sm underline-offset-4 hover:underline"
                   href={`/?edition=${e.id}`}
                 >
                   {e.name}
                 </a>
               </strong>
-              <EditionForm
-                draft={{
-                  id: e.id,
-                  name: e.name,
-                  section_ids: e.section_ids,
-                  query: e.query ?? '',
-                  tag: e.tag ?? '',
-                }}
-                sections={options}
-              />
+              <details className="group mt-2">
+                <summary className="focus-ring inline-flex list-none items-center gap-1 rounded-sm text-xs font-medium text-muted transition-colors hover:text-ink [&::-webkit-details-marker]:hidden">
+                  Edit
+                  <span
+                    aria-hidden="true"
+                    className="transition-transform group-open:rotate-90"
+                  >
+                    ›
+                  </span>
+                </summary>
+                <EditionForm
+                  draft={{
+                    id: e.id,
+                    name: e.name,
+                    section_ids: e.section_ids,
+                    query: e.query ?? '',
+                    tag: e.tag ?? '',
+                  }}
+                  sections={options}
+                />
+              </details>
             </div>
             <RemoveEditionButton id={e.id} />
           </li>

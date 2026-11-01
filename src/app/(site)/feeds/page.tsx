@@ -4,17 +4,22 @@ import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/core/auth';
 import { getDatabase } from '@/domain/db/database';
 import { Repository, sectionPath } from '@/domain/repository';
-import { FeedSummary } from '@/components/feeds/feed-summary';
-import { CARD } from '@/components/ui/field';
+import { FeedIcon, FeedSummary } from '@/components/feeds/feed-summary';
+import { Badge } from '@/components/ui/badge';
+import { TextLink } from '@/components/ui/button';
+import { List, ListItem } from '@/components/ui/card';
+import { hostOf } from '@/domain/render/tiers';
 import { EmptyState } from '@/components/ui/notice';
 import { PageHeader, PageSection } from '@/components/ui/page-header';
-import { ROW_LINK } from '@/components/stories/story-row';
 
 import { AddFeedForm } from '@/app/(site)/feeds/_components/add-feed-form';
 import { AddSectionForm } from '@/app/(site)/feeds/_components/add-section-form';
 import { FeedSettingsForm } from '@/app/(site)/feeds/_components/feed-settings-form';
 import { ExportFeedsButton } from '@/app/(site)/feeds/_components/export-feeds-button';
-import { FeedHealth } from '@/app/(site)/feeds/_components/feed-health';
+import {
+  FeedHealth,
+  isBroken,
+} from '@/app/(site)/feeds/_components/feed-health';
 import { ImportFeedsForm } from '@/app/(site)/feeds/_components/import-feeds-form';
 import { RefreshFeedsButton } from '@/app/(site)/feeds/_components/refresh-feeds-button';
 import { RemoveFeedButton } from '@/app/(site)/feeds/_components/remove-feed-button';
@@ -110,8 +115,12 @@ export default async function FeedsPage({
         }
       />
       <div className="mt-8">
-        <AddFeedForm />
-        <ImportFeedsForm />
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+          <div className="min-w-0 sm:flex-1">
+            <AddFeedForm />
+          </div>
+          <ImportFeedsForm />
+        </div>
         {imported.added !== undefined ? (
           <p role="status" className="mt-3 text-sm text-muted">
             Imported {Number(imported.added) || 0} feeds, skipped{' '}
@@ -120,38 +129,74 @@ export default async function FeedsPage({
           </p>
         ) : null}
       </div>
-      <ul className="mt-8 space-y-3">
-        {feeds.map((f) => (
-          <li className={`${CARD} p-5`} key={f.id}>
-            <div className="flex items-start gap-4">
-              <div className="min-w-0 flex-1">
-                <FeedSummary feed={f} />
-              </div>
-              <RemoveFeedButton id={f.id} />
-            </div>
-            <div className="mt-4 space-y-3 border-t border-line pt-4">
-              <FeedHealth
-                id={f.id}
-                statistics={stats.get(f.id)}
-                counts={counts.get(f.id)}
-              />
-              <FeedSettingsForm
-                id={f.id}
-                url={f.url}
-                title={f.title ?? ''}
-                muted={f.muted}
-                sectionId={f.section_id}
-                sections={options}
-              />
-              <a className={ROW_LINK} href={`/feeds/${f.id}`}>
-                Stories &amp; details →
-              </a>
-            </div>
-          </li>
-        ))}
-      </ul>
+      {feeds.length ? (
+        <List label="Feeds you follow" className="mt-8">
+          {feeds.map((f) => {
+            const statistics = stats.get(f.id);
+            const stories = statistics
+              ? statistics.stories_per_day.reduce((n, d) => n + d.count, 0)
+              : 0;
+            return (
+              <ListItem
+                key={f.id}
+                leading={<FeedIcon feed={f} />}
+                title={
+                  <TextLink href={`/feeds/${f.id}`}>
+                    {f.title || hostOf(f.url)}
+                  </TextLink>
+                }
+                detail={`${hostOf(f.url)} · ${stories} ${stories === 1 ? 'story' : 'stories'} this week`}
+                actions={
+                  <>
+                    {statistics && isBroken(statistics) ? (
+                      <Badge tone="danger">Failing</Badge>
+                    ) : null}
+                    {f.muted ? <Badge>Muted</Badge> : null}
+                    <RemoveFeedButton id={f.id} />
+                  </>
+                }
+              >
+                <details className="group mt-3 sm:pl-11">
+                  <summary className="focus-ring inline-flex list-none items-center gap-1 rounded-sm text-xs font-medium text-muted transition-colors hover:text-ink [&::-webkit-details-marker]:hidden">
+                    Settings &amp; details
+                    <span
+                      aria-hidden="true"
+                      className="transition-transform group-open:rotate-90"
+                    >
+                      ›
+                    </span>
+                  </summary>
+                  <div className="mt-4 space-y-4 rounded-control bg-ink/3 p-4">
+                    <FeedSummary feed={f} />
+                    <FeedHealth
+                      id={f.id}
+                      statistics={statistics}
+                      counts={counts.get(f.id)}
+                    />
+                    <FeedSettingsForm
+                      id={f.id}
+                      url={f.url}
+                      title={f.title ?? ''}
+                      muted={f.muted}
+                      sectionId={f.section_id}
+                      sections={options}
+                    />
+                    <TextLink
+                      href={`/feeds/${f.id}`}
+                      tone="muted"
+                      className="text-sm"
+                    >
+                      Stories &amp; details →
+                    </TextLink>
+                  </div>
+                </details>
+              </ListItem>
+            );
+          })}
+        </List>
+      ) : null}
       {feeds.length ? null : (
-        <EmptyState title="No feeds yet">
+        <EmptyState icon="rss" title="No feeds yet">
           Add an RSS/Atom feed URL above.
         </EmptyState>
       )}
@@ -164,17 +209,15 @@ export default async function FeedsPage({
       >
         <AddSectionForm sections={options} />
         {options.length ? (
-          <ul className={`${CARD} mt-4 divide-y divide-line`}>
+          <List label="Sections" className="mt-4">
             {options.map((s) => (
-              <li
-                className="flex items-center justify-between gap-4 px-5 py-3"
+              <ListItem
                 key={s.id}
-              >
-                <strong className="text-sm font-semibold">{s.name}</strong>
-                <RemoveSectionButton id={s.id} />
-              </li>
+                title={s.name}
+                actions={<RemoveSectionButton id={s.id} />}
+              />
             ))}
-          </ul>
+          </List>
         ) : null}
       </PageSection>
     </div>

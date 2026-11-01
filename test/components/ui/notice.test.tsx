@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { EmptyState, ErrorText } from '@/components/ui/notice';
+import { EmptyState, ErrorText, Notice } from '@/components/ui/notice';
 import { html } from '../render';
 
 describe('EmptyState', () => {
@@ -21,5 +21,24 @@ describe('ErrorText', () => {
     expect(html(<ErrorText>Broke</ErrorText>)).toMatch(
       /<p role="alert"[^>]*>Broke<\/p>/,
     );
+  });
+});
+
+describe('EmptyState with an icon', () => {
+  it('draws the icon above the title', () => {
+    const out = html(<EmptyState title="Nothing saved" icon="bookmark" />);
+    expect(out.indexOf('<svg')).toBeLessThan(out.indexOf('Nothing saved'));
+  });
+});
+
+describe('Notice', () => {
+  it('takes its colours from the tone and its role from the caller', () => {
+    const out = html(
+      <Notice tone="danger" role="alert">
+        Failed
+      </Notice>,
+    );
+    expect(out).toContain('role="alert"');
+    expect(out).toContain('text-danger');
   });
 });

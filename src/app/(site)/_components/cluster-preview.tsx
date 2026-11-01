@@ -1,3 +1,4 @@
+import { Badge } from '@/components/ui/badge';
 import type { Sibling } from '@/domain/render/layout';
 import { ago, hostOf } from '@/domain/render/tiers';
 import { pictureSrc } from '@/domain/render/pictures';
@@ -16,11 +17,10 @@ export function ClusterBadge({
 }: Readonly<{ siblings: readonly Sibling[] }>) {
   const n = siblings.length;
   return (
-    <span
-      className="inline-flex h-5 shrink-0 items-center rounded-full bg-accent/10 px-2 text-[11px] font-semibold text-accent"
-      title={`Also told by ${siblings.map((s) => s.source).join(', ')}`}
-    >
-      +{n} {n === 1 ? 'source' : 'sources'}
+    <span title={`Also told by ${siblings.map((s) => s.source).join(', ')}`}>
+      <Badge tone="accent">
+        +{n} {n === 1 ? 'source' : 'sources'}
+      </Badge>
     </span>
   );
 }
@@ -89,7 +89,7 @@ export function ClusterPreview({
                 </span>
                 <span
                   className={cn(
-                    'shrink-0 rounded-full px-1.5 text-[10px] font-semibold tracking-wide uppercase',
+                    'shrink-0 rounded-full px-1.5 text-label font-semibold uppercase',
                     s.tier === 'title'
                       ? 'bg-accent/10 text-accent'
                       : 'bg-ink/5 text-muted',
@@ -120,7 +120,7 @@ export function ClusterPreview({
                 src={pictures[i]}
                 alt=""
                 loading="lazy"
-                className="h-14 w-20 shrink-0 rounded-sm bg-ink/5 object-cover"
+                className="h-14 w-20 shrink-0 rounded-control bg-ink/5 object-cover"
               />
             ) : null}
           </a>

@@ -132,7 +132,7 @@ export default async function TrendingPage({
         <p className="mt-6 text-sm text-muted">That list could not be read.</p>
       ) : !items.length ? (
         <div className="mt-8">
-          <EmptyState title="Nothing is trending here yet." />
+          <EmptyState icon="trending" title="Nothing is trending here yet." />
         </div>
       ) : null}
       {items.length ? (
@@ -159,11 +159,7 @@ export default async function TrendingPage({
       {last ? (
         <p className="mt-6">
           <a
-            className={buttonClass({
-              variant: 'outline',
-              size: 'sm',
-              className: 'border-line',
-            })}
+            className={buttonClass({ variant: 'outline', size: 'sm' })}
             href={`/trending?${more}`}
           >
             More →

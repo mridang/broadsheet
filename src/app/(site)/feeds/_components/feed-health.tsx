@@ -30,10 +30,7 @@ export function FeedHealth({
   return (
     <div className="text-xs text-subtle">
       {isBroken(statistics) ? (
-        <strong
-          role="alert"
-          className="font-semibold text-red-700 dark:text-red-400"
-        >
+        <strong role="alert" className="mb-2 block font-semibold text-danger">
           Broken: {statistics.fail_count} fetches failed
           {statistics.last_error ? ` (${statistics.last_error})` : ''}.{' '}
           <RetryFeedButton id={id} />{' '}

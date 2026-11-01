@@ -1,6 +1,10 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { PageHeader, PageSection } from '@/components/ui/page-header';
+import {
+  PageHeader,
+  PageSection,
+  SectionHeader,
+} from '@/components/ui/page-header';
 import { html } from '../render';
 
 describe('PageHeader', () => {
@@ -32,5 +36,23 @@ describe('PageSection', () => {
     );
     expect(out).toMatch(/<section aria-labelledby="stories"/);
     expect(out).toMatch(/<h2 id="stories"[^>]*>Stories<\/h2>/);
+  });
+});
+
+describe('SectionHeader', () => {
+  it('heads a group with its actions beside it', () => {
+    const out = html(
+      <SectionHeader
+        id="s"
+        title="Popular"
+        actions={<a href="/all">See all</a>}
+      />,
+    );
+    expect(out).toContain('<h2 id="s"');
+    expect(out).toContain('See all');
+  });
+
+  it('can be a third-level heading', () => {
+    expect(html(<SectionHeader as="h3" title="x" />)).toContain('<h3');
   });
 });

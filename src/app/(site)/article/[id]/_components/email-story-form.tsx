@@ -1,11 +1,13 @@
 'use client';
 
+import { ROW_LINK } from '@/components/stories/story-row';
 import { useState, type FormEvent, type ReactElement } from 'react';
 
 import { problemError } from '@/components/api/problem-message';
 import { useApiAction } from '@/components/api/use-api-action';
-import { buttonClass } from '@/components/ui/button';
-import { CARD, CHECK_LABEL, CHECKBOX, fieldClass } from '@/components/ui/field';
+import { Button, TextLink } from '@/components/ui/button';
+import { Input, Textarea } from '@/components/ui/input';
+import { CARD, CHECK_LABEL, CHECKBOX } from '@/components/ui/field';
 import { ErrorText } from '@/components/ui/notice';
 
 /** The body a filled-in email form posts. */
@@ -54,7 +56,9 @@ export function EmailStoryForm({
   };
   return (
     <details className="group">
-      <summary className="focus-ring inline-flex list-none items-center gap-1 rounded-sm font-medium text-subtle hover:text-ink [&::-webkit-details-marker]:hidden">
+      <summary
+        className={`${ROW_LINK} list-none [&::-webkit-details-marker]:hidden`}
+      >
         Email this story
       </summary>
       {sent ? (
@@ -64,27 +68,25 @@ export function EmailStoryForm({
           className={`${CARD} mt-3 grid w-full gap-3 p-4 sm:w-96`}
           onSubmit={submit}
         >
-          <input
+          <Input
             name="to"
             type="text"
             placeholder="Addresses, separated by commas"
             aria-label="Who to send it to"
             required
-            className={fieldClass()}
           />
-          <input
+          <Input
             name="from_name"
             type="text"
             maxLength={200}
             placeholder="Your name"
             aria-label="The name to send it under"
-            className={fieldClass()}
           />
-          <textarea
+          <Textarea
             name="comment"
             maxLength={2048}
             aria-label="A note"
-            className={fieldClass('h-20 py-2')}
+            className="h-20"
           />
           <label className={CHECK_LABEL}>
             <input
@@ -95,22 +97,17 @@ export function EmailStoryForm({
             />{' '}
             Send me a copy
           </label>
-          <button
-            className={buttonClass({
-              size: 'sm',
-              className: 'justify-self-start',
-            })}
+          <Button
+            size="sm"
+            className="justify-self-start"
             type="submit"
             disabled={busy}
           >
             Send
-          </button>
-          <a
-            className="focus-ring rounded-sm text-sm text-subtle hover:text-ink"
-            href={mailto}
-          >
+          </Button>
+          <TextLink tone="muted" className="text-sm" href={mailto}>
             Use my own mail app
-          </a>
+          </TextLink>
         </form>
       )}
       {error ? <ErrorText>{error}</ErrorText> : null}

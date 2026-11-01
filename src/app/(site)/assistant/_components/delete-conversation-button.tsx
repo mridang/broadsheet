@@ -18,7 +18,7 @@ export function DeleteConversationButton({
     <div>
       <button
         type="button"
-        className={buttonClass({ variant: 'ghost', size: 'sm' })}
+        className={buttonClass({ variant: 'danger', size: 'xs' })}
         disabled={busy}
         onClick={() =>
           void run(

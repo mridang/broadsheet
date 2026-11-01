@@ -43,7 +43,7 @@ describe('ReadingPreferences', () => {
         markReadOnScroll={false}
       />,
     );
-    expect(/type="checkbox"[^>]*checked/.test(out)).toBe(ticked);
+    expect(/type="checkbox"[^>]*checked=""/.test(out)).toBe(ticked);
   });
 });
 
@@ -75,6 +75,8 @@ describe('ReadingPreferences mark-read-on-scroll', () => {
         markReadOnScroll={on}
       />,
     );
-    expect(out.match(/type="checkbox"[^>]*checked/g)?.length ?? 0).toBe(ticked);
+    expect(out.match(/type="checkbox"[^>]*checked=""/g)?.length ?? 0).toBe(
+      ticked,
+    );
   });
 });

@@ -2,7 +2,8 @@ import type { Metadata } from 'next';
 
 import { LegalLinks } from '@/app/(site)/_components/legal-links';
 import { BrandMark } from '@/components/site/logo';
-import { buttonClass } from '@/components/ui/button';
+import { ButtonLink } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,7 +21,10 @@ export default async function LoginPage({
   const { error } = await searchParams;
 
   return (
-    <div className="mx-auto mt-6 max-w-md rounded-card border border-line bg-surface px-6 py-10 text-center shadow-sm sm:mt-16 sm:px-10">
+    <Card
+      className="mx-auto mt-6 max-w-md px-6 py-10 text-center shadow-raised sm:mt-16 sm:px-10"
+      padding="none"
+    >
       <BrandMark className="mx-auto size-10" />
       <h1 className="mt-5 text-2xl font-semibold tracking-tight">Sign in</h1>
       <p className="mt-2 text-sm text-muted">
@@ -28,19 +32,17 @@ export default async function LoginPage({
       </p>
       {error === 'auth' ? (
         <p
-          className="mt-4 rounded-control bg-red-50 px-3 py-2 text-sm text-red-800 dark:bg-red-950 dark:text-red-300"
+          className="mt-4 rounded-control border border-danger/30 bg-danger/5 px-3 py-2 text-sm text-danger"
           role="alert"
         >
           Signing in did not go through. Please try again.
         </p>
       ) : null}
       <div className="mt-8">
-        <a
-          className={buttonClass({
-            variant: 'outline',
-            size: 'lg',
-            className: 'w-full border-line',
-          })}
+        <ButtonLink
+          variant="outline"
+          size="lg"
+          className="w-full"
           href="/auth/login"
         >
           <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
@@ -62,11 +64,11 @@ export default async function LoginPage({
             />
           </svg>
           Sign in with Google
-        </a>
+        </ButtonLink>
       </div>
       <div className="mt-8 text-xs text-subtle">
         <LegalLinks />
       </div>
-    </div>
+    </Card>
   );
 }

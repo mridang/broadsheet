@@ -8,7 +8,8 @@ import {
   type NotificationRequest,
 } from '@/app/(site)/settings/_components/settings-requests';
 import { buttonClass } from '@/components/ui/button';
-import { CHECK_LABEL, CHECKBOX, fieldClass } from '@/components/ui/field';
+import { CHECK_LABEL, CHECKBOX } from '@/components/ui/field';
+import { Select } from '@/components/ui/input';
 import { ErrorText } from '@/components/ui/notice';
 
 /** The request a filled-in notification form makes. */
@@ -45,18 +46,18 @@ export function FeedNotificationForm({
       className="flex flex-wrap items-center gap-x-4 gap-y-2"
       onSubmit={submit}
     >
-      <strong className="w-full truncate text-sm font-semibold sm:w-auto sm:flex-1">
+      <strong className="w-full truncate text-sm font-medium text-ink sm:w-auto sm:flex-1">
         {title}
       </strong>
-      <select
+      <Select
         name="filter"
+        size="sm"
         defaultValue={filter}
         aria-label={`Which new stories in ${title} notify you`}
-        className={fieldClass('h-9')}
       >
         <option value="unread">Any story not disliked</option>
         <option value="focus">Only liked stories</option>
-      </select>
+      </Select>
       {(['web', 'email', 'webhook'] as const).map((channel) => (
         <label key={channel} className={CHECK_LABEL}>
           <input
@@ -74,7 +75,7 @@ export function FeedNotificationForm({
         </label>
       ))}
       <button
-        className={buttonClass({ variant: 'outline', size: 'sm' })}
+        className={buttonClass({ variant: 'outline', size: 'xs' })}
         type="submit"
         disabled={busy}
       >

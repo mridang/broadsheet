@@ -6,7 +6,7 @@ import { followFeed } from '@/app/(site)/feeds/_components/feed-requests';
 import { useFeedAction } from '@/app/(site)/feeds/_components/use-feed-action';
 import { hostOf } from '@/domain/render/tiers';
 import { buttonClass } from '@/components/ui/button';
-import { CARD } from '@/components/ui/field';
+import { List } from '@/components/ui/card';
 import { ErrorText } from '@/components/ui/notice';
 import { PageSection } from '@/components/ui/page-header';
 
@@ -23,9 +23,9 @@ function SuggestionRow({
 }: Readonly<{ feed: SuggestedFeed }>): ReactElement {
   const { busy, error, run } = useFeedAction();
   return (
-    <li className="flex items-start justify-between gap-4 px-5 py-4">
+    <li className="flex items-center justify-between gap-4 px-4 py-3.5 sm:px-5">
       <div className="min-w-0">
-        <strong className="text-sm font-semibold">
+        <strong className="text-sm font-medium">
           {feed.title || hostOf(feed.url)}
         </strong>
         <div className="truncate text-xs text-subtle">{feed.url}</div>
@@ -37,7 +37,7 @@ function SuggestionRow({
       </div>
       <button
         type="button"
-        className={buttonClass({ size: 'sm' })}
+        className={buttonClass({ variant: 'outline', size: 'sm' })}
         disabled={busy}
         onClick={() =>
           void run(() => followFeed(feed.url), 'Could not follow that feed.')
@@ -56,11 +56,11 @@ export function SuggestedFeeds({
   if (!feeds.length) return null;
   return (
     <PageSection id="suggested" title="You might also like">
-      <ul className={`${CARD} divide-y divide-line`}>
+      <List>
         {feeds.map((feed) => (
           <SuggestionRow key={feed.url} feed={feed} />
         ))}
-      </ul>
+      </List>
     </PageSection>
   );
 }

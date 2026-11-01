@@ -21,18 +21,14 @@ export function ExportFeedsButton(): ReactElement {
     <>
       <button
         type="button"
-        className={buttonClass({
-          variant: 'outline',
-          size: 'sm',
-          className: 'border-line',
-        })}
+        className={buttonClass({ variant: 'outline', size: 'sm' })}
         disabled={busy}
         onClick={() => void run(download, 'Could not export the feeds.')}
       >
         Export OPML
       </button>
       {error ? (
-        <span role="alert" className="text-sm text-red-700 dark:text-red-400">
+        <span role="alert" className="text-sm text-danger">
           {' '}
           {error}
         </span>

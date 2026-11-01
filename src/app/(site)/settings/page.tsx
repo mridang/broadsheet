@@ -17,7 +17,7 @@ import { ReadingPreferences } from '@/app/(site)/settings/_components/reading-pr
 import { PushSettings } from '@/app/(site)/settings/_components/push-settings';
 import { RemoveWebhookButton } from '@/app/(site)/settings/_components/remove-webhook-button';
 import { RevokeTokenButton } from '@/app/(site)/settings/_components/revoke-token-button';
-import { CARD } from '@/components/ui/field';
+import { List, ListItem } from '@/components/ui/card';
 import { PageHeader, PageSection } from '@/components/ui/page-header';
 
 export const dynamic = 'force-dynamic';
@@ -58,13 +58,11 @@ export default async function SettingsPage() {
   const settings = new Map(notifying.map((n) => [n.feed_id, n]));
   const names = new Map(sections.map((s) => [s.id, s.name]));
 
-  const list = `${CARD} mt-4 divide-y divide-line`;
-  const row = 'flex items-center justify-between gap-4 px-5 py-3';
   return (
     <div className="max-w-3xl">
       <PageHeader
         title="Settings"
-        description="Notifications, webhooks and private feeds."
+        description="Reading, notifications, webhooks and private feeds."
       />
       <PageSection
         id="reading"
@@ -96,9 +94,9 @@ export default async function SettingsPage() {
         description="Be told about new stories in a feed: by push to the browsers above, by email, or as a webhook. At most three stories a feed each day."
       >
         {feeds.length ? (
-          <ul className={`${CARD} divide-y divide-line`}>
+          <List label="Feeds">
             {feeds.map((f) => (
-              <li key={f.id} className="px-5 py-3">
+              <li key={f.id} className="px-4 py-3.5 sm:px-5">
                 <FeedNotificationForm
                   feedId={f.id}
                   title={f.title || hostOf(f.url)}
@@ -107,7 +105,7 @@ export default async function SettingsPage() {
                 />
               </li>
             ))}
-          </ul>
+          </List>
         ) : null}
       </PageSection>
       <PageSection
@@ -123,22 +121,16 @@ export default async function SettingsPage() {
           sections={sections.map((s) => ({ id: s.id, name: s.name }))}
         />
         {rules.length ? (
-          <ul className={list}>
+          <List label="Story rules" className="mt-4">
             {rules.map((rule) => (
-              <li className={row} key={rule.id}>
-                <div className="min-w-0">
-                  <strong className="block truncate text-sm font-semibold">
-                    {rule.kind} {rule.is_regex ? 'matches' : 'has'} “
-                    {rule.value}”
-                  </strong>
-                  <div className="text-xs text-subtle">
-                    {rule.channels.join(', ')}
-                  </div>
-                </div>
-                <RemoveRuleButton id={rule.id} />
-              </li>
+              <ListItem
+                key={rule.id}
+                title={`${rule.kind} ${rule.is_regex ? 'matches' : 'has'} “${rule.value}”`}
+                detail={rule.channels.join(', ')}
+                actions={<RemoveRuleButton id={rule.id} />}
+              />
             ))}
-          </ul>
+          </List>
         ) : null}
       </PageSection>
       <PageSection
@@ -148,21 +140,16 @@ export default async function SettingsPage() {
       >
         <AddWebhookForm />
         {hooks.length ? (
-          <ul className={list}>
+          <List label="Webhooks" className="mt-4">
             {hooks.map((h) => (
-              <li className={row} key={h.id}>
-                <div className="min-w-0">
-                  <strong className="block truncate text-sm font-semibold">
-                    {h.url}
-                  </strong>
-                  <div className="text-xs text-subtle">
-                    {h.events.join(', ')}
-                  </div>
-                </div>
-                <RemoveWebhookButton id={h.id} />
-              </li>
+              <ListItem
+                key={h.id}
+                title={h.url}
+                detail={h.events.join(', ')}
+                actions={<RemoveWebhookButton id={h.id} />}
+              />
             ))}
-          </ul>
+          </List>
         ) : null}
       </PageSection>
       <PageSection
@@ -174,16 +161,15 @@ export default async function SettingsPage() {
           sections={sections.map((s) => ({ id: s.id, name: s.name }))}
         />
         {tokens.length ? (
-          <ul className={list}>
+          <List label="Private feeds" className="mt-4">
             {tokens.map((t) => (
-              <li className={row} key={t.id}>
-                <strong className="text-sm font-semibold">
-                  {scopeText(t, names)}
-                </strong>
-                <RevokeTokenButton id={t.id} />
-              </li>
+              <ListItem
+                key={t.id}
+                title={scopeText(t, names)}
+                actions={<RevokeTokenButton id={t.id} />}
+              />
             ))}
-          </ul>
+          </List>
         ) : null}
       </PageSection>
     </div>

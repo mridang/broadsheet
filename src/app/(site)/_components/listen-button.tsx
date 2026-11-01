@@ -59,10 +59,13 @@ export function ListenButton({
   articleId,
   text,
   title,
+  className = CHIP,
 }: Readonly<{
   articleId: number;
   text: string;
   title: string;
+  /** The look of both buttons: a chip by default, a menu row in a menu. */
+  className?: string;
 }>): ReactElement | null {
   // Support is only known in the browser, so the server renders no button.
   const reader = useSyncExternalStore(subscribe, browserReader, () => null);
@@ -79,7 +82,7 @@ export function ListenButton({
     <>
       <button
         type="button"
-        className={cn(CHIP, 'print:hidden')}
+        className={cn(className, 'print:hidden')}
         data-action="listen"
         data-article-id={articleId}
         aria-pressed={playing}
@@ -114,7 +117,7 @@ export function ListenButton({
       </button>
       <button
         type="button"
-        className={cn(CHIP, 'print:hidden')}
+        className={cn(className, 'print:hidden')}
         data-action="queue"
         aria-pressed={queued}
         aria-label={`${queued ? 'Take out of the queue' : 'Queue'} ${title}`}

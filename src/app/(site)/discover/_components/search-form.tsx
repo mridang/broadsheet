@@ -33,12 +33,9 @@ export function SearchForm({
         defaultValue={query}
         maxLength={200}
         placeholder={placeholder}
-        className={fieldClass('h-11 w-full text-base sm:flex-1')}
+        className={fieldClass('w-full sm:flex-1')}
       />
-      <button
-        type="submit"
-        className={buttonClass({ size: 'wide', className: 'h-11' })}
-      >
+      <button type="submit" className={buttonClass({ size: 'wide' })}>
         Search
       </button>
     </form>

@@ -1,6 +1,8 @@
 import { formatEdition } from '@/domain/render/tiers';
 import { buttonClass } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
+import { Icon } from '@/components/ui/icons';
+import { MENU_ITEM } from '@/components/ui/menu';
 
 /** The look of the previous- and next-day arrows. */
 const ARROW = buttonClass({
@@ -65,15 +67,18 @@ export function EditionBar({
               'list-none [&::-webkit-details-marker]:hidden',
             )}
           >
-            🗓
+            <Icon name="editions" className="size-4" />
           </summary>
-          <div className="absolute right-0 z-20 mt-2 max-h-80 w-56 overflow-y-auto rounded-card border border-line bg-surface p-1 shadow-lg">
+          <div className="absolute right-0 z-20 mt-1.5 max-h-80 w-56 overflow-y-auto rounded-card border border-line bg-surface p-1.5 shadow-overlay">
             {editions.map((d) => (
               <a
                 key={d}
                 href={`/edition/${d}`}
                 aria-current={d === selected ? 'page' : undefined}
-                className="focus-ring block rounded-control px-3 py-2 text-sm text-muted hover:bg-ink/5 hover:text-ink aria-[current=page]:bg-ink/[0.07] aria-[current=page]:font-semibold aria-[current=page]:text-ink"
+                className={cn(
+                  MENU_ITEM,
+                  'text-muted aria-[current=page]:bg-ink/[0.07] aria-[current=page]:font-semibold aria-[current=page]:text-ink',
+                )}
               >
                 {formatEdition(d)}
               </a>

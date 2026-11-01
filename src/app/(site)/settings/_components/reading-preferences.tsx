@@ -1,9 +1,12 @@
 'use client';
 
-import { useState, type ReactElement } from 'react';
+import { useState, type ReactElement, type ReactNode } from 'react';
 
 import { ensureOk } from '@/components/api/problem-message';
 import { useApiAction } from '@/components/api/use-api-action';
+import { Card } from '@/components/ui/card';
+import { Input, Select, Toggle } from '@/components/ui/input';
+import { ErrorText } from '@/components/ui/notice';
 
 /** The intelligence levels, as the reader picks them. */
 const LEVELS = [
@@ -45,10 +48,13 @@ export function ReadingPreferences({
     }, 'Could not save the preference.');
 
   return (
-    <div>
-      <label>
-        Show{' '}
-        <select
+    <Card padding="none" className="divide-y divide-line">
+      <SettingRow
+        label="Show"
+        description="How much of the paper your training lets through."
+      >
+        <Select
+          aria-label="Which stories to show"
           value={level}
           disabled={action.busy}
           onChange={(e) => {
@@ -61,52 +67,77 @@ export function ReadingPreferences({
               {label}
             </option>
           ))}
-        </select>
-      </label>
-      <p>
-        <label>
-          <input
-            type="checkbox"
-            checked={onOpen}
-            disabled={action.busy}
-            onChange={(e) => {
-              setOnOpen(e.target.checked);
-              void save({ mark_read_on_open: e.target.checked });
-            }}
-          />{' '}
-          Mark a story read when I open it
-        </label>
-      </p>
-      <p>
-        <label>
-          <input
-            type="checkbox"
-            checked={onScroll}
-            disabled={action.busy}
-            onChange={(e) => {
-              setOnScroll(e.target.checked);
-              void save({ mark_read_on_scroll: e.target.checked });
-            }}
-          />{' '}
-          Mark stories read as I scroll past them
-        </label>
-      </p>
-      <p>
-        <label>
-          Count stories as read after{' '}
-          <input
+        </Select>
+      </SettingRow>
+      <div className="px-5 py-4">
+        <Toggle
+          label="Mark a story read when I open it"
+          checked={onOpen}
+          disabled={action.busy}
+          onChange={(e) => {
+            setOnOpen(e.target.checked);
+            void save({ mark_read_on_open: e.target.checked });
+          }}
+        />
+      </div>
+      <div className="px-5 py-4">
+        <Toggle
+          label="Mark stories read as I scroll past them"
+          checked={onScroll}
+          disabled={action.busy}
+          onChange={(e) => {
+            setOnScroll(e.target.checked);
+            void save({ mark_read_on_scroll: e.target.checked });
+          }}
+        />
+      </div>
+      <SettingRow
+        label="Count stories as read after"
+        description="In days; 0 never marks them."
+      >
+        <span className="inline-flex items-center gap-2 text-sm text-muted">
+          <Input
             type="number"
+            aria-label="Days until stories count as read"
+            className="w-20"
             min={0}
             max={365}
             value={days}
             disabled={action.busy}
             onChange={(e) => setDays(e.target.value)}
             onBlur={() => void save({ auto_mark_read_days: Number(days) })}
-          />{' '}
-          days (0 never)
-        </label>
-      </p>
-      {action.error ? <p role="alert">{action.error}</p> : null}
+          />
+          days
+        </span>
+      </SettingRow>
+      {action.error ? (
+        <div className="px-5 pb-4">
+          <ErrorText>{action.error}</ErrorText>
+        </div>
+      ) : null}
+    </Card>
+  );
+}
+
+/** One setting: its words on the left, its control on the right. */
+function SettingRow({
+  label,
+  description,
+  children,
+}: Readonly<{
+  label: string;
+  description?: string;
+  children: ReactNode;
+}>): ReactElement {
+  return (
+    <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-ink">{label}</p>
+        {description ? (
+          <p className="mt-0.5 text-xs text-subtle">{description}</p>
+        ) : null}
+      </div>
+      <div className="shrink-0">{children}</div>
     </div>
   );
 }

@@ -30,7 +30,7 @@ describe('SavedSearches', () => {
         ]}
       />,
     );
-    expect(out).toContain('<a href="/search?q=rust">rust</a>');
+    expect(out).toMatch(/<a [^>]*href="\/search\?q=rust">rust<\/a>/);
     expect(out).toContain('Remove</button>');
   });
 });

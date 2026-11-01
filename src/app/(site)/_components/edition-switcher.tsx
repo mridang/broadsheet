@@ -1,12 +1,13 @@
+import { CHIP } from '@/components/ui/badge';
+
 /** A custom edition the switcher links to. */
 export interface EditionLink {
   readonly id: number;
   readonly name: string;
 }
 
-/** The look of each paper's tab. */
-const TAB =
-  'focus-ring inline-flex h-8 shrink-0 items-center rounded-full px-3.5 text-sm font-medium text-muted hover:bg-ink/5 hover:text-ink aria-[current=page]:bg-ink aria-[current=page]:text-on-ink';
+/** The look of each paper's tab: a chip, filled in ink while current. */
+const TAB = CHIP;
 
 /**
  * The row of papers above the front page: the daily one, each custom edition
@@ -19,7 +20,7 @@ export function EditionSwitcher({
 }: Readonly<{ editions: readonly EditionLink[]; selected?: number }>) {
   return (
     <nav
-      className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1 print:hidden"
+      className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 print:hidden"
       aria-label="Editions"
     >
       <a

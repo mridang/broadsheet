@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
 import { getCurrentUser } from '@/lib/core/auth';
@@ -12,7 +11,8 @@ import { ShareButton } from '@/app/(site)/_components/share-button';
 import { StoryRow } from '@/components/stories/story-row';
 import { EmptyState } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
-import { cn } from '@/components/ui/cn';
+import { Tabs } from '@/components/ui/tabs';
+import { TextLink } from '@/components/ui/button';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,10 +21,6 @@ export const metadata: Metadata = { title: 'Shared stories' };
 
 /** How many shares a page shows. */
 const PAGE = 20;
-
-/** A tab over the shares, as a link that keeps its place in the list. */
-const TAB =
-  'focus-ring inline-flex h-8 items-center rounded-full border px-3.5 text-sm font-medium';
 
 /**
  * The stories people shared, newest first, as NewsBlur's global shared
@@ -72,32 +68,18 @@ export default async function SharedPage({
         title={named ? `Shared by ${named}` : 'Shared stories'}
         description="Stories readers passed on, with what they said about them."
       />
-      <nav aria-label="Whose shares" className="mt-6 flex flex-wrap gap-2">
-        {(
-          [
-            ['/shared', 'Everyone', who === undefined],
-            [
-              '/shared?user=self',
-              'Yours',
-              who === 'self' || sharer === user.id,
-            ],
-          ] as const
-        ).map(([href, label, current]) => (
-          <Link
-            key={href}
-            href={href}
-            aria-current={current ? 'page' : undefined}
-            className={cn(
-              TAB,
-              current
-                ? 'border-ink bg-ink text-on-ink'
-                : 'border-line text-muted hover:border-field hover:text-ink',
-            )}
-          >
-            {label}
-          </Link>
-        ))}
-      </nav>
+      <Tabs
+        label="Whose shares"
+        className="mt-6"
+        tabs={[
+          { label: 'Everyone', href: '/shared', current: who === undefined },
+          {
+            label: 'Yours',
+            href: '/shared?user=self',
+            current: who === 'self' || sharer === user.id,
+          },
+        ]}
+      />
       {shares.length ? (
         <ul className="mt-8 divide-y divide-line border-y border-line">
           {shares.map((s) => (
@@ -118,18 +100,18 @@ export default async function SharedPage({
               <span className="flex min-w-0 basis-full flex-col gap-1">
                 <span>
                   Shared by{' '}
-                  <Link
+                  <TextLink
                     href={
                       s.sharer.id === user.id
                         ? '/shared?user=self'
                         : `/shared?user=${s.sharer.id}`
                     }
-                    className="focus-ring rounded-sm font-medium text-ink hover:underline"
+                    className="font-medium"
                   >
                     {s.sharer.id === user.id
                       ? 'you'
                       : s.sharer.name || 'a reader'}
-                  </Link>
+                  </TextLink>
                 </span>
                 {s.comments ? (
                   <q className="block border-l-2 border-accent pl-3 text-ink/90 not-italic">
@@ -149,7 +131,7 @@ export default async function SharedPage({
         </ul>
       ) : (
         <div className="mt-8">
-          <EmptyState title="Nothing shared yet">
+          <EmptyState icon="share" title="Nothing shared yet">
             {who === undefined
               ? 'When readers share a story, it shows up here.'
               : 'Share a story from the front page and it shows up here.'}
@@ -158,20 +140,18 @@ export default async function SharedPage({
       )}
       <div className="mt-6 flex gap-3 text-sm">
         {before !== undefined ? (
-          <Link
-            href={params({})}
-            className="focus-ring rounded-sm font-medium text-accent hover:underline"
-          >
+          <TextLink tone="accent" className="font-medium" href={params({})}>
             ← Newest
-          </Link>
+          </TextLink>
         ) : null}
         {more ? (
-          <Link
+          <TextLink
+            tone="accent"
+            className="ml-auto font-medium"
             href={params({ before: String(more.id) })}
-            className="focus-ring ml-auto rounded-sm font-medium text-accent hover:underline"
           >
             Older shares →
-          </Link>
+          </TextLink>
         ) : null}
       </div>
     </div>

@@ -49,14 +49,17 @@ export function FeedSettingsForm({
   };
   return (
     <>
-      <form className="flex flex-wrap items-center gap-2" onSubmit={submit}>
+      <form
+        className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto] sm:items-center"
+        onSubmit={submit}
+      >
         <input
           name="title"
           type="text"
           aria-label="Name"
           defaultValue={title}
           maxLength={200}
-          className={fieldClass('w-full sm:w-auto sm:flex-1')}
+          className={fieldClass('w-full sm:col-span-4')}
         />
         <input
           name="url"
@@ -64,6 +67,7 @@ export function FeedSettingsForm({
           aria-label="Address"
           defaultValue={url}
           maxLength={2048}
+          className={fieldClass('w-full')}
         />
         <select
           name="section_id"

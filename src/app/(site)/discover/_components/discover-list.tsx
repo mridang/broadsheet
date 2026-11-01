@@ -2,7 +2,7 @@ import type { ReactElement } from 'react';
 
 import { FollowButton } from '@/app/(site)/discover/_components/follow-button';
 import { hostOf } from '@/domain/render/tiers';
-import { CARD } from '@/components/ui/field';
+import { List } from '@/components/ui/card';
 
 /** A feed Discover found, ready to show: its picture is already a served address. */
 export interface DiscoveredFeed {
@@ -24,7 +24,7 @@ function DiscoverRow({
 }: Readonly<{ feed: DiscoveredFeed }>): ReactElement {
   const meta = (feed.meta ?? []).filter(Boolean).join(' · ');
   return (
-    <li className="flex items-start gap-4 px-5 py-4">
+    <li className="flex items-start gap-4 px-4 py-3.5 sm:px-5">
       {feed.picture ? (
         <img
           className="size-12 shrink-0 rounded-control bg-ink/5 object-cover"
@@ -34,10 +34,10 @@ function DiscoverRow({
         />
       ) : null}
       <div className="min-w-0 flex-1">
-        <strong className="text-sm font-semibold text-ink">
+        <strong className="text-sm font-medium text-ink">
           {feed.link ? (
             <a
-              className="focus-ring rounded-sm hover:text-accent"
+              className="focus-ring rounded-sm underline-offset-4 hover:underline"
               href={feed.link}
               target="_blank"
               rel="noopener noreferrer"
@@ -64,10 +64,10 @@ export function DiscoverList({
   feeds,
 }: Readonly<{ feeds: readonly DiscoveredFeed[] }>): ReactElement {
   return (
-    <ul className={`${CARD} divide-y divide-line`}>
+    <List>
       {feeds.map((feed) => (
         <DiscoverRow key={feed.url} feed={feed} />
       ))}
-    </ul>
+    </List>
   );
 }

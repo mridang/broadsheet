@@ -31,7 +31,7 @@ export function AddFeedForm(): ReactElement {
           required
         />
         <button className={buttonClass({})} type="submit" disabled={busy}>
-          Add
+          Add feed
         </button>
       </form>
       {error ? <ErrorText>{error}</ErrorText> : null}

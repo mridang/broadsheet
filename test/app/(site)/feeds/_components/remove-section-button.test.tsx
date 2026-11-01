@@ -6,7 +6,7 @@ import { html } from '../../../../components/render';
 describe('RemoveSectionButton', () => {
   it('removes a section, or it and its feeds, with plain buttons, not a form', () => {
     expect(html(<RemoveSectionButton id={3} />)).toMatch(
-      /^<div><button type="button" class="[^"]*">Remove<\/button><button type="button" class="[^"]*">Remove with feeds<\/button><\/div>$/,
+      /^<div class="[^"]*"><button type="button" class="[^"]*">Remove<\/button><button type="button" class="[^"]*">Remove with feeds<\/button><\/div>$/,
     );
   });
 });

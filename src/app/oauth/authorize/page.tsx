@@ -14,7 +14,8 @@ import {
   type AuthorizeParams,
 } from '@/lib/oauth';
 import { BrandMark } from '@/components/site/logo';
-import { buttonClass } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 
 export const dynamic = 'force-dynamic';
 
@@ -63,13 +64,16 @@ export default async function AuthorizePage({
   if (!check.ok) {
     return (
       <main id="main" className="px-4">
-        <div className="mx-auto my-10 max-w-md rounded-card border border-line bg-surface px-6 py-10 shadow-sm sm:my-20 sm:px-10">
+        <Card
+          padding="none"
+          className="mx-auto my-10 max-w-md px-6 py-10 shadow-raised sm:my-20 sm:px-10"
+        >
           <h1 className="text-2xl font-semibold tracking-tight">
             Can&apos;t connect this app
           </h1>
           <p className="mt-3 text-sm text-muted">{check.description}</p>
           <p className="mt-2 text-sm text-muted">Error: {check.error}</p>
-        </div>
+        </Card>
       </main>
     );
   }
@@ -89,7 +93,10 @@ export default async function AuthorizePage({
   const { client, redirectUri, scope } = check.request;
   return (
     <main id="main" className="px-4">
-      <div className="mx-auto my-10 max-w-md rounded-card border border-line bg-surface px-6 py-10 shadow-sm sm:my-20 sm:px-10">
+      <Card
+        padding="none"
+        className="mx-auto my-10 max-w-md px-6 py-10 shadow-raised sm:my-20 sm:px-10"
+      >
         <BrandMark className="size-10" />
         <h1 className="mt-5 text-2xl font-semibold tracking-tight">
           Connect {client.name}
@@ -116,24 +123,19 @@ export default async function AuthorizePage({
               ? []
               : [<input key={name} type="hidden" name={name} value={value} />];
           })}
-          <button
-            className={buttonClass({})}
-            type="submit"
-            name="decision"
-            value="approve"
-          >
+          <Button type="submit" name="decision" value="approve">
             Approve
-          </button>{' '}
-          <button
-            className={buttonClass({ variant: 'outline' })}
+          </Button>{' '}
+          <Button
+            variant="outline"
             type="submit"
             name="decision"
             value="cancel"
           >
             Cancel
-          </button>
+          </Button>
         </form>
-      </div>
+      </Card>
     </main>
   );
 }

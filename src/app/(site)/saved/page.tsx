@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import { Badge, CHIP } from '@/components/ui/badge';
+import { TextLink } from '@/components/ui/button';
 import { redirect } from 'next/navigation';
 
 import { getCurrentUser } from '@/lib/core/auth';
@@ -40,26 +42,34 @@ export default async function SavedPage({
         title={`Saved stories${tag ? ` tagged “${tag}”` : ''}`}
         description={
           tag ? (
-            <a
-              className="focus-ring rounded-sm font-medium text-accent hover:underline"
-              href="/saved"
-            >
+            <TextLink tone="accent" href="/saved">
               All saved stories
-            </a>
+            </TextLink>
           ) : (
             'The stories you kept, newest first.'
           )
         }
       />
-      {tag ? <TagControls tag={tag} /> : null}
+      {tag ? (
+        <div className="mt-6">
+          <TagControls tag={tag} />
+        </div>
+      ) : null}
       {tags.length ? (
-        <p>
+        <nav aria-label="Tags" className="mt-6 flex flex-wrap gap-2">
           {tags.map((t) => (
-            <a key={t.tag} href={`/saved?tag=${encodeURIComponent(t.tag)}`}>
-              {t.tag} ({t.count}){' '}
-            </a>
+            <TextLink
+              bare
+              key={t.tag}
+              href={`/saved?tag=${encodeURIComponent(t.tag)}`}
+              aria-current={t.tag === tag ? 'page' : undefined}
+              className={CHIP}
+            >
+              {t.tag}
+              <span className="tabular-nums opacity-70">{t.count}</span>
+            </TextLink>
           ))}
-        </p>
+        </nav>
       ) : null}
       {saves.length ? (
         <ul className="mt-8 divide-y divide-line border-y border-line">
@@ -76,13 +86,14 @@ export default async function SavedPage({
               }}
             >
               {tags.map((t) => (
-                <a
+                <TextLink
+                  bare
                   key={t}
-                  className="focus-ring rounded-full bg-ink/[0.07] px-2.5 py-0.5 text-xs font-medium text-muted hover:bg-ink/10 hover:text-ink"
+                  className="focus-ring rounded-full"
                   href={`/saved?tag=${encodeURIComponent(t)}`}
                 >
-                  {t}
-                </a>
+                  <Badge>{t}</Badge>
+                </TextLink>
               ))}
               <StoryActions
                 articleId={article.id}
@@ -94,7 +105,7 @@ export default async function SavedPage({
         </ul>
       ) : (
         <div className="mt-8">
-          <EmptyState title="Nothing saved yet">
+          <EmptyState icon="bookmark" title="Nothing saved yet">
             Press Save on a story to keep it here.
           </EmptyState>
         </div>

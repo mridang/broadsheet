@@ -1,3 +1,5 @@
+import { EmptyState } from '@/components/ui/notice';
+import { SectionHeader } from '@/components/ui/page-header';
 import type { Article } from '@/domain/repository';
 import type { LaidDesk } from '@/domain/render/layout';
 import {
@@ -82,18 +84,20 @@ export function Section({
 
   return (
     <section data-desk="" className="mt-12 first:mt-0">
-      <div className="mb-5 flex items-baseline gap-3 border-b border-line pb-3">
-        <h3 className="text-lg font-semibold tracking-tight text-ink">
-          {desk.title}
-        </h3>
-        <span className="hidden truncate text-sm text-subtle sm:inline">
-          {hostOf(desk.url)}
-        </span>
-        <span className="ml-auto shrink-0 text-xs text-subtle tabular-nums">
-          {stories.length} {stories.length === 1 ? 'item' : 'items'}
-        </span>
-        {personal ? <MarkFeedReadButton feedId={desk.feed_id} /> : null}
-      </div>
+      <SectionHeader
+        as="h3"
+        className="mb-5 border-b border-line pb-3"
+        title={desk.title}
+        description={
+          <span className="text-subtle">
+            {hostOf(desk.url)} · {stories.length}{' '}
+            {stories.length === 1 ? 'item' : 'items'}
+          </span>
+        }
+        actions={
+          personal ? <MarkFeedReadButton feedId={desk.feed_id} /> : undefined
+        }
+      />
       {stories.length ? (
         <div className="grid gap-6 sm:grid-cols-2">
           {main.map((s) => (
@@ -115,9 +119,9 @@ export function Section({
           {briefs.length ? <BriefBlock items={briefs} /> : null}
         </div>
       ) : (
-        <p className="text-sm text-muted">
-          No articles yet — they&rsquo;ll appear after the next refresh.
-        </p>
+        <EmptyState title="No stories yet">
+          They&rsquo;ll appear after the next refresh.
+        </EmptyState>
       )}
     </section>
   );

@@ -14,7 +14,7 @@ export function MostRead({
       className="rounded-card border border-line bg-surface p-5 print:hidden"
       aria-label="Most read"
     >
-      <h2 className="text-xs font-semibold tracking-wide text-subtle uppercase">
+      <h2 className="text-label font-semibold text-subtle uppercase">
         Most read
       </h2>
       <ol className="mt-3 space-y-4">
@@ -28,7 +28,7 @@ export function MostRead({
             </span>
             <div className="min-w-0">
               <a
-                className="focus-ring rounded-sm text-sm leading-snug font-medium text-ink hover:text-accent"
+                className="focus-ring rounded-control text-sm leading-snug font-medium text-ink hover:text-accent"
                 href={`/article/${article.id}`}
               >
                 {article.title ?? article.url}

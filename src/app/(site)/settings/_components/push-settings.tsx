@@ -9,7 +9,8 @@ import {
   type PushEnvironment,
 } from '@/components/site/service-worker';
 import { buttonClass } from '@/components/ui/button';
-import { ErrorText } from '@/components/ui/notice';
+import { Card } from '@/components/ui/card';
+import { ErrorText, Notice } from '@/components/ui/notice';
 
 /** Where this browser stands with pushes. */
 type PushState = 'unsupported' | 'loading' | 'off' | { readonly id: string };
@@ -50,11 +51,7 @@ export function PushSettings({
   }, [subscriptions]);
 
   if (state === 'unsupported') {
-    return (
-      <p className="text-sm text-muted">
-        This browser cannot receive notifications.
-      </p>
-    );
+    return <Notice>This browser cannot receive notifications.</Notice>;
   }
   const on = typeof state === 'object';
   const toggle = (): Promise<void> =>
@@ -75,11 +72,20 @@ export function PushSettings({
         : 'Could not turn notifications on.',
     );
   return (
-    <>
-      <p>
+    <Card padding="none">
+      <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-ink">This browser</p>
+          <p className="mt-0.5 text-xs text-subtle">
+            {on ? 'Notified when your paper is ready.' : 'Not notified.'}
+          </p>
+        </div>
         <button
           type="button"
-          className={buttonClass({})}
+          className={buttonClass({
+            variant: on ? 'outline' : 'primary',
+            size: 'sm',
+          })}
           disabled={busy || state === 'loading'}
           onClick={() => void toggle()}
         >
@@ -87,8 +93,12 @@ export function PushSettings({
             ? 'Stop notifying this browser'
             : 'Notify this browser when my paper is ready'}
         </button>
-      </p>
-      {error ? <ErrorText>{error}</ErrorText> : null}
-    </>
+      </div>
+      {error ? (
+        <div className="px-5 pb-4">
+          <ErrorText>{error}</ErrorText>
+        </div>
+      ) : null}
+    </Card>
   );
 }

@@ -22,7 +22,7 @@ export function FollowButton({
       <button
         type="button"
         className={buttonClass({
-          variant: followed ? 'outline' : 'primary',
+          variant: followed ? 'ghost' : 'outline',
           size: 'sm',
         })}
         disabled={busy || followed}

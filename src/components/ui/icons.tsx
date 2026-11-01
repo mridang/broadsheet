@@ -21,6 +21,15 @@ const PATHS = {
   share: 'M12 15V3m0 0L8 7m4-4 4 4M5 12v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-7',
   external:
     'M14 4h6v6m0-6-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5',
+  more: 'M5 12h.01M12 12h.01M19 12h.01',
+  close: 'M6 6l12 12M18 6 6 18',
+  check: 'M5 12.5 10 17l9-10',
+  plus: 'M12 5v14M5 12h14',
+  trash: 'M4 7h16M10 11v6m4-6v6M6 7l1 13h10l1-13M9 7V4h6v3',
+  chevron: 'M9 6l6 6-6 6',
+  headphones:
+    'M4 15v-3a8 8 0 0 1 16 0v3M4 15a2 2 0 0 1 2-2h1v7H6a2 2 0 0 1-2-2zm16 0a2 2 0 0 0-2-2h-1v7h1a2 2 0 0 0 2-2z',
+  queue: 'M4 6h12M4 12h12M4 18h8m8-4v6m-3-3h6',
 } as const;
 
 /** The names of the icons there are. */

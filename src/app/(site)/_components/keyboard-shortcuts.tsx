@@ -262,7 +262,7 @@ export function KeyboardShortcuts(): ReactElement {
     <>
       <dialog
         ref={help}
-        className="m-auto max-h-[85dvh] w-[min(26rem,calc(100vw-2rem))] rounded-card border border-line bg-surface p-6 text-ink shadow-xl backdrop:bg-black/40"
+        className="m-auto max-h-[85dvh] w-full max-w-md rounded-card border border-line bg-surface p-6 text-ink shadow-overlay backdrop:bg-black/40 max-sm:max-w-[calc(100vw-2rem)]"
         aria-labelledby="keyhelp-title"
       >
         <h2 id="keyhelp-title" className="text-lg font-semibold">
@@ -272,7 +272,7 @@ export function KeyboardShortcuts(): ReactElement {
           {SHORTCUTS.map(([keys, does]) => (
             <div key={keys} className="flex gap-4 py-2">
               <dt className="w-24 shrink-0">
-                <kbd className="rounded border border-line bg-ink/5 px-1.5 py-0.5 font-mono text-xs">
+                <kbd className="rounded-control border border-line bg-ink/5 px-1.5 py-0.5 font-mono text-xs">
                   {keys}
                 </kbd>
               </dt>
@@ -291,7 +291,7 @@ export function KeyboardShortcuts(): ReactElement {
       </dialog>
       <dialog
         ref={picker}
-        className="m-auto w-[min(26rem,calc(100vw-2rem))] rounded-card border border-line bg-surface p-6 text-ink shadow-xl backdrop:bg-black/40"
+        className="m-auto w-full max-w-md rounded-card border border-line bg-surface p-6 text-ink shadow-overlay backdrop:bg-black/40 max-sm:max-w-[calc(100vw-2rem)]"
         aria-labelledby="goto-title"
       >
         <h2 id="goto-title" className="text-lg font-semibold">

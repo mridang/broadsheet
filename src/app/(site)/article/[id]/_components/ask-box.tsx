@@ -1,5 +1,8 @@
 'use client';
 
+import { Chip } from '@/components/ui/badge';
+import { Input, Select } from '@/components/ui/input';
+import { SectionHeader } from '@/components/ui/page-header';
 import { useRef, useState, type FormEvent, type ReactElement } from 'react';
 
 import {
@@ -17,8 +20,8 @@ import {
   MAX_QUESTION_LENGTH,
   PRESET_QUESTIONS,
 } from '@/domain/assistant';
-import { buttonClass } from '@/components/ui/button';
-import { CARD, CHECKBOX, CHECK_LABEL, fieldClass } from '@/components/ui/field';
+import { Button } from '@/components/ui/button';
+import { CARD, CHECKBOX, CHECK_LABEL } from '@/components/ui/field';
 import { ErrorText } from '@/components/ui/notice';
 
 /**
@@ -63,22 +66,16 @@ export function AskBox({ id }: Readonly<{ id: number }>): ReactElement {
       className={`${CARD} mt-12 p-5 sm:p-6`}
       aria-label="Ask about this story"
     >
-      <h2 className="text-base font-semibold">Ask about this story</h2>
+      <SectionHeader as="h2" title="Ask about this story" />
       <p className="mt-3 flex flex-wrap gap-2">
         {PRESET_QUESTIONS.map((preset) => (
-          <button
+          <Chip
             key={preset.id}
-            type="button"
-            className={buttonClass({
-              variant: 'outline',
-              size: 'sm',
-              className: 'rounded-full border-line',
-            })}
             disabled={busy}
             onClick={() => ask({ question_id: preset.id }, false)}
           >
             {preset.label}
-          </button>
+          </Chip>
         ))}
       </p>
       {turns.map((turn, i) => (
@@ -95,7 +92,7 @@ export function AskBox({ id }: Readonly<{ id: number }>): ReactElement {
         </div>
       ))}
       <form className="mt-4 flex flex-col gap-2 sm:flex-row" onSubmit={submit}>
-        <input
+        <Input
           name="question"
           type="text"
           placeholder={
@@ -105,7 +102,7 @@ export function AskBox({ id }: Readonly<{ id: number }>): ReactElement {
           }
           maxLength={MAX_QUESTION_LENGTH}
           required
-          className={fieldClass('w-full sm:flex-1')}
+          className="w-full sm:flex-1"
           ref={field}
         />
         <VoiceButton
@@ -114,15 +111,15 @@ export function AskBox({ id }: Readonly<{ id: number }>): ReactElement {
             if (field.current) field.current.value = text;
           }}
         />
-        <button className={buttonClass({})} type="submit" disabled={busy}>
+        <Button type="submit" disabled={busy}>
           Ask
-        </button>
+        </Button>
       </form>
       <p className="mt-3 flex flex-wrap items-center gap-4">
         <label className={CHECK_LABEL}>
           Model
-          <select
-            className={fieldClass('h-9')}
+          <Select
+            size="sm"
             value={model}
             onChange={(event) =>
               setModel(event.currentTarget.value as AnswerModelName)
@@ -133,7 +130,7 @@ export function AskBox({ id }: Readonly<{ id: number }>): ReactElement {
                 {name}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label className={CHECK_LABEL}>
           <input

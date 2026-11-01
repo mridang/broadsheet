@@ -1,6 +1,11 @@
 import type { Article } from '@/domain/repository';
 import { pictureSrc } from '@/domain/render/pictures';
-import { StoryActions } from '@/app/(site)/_components/story-actions';
+import {
+  SaveButton,
+  StoryActions,
+} from '@/app/(site)/_components/story-actions';
+import { Icon } from '@/components/ui/icons';
+import { MENU_ITEM, Menu, MenuDivider } from '@/components/ui/menu';
 import { ListenButton } from '@/app/(site)/_components/listen-button';
 import { ShareButton } from '@/app/(site)/_components/share-button';
 import { StoryChanges } from '@/app/(site)/_components/story-changes';
@@ -38,8 +43,8 @@ const LOOK: Record<
     title: 'text-2xl leading-tight sm:text-3xl',
   },
   feature: {
-    card: 'flex flex-col overflow-hidden rounded-card border border-line bg-surface',
-    photo: 'aspect-video w-full',
+    card: 'flex flex-col rounded-card border border-line bg-surface transition-shadow hover:shadow-raised',
+    photo: 'aspect-video w-full rounded-t-card',
     title: 'text-lg leading-snug',
   },
   standard: {
@@ -51,7 +56,11 @@ const LOOK: Record<
 
 /** A small control or link at the foot of a story, above the link that covers it. */
 export const FOOT_LINK =
-  'focus-ring pointer-events-auto relative z-10 rounded-sm font-medium text-subtle hover:text-ink';
+  'focus-ring pointer-events-auto relative z-10 rounded-control font-medium text-subtle transition-colors hover:text-ink';
+
+/** The look of the button that opens a story's menu: a quiet icon button. */
+const MORE =
+  'focus-ring inline-flex size-8 items-center justify-center rounded-control text-muted transition-colors hover:bg-ink/5 hover:text-ink active:bg-ink/10 group-open:bg-ink/5 group-open:text-ink';
 
 /**
  * One story. Its tier decides how much room it gets (a lead spans the desk
@@ -103,7 +112,7 @@ export async function StoryCard({
     <article
       className={cn(
         'group relative min-w-0 transition-opacity data-read:opacity-55',
-        'print:break-inside-avoid print:after:block print:after:text-[9px] print:after:wrap-anywhere print:after:text-ink/70 print:after:content-[attr(data-url)]',
+        'print:break-inside-avoid print:after:block print:after:text-label print:after:wrap-anywhere print:after:text-ink/70 print:after:content-[attr(data-url)]',
         look.card,
       )}
       data-story=""
@@ -138,7 +147,7 @@ export async function StoryCard({
         <p className="flex items-center gap-2 text-xs font-medium text-subtle">
           {icon ? (
             <img
-              className="size-4 rounded-sm"
+              className="size-4 rounded-control"
               loading="lazy"
               src={icon}
               alt=""
@@ -189,40 +198,61 @@ export async function StoryCard({
             current={article.summary ?? ''}
           />
         ) : null}
-        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-          <span className="text-subtle print:hidden">Read full story ↗</span>
-          {article.body_text ? (
-            <a
-              className={FOOT_LINK}
-              data-action="full-text"
-              href={`/article/${article.id}`}
-            >
-              Full text
-            </a>
-          ) : null}
-          <ListenButton
-            articleId={article.id}
-            title={article.title ?? ''}
-            text={spokenText(article.title ?? '', ex)}
-          />
+        <div className="mt-3 flex items-center gap-1">
+          <span className="mr-auto text-xs font-medium text-subtle print:hidden">
+            Read full story ↗
+          </span>
           {personal ? (
-            <ShareButton
+            <SaveButton
               articleId={article.id}
-              shared={shared}
-              title={article.title ?? ''}
-            />
-          ) : null}
-          {personal ? (
-            <StoryActions
-              articleId={article.id}
-              source={source}
               saved={saved}
-              feedId={feedId}
-              author={article.author}
-              tags={tagsOf(article.tags)}
               title={article.title ?? ''}
             />
           ) : null}
+          <Menu
+            label="More actions"
+            className="pointer-events-auto relative z-10 print:hidden"
+            triggerClassName={MORE}
+            trigger={<Icon name="more" />}
+            width="w-72"
+          >
+            {article.body_text ? (
+              <a
+                className={MENU_ITEM}
+                data-action="full-text"
+                href={`/article/${article.id}`}
+              >
+                Full text
+              </a>
+            ) : null}
+            <ListenButton
+              articleId={article.id}
+              title={article.title ?? ''}
+              text={spokenText(article.title ?? '', ex)}
+              className={MENU_ITEM}
+            />
+            {personal ? (
+              <ShareButton
+                articleId={article.id}
+                shared={shared}
+                title={article.title ?? ''}
+                inline
+                summaryClassName={MENU_ITEM}
+              />
+            ) : null}
+            {personal ? (
+              <>
+                <MenuDivider />
+                <StoryActions
+                  source={source}
+                  feedId={feedId}
+                  author={article.author}
+                  tags={tagsOf(article.tags)}
+                  title={article.title ?? ''}
+                />
+              </>
+            ) : null}
+          </Menu>
         </div>
       </div>
     </article>

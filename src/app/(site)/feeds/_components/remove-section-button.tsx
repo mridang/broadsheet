@@ -5,7 +5,6 @@ import type { ReactElement } from 'react';
 import { removeSection } from '@/app/(site)/feeds/_components/feed-requests';
 import { useFeedAction } from '@/app/(site)/feeds/_components/use-feed-action';
 import { buttonClass } from '@/components/ui/button';
-import { ErrorText } from '@/components/ui/notice';
 
 /**
  * "Remove" on a section of the feed manager, which keeps its feeds, and
@@ -16,14 +15,9 @@ export function RemoveSectionButton({
   id,
 }: Readonly<{ id: number }>): ReactElement {
   const { busy, error, run } = useFeedAction();
-  const className = buttonClass({
-    variant: 'ghost',
-    size: 'sm',
-    className:
-      'text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950',
-  });
+  const className = buttonClass({ variant: 'danger', size: 'xs' });
   return (
-    <div>
+    <div className="flex flex-wrap gap-2">
       <button
         type="button"
         className={className}
@@ -47,7 +41,11 @@ export function RemoveSectionButton({
       >
         Remove with feeds
       </button>
-      {error ? <ErrorText>{error}</ErrorText> : null}
+      {error ? (
+        <span role="alert" className="basis-full text-sm text-danger">
+          {error}
+        </span>
+      ) : null}
     </div>
   );
 }

@@ -5,6 +5,8 @@ import { useState, type ReactElement } from 'react';
 import { ensureOk } from '@/components/api/problem-message';
 import { useApiAction } from '@/components/api/use-api-action';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { ErrorText } from '@/components/ui/notice';
 
 const path = (tag: string) =>
   `/api/users/self/saves/tags/${encodeURIComponent(tag)}`;
@@ -20,6 +22,7 @@ export function TagControls({ tag }: Readonly<{ tag: string }>): ReactElement {
 
   return (
     <form
+      className="flex flex-wrap items-center gap-2"
       onSubmit={(event) => {
         event.preventDefault();
         void action.run(async () => {
@@ -34,16 +37,19 @@ export function TagControls({ tag }: Readonly<{ tag: string }>): ReactElement {
         }, 'Could not rename the tag.');
       }}
     >
-      <label>
-        Rename tag{' '}
-        <input value={name} onChange={(e) => setName(e.target.value)} />
-      </label>{' '}
-      <Button type="submit" variant="outline" size="sm" disabled={action.busy}>
-        Rename
-      </Button>{' '}
-      <Button
-        variant="ghost"
+      <Input
         size="sm"
+        aria-label="Rename tag"
+        className="w-40"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+      />
+      <Button type="submit" variant="outline" size="xs" disabled={action.busy}>
+        Rename
+      </Button>
+      <Button
+        variant="danger"
+        size="xs"
         disabled={action.busy}
         onClick={() =>
           void action.run(async () => {
@@ -54,7 +60,11 @@ export function TagControls({ tag }: Readonly<{ tag: string }>): ReactElement {
       >
         Delete tag
       </Button>
-      {action.error ? <p role="alert">{action.error}</p> : null}
+      {action.error ? (
+        <div className="basis-full">
+          <ErrorText>{action.error}</ErrorText>
+        </div>
+      ) : null}
     </form>
   );
 }

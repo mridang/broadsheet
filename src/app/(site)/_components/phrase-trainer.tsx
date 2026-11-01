@@ -3,17 +3,16 @@
 import { useState, type ReactElement } from 'react';
 
 import { useApiAction } from '@/components/api/use-api-action';
-import { CHIP } from '@/app/(site)/_components/story-actions';
+import { CHIP } from '@/components/ui/badge';
 import {
   train,
   type TrainKind,
   type TrainScore,
 } from '@/app/(site)/_components/story-requests';
-import { CHECKBOX, CHECK_LABEL } from '@/components/ui/field';
+import { CHECKBOX, CHECK_LABEL, fieldClass } from '@/components/ui/field';
 
 /** A small field, sized to sit beside the trainer's pills. */
-const SMALL_FIELD =
-  'focus-ring-flush h-8 rounded-control border border-field bg-surface px-2 text-xs text-ink';
+const SMALL_FIELD = fieldClass(undefined, 'sm');
 
 /** What a phrase can be matched against, as NewsBlur's trainer offers. */
 const KINDS: ReadonlyArray<readonly [TrainKind, string]> = [
@@ -105,10 +104,7 @@ export function PhraseTrainer({
         </button>
       ))}
       {action.error ? (
-        <span
-          className="basis-full text-xs text-red-700 dark:text-red-400"
-          role="alert"
-        >
+        <span className="basis-full text-xs text-danger" role="alert">
           {action.error}
         </span>
       ) : null}

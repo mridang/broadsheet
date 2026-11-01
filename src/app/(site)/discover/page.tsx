@@ -25,7 +25,7 @@ import { pictureSrc } from '@/domain/render/pictures';
 import { getCurrentUser } from '@/lib/core/auth';
 import { imageSigner } from '@/lib/cloudflare/images/server';
 import { ButtonLink } from '@/components/ui/button';
-import { cn } from '@/components/ui/cn';
+import { CHIP } from '@/components/ui/badge';
 import { EmptyState, ErrorText } from '@/components/ui/notice';
 import { PageHeader, PageSection } from '@/components/ui/page-header';
 
@@ -269,12 +269,7 @@ export default async function DiscoverPage({
               key={k}
               href={`/discover?tab=sites&kind=${k}`}
               aria-current={k === kind ? 'page' : undefined}
-              className={cn(
-                'focus-ring inline-flex h-8 items-center rounded-full border px-3 text-sm font-medium',
-                k === kind
-                  ? 'border-ink bg-ink text-on-ink'
-                  : 'border-line text-muted hover:border-field hover:text-ink',
-              )}
+              className={CHIP}
             >
               {label}
             </Link>
@@ -297,6 +292,7 @@ export default async function DiscoverPage({
           <DiscoverList feeds={found.feeds} />
         ) : found.failed ? null : (
           <EmptyState
+            icon="compass"
             title={
               tab === 'podcasts' && !q
                 ? 'Search for a podcast to follow.'

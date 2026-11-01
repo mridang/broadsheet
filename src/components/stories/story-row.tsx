@@ -61,7 +61,7 @@ export async function StoryRow({
           src={thumb}
           alt=""
           loading="lazy"
-          className="h-16 w-24 shrink-0 rounded-control bg-ink/5 object-cover sm:h-24 sm:w-36"
+          className="h-16 w-24 shrink-0 rounded-card bg-ink/5 object-cover sm:h-24 sm:w-36"
         />
       ) : null}
     </li>
@@ -70,4 +70,4 @@ export async function StoryRow({
 
 /** A quiet text link under a story row, such as "Original". */
 export const ROW_LINK =
-  'focus-ring inline-flex items-center gap-1 rounded-sm font-medium text-subtle hover:text-ink';
+  'focus-ring inline-flex h-8 items-center gap-1.5 rounded-control px-2 -mx-2 text-sm font-medium text-muted transition-colors hover:bg-ink/5 hover:text-ink active:bg-ink/10';

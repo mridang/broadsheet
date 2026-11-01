@@ -11,6 +11,7 @@ import { pictureSrc } from '@/domain/render/pictures';
 import { hostOf } from '@/domain/render/tiers';
 import type { Feed } from '@/domain/repository';
 import { imageSigner } from '@/lib/cloudflare/images/server';
+import { Badge } from '@/components/ui/badge';
 import { cn } from '@/components/ui/cn';
 
 /** A stored timestamp as a short date and time, or the text unchanged. */
@@ -23,6 +24,31 @@ function when(stored: string): string {
         timeStyle: 'short',
         timeZone: 'UTC',
       }) + ' UTC';
+}
+
+/** A feed's icon, signed for the image proxy, or a blank tile without one. */
+export async function FeedIcon({
+  feed,
+}: {
+  readonly feed: Pick<Feed, 'icon'>;
+}): Promise<ReactElement> {
+  const icon = feed.icon
+    ? await pictureSrc(feed.icon, 64, imageSigner())
+    : null;
+  return icon ? (
+    <img
+      src={icon}
+      alt=""
+      width={32}
+      height={32}
+      className="size-8 shrink-0 rounded-control bg-ink/5"
+    />
+  ) : (
+    <span
+      className="block size-8 shrink-0 rounded-control bg-ink/10"
+      aria-hidden="true"
+    />
+  );
 }
 
 /**
@@ -87,11 +113,7 @@ export async function FeedSummary({
           ) : (
             <strong className="text-base font-semibold">{name}</strong>
           )}{' '}
-          {feed.format ? (
-            <span className="rounded-full bg-ink/[0.07] px-2 py-0.5 text-[0.7rem] font-semibold tracking-wide text-muted uppercase">
-              {formatName(feed.format)}
-            </span>
-          ) : null}
+          {feed.format ? <Badge>{formatName(feed.format)}</Badge> : null}
         </div>
         {feed.description ? (
           <p className="mt-1.5 text-sm leading-relaxed text-muted">

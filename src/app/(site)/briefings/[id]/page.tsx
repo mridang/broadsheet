@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { TextLink } from '@/components/ui/button';
 import { notFound, redirect } from 'next/navigation';
 
 import { getCurrentUser } from '@/lib/core/auth';
@@ -50,12 +51,13 @@ export default async function BriefingPage({
 
   return (
     <article className="max-w-3xl">
-      <a
+      <TextLink
+        tone="muted"
         href="/briefings"
-        className="focus-ring rounded-sm text-sm font-medium text-subtle hover:text-ink print:hidden"
+        className="text-sm font-medium print:hidden"
       >
         ← All briefings
-      </a>
+      </TextLink>
       <PageHeader
         className="mt-4"
         title={b.title}

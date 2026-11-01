@@ -44,9 +44,7 @@ export function FeedMetadata({
         <div key={i} className={nested ? 'min-w-0' : 'min-w-0 px-5 py-3'}>
           <dt className="text-xs font-medium text-subtle">
             {elementLabel(e.name)}{' '}
-            <code className="font-mono text-[0.7rem] text-subtle">
-              {e.name}
-            </code>
+            <code className="font-mono text-xs text-subtle">{e.name}</code>
           </dt>
           <dd className="mt-0.5 wrap-break-word text-ink">
             {e.text ? <Value text={e.text} /> : null}

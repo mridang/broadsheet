@@ -1,4 +1,6 @@
 import type { SavedSearch } from '@/domain/repository';
+import { TextLink } from '@/components/ui/button';
+import { List, ListItem } from '@/components/ui/card';
 import { RemoveSearchButton } from '@/app/(site)/search/_components/remove-search-button';
 
 /** Where a saved search runs: the search page with its words and feed. */
@@ -14,15 +16,16 @@ export function SavedSearches({
 }: Readonly<{ searches: readonly SavedSearch[] }>) {
   if (!searches.length) return null;
   return (
-    <nav aria-label="Saved searches">
-      <ul>
+    <nav aria-label="Saved searches" className="mt-6">
+      <List>
         {searches.map((s) => (
-          <li key={s.id}>
-            <a href={searchHref(s)}>{s.query}</a>{' '}
-            <RemoveSearchButton id={s.id} />
-          </li>
+          <ListItem
+            key={s.id}
+            title={<TextLink href={searchHref(s)}>{s.query}</TextLink>}
+            actions={<RemoveSearchButton id={s.id} />}
+          />
         ))}
-      </ul>
+      </List>
     </nav>
   );
 }

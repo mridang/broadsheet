@@ -11,7 +11,7 @@ import { encodeCursor } from '@/lib/core/api';
 import { StoryRow, ROW_LINK } from '@/components/stories/story-row';
 import { buttonClass } from '@/components/ui/button';
 import { fieldClass } from '@/components/ui/field';
-import { EmptyState } from '@/components/ui/notice';
+import { EmptyState, Notice } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
 import { SaveSearchButton } from '@/app/(site)/search/_components/save-search-button';
 import { SavedSearches } from '@/app/(site)/search/_components/saved-searches';
@@ -80,12 +80,9 @@ export default async function SearchPage({
           defaultValue={query.q}
           maxLength={200}
           placeholder="Words in a headline or story"
-          className={fieldClass('h-11 flex-1 text-base')}
+          className={fieldClass('min-w-0 flex-1')}
         />
-        <button
-          type="submit"
-          className={buttonClass({ size: 'wide', className: 'h-11' })}
-        >
+        <button type="submit" className={buttonClass({ size: 'wide' })}>
           Search
         </button>
       </form>
@@ -97,12 +94,15 @@ export default async function SearchPage({
         />
       ) : null}
       {!input.ok ? (
-        <p className="mt-6 text-sm text-muted">
-          That search could not be read.
-        </p>
+        <div className="mt-6">
+          <Notice tone="danger">That search could not be read.</Notice>
+        </div>
       ) : query.q && !items.length ? (
         <div className="mt-8">
-          <EmptyState title="No stories hold every one of those words." />
+          <EmptyState
+            icon="search"
+            title="No stories hold every one of those words."
+          />
         </div>
       ) : null}
       {items.length ? (
@@ -133,11 +133,7 @@ export default async function SearchPage({
       {older ? (
         <p className="mt-6">
           <a
-            className={buttonClass({
-              variant: 'outline',
-              size: 'sm',
-              className: 'border-line',
-            })}
+            className={buttonClass({ variant: 'outline', size: 'sm' })}
             href={older}
           >
             Older results →

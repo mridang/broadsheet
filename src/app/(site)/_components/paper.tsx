@@ -25,7 +25,7 @@ export function Paper({
           className="mb-10 rounded-card border border-line bg-surface p-5 sm:p-6"
           aria-label="Editor's note"
         >
-          <h2 className="text-xs font-semibold tracking-wide text-accent uppercase">
+          <h2 className="text-label font-semibold text-accent uppercase">
             Editor&rsquo;s note
           </h2>
           <p className="mt-2 leading-relaxed text-ink">{briefing}</p>

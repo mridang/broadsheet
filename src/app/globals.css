@@ -18,6 +18,8 @@
   --color-accent: var(--accent);
   --color-highlight: var(--highlight);
   --color-on-highlight: #fff;
+  --color-danger: var(--danger);
+  --color-success: var(--success);
 }
 
 @theme inline {
@@ -34,10 +36,21 @@
  * 2. Shared tokens: the same in every app (they derive from the tokens above).
  * ======================================================================== */
 
-/* Non-inline, so a page can override the radii with a data attribute. */
+/* Non-inline, so a page can override the radii with a data attribute. The
+ * whole radius scale: `rounded-control` for buttons and fields, `rounded-card`
+ * for panels, `rounded-full` for pills and avatars. */
 @theme {
   --radius-control: 0.5rem;
   --radius-card: 0.875rem;
+}
+
+/* The whole shadow scale: `shadow-raised` lifts a card under the pointer,
+ * `shadow-overlay` floats a menu, popover, dialog or toast above the page. */
+@theme {
+  --shadow-raised:
+    0 1px 2px rgb(0 0 0 / 0.04), 0 4px 12px -2px rgb(0 0 0 / 0.08);
+  --shadow-overlay:
+    0 2px 6px rgb(0 0 0 / 0.06), 0 16px 40px -8px rgb(0 0 0 / 0.22);
 }
 
 @theme inline {
@@ -211,6 +224,8 @@ body {
   --brand: #990f3d;
   --accent: #990f3d;
   --highlight: #990f3d;
+  --danger: #b42318;
+  --success: #067647;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -222,6 +237,8 @@ body {
     --brand: #f0668e;
     --accent: #f48fb1;
     --highlight: #c2185b;
+    --danger: #f97066;
+    --success: #47cd89;
     color-scheme: dark;
   }
 }
