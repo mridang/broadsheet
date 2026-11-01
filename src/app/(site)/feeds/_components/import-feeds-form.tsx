@@ -9,6 +9,7 @@ import {
 import { useApiAction } from '@/components/api/use-api-action';
 import { buttonClass } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/notice';
+import { countOf } from '@/lib/intl';
 
 /** Follow the feeds of an OPML file exported from another reader. */
 export function ImportFeedsForm(): ReactElement {
@@ -56,8 +57,9 @@ export function ImportFeedsForm(): ReactElement {
       {progress ? (
         <p className="mt-2 text-sm text-muted" role="status">
           {progress.status === 'running' ? 'Importing' : 'Imported'}{' '}
-          {progress.processed} of {progress.total} feeds: {progress.added}{' '}
-          added, {progress.skipped} skipped, {progress.rejected.length} failed.
+          {progress.processed} of {countOf(progress.total, 'feed')}:{' '}
+          {progress.added} added, {progress.skipped} skipped,{' '}
+          {progress.rejected.length} failed.
         </p>
       ) : null}
       {error ? <ErrorText>{error}</ErrorText> : null}

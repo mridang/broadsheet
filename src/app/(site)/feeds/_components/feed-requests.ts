@@ -7,6 +7,7 @@
  */
 
 import { ensureOk, ProblemError } from '@/components/api/problem-message';
+import { countOf } from '@/lib/intl';
 
 /** Follow the feed at `url` (`POST /api/feeds`). */
 export async function followFeed(url: string): Promise<void> {
@@ -149,7 +150,7 @@ export async function importOpml(
   }
   if (progress.status === 'failed') {
     throw new ProblemError(
-      `The import stopped after ${progress.processed} of ${progress.total} feeds.`,
+      `The import stopped after ${progress.processed} of ${countOf(progress.total, 'feed')}.`,
     );
   }
   return progress;

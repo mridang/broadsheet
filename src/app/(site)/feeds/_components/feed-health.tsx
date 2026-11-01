@@ -3,6 +3,7 @@ import type { ReactElement } from 'react';
 import { RetryFeedButton } from '@/app/(site)/feeds/_components/retry-feed-button';
 import type { ClassifierCounts } from '@/domain/classifier-counts';
 import type { FeedStatistics } from '@/domain/repository';
+import { countOf } from '@/lib/intl';
 
 /** Failures in a row from which a feed counts as broken. */
 export const BROKEN_AFTER = 3;
@@ -43,7 +44,7 @@ export function FeedHealth({
       {` · ${statistics.average_stories_per_month} a month`}
       {` · ${statistics.subscribers} ${statistics.subscribers === 1 ? 'reader' : 'readers'}`}
       {statistics.update_minutes !== null
-        ? ` · asks for ${statistics.update_minutes} minutes between fetches`
+        ? ` · asks for ${countOf(statistics.update_minutes, 'minute')} between fetches`
         : ''}
       {counts
         ? ` · unread ${counts.focus} focus, ${counts.neutral} neutral, ${counts.hidden} hidden`
