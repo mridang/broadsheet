@@ -4,7 +4,9 @@ import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/core/auth';
 import { getDatabase } from '@/domain/db/database';
 import { Repository, sectionPath } from '@/domain/repository';
+import { FeedRowFacts } from '@/components/feeds/feed-row-facts';
 import { FeedIcon, FeedSummary } from '@/components/feeds/feed-summary';
+import { countOf } from '@/lib/intl';
 import { Badge } from '@/components/ui/badge';
 import { TextLink } from '@/components/ui/button';
 import { List, ListItem } from '@/components/ui/card';
@@ -14,6 +16,7 @@ import { PageHeader, PageSection } from '@/components/ui/page-header';
 
 import { AddFeedForm } from '@/app/(site)/feeds/_components/add-feed-form';
 import { AddSectionForm } from '@/app/(site)/feeds/_components/add-section-form';
+import { FeedTitleEditor } from '@/app/(site)/feeds/_components/feed-title-editor';
 import { FeedSettingsForm } from '@/app/(site)/feeds/_components/feed-settings-form';
 import { ExportFeedsButton } from '@/app/(site)/feeds/_components/export-feeds-button';
 import {
@@ -141,11 +144,21 @@ export default async function FeedsPage({
                 key={f.id}
                 leading={<FeedIcon feed={f} />}
                 title={
-                  <TextLink href={`/feeds/${f.id}`}>
-                    {f.title || hostOf(f.url)}
-                  </TextLink>
+                  <FeedTitleEditor
+                    id={f.id}
+                    title={f.title ?? ''}
+                    name={f.title || hostOf(f.url)}
+                  />
                 }
-                detail={`${hostOf(f.url)} · ${stories} ${stories === 1 ? 'story' : 'stories'} this week`}
+                detail={
+                  <span className="flex flex-col gap-1">
+                    <span>
+                      {hostOf(f.url)} · {countOf(stories, 'story', 'stories')}{' '}
+                      this week
+                    </span>
+                    <FeedRowFacts feed={f} />
+                  </span>
+                }
                 actions={
                   <>
                     {statistics && isBroken(statistics) ? (
