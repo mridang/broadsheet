@@ -15,6 +15,7 @@ import {
   index,
   integer,
   primaryKey,
+  real,
   sqliteTable,
   text,
   unique,
@@ -600,3 +601,20 @@ export const shares = sqliteTable(
     index('idx_shares_created').on(table.created_at),
   ],
 );
+
+/**
+ * Listening, as NewsBlur's media player keeps it: the person's playback rate,
+ * the story being read and how far in, and the stories queued and heard.
+ */
+export const players = sqliteTable('players', {
+  user_id: integer('user_id').primaryKey(),
+  rate: real('rate').notNull().default(1),
+  current_article_id: integer('current_article_id'),
+  /** How far into the current story, as a character offset. */
+  position: integer('position').notNull().default(0),
+  /** JSON array of the article ids queued next. */
+  queue: text('queue').notNull().default('[]'),
+  /** JSON array of the article ids already heard, newest first. */
+  history: text('history').notNull().default('[]'),
+  updated_at: text('updated_at').default(sql`(datetime('now'))`),
+});

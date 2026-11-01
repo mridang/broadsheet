@@ -25,6 +25,7 @@ tags:
   - name: emails
   - name: feeds
   - name: notifications
+  - name: player
   - name: push
   - name: sections
   - name: preferences
@@ -107,6 +108,8 @@ paths:
     $ref: './paths/searches.yaml#/collection'
   /api/users/self/searches/{id}:
     $ref: './paths/searches.yaml#/item'
+  /api/users/self/player:
+    $ref: './paths/player.yaml#/item'
   /api/users/self/reads:
     $ref: './paths/reads.yaml#/collection'
   /api/users/self/preferences:

@@ -1,0 +1,88 @@
+item:
+  get:
+    operationId: getPlayer
+    tags: [player]
+    summary: The person's listening player.
+    description: Rate limited by the `RL_API` binding. Someone who never listened gets the empty player.
+    responses:
+      '200':
+        description: The player.
+        content:
+          application/json:
+            schema:
+              $ref: '#/Player'
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '403':
+        $ref: '../components/common.yaml#/responses/Forbidden'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'
+  put:
+    operationId: putPlayer
+    tags: [player]
+    summary: Replace the person's listening player.
+    description: Rate limited by the `RL_API` binding. Holds the playback rate, the story being read and how far in, and the queue and history.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/Player'
+    responses:
+      '200':
+        description: The player as stored.
+        content:
+          application/json:
+            schema:
+              $ref: '#/Player'
+      '400':
+        $ref: '../components/common.yaml#/responses/BadRequest'
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '403':
+        $ref: '../components/common.yaml#/responses/Forbidden'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'
+  delete:
+    operationId: clearPlayer
+    tags: [player]
+    summary: Forget the person's listening player.
+    description: Rate limited by the `RL_API` binding.
+    responses:
+      '204':
+        description: The player is forgotten.
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '403':
+        $ref: '../components/common.yaml#/responses/Forbidden'
+      '404':
+        $ref: '../components/common.yaml#/responses/NotFound'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'
+Player:
+  type: object
+  required: [rate, current, queue, history]
+  properties:
+    rate:
+      type: number
+      minimum: 0.5
+      maximum: 3
+    current:
+      type: [object, 'null']
+      required: [article_id, position]
+      properties:
+        article_id:
+          type: string
+        position:
+          type: integer
+          minimum: 0
+    queue:
+      type: array
+      maxItems: 100
+      items:
+        type: string
+    history:
+      type: array
+      maxItems: 100
+      items:
+        type: string
