@@ -4,6 +4,9 @@ import type { FormEvent, ReactElement } from 'react';
 
 import { importOpml } from '@/app/(site)/feeds/_components/feed-requests';
 import { useApiAction } from '@/components/api/use-api-action';
+import { buttonClass } from '@/components/ui/button';
+import { fieldClass } from '@/components/ui/field';
+import { ErrorText } from '@/components/ui/notice';
 
 /** Follow the feeds of an OPML file exported from another reader. */
 export function ImportFeedsForm(): ReactElement {
@@ -24,19 +27,30 @@ export function ImportFeedsForm(): ReactElement {
   };
   return (
     <>
-      <form className="addform" onSubmit={submit}>
+      <form
+        className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center"
+        onSubmit={submit}
+      >
         <input
           name="file"
           type="file"
           accept=".opml,.xml,text/x-opml,text/xml"
           aria-label="OPML file"
+          className={fieldClass('w-full sm:flex-1')}
           required
         />
-        <button className="btn ghost" type="submit" disabled={busy}>
+        <button
+          className={buttonClass({
+            variant: 'outline',
+            className: 'border-line',
+          })}
+          type="submit"
+          disabled={busy}
+        >
           Import OPML
         </button>
       </form>
-      {error ? <p role="alert">{error}</p> : null}
+      {error ? <ErrorText>{error}</ErrorText> : null}
     </>
   );
 }

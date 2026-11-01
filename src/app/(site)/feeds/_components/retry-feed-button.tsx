@@ -4,6 +4,7 @@ import type { ReactElement } from 'react';
 
 import { retryFeed } from '@/app/(site)/feeds/_components/feed-requests';
 import { useFeedAction } from '@/app/(site)/feeds/_components/use-feed-action';
+import { buttonClass } from '@/components/ui/button';
 
 /** "Retry now": fetch a broken feed again from a clean slate. */
 export function RetryFeedButton({
@@ -14,7 +15,11 @@ export function RetryFeedButton({
     <>
       <button
         type="button"
-        className="btn ghost small"
+        className={buttonClass({
+          variant: 'outline',
+          size: 'sm',
+          className: 'border-line',
+        })}
         disabled={busy}
         onClick={() =>
           void run(() => retryFeed(id), 'Could not fetch that feed.')
@@ -22,7 +27,12 @@ export function RetryFeedButton({
       >
         Retry now
       </button>
-      {error ? <span role="alert"> {error}</span> : null}
+      {error ? (
+        <span role="alert" className="text-sm text-red-700 dark:text-red-400">
+          {' '}
+          {error}
+        </span>
+      ) : null}
     </>
   );
 }

@@ -72,7 +72,7 @@ export default async function FeedsPage({
         <AddFeedForm />
         <ImportFeedsForm />
         {imported.added !== undefined ? (
-          <p role="status">
+          <p role="status" className="mt-3 text-sm text-muted">
             Imported {Number(imported.added) || 0} feeds, skipped{' '}
             {Number(imported.skipped) || 0} already followed and rejected{' '}
             {Number(imported.rejected) || 0}.
