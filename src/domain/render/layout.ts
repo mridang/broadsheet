@@ -61,12 +61,14 @@ const byline = (a: Article): string => a.source || hostOf(a.url);
 
 /**
  * Keep one article per cluster across the whole paper: the one the reader
- * likes most, then the weightiest. Returns the ids dropped, the other sources
+ * likes most, then one its desk has room to print (in `printable`), then the
+ * weightiest. Returns the ids dropped, the other sources
  * each kept article stands for, and how many sources covered each cluster.
  */
 export function collapseClusters(
   articles: readonly Article[],
   training: readonly Training[] = [],
+  printable?: ReadonlySet<number>,
 ): {
   readonly dropped: ReadonlySet<number>;
   readonly also: ReadonlyMap<number, readonly string[]>;
@@ -84,7 +86,9 @@ export function collapseClusters(
     if (group.length < 2) continue;
     const [kept, ...rest] = group.toSorted(
       (x, y) =>
-        verdict(y, training) - verdict(x, training) || weight(y) - weight(x),
+        verdict(y, training) - verdict(x, training) ||
+        Number(printable?.has(y.id) ?? 0) - Number(printable?.has(x.id) ?? 0) ||
+        weight(y) - weight(x),
     );
     if (!kept) continue;
     rest.forEach((a) => dropped.add(a.id));
@@ -105,9 +109,23 @@ export function layOut(
   groups: readonly DeskGroup[],
   training: readonly Training[] = [],
 ): Layout {
+  const all = groups.flatMap((g) => g.desks.flatMap((d) => d.articles));
+  // Which stories make their desk's cap before any copy is dropped: keeping
+  // one of those means a story several desks carried is never cut from all.
+  const allCoverage = collapseClusters(all, training).coverage;
+  const printable = new Set(
+    groups.flatMap((g) =>
+      g.desks.flatMap((d) =>
+        rank(d.articles, training, allCoverage)
+          .slice(0, DESK_STORIES)
+          .map((a) => a.id),
+      ),
+    ),
+  );
   const { dropped, also, coverage } = collapseClusters(
-    groups.flatMap((g) => g.desks.flatMap((d) => d.articles)),
+    all,
     training,
+    printable,
   );
   return {
     groups: groups.map((group) => ({
