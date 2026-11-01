@@ -42,3 +42,8 @@ export async function sendMessage(
   await ensureOk(res);
   return (await res.json()) as Turn;
 }
+
+/** Remove a conversation (`DELETE /api/conversations/:id`). */
+export async function deleteConversation(id: string): Promise<void> {
+  await ensureOk(await fetch(`/api/conversations/${id}`, { method: 'DELETE' }));
+}

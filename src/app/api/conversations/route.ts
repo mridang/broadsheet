@@ -1,6 +1,7 @@
 /**
  * Conversations with the archive assistant.
  *
+ *   GET /api/conversations?limit&cursor → 200 page
  *   POST /api/conversations → 201
  *
  * The behaviour lives in the `conversationsCollection` controller; this file
@@ -11,4 +12,4 @@ import { conversationsCollection } from '@/domain/api/conversations';
 
 export const dynamic = 'force-dynamic';
 
-export const { POST } = conversationsCollection.handlers();
+export const { GET, POST } = conversationsCollection.handlers();

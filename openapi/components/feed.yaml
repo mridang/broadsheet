@@ -262,3 +262,22 @@ FeedSuggestion:
       type: integer
       minimum: 1
       description: How many people who share a source with the caller follow this one.
+SimilarFeed:
+  allOf:
+    - $ref: '#/FeedSuggestion'
+  type: object
+  required: [stories]
+  properties:
+    stories:
+      type: array
+      maxItems: 5
+      items:
+        type: object
+        required: [article_id, href]
+        properties:
+          article_id:
+            type: string
+          title:
+            type: string
+          href:
+            type: string

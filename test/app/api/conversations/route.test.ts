@@ -8,7 +8,7 @@ import {
 } from '../../../lib/core/db/sqlite-d1';
 import { SESSION_SECRET, tokenFor } from '../../../domain/auth/auth-test-kit';
 
-const { POST } = await import('@/app/api/conversations/route');
+const { GET, POST } = await import('@/app/api/conversations/route');
 
 let restore: () => void;
 let auth: Record<string, string>;
@@ -58,5 +58,41 @@ describe('POST /api/conversations', () => {
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
     expect((await start()).status).toBe(401);
+  });
+});
+
+const list = (query = '') =>
+  GET(
+    new Request(`https://app.test/api/conversations${query}`, {
+      headers: auth,
+    }),
+  );
+
+describe('GET /api/conversations', () => {
+  it('answers 200 with the person’s conversations, newest first', async () => {
+    const first = (await (await start()).json()) as { id: string };
+    const second = (await (await start()).json()) as { id: string };
+    const res = await list();
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { items: { id: string }[] };
+    expect(body.items.map((c) => c.id)).toEqual([second.id, first.id]);
+  });
+
+  it('pages with a cursor', async () => {
+    await start();
+    await start();
+    const body = (await (await list('?limit=1')).json()) as { next?: string };
+    expect(body.next).toMatch(/cursor=/);
+  });
+
+  it('answers 400 as a problem for a bad cursor', async () => {
+    const res = await list('?cursor=nope');
+    expect(res.status).toBe(400);
+    expect(res.headers.get('content-type')).toBe('application/problem+json');
+  });
+
+  it('answers 401 when nobody is signed in', async () => {
+    auth = {};
+    expect((await list()).status).toBe(401);
   });
 });

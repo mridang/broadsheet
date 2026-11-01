@@ -9,15 +9,27 @@ afterEach(() => {
 
 describe('askArticle', () => {
   it('posts the question and resolves with the answer', async () => {
+    const reply = { question: 'Why?', answer: 'Because.', remaining: 3 };
     const spy = jest
       .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(Response.json({ answer: 'Because.' }));
-    await expect(askArticle(4, 'Why?')).resolves.toBe('Because.');
+      .mockResolvedValue(Response.json(reply));
+    await expect(askArticle(4, { question: 'Why?' })).resolves.toEqual(reply);
     expect(spy).toHaveBeenCalledWith('/api/articles/4/answers', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ question: 'Why?' }),
     });
+  });
+
+  it('posts a preset by id with its history', async () => {
+    const spy = jest
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(Response.json({}));
+    const history = [{ role: 'user' as const, content: 'Q' }];
+    await askArticle(4, { question_id: 'bullets', history });
+    expect(spy.mock.calls[0]?.[1]?.body).toBe(
+      JSON.stringify({ question_id: 'bullets', history }),
+    );
   });
 
   it('throws the server’s words when refused', async () => {
@@ -27,6 +39,8 @@ describe('askArticle', () => {
         headers: { 'Content-Type': 'application/problem+json' },
       }),
     );
-    await expect(askArticle(4, 'Why?')).rejects.toBeInstanceOf(ProblemError);
+    await expect(askArticle(4, { question: 'Why?' })).rejects.toBeInstanceOf(
+      ProblemError,
+    );
   });
 });

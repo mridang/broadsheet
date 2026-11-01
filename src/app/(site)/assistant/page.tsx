@@ -3,8 +3,14 @@ import { redirect } from 'next/navigation';
 import type { ReactElement } from 'react';
 
 import { AssistantChat } from '@/app/(site)/assistant/_components/assistant-chat';
+import { DeleteConversationButton } from '@/app/(site)/assistant/_components/delete-conversation-button';
+import { conversationResource } from '@/domain/api/conversation-resource';
+import { parseFeedId } from '@/domain/api/feed-resource';
+import { starterQuestions } from '@/domain/assistant';
+import { getDatabase } from '@/domain/db/database';
+import { Repository } from '@/domain/repository';
 import { getCurrentUser } from '@/lib/core/auth';
-import { PageHeader } from '@/components/ui/page-header';
+import { PageHeader, PageSection } from '@/components/ui/page-header';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,11 +22,32 @@ export const metadata: Metadata = {
 
 /**
  * Ask questions of everything in the reader's feeds, saves and reads; each
- * answer links to the stories it drew on.
+ * answer links to the stories it drew on. Past conversations are listed to
+ * reopen (`?c={id}`) or delete; a new one starts with suggested questions.
  */
-export default async function AssistantPage(): Promise<ReactElement> {
+export default async function AssistantPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ c?: string }>;
+}): Promise<ReactElement> {
   const user = await getCurrentUser();
   if (!user) redirect('/login');
+  const repo = new Repository(getDatabase());
+  const id = parseFeedId(String((await searchParams).c ?? ''));
+  const open =
+    id !== undefined ? await repo.getConversation(user.id, id) : undefined;
+  const turns = open ? await repo.listMessages(open.id) : [];
+  const current = open
+    ? conversationResource(
+        open,
+        turns,
+        await repo.articleTitles(turns.flatMap((t) => t.citations)),
+      )
+    : undefined;
+  const [past, summary] = await Promise.all([
+    repo.listConversations(user.id),
+    repo.archiveSummary(user.id),
+  ]);
   return (
     <div className="max-w-3xl">
       <PageHeader
@@ -28,8 +55,43 @@ export default async function AssistantPage(): Promise<ReactElement> {
         description="Answers come from the stories in your feeds, saves and reads, with links to the ones they draw on."
       />
       <div className="mt-8">
-        <AssistantChat />
+        {current ? (
+          <p className="mb-4 text-sm">
+            <a
+              className="focus-ring rounded-sm font-medium text-accent hover:underline"
+              href="/assistant"
+            >
+              New conversation
+            </a>
+          </p>
+        ) : null}
+        <AssistantChat
+          key={current?.id ?? 'new'}
+          conversationId={current?.id}
+          initialTurns={current?.messages ?? []}
+          suggestions={current ? [] : starterQuestions(summary)}
+        />
       </div>
+      {past.length ? (
+        <PageSection id="past-conversations" title="Past conversations">
+          <ul className="divide-y divide-line">
+            {past.map((c) => (
+              <li
+                key={c.id}
+                className="flex items-center justify-between gap-3 py-2"
+              >
+                <a
+                  className="focus-ring rounded-sm text-sm font-medium text-ink hover:underline"
+                  href={`/assistant?c=${c.id}`}
+                >
+                  {c.title || 'Untitled conversation'}
+                </a>
+                <DeleteConversationButton id={String(c.id)} />
+              </li>
+            ))}
+          </ul>
+        </PageSection>
+      ) : null}
     </div>
   );
 }

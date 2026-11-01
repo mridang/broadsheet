@@ -10,7 +10,7 @@ collection:
     operationId: askArticle
     tags: [answers]
     summary: Ask a question about an article, answered from its text by Workers AI.
-    description: Rate limited by the `RL_AI` binding. Only articles from sources the person follows can be asked about; any other is a 404. The answer is not kept.
+    description: Rate limited by the `RL_AI` binding, and by a daily budget (`GET /api/users/self/usage`) answered with 429 and `Retry-After` until midnight UTC. Only articles from sources the person follows can be asked about; any other is a 404. A preset answer with no history is kept and served again (`cached`) without counting against the budget; the reader's own questions and follow-ups are not kept.
     requestBody:
       required: true
       content:

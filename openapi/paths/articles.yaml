@@ -86,8 +86,8 @@ similar:
   get:
     operationId: listSimilarArticles
     tags: [articles]
-    summary: List up to ten stories most like one article.
-    description: Rate limited by the `RL_API` binding. Stories from the sources the person follows that share the most words of the article's title, best first, never another copy of the same address. One page, with no `next`. An article from a source the person does not follow, or an id that cannot name one, is a 404.
+    summary: List the stories most like one article.
+    description: Rate limited by the `RL_API` binding. Stories that share the most words of the article's title, best first, never another copy of the same address. With `scope=followed` (the default), up to ten from the sources the person follows; with `scope=all` (discover), up to five from any source, each saying whether the person follows its source (follow one with `POST /api/feeds`). One page, with no `next`. An article from a source the person does not follow, or an id that cannot name one, is a 404.
     parameters:
       - name: id
         in: path
@@ -95,13 +95,33 @@ similar:
         schema:
           type: string
           pattern: '^[1-9][0-9]{0,14}$'
+      - name: scope
+        in: query
+        schema:
+          type: string
+          enum:
+            - followed
+            - all
+          default: followed
     responses:
       '200':
         description: The similar stories.
         content:
           application/json:
             schema:
-              $ref: '../components/article.yaml#/ArticlePage'
+              type: object
+              required: [self, items]
+              properties:
+                self:
+                  type: string
+                items:
+                  type: array
+                  items:
+                    oneOf:
+                      - $ref: '../components/article.yaml#/Article'
+                      - $ref: '../components/article.yaml#/DiscoveredArticle'
+      '400':
+        $ref: '../components/common.yaml#/responses/BadRequest'
       '401':
         $ref: '../components/common.yaml#/responses/Unauthorized'
       '404':

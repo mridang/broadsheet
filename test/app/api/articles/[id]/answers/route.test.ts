@@ -7,7 +7,8 @@ import {
   jest,
 } from '@jest/globals';
 
-import { databaseFrom } from '@/domain/db/database';
+import { DAILY_LIMITS, presetQuestion } from '@/domain/assistant';
+import { databaseFrom, type Database } from '@/domain/db/database';
 import { Repository } from '@/domain/repository';
 import { SESSION_COOKIE } from '@/domain/auth/app';
 import { APP_MIGRATIONS } from '../../../../../lib/core/db/migrations';
@@ -24,6 +25,7 @@ const { POST } = await import('@/app/api/articles/[id]/answers/route');
 
 let restore: () => void;
 let story: number;
+let db: Database;
 let auth: Record<string, string>;
 let run: jest.Mock<(...args: unknown[]) => Promise<unknown>>;
 
@@ -46,7 +48,8 @@ beforeEach(async () => {
       'INSERT INTO users (id, google_sub, email, session_epoch) VALUES (7, ?, ?, 0), (8, ?, ?, 0)',
     )
     .run('g7', 'a@b.com', 'g8', 'b@b.com');
-  const repo = new Repository(databaseFrom(made.d1));
+  db = databaseFrom(made.d1);
+  const repo = new Repository(db);
   const { source_id } = (await repo.addFeed(7, 'https://a.test/f'))!;
   await repo.writeEdition(source_id, '2026-10-20', [
     {
@@ -85,7 +88,60 @@ describe('POST /api/articles/:id/answers', () => {
       article_id: String(story),
       question: 'What is it about?',
       answer: 'It is about rust.',
+      cached: false,
+      remaining: DAILY_LIMITS.answer - 1,
     });
+  });
+
+  it('answers a preset by id, naming it', async () => {
+    const res = await ask(story, '{"question_id":"bullets"}');
+    expect(await res.json()).toMatchObject({
+      question_id: 'bullets',
+      question: presetQuestion('bullets')?.question,
+      cached: false,
+    });
+  });
+
+  it('serves a preset asked again from the cache, without the model or the budget', async () => {
+    await ask(story, '{"question_id":"bullets"}');
+    const res = await ask(story, '{"question_id":"bullets"}');
+    expect(await res.json()).toMatchObject({
+      answer: 'It is about rust.',
+      cached: true,
+      remaining: DAILY_LIMITS.answer - 1,
+    });
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not cache the reader’s own questions', async () => {
+    await ask(story, '{"question":"Why?"}');
+    await ask(story, '{"question":"Why?"}');
+    expect(run).toHaveBeenCalledTimes(2);
+  });
+
+  it('sends a follow-up’s history to the model, uncached', async () => {
+    const body = JSON.stringify({
+      question_id: 'bullets',
+      history: [{ role: 'assistant', content: 'Earlier answer' }],
+    });
+    await ask(story, body);
+    await ask(story, body);
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(JSON.stringify(run.mock.calls[0])).toContain('Earlier answer');
+  });
+
+  it('answers 429 with Retry-After once today’s budget is used up', async () => {
+    for (let i = 0; i < DAILY_LIMITS.answer; i++) {
+      await new Repository(db).recordUsage(7, 'answer');
+    }
+    const res = await ask(story, '{"question":"Q"}');
+    expect(res.status).toBe(429);
+    expect(res.headers.get('retry-after')).toMatch(/^\d+$/);
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it('answers 400 as a problem for an unknown preset', async () => {
+    expect((await ask(story, '{"question_id":"nope"}')).status).toBe(400);
   });
 
   it('asks the model with the story’s text', async () => {

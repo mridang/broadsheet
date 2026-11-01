@@ -2,15 +2,24 @@ import { describe, expect, it, jest } from '@jest/globals';
 
 import {
   ANSWER_MODEL,
+  ASSISTANT_MODEL,
   AnswerUnavailable,
+  HISTORY_TURNS,
   MAX_QUESTION_LENGTH,
+  MAX_TOOL_ROUNDS,
   PRESET_QUESTIONS,
   archivePrompt,
   articlePrompt,
   citedIds,
   complete,
+  converse,
+  parseAnswerRequest,
   parseQuestion,
+  presetQuestion,
+  starterQuestions,
   storyBlock,
+  toolCallsOf,
+  usageDay,
   type AnswerModel,
 } from '@/domain/assistant';
 import type { Message, Passage } from '@/domain/repository';
@@ -21,6 +30,7 @@ const passage = (id: number, title = `T${id}`): Passage => ({
   source: 's',
   summary: null,
   text: 'body',
+  date: '2026-10-20',
 });
 
 const turn = (id: number, role: Message['role']): Message => ({
@@ -32,27 +42,88 @@ const turn = (id: number, role: Message['role']): Message => ({
 });
 
 describe('PRESET_QUESTIONS', () => {
-  it('offers summarise, explain and the other side', () => {
-    expect(PRESET_QUESTIONS.map((p) => p.label)).toEqual([
-      'Summarise',
-      'Explain',
-      'The other side',
+  it('offers NewsBlur’s questions and the other side, each with its own id', () => {
+    expect(PRESET_QUESTIONS.map((p) => p.id)).toEqual([
+      'sentence',
+      'bullets',
+      'paragraph',
+      'context',
+      'people',
+      'arguments',
+      'other-side',
+      'factcheck',
     ]);
+  });
+
+  it('finds a preset by id', () => {
+    expect(presetQuestion('people')?.label).toBe('Key people');
+    expect(presetQuestion('nope')).toBeUndefined();
+  });
+});
+
+describe('parseAnswerRequest', () => {
+  it('accepts a preset by id', () => {
+    const input = parseAnswerRequest({ question_id: 'bullets' });
+    expect(input).toMatchObject({
+      ok: true,
+      value: { question: { kind: 'preset', preset: { id: 'bullets' } } },
+    });
+  });
+
+  it('accepts the reader’s own question, trimmed, with its history', () => {
+    expect(
+      parseAnswerRequest({
+        question: ' why? ',
+        history: [{ role: 'user', content: 'a' }],
+      }),
+    ).toEqual({
+      ok: true,
+      value: {
+        question: { kind: 'custom', question: 'why?' },
+        history: [{ role: 'user', content: 'a' }],
+      },
+    });
+  });
+
+  it.each([
+    [{}, 'question_id or question: send exactly one.'],
+    [
+      { question: 'a', question_id: 'bullets' },
+      'question_id or question: send exactly one.',
+    ],
+    [{ question_id: 'nope' }, expect.stringMatching(/^question_id: one of/)],
+    [{ question: ' ' }, 'question: must not be blank.'],
+    [{ question: 'a', extra: 1 }, 'extra: not a member of this request.'],
+    [
+      { question: 'a', history: 'x' },
+      `history: an array of at most ${HISTORY_TURNS} turns.`,
+    ],
+    [
+      {
+        question: 'a',
+        history: Array.from({ length: HISTORY_TURNS + 1 }, () => ({
+          role: 'user',
+          content: 'x',
+        })),
+      },
+      `history: an array of at most ${HISTORY_TURNS} turns.`,
+    ],
+    [
+      { question: 'a', history: [{ role: 'system', content: 'x' }] },
+      expect.stringMatching(/^history\[0\]/),
+    ],
+  ])('refuses %j', (body, error) => {
+    const input = parseAnswerRequest(body);
+    expect(input.ok).toBe(false);
+    expect(input.ok ? [] : input.errors).toContainEqual(error);
   });
 });
 
 describe('parseQuestion', () => {
-  it('accepts a question, trimmed', () => {
-    expect(parseQuestion({ question: '  why? ' }, 'question')).toEqual({
-      ok: true,
-      question: 'why?',
-    });
-  });
-
   it('reads the member it is told to', () => {
     expect(parseQuestion({ content: 'hi' }, 'content')).toEqual({
       ok: true,
-      question: 'hi',
+      value: 'hi',
     });
   });
 
@@ -89,17 +160,14 @@ describe('storyBlock', () => {
 });
 
 describe('articlePrompt', () => {
-  it('sends the title, summary and text as a story in the user turn', () => {
-    const [, user] = articlePrompt(
-      { title: 'Title', summary: 'sum', body_text: 'The text.' },
-      'Q?',
-    );
-    expect(user?.role).toBe('user');
-    expect(user?.content).toContain('<story id="1">');
-    expect(user?.content).toContain('Title: Title');
-    expect(user?.content).toContain('Summary: sum');
-    expect(user?.content).toContain('The text.');
-    expect(user?.content).toMatch(/Question: Q\?$/);
+  const article = { title: 'Title', summary: 'sum', body_text: 'The text.' };
+
+  it('sends the title, summary and text as a story, then the question', () => {
+    const prompt = articlePrompt(article, 'Q?');
+    expect(prompt[1]?.content).toContain('<story id="1">');
+    expect(prompt[1]?.content).toContain('Summary: sum');
+    expect(prompt[1]?.content).toContain('The text.');
+    expect(prompt.at(-1)).toEqual({ role: 'user', content: 'Question: Q?' });
   });
 
   it('keeps the story out of the system prompt and says it is data', () => {
@@ -112,28 +180,46 @@ describe('articlePrompt', () => {
   });
 
   it('answers from the title and summary when no text was kept', () => {
-    const [system, user] = articlePrompt(
+    const [system, story] = articlePrompt(
       { title: 'Headline', summary: 'only sum', body_text: null },
       'Q',
     );
     expect(system?.content).toContain('answer from its title and summary');
-    expect(user?.content).toContain('Title: Headline');
-    expect(user?.content).toContain('Summary: only sum');
-    expect(user?.content).not.toContain('Text:');
+    expect(story?.content).toContain('Summary: only sum');
+    expect(story?.content).not.toContain('Text:');
+  });
+
+  it('puts the earlier turns between the story and the follow-up', () => {
+    const prompt = articlePrompt(article, 'And?', [
+      { role: 'user', content: 'Q1' },
+      { role: 'assistant', content: 'A1' },
+    ]);
+    expect(prompt.slice(2).map((m) => m.content)).toEqual([
+      'Q1',
+      'A1',
+      'Question: And?',
+    ]);
   });
 });
 
 describe('archivePrompt', () => {
-  it('numbers the passages for citing, as stories in the last user turn', () => {
-    const prompt = archivePrompt([passage(5), passage(9)], [], 'Q');
+  it('sets out the passages by article id in the last turn', () => {
+    const prompt = archivePrompt([passage(5)], [], 'Q', '2026-11-01');
     expect(prompt[0]?.content).not.toContain('T5');
-    expect(prompt.at(-1)?.content).toContain('<story n="1">\nT5');
-    expect(prompt.at(-1)?.content).toContain('<story n="2">\nT9');
+    expect(prompt.at(-1)?.content).toContain(
+      '<story id="5">\nT5 (s, 2026-10-20)',
+    );
   });
 
-  it('says when nothing matched', () => {
-    expect(archivePrompt([], [], 'Q').at(-1)?.content).toContain(
-      '(no stories matched)',
+  it('tells the model today’s date and how to cite', () => {
+    const [system] = archivePrompt([], [], 'Q', '2026-11-01');
+    expect(system?.content).toContain('Today is 2026-11-01');
+    expect(system?.content).toContain('[#id]');
+  });
+
+  it('says when nothing matched directly', () => {
+    expect(archivePrompt([], [], 'Q', 'd').at(-1)?.content).toContain(
+      '(no stories matched the question directly)',
     );
   });
 
@@ -141,7 +227,7 @@ describe('archivePrompt', () => {
     const history = Array.from({ length: 8 }, (_, i) =>
       turn(i + 1, i % 2 ? 'assistant' : 'user'),
     );
-    const prompt = archivePrompt([], history, 'Q');
+    const prompt = archivePrompt([], history, 'Q', 'd');
     expect(prompt).toHaveLength(8);
     expect(prompt[1]?.content).toBe('turn 3');
     expect(prompt.at(-1)?.content).toMatch(/Question: Q$/);
@@ -149,14 +235,14 @@ describe('archivePrompt', () => {
 });
 
 describe('citedIds', () => {
-  it('maps [n] to the passages’ ids in the order first cited, once each', () => {
-    expect(
-      citedIds('See [2] and [1], again [2].', [passage(5), passage(9)]),
-    ).toEqual([9, 5]);
+  it('keeps [#id] citations of stories the model was given, once each, in order', () => {
+    expect(citedIds('See [#9] and [#5], again [#9].', new Set([5, 9]))).toEqual(
+      [9, 5],
+    );
   });
 
-  it('ignores numbers that name no passage', () => {
-    expect(citedIds('[0] [3]', [passage(5)])).toEqual([]);
+  it('drops ids the model was not given and plain [n] numbers', () => {
+    expect(citedIds('[#7] [1]', new Set([1, 5]))).toEqual([]);
   });
 });
 
@@ -193,5 +279,111 @@ describe('complete', () => {
       },
     };
     await expect(complete(ai, [])).rejects.toThrow('down');
+  });
+});
+
+describe('toolCallsOf', () => {
+  it('reads calls with object or JSON-string arguments, flat or under function', () => {
+    expect(
+      toolCallsOf({
+        tool_calls: [
+          { name: 'a', arguments: { q: 1 } },
+          { function: { name: 'b', arguments: '{"q":2}' } },
+          { name: 'c', arguments: 'not json' },
+          { arguments: {} },
+        ],
+      }),
+    ).toEqual([
+      { name: 'a', arguments: { q: 1 } },
+      { name: 'b', arguments: { q: 2 } },
+      { name: 'c', arguments: {} },
+    ]);
+  });
+
+  it('finds none in a plain answer', () => {
+    expect(toolCallsOf({ response: 'x' })).toEqual([]);
+    expect(toolCallsOf(null)).toEqual([]);
+  });
+});
+
+describe('converse', () => {
+  const tools = [
+    {
+      type: 'function' as const,
+      function: {
+        name: 't',
+        description: 'd',
+        parameters: { type: 'object' as const, properties: {} },
+      },
+    },
+  ];
+
+  it('runs the tools the model calls, then answers with what it says', async () => {
+    const run = jest
+      .fn<AnswerModel['run']>()
+      .mockResolvedValueOnce({ tool_calls: [{ name: 't', arguments: {} }] })
+      .mockResolvedValueOnce({ response: 'Done.' });
+    const tool = jest.fn<(call: unknown) => Promise<string>>(
+      async () => 'result',
+    );
+    await expect(
+      converse({ run }, [{ role: 'user', content: 'Q' }], tools, tool),
+    ).resolves.toBe('Done.');
+    expect(tool).toHaveBeenCalledWith({ name: 't', arguments: {} });
+    expect(run.mock.calls[1]?.[0]).toBe(ASSISTANT_MODEL);
+    expect(run.mock.calls[1]?.[1].messages.at(-1)).toEqual({
+      role: 'tool',
+      name: 't',
+      content: 'result',
+    });
+  });
+
+  it('offers no tools in the last round, so the model must answer', async () => {
+    const run = jest.fn<AnswerModel['run']>(async (_m, input) =>
+      input.tools
+        ? { tool_calls: [{ name: 't', arguments: {} }] }
+        : { response: 'Finally.' },
+    );
+    await expect(converse({ run }, [], tools, async () => 'r')).resolves.toBe(
+      'Finally.',
+    );
+    expect(run).toHaveBeenCalledTimes(MAX_TOOL_ROUNDS + 1);
+  });
+
+  it('is unavailable when the model fails', async () => {
+    const run = jest.fn<AnswerModel['run']>(async () => {
+      throw new Error('x');
+    });
+    await expect(
+      converse({ run }, [], tools, async () => 'r'),
+    ).rejects.toBeInstanceOf(AnswerUnavailable);
+  });
+});
+
+describe('usageDay', () => {
+  it('starts at midnight UTC and says how long until the next', () => {
+    expect(usageDay(new Date('2026-11-01T23:59:00Z'))).toEqual({
+      since: '2026-11-01 00:00:00',
+      retryAfter: 60,
+    });
+  });
+});
+
+describe('starterQuestions', () => {
+  it('suggests broad questions when the archive tells nothing more', () => {
+    const questions = starterQuestions({ top_sources: [], tags: [] });
+    expect(questions[0]).toBe('What topics have I been reading about lately?');
+    expect(questions).toHaveLength(4);
+  });
+
+  it('asks about the person’s own tags and busiest source, at most six', () => {
+    const questions = starterQuestions({
+      top_sources: [{ source: 'LWN' }],
+      tags: [{ tag: 'rust' }, { tag: 'go' }],
+    });
+    expect(questions).toContain('Summarise what I saved under "rust"');
+    expect(questions).toContain('Compare what I saved under "rust" and "go"');
+    expect(questions).toContain('What has LWN covered recently?');
+    expect(questions).toHaveLength(6);
   });
 });

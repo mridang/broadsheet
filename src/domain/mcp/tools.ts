@@ -45,12 +45,11 @@ import { issueResource } from '@/domain/api/issue-resource';
 import { MAX_SUGGESTIONS, suggestionResource } from '@/domain/api/suggestions';
 import {
   AnswerUnavailable,
-  archivePrompt,
-  citedIds,
-  complete,
   MAX_QUESTION_LENGTH,
   type AnswerModel,
 } from '@/domain/assistant';
+import { answerTurn } from '@/domain/assistant-tools';
+import { budget } from '@/domain/api/usage';
 import { issueFor, isIssueDate } from '@/domain/issues';
 import {
   NOTIFICATION_CHANNELS,
@@ -1149,28 +1148,23 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
           : await repo.getConversation(uid, conversation_id);
       if (!conversation)
         throw new ToolFailure('There is no such conversation.');
-      const history = await repo.listMessages(conversation.id);
-      const passages = await repo.retrievePassages(uid, asked);
-      let answer: string;
+      if (!(await budget(repo, uid, 'assistant')).remaining) {
+        throw new ToolFailure(
+          'You have used all your assistant questions for today. They reset at midnight UTC.',
+        );
+      }
+      let turn: Awaited<ReturnType<typeof answerTurn>>;
       try {
-        answer = await complete(model, archivePrompt(passages, history, asked));
+        turn = await answerTurn(repo, uid, conversation.id, asked, model);
       } catch (error) {
         if (error instanceof AnswerUnavailable) {
           throw new ToolFailure('The assistant could not answer just now.');
         }
         throw error;
       }
-      await repo.addMessage(conversation.id, 'user', asked);
-      const reply = await repo.addMessage(
-        conversation.id,
-        'assistant',
-        answer,
-        citedIds(answer, passages),
-      );
-      const titles = new Map(passages.map((p) => [p.id, p.title] as const));
       return {
         conversation_id: String(conversation.id),
-        message: messageResource(reply, titles),
+        message: messageResource(turn.reply, turn.titles),
       };
     },
   }),

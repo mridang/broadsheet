@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
+import { DAILY_LIMITS } from '@/domain/assistant';
 import { databaseFrom, type Database } from '@/domain/db/database';
 import { collect, TOOLS, type ToolContext } from '@/domain/mcp/tools';
 import { Repository } from '@/domain/repository';
@@ -555,6 +556,17 @@ describe('ask_archive', () => {
     await expect(
       run('ask_archive', { question: 'Hi', conversation_id: theirs.id }),
     ).rejects.toThrow('There is no such conversation.');
+  });
+
+  it('refuses once today’s assistant budget is used up', async () => {
+    const repo = new Repository(db);
+    for (let i = 0; i < DAILY_LIMITS.assistant; i++) {
+      await repo.recordUsage(ctx.uid, 'assistant');
+    }
+    ctx = { ...ctx, model: answering('x') };
+    await expect(run('ask_archive', { question: 'Hi' })).rejects.toThrow(
+      'You have used all your assistant questions for today.',
+    );
   });
 
   it('says so when no model is bound', async () => {

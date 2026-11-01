@@ -13,7 +13,7 @@ import {
   tokenFor,
 } from '../../../../domain/auth/auth-test-kit';
 
-const { GET } = await import('@/app/api/conversations/[id]/route');
+const { GET, DELETE } = await import('@/app/api/conversations/[id]/route');
 
 let restore: () => void;
 let conversation: number;
@@ -78,5 +78,38 @@ describe('GET /api/conversations/:id', () => {
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
     expect((await read(conversation)).status).toBe(401);
+  });
+});
+
+const remove = (id: string | number) =>
+  DELETE(
+    new Request(`https://app.test/api/conversations/${id}`, {
+      method: 'DELETE',
+      headers: auth,
+    }),
+    { params: Promise.resolve({ id: String(id) }) },
+  );
+
+describe('DELETE /api/conversations/:id', () => {
+  it('answers 204 and the conversation is gone', async () => {
+    expect((await remove(conversation)).status).toBe(204);
+    expect((await read(conversation)).status).toBe(404);
+  });
+
+  it('answers 404 the second time', async () => {
+    await remove(conversation);
+    expect((await remove(conversation)).status).toBe(404);
+  });
+
+  it('answers 404, removing nothing, for another person', async () => {
+    auth = await cookieFor(8);
+    expect((await remove(conversation)).status).toBe(404);
+    auth = await cookieFor(7);
+    expect((await read(conversation)).status).toBe(200);
+  });
+
+  it('answers 401 when nobody is signed in', async () => {
+    auth = {};
+    expect((await remove(conversation)).status).toBe(401);
   });
 });

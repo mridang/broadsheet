@@ -6,6 +6,7 @@ import {
   anyWordQuery,
   FETCH_HISTORY_LIMIT,
   DEFAULT_PREFERENCES,
+  conversationTitle,
   ftsQuery,
   MAX_BACKOFF_MINUTES,
   Repository,
@@ -1920,5 +1921,118 @@ describe('archive helpers', () => {
       (await repo.searchArticles(1, { to: '2000-01-01', limit: 5 })).length,
       (await repo.searchArticles(1, { from: today, limit: 5 })).length,
     ]).toEqual([2, 0, 0, 2]);
+  });
+});
+
+describe('conversationTitle', () => {
+  it('cuts a long first question to fifty characters', () => {
+    expect(conversationTitle(`  ${'a'.repeat(60)} `)).toBe(
+      `${'a'.repeat(50)}…`,
+    );
+    expect(conversationTitle('short  one')).toBe('short one');
+  });
+});
+
+describe('answers cache and usage', () => {
+  it('keeps and replaces an answer per person, article and question', async () => {
+    const repo = new Repository(db);
+    await repo.storeAnswer(1, 5, 'bullets', 'A');
+    await repo.storeAnswer(1, 5, 'bullets', 'B');
+    expect(await repo.cachedAnswer(1, 5, 'bullets')).toBe('B');
+    expect(await repo.cachedAnswer(2, 5, 'bullets')).toBeUndefined();
+  });
+
+  it('counts questions since a time, leaving out cached ones and other kinds', async () => {
+    const repo = new Repository(db);
+    await repo.recordUsage(1, 'answer');
+    await repo.recordUsage(1, 'answer', true);
+    await repo.recordUsage(1, 'assistant');
+    expect(await repo.usageSince(1, 'answer', '2000-01-01 00:00:00')).toBe(1);
+    expect(await repo.usageSince(1, 'answer', '2999-01-01 00:00:00')).toBe(0);
+  });
+});
+
+describe('listing and removing conversations', () => {
+  it('titles a conversation by its first question and lists the last active first', async () => {
+    const repo = new Repository(db);
+    const a = await repo.addConversation(1);
+    const b = await repo.addConversation(1);
+    await repo.touchConversation(a.id, 'First question');
+    await repo.touchConversation(a.id, 'Second question');
+    await db.run(
+      sql`UPDATE conversations SET updated_at = '2000-01-01 00:00:00' WHERE id = ${b.id}`,
+    );
+    const listed = await repo.listConversations(1);
+    expect(listed.map((c) => [c.id, c.title])).toEqual([
+      [a.id, 'First question'],
+      [b.id, null],
+    ]);
+    expect(await repo.listConversations(2)).toEqual([]);
+  });
+
+  it('removes only the owner’s conversation, with its turns', async () => {
+    const repo = new Repository(db);
+    const c = await repo.addConversation(1);
+    await repo.addMessage(c.id, 'user', 'Q');
+    expect(await repo.removeConversation(2, c.id)).toBe(false);
+    expect(await repo.removeConversation(1, c.id)).toBe(true);
+    expect(await repo.listMessages(c.id)).toEqual([]);
+    expect(await repo.removeConversation(1, c.id)).toBe(false);
+  });
+});
+
+describe('similarSources', () => {
+  it('suggests what followers of one feed’s source also follow, with headlines', async () => {
+    const repo = new Repository(db);
+    const mine = (await addFeed(db, 1, 'https://shared.test/f'))!;
+    await addFeed(db, 2, 'https://shared.test/f');
+    const extra = (await addFeed(db, 2, 'https://extra.test/f'))!;
+    await addFeed(db, 3, 'https://unrelated.test/f');
+    await repo.writeEdition(extra.source_id, '2026-10-20', [
+      story({ title: 'Headline' }),
+    ]);
+    const found = await repo.similarSources(1, mine.id);
+    expect(found).toEqual([
+      expect.objectContaining({
+        url: 'https://extra.test/f',
+        followers: 1,
+        stories: [expect.objectContaining({ title: 'Headline' })],
+      }),
+    ]);
+  });
+
+  it('is undefined for someone else’s feed', async () => {
+    const theirs = (await addFeed(db, 2, 'https://shared.test/f'))!;
+    expect(
+      await new Repository(db).similarSources(1, theirs.id),
+    ).toBeUndefined();
+  });
+});
+
+describe('discoverArticles', () => {
+  it('finds stories from any source sharing title words, flagging unfollowed ones', async () => {
+    const repo = new Repository(db);
+    const a = (await addFeed(db, 1, 'https://a.test/f'))!;
+    const b = (await addFeed(db, 2, 'https://b.test/f'))!;
+    await repo.writeEdition(a.source_id, '2026-10-20', [
+      story({ url: 'https://x/1', title: 'Quantum computing breakthrough' }),
+    ]);
+    await repo.writeEdition(b.source_id, '2026-10-20', [
+      story({ url: 'https://x/2', title: 'Quantum chips arrive' }),
+      story({ url: 'https://x/1', title: 'Quantum computing breakthrough' }),
+    ]);
+    const [mine] = await repo.sourceArticles(a.source_id, '2026-10-20');
+    const found = await repo.discoverArticles(1, mine!.id);
+    expect(found?.map((s) => [s.article.url, s.followed])).toEqual([
+      ['https://x/2', false],
+    ]);
+  });
+
+  it('is undefined for an article the person cannot reach', async () => {
+    const repo = new Repository(db);
+    const b = (await addFeed(db, 2, 'https://b.test/f'))!;
+    await repo.writeEdition(b.source_id, '2026-10-20', [story({})]);
+    const [theirs] = await repo.sourceArticles(b.source_id, '2026-10-20');
+    expect(await repo.discoverArticles(1, theirs!.id)).toBeUndefined();
   });
 });

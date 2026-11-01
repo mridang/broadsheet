@@ -63,3 +63,15 @@ TrendingArticle:
         save_count:
           type: integer
           minimum: 1
+DiscoveredArticle:
+  allOf:
+    - $ref: '#/Article'
+  type: object
+  required: [source_url, followed]
+  properties:
+    source_url:
+      type: string
+      format: uri
+    followed:
+      type: boolean
+      description: Whether the person follows the story's source; follow it with `POST /api/feeds`.

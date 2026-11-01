@@ -27,6 +27,8 @@ import {
 
 import { type Database } from '@/domain/db/database';
 import {
+  ai_usage,
+  answers,
   articles,
   classifiers,
   clusters,
@@ -413,6 +415,47 @@ export interface Passage {
   readonly source: string | null;
   readonly summary: string | null;
   readonly text: string;
+  /** The day it was published, else the day of its edition. */
+  readonly date: string | null;
+}
+/** Narrows a {@link Repository.retrievePassages} search. */
+export interface PassageQuery {
+  /** Only stories from this day (YYYY-MM-DD) on. */
+  readonly since?: string;
+  /** Only stories up to this day (YYYY-MM-DD). */
+  readonly until?: string;
+  /** Only stories whose source name or address holds this text. */
+  readonly source?: string;
+  readonly limit?: number;
+}
+/** What a person's archive holds, for the assistant to get its bearings. */
+export interface ArchiveSummary {
+  readonly sources: number;
+  readonly articles: number;
+  readonly saves: number;
+  readonly reads: number;
+  readonly top_sources: readonly {
+    readonly source: string;
+    readonly count: number;
+  }[];
+  readonly tags: readonly { readonly tag: string; readonly count: number }[];
+}
+/** A conversation as a list shows it. */
+export type ConversationSummary = typeof conversations.$inferSelect;
+/** What Ask AI or the assistant may be asked: its daily budget. */
+export type UsageKind = 'answer' | 'assistant';
+/** A story like another, from any source, and whether the person follows its source. */
+export interface DiscoveredArticle {
+  readonly article: ArticleSummary;
+  readonly source_url: string;
+  readonly followed: boolean;
+}
+/** A source like one the person follows, with its newest headlines. */
+export interface SimilarSource extends SourceSuggestion {
+  readonly stories: readonly {
+    readonly id: number;
+    readonly title: string | null;
+  }[];
 }
 /** A source other readers like this person follow, and how many of them do. */
 export interface SourceSuggestion {
@@ -443,6 +486,15 @@ export function anyWordQuery(question: string): string {
     .split(/[^\p{L}\p{N}]+/u)
     .filter((w) => w.length >= 3 && !STOPWORDS.has(w));
   return [...new Set(words)].map((w) => `"${w}"`).join(' OR ');
+}
+
+/** Longest conversation title, in characters. */
+const TITLE_LENGTH = 50;
+
+/** A conversation's title from its first question: cut at {@link TITLE_LENGTH} with an ellipsis. */
+export function conversationTitle(question: string): string {
+  const text = question.trim().replace(/\s+/g, ' ');
+  return text.length > TITLE_LENGTH ? `${text.slice(0, TITLE_LENGTH)}…` : text;
 }
 
 /** A stored citation list, or none when it is not a JSON array of numbers. */
@@ -2120,47 +2172,6 @@ export class Repository {
     return rows.map((r) => ({ article: r.article, count: Number(r.count) }));
   }
 
-  /**
-   * The articles a person may ask the assistant about (from sources they
-   * follow, or ones they saved or read) that hold any word of `question`,
-   * best match first, as passages.
-   */
-  async retrievePassages(
-    userId: number,
-    question: string,
-    limit = 6,
-  ): Promise<Passage[]> {
-    const match = anyWordQuery(question);
-    if (!match) return [];
-    const mine = (table: typeof saves | typeof reads) =>
-      this.#db
-        .select({ id: table.article_id })
-        .from(table)
-        .where(eq(table.user_id, userId));
-    return this.#db
-      .select({
-        id: articles.id,
-        title: articles.title,
-        source: articles.source,
-        summary: articles.summary,
-        text: sql<string>`substr(coalesce(${articles.body_text}, ''), 1, ${PASSAGE_LENGTH})`,
-      })
-      .from(articles)
-      .innerJoin(sql`articles_fts f`, sql`f.rowid = ${articles.id}`)
-      .where(
-        and(
-          sql`articles_fts MATCH ${match}`,
-          or(
-            inArray(articles.source_id, this.#followed(userId)),
-            inArray(articles.id, mine(saves)),
-            inArray(articles.id, mine(reads)),
-          ),
-        ),
-      )
-      .orderBy(sql`f.rank`, desc(articles.id))
-      .limit(limit);
-  }
-
   /** The titles of these articles, by id; ids with no article are left out. */
   async articleTitles(
     ids: readonly number[],
@@ -2400,6 +2411,376 @@ export class Repository {
       )
       .orderBy(desc(issues.date))
       .limit(limit);
+  }
+
+  /** Articles the person follows, saved or read: what the assistant may draw on. */
+  #reachable(userId: number) {
+    const mine = (table: typeof saves | typeof reads) =>
+      this.#db
+        .select({ id: table.article_id })
+        .from(table)
+        .where(eq(table.user_id, userId));
+    return or(
+      inArray(articles.source_id, this.#followed(userId)),
+      inArray(articles.id, mine(saves)),
+      inArray(articles.id, mine(reads)),
+    );
+  }
+
+  /** The columns of a {@link Passage}. */
+  #passageColumns() {
+    return {
+      id: articles.id,
+      title: articles.title,
+      source: articles.source,
+      summary: articles.summary,
+      text: sql<string>`substr(coalesce(${articles.body_text}, ''), 1, ${PASSAGE_LENGTH})`,
+      date: sql<
+        string | null
+      >`substr(coalesce(nullif(${articles.published_at}, ''), ${articles.edition}), 1, 10)`,
+    };
+  }
+
+  /** The day an article counts as, for date ranges. */
+  #day() {
+    return sql`substr(coalesce(nullif(${articles.published_at}, ''), ${articles.edition}), 1, 10)`;
+  }
+
+  /**
+   * The articles a person may ask the assistant about (from sources they
+   * follow, or ones they saved or read) that hold any word of `question`,
+   * best match first, as passages, narrowed by `query`.
+   */
+  async retrievePassages(
+    userId: number,
+    question: string,
+    { since, until, source, limit = 6 }: PassageQuery = {},
+  ): Promise<Passage[]> {
+    const match = anyWordQuery(question);
+    if (!match) return [];
+    return this.#db
+      .select(this.#passageColumns())
+      .from(articles)
+      .innerJoin(sql`articles_fts f`, sql`f.rowid = ${articles.id}`)
+      .where(
+        and(
+          sql`articles_fts MATCH ${match}`,
+          this.#reachable(userId),
+          since ? sql`${this.#day()} >= ${since}` : undefined,
+          until ? sql`${this.#day()} <= ${until}` : undefined,
+          source
+            ? sql`(${articles.source} LIKE ${`%${source}%`} OR ${articles.url} LIKE ${`%${source}%`})`
+            : undefined,
+        ),
+      )
+      .orderBy(sql`f.rank`, desc(articles.id))
+      .limit(limit);
+  }
+
+  /** The person's saved stories, newest save first, with `tag` and holding any word of `query`. */
+  async savedPassages(
+    userId: number,
+    {
+      query = '',
+      tag,
+      limit = 10,
+    }: { query?: string; tag?: string; limit?: number },
+  ): Promise<Passage[]> {
+    const match = anyWordQuery(query);
+    return this.#db
+      .select(this.#passageColumns())
+      .from(saves)
+      .innerJoin(articles, eq(saves.article_id, articles.id))
+      .where(
+        and(
+          eq(saves.user_id, userId),
+          tag === undefined
+            ? undefined
+            : sql`exists (select 1 from json_each(${saves.tags}) where json_each.value = ${tag})`,
+          match
+            ? sql`${articles.id} IN (SELECT rowid FROM articles_fts WHERE articles_fts MATCH ${match})`
+            : undefined,
+        ),
+      )
+      .orderBy(desc(saves.created_at), desc(saves.article_id))
+      .limit(limit);
+  }
+
+  /** The stories the person opened in the last `days` days, newest first. */
+  async recentReadPassages(
+    userId: number,
+    days: number,
+    limit = 10,
+  ): Promise<Passage[]> {
+    return this.#db
+      .select(this.#passageColumns())
+      .from(reads)
+      .innerJoin(articles, eq(reads.article_id, articles.id))
+      .where(
+        and(
+          eq(reads.user_id, userId),
+          sql`${reads.created_at} >= datetime('now', ${`-${days} days`})`,
+        ),
+      )
+      .orderBy(desc(reads.created_at), desc(reads.article_id))
+      .limit(limit);
+  }
+
+  /** One article with its text, if the person follows its source, saved or read it. */
+  async reachableArticle(
+    userId: number,
+    id: number,
+  ): Promise<Article | undefined> {
+    const [row] = await this.#db
+      .select()
+      .from(articles)
+      .where(and(eq(articles.id, id), this.#reachable(userId)))
+      .limit(1);
+    return row;
+  }
+
+  /** Counts of what the person's archive holds, with their busiest sources and tags. */
+  async archiveSummary(userId: number): Promise<ArchiveSummary> {
+    const count = sql<number>`count(*)`;
+    const [followed] = await this.#db
+      .select({ n: count })
+      .from(subscriptions)
+      .where(eq(subscriptions.user_id, userId));
+    const [stories] = await this.#db
+      .select({ n: count })
+      .from(articles)
+      .where(inArray(articles.source_id, this.#followed(userId)));
+    const [saved] = await this.#db
+      .select({ n: count })
+      .from(saves)
+      .where(eq(saves.user_id, userId));
+    const [read] = await this.#db
+      .select({ n: count })
+      .from(reads)
+      .where(eq(reads.user_id, userId));
+    const top = await this.#db
+      .select({ source: articles.source, count })
+      .from(reads)
+      .innerJoin(articles, eq(reads.article_id, articles.id))
+      .where(
+        and(
+          eq(reads.user_id, userId),
+          sql`coalesce(${articles.source}, '') <> ''`,
+        ),
+      )
+      .groupBy(articles.source)
+      .orderBy(desc(count), asc(articles.source))
+      .limit(5);
+    const tags = await this.#db
+      .select({ tag: sql<string>`json_each.value`, count })
+      .from(saves)
+      .innerJoin(sql`json_each(${saves.tags})`, sql`1 = 1`)
+      .where(eq(saves.user_id, userId))
+      .groupBy(sql`json_each.value`)
+      .orderBy(desc(count), asc(sql`json_each.value`))
+      .limit(10);
+    return {
+      sources: Number(followed?.n ?? 0),
+      articles: Number(stories?.n ?? 0),
+      saves: Number(saved?.n ?? 0),
+      reads: Number(read?.n ?? 0),
+      top_sources: top.map((r) => ({
+        source: r.source ?? '',
+        count: Number(r.count),
+      })),
+      tags: tags.map((r) => ({ tag: String(r.tag), count: Number(r.count) })),
+    };
+  }
+
+  /** A preset answer the person was given about an article before, if any. */
+  async cachedAnswer(
+    userId: number,
+    articleId: number,
+    questionId: string,
+  ): Promise<string | undefined> {
+    const [row] = await this.#db
+      .select({ answer: answers.answer })
+      .from(answers)
+      .where(
+        and(
+          eq(answers.user_id, userId),
+          eq(answers.article_id, articleId),
+          eq(answers.question_id, questionId),
+        ),
+      )
+      .limit(1);
+    return row?.answer;
+  }
+
+  /** Keep a preset answer, replacing any kept before. */
+  async storeAnswer(
+    userId: number,
+    articleId: number,
+    questionId: string,
+    answer: string,
+  ): Promise<void> {
+    await this.#db
+      .insert(answers)
+      .values({
+        user_id: userId,
+        article_id: articleId,
+        question_id: questionId,
+        answer,
+      })
+      .onConflictDoUpdate({
+        target: [answers.user_id, answers.article_id, answers.question_id],
+        set: { answer, created_at: sql`datetime('now')` },
+      });
+  }
+
+  /** Note one question asked of the model; a cached answer is noted but not counted. */
+  async recordUsage(
+    userId: number,
+    kind: UsageKind,
+    cached = false,
+  ): Promise<void> {
+    await this.#db
+      .insert(ai_usage)
+      .values({ user_id: userId, kind, cached: cached ? 1 : 0 });
+  }
+
+  /** How many questions of `kind` the person asked of the model since `since` (stored time). */
+  async usageSince(
+    userId: number,
+    kind: UsageKind,
+    since: string,
+  ): Promise<number> {
+    const [row] = await this.#db
+      .select({ n: sql<number>`count(*)` })
+      .from(ai_usage)
+      .where(
+        and(
+          eq(ai_usage.user_id, userId),
+          eq(ai_usage.kind, kind),
+          eq(ai_usage.cached, 0),
+          sql`${ai_usage.created_at} >= ${since}`,
+        ),
+      );
+    return Number(row?.n ?? 0);
+  }
+
+  /** The person's conversations, last active first. */
+  listConversations(userId: number): Promise<ConversationSummary[]> {
+    return this.#db
+      .select()
+      .from(conversations)
+      .where(eq(conversations.user_id, userId))
+      .orderBy(
+        desc(
+          sql`coalesce(${conversations.updated_at}, ${conversations.created_at})`,
+        ),
+        desc(conversations.id),
+      );
+  }
+
+  /** Note a new turn: the conversation is active now, and titled by its first question. */
+  async touchConversation(id: number, question: string): Promise<void> {
+    await this.#db
+      .update(conversations)
+      .set({
+        updated_at: sql`datetime('now')`,
+        title: sql`coalesce(${conversations.title}, ${conversationTitle(question)})`,
+      })
+      .where(eq(conversations.id, id));
+  }
+
+  /** Remove the person's conversation and its turns. True when there was one. */
+  async removeConversation(userId: number, id: number): Promise<boolean> {
+    const removed = await this.#db
+      .delete(conversations)
+      .where(and(eq(conversations.id, id), eq(conversations.user_id, userId)))
+      .returning({ id: conversations.id });
+    if (!removed.length) return false;
+    await this.#db.delete(messages).where(eq(messages.conversation_id, id));
+    return true;
+  }
+
+  /**
+   * Sources that people who follow the source of the person's feed `feedId`
+   * also follow, and the person does not, most shared first, each with its
+   * newest headlines. Undefined when the feed is not theirs.
+   */
+  async similarSources(
+    userId: number,
+    feedId: number,
+    limit = 5,
+  ): Promise<SimilarSource[] | undefined> {
+    const feed = await this.getFeed(userId, feedId);
+    if (!feed) return undefined;
+    const peer = alias(subscriptions, 'peer');
+    const rows = await this.#db
+      .select({
+        id: sources.id,
+        url: sources.url,
+        title: sources.title,
+        followers: sql<number>`count(distinct ${subscriptions.user_id})`,
+      })
+      .from(peer)
+      .innerJoin(subscriptions, eq(subscriptions.user_id, peer.user_id))
+      .innerJoin(sources, eq(sources.id, subscriptions.source_id))
+      .where(
+        and(
+          eq(peer.source_id, feed.source_id),
+          ne(peer.user_id, userId),
+          notInArray(subscriptions.source_id, this.#followed(userId)),
+        ),
+      )
+      .groupBy(sources.id)
+      .orderBy(
+        sql`count(distinct ${subscriptions.user_id}) desc`,
+        asc(sources.id),
+      )
+      .limit(limit);
+    return Promise.all(
+      rows.map(async (r) => ({
+        ...r,
+        followers: Number(r.followers),
+        stories: await this.#db
+          .select({ id: articles.id, title: articles.title })
+          .from(articles)
+          .where(eq(articles.source_id, r.id))
+          .orderBy(desc(articles.id))
+          .limit(5),
+      })),
+    );
+  }
+
+  /**
+   * NewsBlur's discover: stories from any source that share words with the title of the article
+   * `articleId` (one the person can reach), best match first, leaving out the
+   * article itself and other copies of its address. Undefined when the person
+   * cannot reach it.
+   */
+  async discoverArticles(
+    userId: number,
+    articleId: number,
+    limit = 5,
+  ): Promise<DiscoveredArticle[] | undefined> {
+    const article = await this.reachableArticle(userId, articleId);
+    if (!article) return undefined;
+    const match = anyWordQuery(`${article.title ?? ''}`);
+    if (!match) return [];
+    const followed = new Set((await this.#followed(userId)).map((r) => r.id));
+    const rows = await this.#db
+      .select({ article: summaryColumns, source_url: sources.url })
+      .from(articles)
+      .innerJoin(sources, eq(sources.id, articles.source_id))
+      .innerJoin(sql`articles_fts f`, sql`f.rowid = ${articles.id}`)
+      .where(
+        and(sql`articles_fts MATCH ${match}`, ne(articles.url, article.url)),
+      )
+      .orderBy(sql`f.rank`, desc(articles.id))
+      .limit(limit * 3);
+    const seen = new Set<string>();
+    return rows
+      .filter((r) => !seen.has(r.article.url) && seen.add(r.article.url))
+      .slice(0, limit)
+      .map((r) => ({ ...r, followed: followed.has(r.article.source_id) }));
   }
 }
 

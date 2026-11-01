@@ -39,7 +39,8 @@ function dateline(published: string | null, edition: string | null): string {
  * One story set in the paper's type: headline, dateline, standfirst and the
  * full text kept from its page, with the original a click away. Shows only
  * stories from the reader's own feeds (a visitor reads the public paper's).
- * A signed-in reader can ask questions about it.
+ * A signed-in reader can ask questions about it. Similar stories from any
+ * source follow, linking out to those from feeds the reader does not follow.
  */
 export default async function ArticlePage({
   params,
@@ -51,9 +52,11 @@ export default async function ArticlePage({
   const user = await getCurrentUser();
   const ownerId = user ? user.id : await ensurePublicUser();
   const db = getDatabase();
-  const stored = await new Repository(db).getArticle(ownerId, id);
+  const repo = new Repository(db);
+  const stored = await repo.getArticle(ownerId, id);
   if (!stored) notFound();
   const article = await withText(db, stored);
+  const similar = (await repo.discoverArticles(ownerId, article.id)) ?? [];
   const paragraphs = (article.body_text ?? '').split('\n\n').filter(Boolean);
   const date = dateline(article.published_at, article.edition);
 
@@ -105,6 +108,29 @@ export default async function ArticlePage({
         </p>
       )}
       {user ? <AskBox id={article.id} /> : null}
+      {similar.length ? (
+        <section aria-labelledby="similar" className="mt-12">
+          <h2 id="similar" className="text-base font-semibold">
+            Similar stories
+          </h2>
+          <ul className="mt-3 space-y-2">
+            {similar.map((s) => (
+              <li key={s.article.id} className="text-sm">
+                <a
+                  className="focus-ring rounded-sm font-medium text-ink hover:underline"
+                  href={s.followed ? `/article/${s.article.id}` : s.article.url}
+                >
+                  {s.article.title || s.article.url}
+                </a>{' '}
+                <span className="text-muted">
+                  {s.article.source || hostOf(s.article.url)}
+                  {s.followed ? '' : ' · not in your feeds'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </article>
   );
 }

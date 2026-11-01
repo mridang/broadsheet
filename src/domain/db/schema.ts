@@ -246,7 +246,7 @@ export const issues = sqliteTable(
     date: text('date').notNull(),
     layout: text('layout').notNull(),
     briefing: text('briefing'),
-    /** The stories the note covers, as JSON {id, category} (migration 0019). */
+    /** The stories the note covers, as JSON {id, category} (migration 0023). */
     briefing_stories: text('briefing_stories'),
     created_at: text('created_at').default(sql`(datetime('now'))`),
   },
@@ -294,6 +294,10 @@ export const conversations = sqliteTable(
     id: integer('id').primaryKey({ autoIncrement: true }),
     user_id: integer('user_id').notNull(),
     created_at: text('created_at').default(sql`(datetime('now'))`),
+    /** The first question, cut short (migration 0023). */
+    title: text('title'),
+    /** When the last turn was added (migration 0023). */
+    updated_at: text('updated_at'),
   },
   (table) => [index('idx_conversations_user').on(table.user_id)],
 );
@@ -313,6 +317,41 @@ export const messages = sqliteTable(
     created_at: text('created_at').default(sql`(datetime('now'))`),
   },
   (table) => [index('idx_messages_conversation').on(table.conversation_id)],
+);
+
+/** A preset answer a person was given about an article, served again from here. */
+export const answers = sqliteTable(
+  'answers',
+  {
+    user_id: integer('user_id').notNull(),
+    article_id: integer('article_id').notNull(),
+    question_id: text('question_id').notNull(),
+    answer: text('answer').notNull(),
+    created_at: text('created_at').default(sql`(datetime('now'))`),
+  },
+  (table) => [
+    primaryKey({
+      columns: [table.user_id, table.article_id, table.question_id],
+    }),
+  ],
+);
+
+/**
+ * One question asked of the model, for the daily budgets: `kind` is `answer`
+ * or `assistant`; `cached` (0/1) marks an answer served from {@link answers}.
+ */
+export const ai_usage = sqliteTable(
+  'ai_usage',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    user_id: integer('user_id').notNull(),
+    kind: text('kind').notNull(),
+    cached: integer('cached').notNull().default(0),
+    created_at: text('created_at').default(sql`(datetime('now'))`),
+  },
+  (table) => [
+    index('idx_ai_usage_user').on(table.user_id, table.kind, table.created_at),
+  ],
 );
 
 /**

@@ -56,17 +56,24 @@ function TurnView({ turn }: Readonly<{ turn: Turn }>): ReactElement {
 
 /**
  * A conversation with the archive assistant. The conversation is started on
- * the first question; each answer cites the stories it drew on.
+ * the first question (or reopened with its turns); each answer cites the
+ * stories it drew on. Before the first question it offers suggestions.
  */
-export function AssistantChat(): ReactElement {
+export function AssistantChat({
+  conversationId,
+  initialTurns = [],
+  suggestions = [],
+}: Readonly<{
+  conversationId?: string;
+  initialTurns?: readonly Turn[];
+  suggestions?: readonly string[];
+}>): ReactElement {
   const { busy, error, run } = useApiAction();
-  const [conversation, setConversation] = useState<string | undefined>();
-  const [turns, setTurns] = useState<readonly Turn[]>([]);
-  const submit = (event: FormEvent<HTMLFormElement>): void => {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const content = String(new FormData(form).get('content') ?? '').trim();
-    if (!content) return;
+  const [conversation, setConversation] = useState<string | undefined>(
+    conversationId,
+  );
+  const [turns, setTurns] = useState<readonly Turn[]>(initialTurns);
+  const send = (content: string, form?: HTMLFormElement): void => {
     void run(async () => {
       const id = conversation ?? (await startConversation());
       setConversation(id);
@@ -76,11 +83,36 @@ export function AssistantChat(): ReactElement {
         { id: `q${answer.id}`, role: 'user', content, citations: [] },
         answer,
       ]);
-      form.reset();
+      form?.reset();
     }, 'The assistant could not answer.');
+  };
+  const submit = (event: FormEvent<HTMLFormElement>): void => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const content = String(new FormData(form).get('content') ?? '').trim();
+    if (content) send(content, form);
   };
   return (
     <>
+      {!turns.length && suggestions.length ? (
+        <p className="mb-4 flex flex-wrap gap-2">
+          {suggestions.map((question) => (
+            <button
+              key={question}
+              type="button"
+              className={buttonClass({
+                variant: 'outline',
+                size: 'sm',
+                className: 'rounded-full border-line',
+              })}
+              disabled={busy}
+              onClick={() => send(question)}
+            >
+              {question}
+            </button>
+          ))}
+        </p>
+      ) : null}
       <div aria-live="polite" className="space-y-3">
         {turns.map((turn) => (
           <TurnView key={turn.id} turn={turn} />

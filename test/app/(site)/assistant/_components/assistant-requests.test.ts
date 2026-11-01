@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
 
 import {
+  deleteConversation,
   sendMessage,
   startConversation,
 } from '@/app/(site)/assistant/_components/assistant-requests';
@@ -42,5 +43,27 @@ describe('sendMessage', () => {
       }),
     );
     await expect(sendMessage('3', 'Q')).rejects.toBeInstanceOf(ProblemError);
+  });
+});
+
+describe('deleteConversation', () => {
+  it('deletes the conversation', async () => {
+    const spy = jest
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response(null, { status: 204 }));
+    await deleteConversation('3');
+    expect(spy).toHaveBeenCalledWith('/api/conversations/3', {
+      method: 'DELETE',
+    });
+  });
+
+  it('throws the server’s words when refused', async () => {
+    jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ title: 'No', detail: 'Gone.' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/problem+json' },
+      }),
+    );
+    await expect(deleteConversation('3')).rejects.toBeInstanceOf(ProblemError);
   });
 });

@@ -1,22 +1,58 @@
 Question:
   type: object
-  required: [question]
+  description: Exactly one of `question_id` (a preset) and `question` (the reader's own).
   additionalProperties: false
   properties:
+    question_id:
+      type: string
+      enum:
+        - sentence
+        - bullets
+        - paragraph
+        - context
+        - people
+        - arguments
+        - other-side
+        - factcheck
+
     question:
       type: string
       minLength: 1
       maxLength: 500
+    history:
+      type: array
+      description: The earlier turns a follow-up builds on. A preset with history is not cached.
+      maxItems: 6
+      items:
+        type: object
+        required: [role, content]
+        additionalProperties: false
+        properties:
+          role:
+            type: string
+            enum: [user, assistant]
+          content:
+            type: string
+            maxLength: 4000
 Answer:
   type: object
-  required: [article_id, question, answer]
+  required: [article_id, question, answer, cached, remaining]
   properties:
     article_id:
       type: string
+    question_id:
+      type: string
+      description: The preset asked, when it was one.
     question:
       type: string
     answer:
       type: string
+    cached:
+      type: boolean
+      description: Whether the answer was given before and served again; a cached answer does not count against the budget.
+    remaining:
+      type: integer
+      description: Ask AI questions left today.
 MessageInput:
   type: object
   required: [content]
@@ -55,17 +91,51 @@ Message:
     created_at:
       type: string
       format: date-time
-Conversation:
+ConversationSummary:
   type: object
-  required: [id, messages]
+  required: [id]
   properties:
     id:
       type: string
+    title:
+      type: string
+      description: The first question, cut to 50 characters.
     created_at:
       type: string
       format: date-time
+    updated_at:
+      type: string
+      format: date-time
+      description: When the last turn was added.
+Conversation:
+  allOf:
+    - $ref: '#/ConversationSummary'
+  type: object
+  required: [id, messages]
+  properties:
     messages:
       type: array
       description: The turns, oldest first.
       items:
         $ref: '#/Message'
+Budget:
+  type: object
+  required: [used, limit, remaining, resets_at]
+  properties:
+    used:
+      type: integer
+    limit:
+      type: integer
+    remaining:
+      type: integer
+    resets_at:
+      type: string
+      format: date-time
+Usage:
+  type: object
+  required: [answers, assistant]
+  properties:
+    answers:
+      $ref: '#/Budget'
+    assistant:
+      $ref: '#/Budget'

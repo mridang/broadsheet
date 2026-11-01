@@ -34,6 +34,7 @@ tags:
   - name: sessions
   - name: tokens
   - name: topics
+  - name: usage
   - name: webhooks
 paths:
   /api/articles:
@@ -58,6 +59,8 @@ paths:
     $ref: './paths/answers.yaml#/collection'
   /api/conversations:
     $ref: './paths/conversations.yaml#/collection'
+  /api/conversations/suggestions:
+    $ref: './paths/conversations.yaml#/suggestions'
   /api/conversations/{id}:
     $ref: './paths/conversations.yaml#/item'
   /api/conversations/{id}/messages:
@@ -74,6 +77,8 @@ paths:
     $ref: './paths/feeds.yaml#/retries'
   /api/feeds/{id}/statistics:
     $ref: './paths/feeds.yaml#/statistics'
+  /api/feeds/{id}/similar:
+    $ref: './paths/feeds.yaml#/similar'
   /api/feeds/suggestions:
     $ref: './paths/feeds.yaml#/suggestions'
   /api/feeds/refreshes:
@@ -122,6 +127,8 @@ paths:
     $ref: './paths/push.yaml#/subscriptions'
   /api/users/self/push/subscriptions/{id}:
     $ref: './paths/push.yaml#/subscription'
+  /api/users/self/usage:
+    $ref: './paths/usage.yaml#/item'
   /api/users/self/tokens:
     $ref: './paths/tokens.yaml#/collection'
   /api/users/self/tokens/{id}:

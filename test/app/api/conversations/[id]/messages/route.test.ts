@@ -7,6 +7,7 @@ import {
   jest,
 } from '@jest/globals';
 
+import { DAILY_LIMITS } from '@/domain/assistant';
 import { databaseFrom, type Database } from '@/domain/db/database';
 import { Repository } from '@/domain/repository';
 import { SESSION_COOKIE } from '@/domain/auth/app';
@@ -38,7 +39,7 @@ async function cookieFor(uid: number): Promise<Record<string, string>> {
 /** Person 7 follows a source with a story about rust, and has a conversation. */
 beforeEach(async () => {
   const made = sqliteD1(...APP_MIGRATIONS);
-  run = jest.fn(async () => ({ response: 'Rust is safe [1].' }));
+  run = jest.fn(async () => ({ response: `Rust is safe [#${story}].` }));
   restore = installCloudflareContext(made.d1, {
     SESSION_SECRET,
     AI: { run },
@@ -89,7 +90,7 @@ describe('POST /api/conversations/:id/messages', () => {
     expect(res.status).toBe(201);
     expect(await res.json()).toMatchObject({
       role: 'assistant',
-      content: 'Rust is safe [1].',
+      content: `Rust is safe [#${story}].`,
       citations: [
         { article_id: String(story), title: 'Rust', href: `/article/${story}` },
       ],
@@ -111,6 +112,35 @@ describe('POST /api/conversations/:id/messages', () => {
   it('gives the model the retrieved story', async () => {
     await send(conversation, '{"content":"Is rust safe?"}');
     expect(JSON.stringify(run.mock.calls[0])).toContain('Rust is memory safe.');
+  });
+
+  it('titles the conversation by its first question', async () => {
+    await send(conversation, '{"content":"Is rust safe?"}');
+    expect(
+      (await new Repository(db).getConversation(7, conversation))?.title,
+    ).toBe('Is rust safe?');
+  });
+
+  it('runs the tools the model calls and cites what they found', async () => {
+    run
+      .mockResolvedValueOnce({
+        tool_calls: [{ name: 'get_story', arguments: { id: story } }],
+      })
+      .mockResolvedValueOnce({ response: `Read it [#${story}] [#999].` });
+    const res = await send(conversation, '{"content":"What is new?"}');
+    expect(JSON.stringify(run.mock.calls[1])).toContain('Rust is memory safe.');
+    expect(await res.json()).toMatchObject({
+      citations: [{ article_id: String(story) }],
+    });
+  });
+
+  it('answers 429 once today’s budget is used up, asking nothing', async () => {
+    for (let i = 0; i < DAILY_LIMITS.assistant; i++) {
+      await new Repository(db).recordUsage(7, 'assistant');
+    }
+    const res = await send(conversation, '{"content":"Q"}');
+    expect(res.status).toBe(429);
+    expect(run).not.toHaveBeenCalled();
   });
 
   it('answers 400 as a problem for a blank question', async () => {

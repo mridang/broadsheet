@@ -1,4 +1,35 @@
 collection:
+  get:
+    operationId: listConversations
+    tags: [conversations]
+    summary: The person's conversations, last active first, without their turns.
+    description: Rate limited by the `RL_API` binding.
+    parameters:
+      - $ref: '../components/common.yaml#/parameters/Limit'
+      - $ref: '../components/common.yaml#/parameters/Cursor'
+    responses:
+      '200':
+        description: One page of conversations.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [self, items]
+              properties:
+                self:
+                  type: string
+                next:
+                  type: string
+                items:
+                  type: array
+                  items:
+                    $ref: '../components/conversation.yaml#/ConversationSummary'
+      '400':
+        $ref: '../components/common.yaml#/responses/BadRequest'
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'
   post:
     operationId: startConversation
     tags: [conversations]
@@ -42,6 +73,48 @@ item:
         $ref: '../components/common.yaml#/responses/NotFound'
       '429':
         $ref: '../components/common.yaml#/responses/TooManyRequests'
+  delete:
+    operationId: deleteConversation
+    tags: [conversations]
+    summary: Remove a conversation and its turns.
+    description: Rate limited by the `RL_API` binding. Another person's conversation is a 404.
+    responses:
+      '204':
+        description: The conversation is gone.
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '403':
+        $ref: '../components/common.yaml#/responses/Forbidden'
+      '404':
+        $ref: '../components/common.yaml#/responses/NotFound'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'
+suggestions:
+  get:
+    operationId: listConversationSuggestions
+    tags: [conversations]
+    summary: Starter questions for the assistant.
+    description: Rate limited by the `RL_API` binding. Drawn from the sources the person reads most and the tags they save under; at most six, as one page.
+    responses:
+      '200':
+        description: The questions.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [self, items]
+              properties:
+                self:
+                  type: string
+                items:
+                  type: array
+                  maxItems: 6
+                  items:
+                    type: string
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'
 messages:
   parameters:
     - $ref: '#/ConversationId'
@@ -49,7 +122,7 @@ messages:
     operationId: askAssistant
     tags: [conversations]
     summary: Ask the archive assistant a question.
-    description: Rate limited by the `RL_AI` binding. The answer draws on articles from the person's followed sources, saves and reads that match the question in the full-text index, and cites the ones it used. The question and the answer are both kept as turns; when the model fails nothing is kept.
+    description: Rate limited by the `RL_AI` binding, and by a daily budget (`GET /api/users/self/usage`) answered with 429 and `Retry-After` until midnight UTC. The assistant searches the person's followed sources, saves and reads with tools (full-text search with a date range and source, saved stories by tag, recent reads, one story in full, an archive summary) and cites the stories it used; it can cite only stories it was given. The first question titles the conversation. The question and the answer are both kept as turns; when the model fails nothing is kept.
     requestBody:
       required: true
       content:
