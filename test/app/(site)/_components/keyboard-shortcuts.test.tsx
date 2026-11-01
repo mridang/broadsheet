@@ -13,9 +13,14 @@ describe('KeyboardShortcuts', () => {
   });
 
   it('lists each key', () => {
-    ['n', 'J or N', 'u', 'y', '/', '?'].forEach((key) =>
+    ['n', 'g', 'A', 'Y', 'Shift Enter', 'c', '?'].forEach((key) =>
       expect(out).toContain(`<kbd>${key}</kbd>`),
     );
+  });
+
+  it('has a closed picker for going to a section', () => {
+    expect(out).toMatch(/<dialog[^>]*aria-labelledby="goto-title"/);
+    expect(out).toContain('aria-label="Section name"');
   });
 
   it('closes with a button', () => {

@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
 
-import { markRead, markUnread } from '@/app/(site)/_components/story-requests';
+import {
+  markManyRead,
+  markRead,
+  markUnread,
+} from '@/app/(site)/_components/story-requests';
 
 const real = globalThis.fetch;
 afterEach(() => {
@@ -41,5 +45,24 @@ describe('markUnread', () => {
     }) as never;
     expect(() => markUnread(4)).not.toThrow();
     await Promise.resolve();
+  });
+});
+
+describe('markManyRead', () => {
+  it('posts the ids as strings in one request', () => {
+    const fetch = spy();
+    markManyRead([1, 2]);
+    expect(fetch).toHaveBeenCalledWith('/api/users/self/reads', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ article_ids: ['1', '2'] }),
+      keepalive: true,
+    });
+  });
+
+  it('sends nothing for no stories', () => {
+    const fetch = spy();
+    markManyRead([]);
+    expect(fetch).not.toHaveBeenCalled();
   });
 });

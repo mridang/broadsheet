@@ -51,3 +51,17 @@ export function markUnread(articleId: number): void {
     method: 'DELETE',
   }).catch(() => undefined);
 }
+
+/**
+ * Note many stories read at once (`POST .../reads`); a failure is not
+ * reported.
+ */
+export function markManyRead(articleIds: readonly number[]): void {
+  if (!articleIds.length) return;
+  void fetch('/api/users/self/reads', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ article_ids: articleIds.map(String) }),
+    keepalive: true,
+  }).catch(() => undefined);
+}

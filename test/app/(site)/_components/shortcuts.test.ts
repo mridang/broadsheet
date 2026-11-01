@@ -4,10 +4,13 @@ import {
   SHORTCUTS,
   focusedStory,
   isTyping,
+  lastUnread,
+  matchSections,
   nextUnread,
   sectionStep,
   shortcutFor,
   step,
+  storiesToMark,
 } from '@/app/(site)/_components/shortcuts';
 
 const press = (key: string, mods: Partial<Record<string, boolean>> = {}) => ({
@@ -15,23 +18,70 @@ const press = (key: string, mods: Partial<Record<string, boolean>> = {}) => ({
   altKey: false,
   ctrlKey: false,
   metaKey: false,
+  shiftKey: false,
   ...mods,
 });
 
 describe('shortcutFor', () => {
   it.each([
     ['j', 'next'],
+    ['ArrowDown', 'next'],
     ['k', 'prev'],
+    ['p', 'prev'],
+    ['b', 'prev'],
+    ['ArrowUp', 'prev'],
+    ['n', 'next-unread'],
+    ['M', 'last-unread'],
+    ['J', 'next-section'],
+    ['N', 'next-section'],
+    ['K', 'prev-section'],
+    ['P', 'prev-section'],
+    ['g', 'go-section'],
+    ['h', 'older-edition'],
+    ['ArrowLeft', 'older-edition'],
+    ['l', 'newer-edition'],
+    ['ArrowRight', 'newer-edition'],
+    ['E', 'everything'],
+    ['Escape', 'deselect'],
     ['o', 'open'],
     ['Enter', 'open'],
+    ['x', 'collapse'],
+    ['X', 'expand'],
+    ['c', 'comments'],
+    ['i', 'ask'],
     ['s', 'save'],
+    ['u', 'read'],
+    ['A', 'read-all'],
+    ['B', 'read-above'],
+    ['Y', 'read-below'],
+    ['y', 'listen'],
+    ['r', 'reload'],
+    ['R', 'refresh'],
+    ['/', 'search'],
+    ['F', 'fullscreen'],
+    ['U', 'masthead'],
+    ['S', 'theme'],
     ['?', 'help'],
   ])('maps %s to %s', (key, shortcut) => {
     expect(shortcutFor(press(key))).toBe(shortcut);
   });
 
+  it.each([
+    ['Enter', { ctrlKey: true }, 'open-background'],
+    ['Enter', { metaKey: true }, 'open-background'],
+    ['Enter', { shiftKey: true }, 'full-text'],
+    ['ArrowDown', { shiftKey: true }, 'next-section'],
+    ['ArrowUp', { shiftKey: true }, 'prev-section'],
+  ])('maps %s with %j to %s', (key, mods, shortcut) => {
+    expect(shortcutFor(press(key, mods))).toBe(shortcut);
+  });
+
+  it('does not treat an inherited name as a key', () => {
+    expect(shortcutFor(press('toString'))).toBeNull();
+  });
+
   it('leaves other keys to the browser', () => {
-    expect(shortcutFor(press('x'))).toBeNull();
+    expect(shortcutFor(press('q'))).toBeNull();
   });
 
   it.each(['altKey', 'ctrlKey', 'metaKey'])(
@@ -79,9 +129,43 @@ describe('step', () => {
 });
 
 describe('SHORTCUTS', () => {
-  it('lists a line for every shortcut the page answers to', () => {
-    expect(SHORTCUTS).toHaveLength(14);
-    expect(SHORTCUTS.map(([keys]) => keys)).toContain('n');
+  it('lists a line for each group of keys the page answers to', () => {
+    expect(SHORTCUTS).toHaveLength(31);
+    expect(new Set(SHORTCUTS.map(([keys]) => keys)).size).toBe(31);
+  });
+});
+
+describe('lastUnread', () => {
+  it('finds the last story not yet read', () => {
+    expect(lastUnread([false, true, false, true])).toBe(2);
+    expect(lastUnread([true])).toBe(-1);
+  });
+});
+
+describe('storiesToMark', () => {
+  it('marks every story, or those above or below the focused one', () => {
+    expect(storiesToMark(4, 1, 'read-all')).toEqual([0, 1, 2, 3]);
+    expect(storiesToMark(4, 2, 'read-above')).toEqual([0, 1]);
+    expect(storiesToMark(4, 2, 'read-below')).toEqual([3]);
+  });
+
+  it('marks nothing above or below with no story focused', () => {
+    expect(storiesToMark(4, -1, 'read-above')).toEqual([]);
+    expect(storiesToMark(4, -1, 'read-below')).toEqual([]);
+    expect(storiesToMark(2, -1, 'read-all')).toEqual([0, 1]);
+  });
+});
+
+describe('matchSections', () => {
+  const names = ['Hacker News', 'Lobsters', 'The Verge'];
+
+  it('finds sections by any part of their name, ignoring case', () => {
+    expect(matchSections(names, 'ver')).toEqual([2]);
+    expect(matchSections(names, ' NEWS ')).toEqual([0]);
+  });
+
+  it('lists every section for an empty query', () => {
+    expect(matchSections(names, '')).toEqual([0, 1, 2]);
   });
 });
 
