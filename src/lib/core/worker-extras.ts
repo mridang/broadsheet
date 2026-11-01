@@ -16,7 +16,8 @@ import {
 import { clusterEdition } from '@/domain/clustering';
 import { databaseFrom } from '@/domain/db/database';
 import { publishEditionIssue, publishIssue } from '@/domain/issues';
-import { sendIssueReady } from '@/domain/notify';
+import { NotificationRepository } from '@/domain/notifications';
+import { notifyNewStories, sendIssueReady } from '@/domain/notify';
 import { Repository } from '@/domain/repository';
 import {
   FETCH_FAILED,
@@ -42,6 +43,7 @@ const AI_STEP = {
  * The daily scrape, as a Workflow: list the sources somebody follows, fetch
  * each as its own step (retried on its own, so one slow or broken feed neither
  * holds up nor reruns the others), cluster the edition's near-duplicates,
+ * tell each person with notifying feeds about the new stories in them,
  * backfill the recent HN editions, then lay out and store each reader's issue
  * as its own step and push a notice to their browsers that it is ready. A
  * source that still fails after its retries has the failure recorded on it and
@@ -81,6 +83,22 @@ export class DailyScrape extends WorkflowEntrypoint<CloudflareEnv> {
     const clustered = await step.do('cluster edition', AI_STEP, () =>
       clusterEdition(db, this.env, edition),
     );
+    const notified = await step.do('list notified readers', () =>
+      new NotificationRepository(db).notifiedUserIds(),
+    );
+    for (const reader of notified) {
+      try {
+        await step.do(`notify new stories for user ${reader}`, () =>
+          notifyNewStories(this.env, db, reader, edition),
+        );
+      } catch (error) {
+        logError({
+          event: 'notification.failed',
+          user: reader,
+          error: errorMessage(error),
+        });
+      }
+    }
     await step.do('backfill recent editions', async () => {
       await backfillRecent(db, this.env, 7);
     });

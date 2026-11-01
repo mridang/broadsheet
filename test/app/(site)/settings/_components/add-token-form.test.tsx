@@ -18,6 +18,15 @@ describe('tokenRequest', () => {
     ],
     [{ feed: 'edition', tag: 'ignored' }, { scope: 'edition' }],
     [{ feed: 'section:4' }, { scope: 'section', section_id: '4' }],
+    [
+      { feed: 'section:4', filter: 'focus' },
+      { scope: 'section', section_id: '4', filter: 'focus' },
+    ],
+    [
+      { feed: 'edition', filter: 'unread' },
+      { scope: 'edition', filter: 'unread' },
+    ],
+    [{ feed: 'saves', filter: 'focus' }, { scope: 'saves' }],
   ])('turns %j into %j', (fields, request) => {
     expect(tokenRequest(form(fields))).toEqual(request);
   });

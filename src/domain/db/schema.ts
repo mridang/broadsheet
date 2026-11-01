@@ -377,6 +377,52 @@ export const feed_tokens = sqliteTable(
     tag: text('tag'),
     section_id: integer('section_id'),
     created_at: text('created_at').default(sql`(datetime('now'))`),
+    /** all, unread (no disliked stories) or focus (only liked ones). */
+    filter: text('filter').notNull().default('all'),
   },
   (table) => [index('idx_feed_tokens_user').on(table.user_id)],
+);
+
+/**
+ * One of a person's feeds that tells them about new stories. `filter` is
+ * unread (anything not disliked) or focus (only liked stories); `channels` is
+ * a JSON array of web, email and webhook.
+ */
+export const feed_notifications = sqliteTable(
+  'feed_notifications',
+  {
+    user_id: integer('user_id').notNull(),
+    subscription_id: integer('subscription_id').notNull(),
+    filter: text('filter').notNull().default('unread'),
+    channels: text('channels').notNull().default('[]'),
+    created_at: text('created_at').default(sql`(datetime('now'))`),
+  },
+  (table) => [primaryKey({ columns: [table.user_id, table.subscription_id] })],
+);
+
+/** A story a person was told about; `emailed` (0/1) counts toward the daily email cap. */
+export const notification_deliveries = sqliteTable(
+  'notification_deliveries',
+  {
+    user_id: integer('user_id').notNull(),
+    article_id: integer('article_id').notNull(),
+    emailed: integer('emailed').notNull().default(0),
+    created_at: text('created_at').default(sql`(datetime('now'))`),
+  },
+  (table) => [primaryKey({ columns: [table.user_id, table.article_id] })],
+);
+
+/** A story a person emailed to others, counted for their daily quota. */
+export const story_emails = sqliteTable(
+  'story_emails',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    user_id: integer('user_id').notNull(),
+    article_id: integer('article_id').notNull(),
+    recipients: integer('recipients').notNull(),
+    created_at: text('created_at').default(sql`(datetime('now'))`),
+  },
+  (table) => [
+    index('idx_story_emails_user').on(table.user_id, table.created_at),
+  ],
 );

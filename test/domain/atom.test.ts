@@ -45,3 +45,27 @@ describe('atomXml', () => {
     expect(xml.match(/<summary>/g)).toHaveLength(1);
   });
 });
+
+describe('atomXml content and categories', () => {
+  it('writes an entry’s text and its categories, escaped', () => {
+    const xml = atomXml({
+      id: 'urn:f',
+      title: 'F',
+      self: 'https://p/feed.xml',
+      site: 'https://p',
+      updated: '2026-10-02T00:00:00Z',
+      entries: [
+        {
+          id: 'urn:1',
+          title: 'One',
+          url: 'https://x/1',
+          updated: '2026-10-02T00:00:00Z',
+          content: 'a < b',
+          categories: ['c&d'],
+        },
+      ],
+    });
+    expect(xml).toContain('<content type="text">a &lt; b</content>');
+    expect(xml).toContain('<category term="c&amp;d"/>');
+  });
+});

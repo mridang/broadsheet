@@ -43,6 +43,7 @@ export interface TokenRequest {
   readonly scope: string;
   readonly tag?: string;
   readonly section_id?: string;
+  readonly filter?: string;
 }
 
 /** Make a feed token (`POST /api/users/self/tokens`); its feed address, shown once. */
@@ -59,4 +60,30 @@ export async function revokeToken(id: number): Promise<void> {
   await ensureOk(
     await fetch(`/api/users/self/tokens/${id}`, { method: 'DELETE' }),
   );
+}
+
+/** How one feed notifies; an empty `channels` turns it off. */
+export interface NotificationRequest {
+  readonly filter: string;
+  readonly channels: readonly string[];
+}
+
+/**
+ * Set or stop a feed's notifications (`PUT` or `DELETE
+ * /api/users/self/notifications/:feed_id`).
+ */
+export async function setNotification(
+  feedId: number,
+  request: NotificationRequest,
+): Promise<void> {
+  const path = `/api/users/self/notifications/${feedId}`;
+  const res = request.channels.length
+    ? await fetch(path, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request),
+      })
+    : await fetch(path, { method: 'DELETE' });
+  // Stopping a feed that did not notify is already done.
+  if (res.status !== 404 || request.channels.length) await ensureOk(res);
 }

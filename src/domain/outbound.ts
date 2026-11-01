@@ -7,7 +7,7 @@
  * from {@link Repository} so it grows without touching the reading side.
  */
 
-import { and, desc, eq, getTableColumns } from 'drizzle-orm';
+import { and, desc, eq, getTableColumns, inArray } from 'drizzle-orm';
 
 import { type Database } from '@/domain/db/database';
 import {
@@ -29,8 +29,11 @@ export interface PushSubscriptionInput {
   readonly auth: string;
 }
 
-/** What a webhook can be told about. */
-export const WEBHOOK_EVENTS = ['save', 'like'] as const;
+/**
+ * What a webhook can be told about: a save, a like, or a new story in a feed
+ * whose notifications include webhooks (what NewsBlur sends IFTTT).
+ */
+export const WEBHOOK_EVENTS = ['save', 'like', 'story'] as const;
 
 /** One kind of webhook delivery. */
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
@@ -51,9 +54,22 @@ export const FEED_SCOPES = ['saves', 'section', 'edition'] as const;
 /** One kind of feed. */
 export type FeedScope = (typeof FEED_SCOPES)[number];
 
+/**
+ * Which stories a section or edition feed keeps: all of them, the ones not
+ * disliked (NewsBlur's unread), or only the liked ones (its focus).
+ */
+export const FEED_FILTERS = ['all', 'unread', 'focus'] as const;
+
+/** One story filter. */
+export type FeedFilter = (typeof FEED_FILTERS)[number];
+
 /** A token a feed reader fetches `/feed.xml` with (its hash only). */
-export type FeedToken = Omit<typeof feed_tokens.$inferSelect, 'scope'> & {
+export type FeedToken = Omit<
+  typeof feed_tokens.$inferSelect,
+  'scope' | 'filter'
+> & {
   readonly scope: FeedScope;
+  readonly filter: FeedFilter;
 };
 
 /** What a new feed token shows. */
@@ -61,6 +77,7 @@ export interface FeedTokenInput {
   readonly scope: FeedScope;
   readonly tag?: string | undefined;
   readonly section_id?: number | undefined;
+  readonly filter?: FeedFilter | undefined;
 }
 
 /** The events stored for a hook, keeping only the ones we know. */
@@ -89,6 +106,9 @@ function tokenOf(row: typeof feed_tokens.$inferSelect): FeedToken {
     scope: (FEED_SCOPES as readonly string[]).includes(row.scope)
       ? (row.scope as FeedScope)
       : 'saves',
+    filter: (FEED_FILTERS as readonly string[]).includes(row.filter)
+      ? (row.filter as FeedFilter)
+      : 'all',
   };
 }
 
@@ -218,6 +238,7 @@ export class OutboundRepository {
         scope: input.scope,
         tag: input.tag ?? null,
         section_id: input.section_id ?? null,
+        filter: input.filter ?? 'all',
       })
       .returning();
     return tokenOf(row!);
@@ -282,5 +303,22 @@ export class OutboundRepository {
       .where(and(followed, eq(articles.edition, newest.edition)))
       .orderBy(desc(articles.points), desc(articles.id))
       .limit(FEED_LIMIT);
+  }
+
+  /** The kept text of these stories, by id (stories with none are left out). */
+  async bodies(ids: readonly number[]): Promise<Map<number, string>> {
+    const rows = [];
+    // D1 binds at most about 100 values in one statement.
+    for (let at = 0; at < ids.length; at += 90) {
+      rows.push(
+        ...(await this.#db
+          .select({ id: articles.id, body: articles.body_text })
+          .from(articles)
+          .where(inArray(articles.id, ids.slice(at, at + 90)))),
+      );
+    }
+    return new Map(
+      rows.flatMap((r) => (r.body ? [[r.id, r.body] as const] : [])),
+    );
   }
 }

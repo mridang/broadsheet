@@ -11,10 +11,16 @@ import {
 /** The request a filled-in token form makes. */
 export function tokenRequest(form: FormData): TokenRequest {
   const choice = String(form.get('feed') ?? 'saves');
+  const filter = String(form.get('filter') ?? 'all');
+  const filtered = filter === 'all' ? {} : { filter };
   if (choice.startsWith('section:')) {
-    return { scope: 'section', section_id: choice.slice('section:'.length) };
+    return {
+      scope: 'section',
+      section_id: choice.slice('section:'.length),
+      ...filtered,
+    };
   }
-  if (choice === 'edition') return { scope: 'edition' };
+  if (choice === 'edition') return { scope: 'edition', ...filtered };
   const tag = String(form.get('tag') ?? '').trim();
   return tag ? { scope: 'saves', tag } : { scope: 'saves' };
 }
@@ -67,6 +73,15 @@ export function AddTokenForm({
               Section: {s.name}
             </option>
           ))}
+        </select>
+        <select
+          name="filter"
+          defaultValue="all"
+          aria-label="Which stories a section or edition feed keeps"
+        >
+          <option value="all">Every story</option>
+          <option value="unread">Leave out disliked stories</option>
+          <option value="focus">Only liked stories</option>
         </select>
         <input
           name="tag"

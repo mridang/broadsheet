@@ -53,6 +53,10 @@ export function AddWebhookForm(): ReactElement {
           <input name="events" type="checkbox" value="like" defaultChecked />{' '}
           Likes
         </label>
+        <label>
+          <input name="events" type="checkbox" value="story" /> New stories in
+          notifying feeds
+        </label>
         <button className="btn" type="submit" disabled={busy}>
           Add webhook
         </button>

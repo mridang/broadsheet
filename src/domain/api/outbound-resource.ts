@@ -12,8 +12,10 @@ import {
   rfc3339,
 } from '@/domain/api/feed-resource';
 import {
+  FEED_FILTERS,
   FEED_SCOPES,
   WEBHOOK_EVENTS,
+  type FeedFilter,
   type FeedScope,
   type FeedToken,
   type FeedTokenInput,
@@ -188,6 +190,7 @@ export interface FeedTokenResource {
   readonly scope: FeedScope;
   readonly tag?: string;
   readonly section_id?: string;
+  readonly filter: FeedFilter;
   readonly token?: string;
   readonly feed_url?: string;
   readonly created_at?: string;
@@ -206,6 +209,7 @@ export function feedTokenResource(
     scope: row.scope,
     ...(row.tag ? { tag: row.tag } : {}),
     ...(row.section_id !== null ? { section_id: String(row.section_id) } : {}),
+    filter: row.filter,
     ...(secret
       ? {
           token: secret.token,
@@ -217,7 +221,9 @@ export function feedTokenResource(
 }
 
 /**
- * Check a feed token body: `scope` saves, section or edition. `tag` narrows
+ * Check a feed token body: `scope` saves, section or edition. `filter` (all,
+ * unread or focus) keeps a section or edition feed to stories not disliked or
+ * only liked ones, as NewsBlur's folder feeds do. `tag` narrows
  * saves to one tag; `section_id` is required for, and only allowed with, a
  * section.
  */
@@ -226,10 +232,10 @@ export function parseFeedTokenInput(
 ): Checked<FeedTokenInput> {
   const errors = strangers(
     body,
-    ['scope', 'tag', 'section_id'],
+    ['scope', 'tag', 'section_id', 'filter'],
     'a feed token',
   );
-  const { scope, tag, section_id: sectionId } = body;
+  const { scope, tag, section_id: sectionId, filter } = body;
   if (!(FEED_SCOPES as readonly unknown[]).includes(scope)) {
     errors.push(`scope: must be one of ${FEED_SCOPES.join(', ')}.`);
   }
@@ -249,8 +255,16 @@ export function parseFeedTokenInput(
   } else if (scope !== 'section' && sectionId !== undefined) {
     errors.push('section_id: only for a section feed.');
   }
+  if (filter !== undefined) {
+    if (!(FEED_FILTERS as readonly unknown[]).includes(filter)) {
+      errors.push(`filter: must be one of ${FEED_FILTERS.join(', ')}.`);
+    } else if (scope === 'saves' && filter !== 'all') {
+      errors.push('filter: a saves feed keeps every saved story.');
+    }
+  }
   return checked(errors, () => ({
     scope: scope as FeedScope,
+    ...(filter !== undefined ? { filter: filter as FeedFilter } : {}),
     ...(typeof tag === 'string' ? { tag: tag.trim() } : {}),
     ...(section !== undefined ? { section_id: section } : {}),
   }));
@@ -258,8 +272,19 @@ export function parseFeedTokenInput(
 
 /** A checked email body. */
 export interface EmailInput {
-  readonly to: string;
+  /** One to {@link MAX_RECIPIENTS} addresses. */
+  readonly to: readonly string[];
+  /** The sender's own note above the story. */
+  readonly comment?: string;
+  /** Whether the sender gets a copy (true unless they say not). */
+  readonly copy_me: boolean;
 }
+
+/** Most addresses one story email may go to. */
+export const MAX_RECIPIENTS = 10;
+
+/** Longest note a sender may add. */
+const MAX_COMMENT_LENGTH = 2048;
 
 /** Whether `value` looks like one email address. */
 function isAddress(value: unknown): value is string {
@@ -270,11 +295,48 @@ function isAddress(value: unknown): value is string {
   );
 }
 
-/** Check an email body: `to` is one address. */
+/**
+ * The addresses in `to`: a list, or (as NewsBlur takes them) one string with
+ * the addresses separated by commas or spaces. Undefined when it is neither.
+ */
+function addressesOf(to: unknown): string[] | undefined {
+  if (typeof to === 'string') return to.split(/[\s,]+/).filter(Boolean);
+  if (Array.isArray(to) && to.every((a) => typeof a === 'string')) {
+    return (to as string[]).map((a) => a.trim()).filter(Boolean);
+  }
+  return undefined;
+}
+
+/**
+ * Check an email body: `to` is one to {@link MAX_RECIPIENTS} addresses (a
+ * list, or one string separated by commas or spaces), `comment` an optional
+ * note of at most 2,048 characters, `copy_me` an optional boolean.
+ */
 export function parseEmailInput(
   body: Readonly<Record<string, unknown>>,
 ): Checked<EmailInput> {
-  const errors = strangers(body, ['to'], 'an email');
-  if (!isAddress(body['to'])) errors.push('to: must be one email address.');
-  return checked(errors, () => ({ to: body['to'] as string }));
+  const errors = strangers(body, ['to', 'comment', 'copy_me'], 'an email');
+  const to = addressesOf(body['to']);
+  if (!to?.length || to.length > MAX_RECIPIENTS || !to.every(isAddress)) {
+    errors.push(`to: must be 1 to ${MAX_RECIPIENTS} email addresses.`);
+  }
+  const { comment, copy_me: copyMe } = body;
+  if (
+    comment !== undefined &&
+    (typeof comment !== 'string' || comment.length > MAX_COMMENT_LENGTH)
+  ) {
+    errors.push(
+      `comment: must be text of at most ${MAX_COMMENT_LENGTH} characters.`,
+    );
+  }
+  if (copyMe !== undefined && typeof copyMe !== 'boolean') {
+    errors.push('copy_me: must be true or false.');
+  }
+  return checked(errors, () => ({
+    to: [...new Set(to)],
+    ...(typeof comment === 'string' && comment.trim()
+      ? { comment: comment.trim() }
+      : {}),
+    copy_me: copyMe !== false,
+  }));
 }

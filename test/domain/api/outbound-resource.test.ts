@@ -112,11 +112,11 @@ describe('parseWebhookInput', () => {
     ],
     [
       { url: 'https://hooks.example.com/a', events: [] },
-      'events: must be a non-empty list of save, like.',
+      'events: must be a non-empty list of save, like, story.',
     ],
     [
       { url: 'https://hooks.example.com/a', events: ['read'] },
-      'events: must be a non-empty list of save, like.',
+      'events: must be a non-empty list of save, like, story.',
     ],
   ])('refuses %j', (body, error) => {
     const result = parseWebhookInput(body);
@@ -156,6 +156,18 @@ describe('parseFeedTokenInput', () => {
       { scope: 'section', section_id: 4 },
     ],
     [{ scope: 'edition' }, { scope: 'edition' }],
+    [
+      { scope: 'edition', filter: 'focus' },
+      { scope: 'edition', filter: 'focus' },
+    ],
+    [
+      { scope: 'section', section_id: '4', filter: 'unread' },
+      { scope: 'section', section_id: 4, filter: 'unread' },
+    ],
+    [
+      { scope: 'saves', filter: 'all' },
+      { scope: 'saves', filter: 'all' },
+    ],
   ])('accepts %j', (body, value) => {
     expect(parseFeedTokenInput(body)).toEqual({ ok: true, value });
   });
@@ -173,6 +185,14 @@ describe('parseFeedTokenInput', () => {
       { scope: 'saves', section_id: '4' },
       'section_id: only for a section feed.',
     ],
+    [
+      { scope: 'edition', filter: 'starred' },
+      'filter: must be one of all, unread, focus.',
+    ],
+    [
+      { scope: 'saves', filter: 'focus' },
+      'filter: a saves feed keeps every saved story.',
+    ],
   ])('refuses %j', (body, error) => {
     const result = parseFeedTokenInput(body);
     expect(!result.ok && result.errors).toContain(error);
@@ -188,6 +208,7 @@ describe('feedTokenResource', () => {
     tag: null,
     section_id: 4,
     created_at: null,
+    filter: 'focus' as const,
   };
 
   it('shows the scope, and the token and its feed address only when given', () => {
@@ -195,6 +216,7 @@ describe('feedTokenResource', () => {
       id: '5',
       scope: 'section',
       section_id: '4',
+      filter: 'focus',
     });
     expect(
       feedTokenResource(row, { token: 'a b', origin: 'https://paper.test' }),
@@ -206,19 +228,36 @@ describe('feedTokenResource', () => {
 });
 
 describe('parseEmailInput', () => {
-  it('accepts one address', () => {
-    expect(parseEmailInput({ to: 'a@b.co' })).toEqual({
-      ok: true,
-      value: { to: 'a@b.co' },
-    });
+  it.each([
+    [{ to: 'a@b.co' }, { to: ['a@b.co'], copy_me: true }],
+    [
+      { to: 'a@b.co, c@d.co  e@f.co', comment: ' Look ', copy_me: false },
+      { to: ['a@b.co', 'c@d.co', 'e@f.co'], comment: 'Look', copy_me: false },
+    ],
+    [
+      { to: ['a@b.co', 'a@b.co'], comment: ' ' },
+      { to: ['a@b.co'], copy_me: true },
+    ],
+  ])('accepts %j', (body, value) => {
+    expect(parseEmailInput(body)).toEqual({ ok: true, value });
   });
 
   it.each([
-    { to: 'a@b' },
-    { to: 'a@b.co, c@d.co' },
-    {},
-    { to: 'a@b.co', cc: 'x' },
-  ])('refuses %j', (body) => {
-    expect(parseEmailInput(body).ok).toBe(false);
+    [{ to: 'a@b' }, 'to: must be 1 to 10 email addresses.'],
+    [{}, 'to: must be 1 to 10 email addresses.'],
+    [{ to: [1] }, 'to: must be 1 to 10 email addresses.'],
+    [
+      { to: Array.from({ length: 11 }, (_, i) => `a${i}@b.co`) },
+      'to: must be 1 to 10 email addresses.',
+    ],
+    [
+      { to: 'a@b.co', comment: 'x'.repeat(2049) },
+      'comment: must be text of at most 2048 characters.',
+    ],
+    [{ to: 'a@b.co', copy_me: 'yes' }, 'copy_me: must be true or false.'],
+    [{ to: 'a@b.co', cc: 'x' }, 'cc: not a member of an email.'],
+  ])('refuses %j', (body, error) => {
+    const result = parseEmailInput(body);
+    expect(!result.ok && result.errors).toContain(error);
   });
 });

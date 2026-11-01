@@ -1,0 +1,117 @@
+/**
+ * @packageDocumentation
+ *
+ * How each of the person's feeds tells them about new stories, as a REST
+ * resource keyed by the feed. Each runs as the signed-in person.
+ */
+
+import {
+  liveUid,
+  requestCookieResolver,
+  type CurrentUserResolver,
+} from '@/domain/api/auth';
+import { parseFeedId } from '@/domain/api/feed-resource';
+import { idOf } from '@/domain/api/feeds';
+import {
+  notificationResource,
+  parseNotificationInput,
+} from '@/domain/api/notification-resource';
+import { getDatabase } from '@/domain/db/database';
+import {
+  NotificationRepository,
+  type NotificationSetting,
+} from '@/domain/notifications';
+import {
+  ApiController,
+  created,
+  noContent,
+  ok,
+  problems,
+  readJsonObject,
+} from '@/lib/core/api';
+
+/** The signed-in caller's id and the request. */
+interface UidContext {
+  readonly request: Request;
+  readonly uid: number;
+}
+
+/** What a PUT came to: the feed and its setting, or nothing when not theirs. */
+type Stored =
+  | {
+      readonly feedId: number;
+      readonly setting: NotificationSetting;
+      readonly created: boolean;
+    }
+  | undefined;
+
+/**
+ * `PUT /api/users/self/notifications/:feed_id` {filter?, channels}: tell the
+ * person about new stories in one of their feeds. 201 the first time, 200 when
+ * it replaced what was there; 400/415 for a bad body, 404 when the feed is not
+ * theirs.
+ *
+ * `DELETE /api/users/self/notifications/:feed_id`: stop. 204, or 404 when the
+ * feed did not notify.
+ *
+ * Both answer 401/403 when not signed in or cross-site.
+ */
+export function createNotificationItem(
+  resolver: CurrentUserResolver = requestCookieResolver,
+): ApiController<UidContext> {
+  return new ApiController<UidContext>({
+    context: async (request) => ({
+      request,
+      uid: await liveUid(request, resolver),
+    }),
+  })
+    .on<NotificationSetting, Stored>({
+      method: 'PUT',
+      decode: async (request) => {
+        const body = await readJsonObject(
+          request,
+          'The notification must be a JSON object.',
+        );
+        if (!body.ok) throw body.response;
+        const input = parseNotificationInput(body.value);
+        if (!input.ok) {
+          throw problems.badRequest(
+            'The notification is not valid.',
+            input.errors,
+          );
+        }
+        return input.value;
+      },
+      handle: async (setting, { request, uid }) => {
+        const feedId = parseFeedId(idOf(request));
+        if (feedId === undefined) return undefined;
+        const stored = await new NotificationRepository(
+          getDatabase(),
+        ).setFeedNotification(uid, feedId, setting);
+        return stored && { feedId, setting, created: stored.created };
+      },
+      encode: (stored) => {
+        if (!stored) return problems.notFound('feed');
+        const body = notificationResource(stored.feedId, stored.setting);
+        const at = `/api/users/self/notifications/${stored.feedId}`;
+        return stored.created ? created(body, at) : ok(body, { location: at });
+      },
+    })
+    .on<null, boolean>({
+      method: 'DELETE',
+      handle: async (_input, { request, uid }) => {
+        const feedId = parseFeedId(idOf(request));
+        return feedId !== undefined
+          ? new NotificationRepository(getDatabase()).removeFeedNotification(
+              uid,
+              feedId,
+            )
+          : false;
+      },
+      encode: (removed) =>
+        removed ? noContent() : problems.notFound('notification'),
+    });
+}
+
+/** The notification controller bound to the production resolver. */
+export const notificationItem = createNotificationItem();

@@ -12,7 +12,12 @@ import { BRAND_NAME } from '@/app/_brand';
 import { atomXml, type AtomEntry } from '@/domain/atom';
 import { rfc3339 } from '@/domain/api/feed-resource';
 import { type Database } from '@/domain/db/database';
-import { OutboundRepository, type FeedToken } from '@/domain/outbound';
+import {
+  OutboundRepository,
+  type FeedFilter,
+  type FeedToken,
+} from '@/domain/outbound';
+import { verdict } from '@/domain/render/tiers';
 import { Repository, type ArticleSummary } from '@/domain/repository';
 import { sha256Hex } from '@/lib/outbound/tokens';
 
@@ -42,6 +47,7 @@ function entryOf(
   article: ArticleSummary,
   origin: string,
   updated: string,
+  extra: Pick<AtomEntry, 'content' | 'categories'> = {},
 ): AtomEntry {
   return {
     id: `${origin}/article/${article.id}`,
@@ -50,7 +56,15 @@ function entryOf(
     updated,
     summary: article.summary || undefined,
     source: article.source || undefined,
+    ...extra,
   };
+}
+
+/** Whether a story with this verdict belongs in a feed with this filter. */
+export function keeps(filter: FeedFilter, score: -1 | 0 | 1): boolean {
+  if (filter === 'focus') return score > 0;
+  if (filter === 'unread') return score >= 0;
+  return true;
 }
 
 /** The feed's title and entries for what the token shows. */
@@ -61,13 +75,20 @@ async function contentOf(
   now: string,
 ): Promise<{ title: string; entries: AtomEntry[] } | undefined> {
   const repo = new Repository(db);
+  const outbound = new OutboundRepository(db);
   if (token.scope === 'saves') {
-    const saves = await repo.listSaves(token.user_id, token.tag ?? undefined);
+    const saves = (
+      await repo.listSaves(token.user_id, token.tag ?? undefined)
+    ).slice(0, 100);
+    const bodies = await outbound.bodies(saves.map((s) => s.article.id));
     return {
       title: token.tag ? `Saved: ${token.tag}` : 'Saved stories',
-      entries: saves
-        .slice(0, 100)
-        .map((s) => entryOf(s.article, origin, when(s.saved_at, now))),
+      entries: saves.map((s) =>
+        entryOf(s.article, origin, when(s.saved_at, now), {
+          content: bodies.get(s.article.id),
+          categories: s.tags,
+        }),
+      ),
     };
   }
   let title = 'Today’s edition';
@@ -79,14 +100,21 @@ async function contentOf(
     if (!section) return undefined;
     title = section.name;
   }
-  const stories = await new OutboundRepository(db).editionStories(
-    token.user_id,
-    token.scope === 'section' ? (token.section_id ?? undefined) : undefined,
-  );
+  const training =
+    token.filter === 'all' ? [] : await repo.listClassifiers(token.user_id);
+  const stories = (
+    await outbound.editionStories(
+      token.user_id,
+      token.scope === 'section' ? (token.section_id ?? undefined) : undefined,
+    )
+  ).filter((a) => keeps(token.filter, verdict(a, training)));
+  const bodies = await outbound.bodies(stories.map((a) => a.id));
   return {
-    title,
+    title: token.filter === 'focus' ? `${title} (focus)` : title,
     entries: stories.map((a) =>
-      entryOf(a, origin, when(a.published_at || a.edition, now)),
+      entryOf(a, origin, when(a.published_at || a.edition, now), {
+        content: bodies.get(a.id),
+      }),
     ),
   };
 }

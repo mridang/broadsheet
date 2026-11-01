@@ -10,6 +10,7 @@ import { hostOf } from '@/domain/render/tiers';
 import { Repository } from '@/domain/repository';
 import { getCurrentUser } from '@/lib/core/auth';
 import { mailtoLink } from '@/domain/api/emails';
+import { EmailStoryForm } from '@/app/(site)/article/[id]/_components/email-story-form';
 
 export const dynamic = 'force-dynamic';
 
@@ -78,9 +79,13 @@ export default async function ArticlePage({
         >
           Read the original ↗
         </a>
-        <a className="more focus-ring" href={mailtoLink(article)}>
-          Email this story
-        </a>
+        {user ? (
+          <EmailStoryForm articleId={article.id} mailto={mailtoLink(article)} />
+        ) : (
+          <a className="more focus-ring" href={mailtoLink(article)}>
+            Email this story
+          </a>
+        )}
         {article.edition ? (
           <a className="more focus-ring" href={`/edition/${article.edition}`}>
             Back to the {article.edition} edition

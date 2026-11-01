@@ -14,10 +14,18 @@
 
 import { BRAND_NAME, BRAND_SHORT_NAME, BRAND_URL } from '@/app/_brand';
 import { getDatabase, type Database } from '@/domain/db/database';
+import { storyEmail, type EmailEnvironment } from '@/domain/api/emails';
+import {
+  NotificationRepository,
+  type NotifiableStory,
+  type NotificationFilter,
+} from '@/domain/notifications';
 import { OutboundRepository, type WebhookEvent } from '@/domain/outbound';
+import { verdict } from '@/domain/render/tiers';
+import { Repository, type User } from '@/domain/repository';
 import { runInBackground } from '@/lib/core/runtime';
 import { signatureHeaders } from '@/lib/outbound/signature';
-import { WebPushSender } from '@/lib/push';
+import { WebPushSender, type PushPayload } from '@/lib/push';
 import { fetchCapped, type SafeFetcher } from '@/lib/safe-fetch';
 import { errorMessage, logError } from '@/utils/logging';
 
@@ -71,48 +79,46 @@ export interface PushOutcome {
   readonly removed: number;
 }
 
-/**
- * Tell every browser the person subscribed that the issue for `edition`
- * (YYYY-MM-DD) is ready. Does nothing when the VAPID keys are not set.
- */
-export async function sendIssueReady(
-  env: PushEnvironment,
-  db: Database,
-  userId: number,
-  edition: string,
-  fetcher?: SafeFetcher,
-): Promise<PushOutcome> {
-  const outcome = { sent: 0, failed: 0, removed: 0 };
+/** The VAPID identity, when every part of it is set. */
+function vapidOf(env: PushEnvironment) {
   const {
     VAPID_PUBLIC_KEY: publicKey,
     VAPID_PRIVATE_KEY: privateKey,
     VAPID_SUBJECT: subject,
   } = env;
-  if (!publicKey || !privateKey || !subject) return outcome;
-  const repo = new OutboundRepository(db);
-  const sender = new WebPushSender(
-    { publicKey, privateKey, subject },
-    {
-      // Through safe-fetch, so a stored endpoint can only reach the public web.
-      fetcher: async (url, init) => {
-        const answer = await post(
-          String(url),
-          (init?.headers ?? {}) as Record<string, string>,
-          init?.body ?? '',
-          fetcher,
-        );
-        return new Response(null, {
-          status: answer.ok ? 200 : (answer.status ?? 599),
-        });
-      },
+  return publicKey && privateKey && subject
+    ? { publicKey, privateKey, subject }
+    : undefined;
+}
+
+/**
+ * Push `payload` to every browser the person subscribed, forgetting the ones
+ * the push service says are gone. Does nothing when the VAPID keys are not set.
+ */
+async function pushToBrowsers(
+  env: PushEnvironment,
+  repo: OutboundRepository,
+  userId: number,
+  payload: PushPayload,
+  fetcher?: SafeFetcher,
+): Promise<PushOutcome> {
+  const outcome = { sent: 0, failed: 0, removed: 0 };
+  const vapid = vapidOf(env);
+  if (!vapid) return outcome;
+  const sender = new WebPushSender(vapid, {
+    // Through safe-fetch, so a stored endpoint can only reach the public web.
+    fetcher: async (url, init) => {
+      const answer = await post(
+        String(url),
+        (init?.headers ?? {}) as Record<string, string>,
+        init?.body ?? '',
+        fetcher,
+      );
+      return new Response(null, {
+        status: answer.ok ? 200 : (answer.status ?? 599),
+      });
     },
-  );
-  const payload = {
-    title: BRAND_NAME,
-    body: `Your paper for ${edition} is ready.`,
-    tag: `issue-${edition}`,
-    url: `${BRAND_URL}/?date=${edition}`,
-  };
+  });
   for (const target of await repo.pushSubscriptions(userId)) {
     try {
       const result = await sender.send(target, payload);
@@ -130,6 +136,31 @@ export async function sendIssueReady(
     }
   }
   return outcome;
+}
+
+/**
+ * Tell every browser the person subscribed that the issue for `edition`
+ * (YYYY-MM-DD) is ready. Does nothing when the VAPID keys are not set.
+ */
+export function sendIssueReady(
+  env: PushEnvironment,
+  db: Database,
+  userId: number,
+  edition: string,
+  fetcher?: SafeFetcher,
+): Promise<PushOutcome> {
+  return pushToBrowsers(
+    env,
+    new OutboundRepository(db),
+    userId,
+    {
+      title: BRAND_NAME,
+      body: `Your paper for ${edition} is ready.`,
+      tag: `issue-${edition}`,
+      url: `${BRAND_URL}/?date=${edition}`,
+    },
+    fetcher,
+  );
 }
 
 /**
@@ -182,4 +213,148 @@ export function fireWebhooks(
   data: unknown,
 ): void {
   runInBackground(deliverWebhooks(getDatabase(), userId, event, data));
+}
+
+/** Most stories one feed notifies about in one run, as NewsBlur caps it. */
+export const STORIES_PER_FEED = 3;
+
+/** Most notification emails one person gets in a day. */
+export const DAILY_NOTIFICATION_EMAILS = 25;
+
+/** What notifying needs: the VAPID identity and the mail binding. */
+export type NotifyEnvironment = PushEnvironment & EmailEnvironment;
+
+/** What one round of story notifications came to. */
+export interface StoryNotifications {
+  readonly stories: number;
+  readonly pushed: number;
+  readonly emailed: number;
+  readonly hooked: number;
+}
+
+/** Whether a story with this verdict notifies under this filter. */
+export function notifies(
+  filter: NotificationFilter,
+  score: -1 | 0 | 1,
+): boolean {
+  return filter === 'focus' ? score > 0 : score >= 0;
+}
+
+/**
+ * Tell the person about the new stories in `edition` from each feed they set
+ * to notify, as NewsBlur does: only stories they have not been told about,
+ * at most {@link STORIES_PER_FEED} a feed, not disliked ones (unread) or only
+ * liked ones (focus), by each channel the feed names. Web pushes go to every
+ * subscribed browser; emails go to the person's own address, at most
+ * {@link DAILY_NOTIFICATION_EMAILS} a day and only once Email Sending is set
+ * up; webhooks get a `story` event.
+ */
+export async function notifyNewStories(
+  env: NotifyEnvironment,
+  db: Database,
+  userId: number,
+  edition: string,
+  fetcher?: SafeFetcher,
+): Promise<StoryNotifications> {
+  const totals = { stories: 0, pushed: 0, emailed: 0, hooked: 0 };
+  const notifications = new NotificationRepository(db);
+  const settings = await notifications.feedNotifications(userId);
+  if (!settings.length) return totals;
+  const repo = new Repository(db);
+  const outbound = new OutboundRepository(db);
+  const [training, user] = await Promise.all([
+    repo.listClassifiers(userId),
+    repo.getUser(userId),
+  ]);
+  for (const setting of settings) {
+    const fresh = (
+      await notifications.undeliveredStories(userId, setting.source_id, edition)
+    ).filter((story) => notifies(setting.filter, verdict(story, training)));
+    for (const story of fresh.slice(0, STORIES_PER_FEED)) {
+      if (!(await notifications.claimDelivery(userId, story.id))) continue;
+      totals.stories += 1;
+      const title = story.title || story.url;
+      if (setting.channels.includes('web')) {
+        const pushed = await pushToBrowsers(
+          env,
+          outbound,
+          userId,
+          {
+            title: setting.feed_title,
+            body: title,
+            tag: `story-${story.id}`,
+            url: `${BRAND_URL}/article/${story.id}`,
+          },
+          fetcher,
+        );
+        totals.pushed += pushed.sent;
+      }
+      if (
+        setting.channels.includes('email') &&
+        user &&
+        (await emailNotification(
+          env,
+          notifications,
+          user,
+          setting.feed_title,
+          story,
+        ))
+      ) {
+        totals.emailed += 1;
+      }
+      if (setting.channels.includes('webhook')) {
+        totals.hooked += await deliverWebhooks(
+          db,
+          userId,
+          'story',
+          {
+            article_id: String(story.id),
+            feed_id: String(setting.feed_id),
+            feed_title: setting.feed_title,
+            title,
+            url: story.url,
+            ...(story.summary ? { summary: story.summary } : {}),
+          },
+          fetcher,
+        );
+      }
+    }
+  }
+  return totals;
+}
+
+/**
+ * Email one new story to the person. False when email is not set up, the
+ * daily cap is reached, or the mail service refused.
+ */
+async function emailNotification(
+  env: EmailEnvironment,
+  notifications: NotificationRepository,
+  user: Pick<User, 'id' | 'email'>,
+  feedTitle: string,
+  story: NotifiableStory,
+): Promise<boolean> {
+  const { EMAIL: mail, EMAIL_FROM: from } = env;
+  if (!mail || !from) return false;
+  if ((await notifications.emailsToday(user.id)) >= DAILY_NOTIFICATION_EMAILS) {
+    return false;
+  }
+  const { subject, text, html } = storyEmail(story);
+  try {
+    await mail.send({
+      from: { email: from, name: BRAND_NAME },
+      to: user.email,
+      subject: `${feedTitle}: ${subject}`,
+      text,
+      html,
+    });
+  } catch (error) {
+    logError({
+      event: 'notification.email.failed',
+      error: errorMessage(error),
+    });
+    return false;
+  }
+  await notifications.markEmailed(user.id, story.id);
+  return true;
 }

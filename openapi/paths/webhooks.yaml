@@ -2,11 +2,11 @@ collection:
   post:
     operationId: addWebhook
     tags: [webhooks]
-    summary: Tell an https address whenever the person saves or likes a story.
+    summary: Tell an https address whenever the person saves or likes a story, or a notifying feed has a new one.
     description: |
       Rate limited by the `RL_API` binding. The answer carries the `secret` once; it is never shown again.
 
-      Each delivery is a `POST` of `{event, occurred_at, data}` as JSON, where `data` is the save or the classifier. It carries `Webhook-Timestamp` (seconds since the epoch) and `Webhook-Signature: sha256=<hex>`, the HMAC-SHA256 of `<timestamp>.<body>` under the secret. Redirects are not followed.
+      Each delivery is a `POST` of `{event, occurred_at, data}` as JSON, where `data` is the save, the classifier, or (for `story`) the new story with its feed. IFTTT's Webhooks service can receive these. It carries `Webhook-Timestamp` (seconds since the epoch) and `Webhook-Signature: sha256=<hex>`, the HMAC-SHA256 of `<timestamp>.<body>` under the secret. Redirects are not followed.
     requestBody:
       required: true
       content:

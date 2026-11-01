@@ -3,11 +3,14 @@ import { redirect } from 'next/navigation';
 
 import { getCurrentUser } from '@/lib/core/auth';
 import { getDatabase } from '@/domain/db/database';
+import { NotificationRepository } from '@/domain/notifications';
 import { OutboundRepository } from '@/domain/outbound';
+import { hostOf } from '@/domain/render/tiers';
 import { Repository } from '@/domain/repository';
 
 import { AddTokenForm } from '@/app/(site)/settings/_components/add-token-form';
 import { AddWebhookForm } from '@/app/(site)/settings/_components/add-webhook-form';
+import { FeedNotificationForm } from '@/app/(site)/settings/_components/feed-notification-form';
 import { PushSettings } from '@/app/(site)/settings/_components/push-settings';
 import { RemoveWebhookButton } from '@/app/(site)/settings/_components/remove-webhook-button';
 import { RevokeTokenButton } from '@/app/(site)/settings/_components/revoke-token-button';
@@ -34,12 +37,18 @@ export default async function SettingsPage() {
   if (!user) redirect('/login');
   const db = getDatabase();
   const outbound = new OutboundRepository(db);
-  const [pushes, hooks, tokens, sections] = await Promise.all([
-    outbound.pushSubscriptions(user.id),
-    outbound.listWebhooks(user.id),
-    outbound.listFeedTokens(user.id),
-    new Repository(db).listSections(user.id),
-  ]);
+  const repo = new Repository(db);
+  const [pushes, hooks, tokens, sections, feeds, notifying] = await Promise.all(
+    [
+      outbound.pushSubscriptions(user.id),
+      outbound.listWebhooks(user.id),
+      outbound.listFeedTokens(user.id),
+      repo.listSections(user.id),
+      repo.listFeeds(user.id),
+      new NotificationRepository(db).feedNotifications(user.id),
+    ],
+  );
+  const settings = new Map(notifying.map((n) => [n.feed_id, n]));
   const names = new Map(sections.map((s) => [s.id, s.name]));
 
   return (
@@ -51,9 +60,24 @@ export default async function SettingsPage() {
       <PushSettings
         subscriptions={pushes.map((p) => ({ id: p.id, endpoint: p.endpoint }))}
       />
+      <h2>New stories</h2>
+      <p className="muted">
+        Be told about new stories in a feed: by push to the browsers above, by
+        email, or as a webhook. At most three stories a feed each day.
+      </p>
+      {feeds.map((f) => (
+        <FeedNotificationForm
+          key={f.id}
+          feedId={f.id}
+          title={f.title || hostOf(f.url)}
+          filter={settings.get(f.id)?.filter ?? 'unread'}
+          channels={settings.get(f.id)?.channels ?? []}
+        />
+      ))}
       <h2>Webhooks</h2>
       <p className="muted">
-        A signed POST to your own address whenever you save or like a story.
+        A signed POST to your own address whenever you save or like a story, or
+        a notifying feed has a new one (IFTTT’s Webhooks service can take it).
       </p>
       <AddWebhookForm />
       {hooks.map((h) => (

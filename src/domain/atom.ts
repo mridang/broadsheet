@@ -13,6 +13,10 @@ export interface AtomEntry {
   readonly updated: string;
   readonly summary?: string | undefined;
   readonly source?: string | undefined;
+  /** The story's full text, when it was kept. */
+  readonly content?: string | undefined;
+  /** Labels on the entry (a saved story's tags). */
+  readonly categories?: readonly string[] | undefined;
 }
 
 /** A whole feed. */
@@ -51,8 +55,14 @@ function entryXml(entry: AtomEntry): string {
     ...(entry.source
       ? [`    <author><name>${escapeXml(entry.source)}</name></author>`]
       : []),
+    ...(entry.categories ?? []).map(
+      (term) => `    <category term="${escapeXml(term)}"/>`,
+    ),
     ...(entry.summary
       ? [`    <summary>${escapeXml(entry.summary)}</summary>`]
+      : []),
+    ...(entry.content
+      ? [`    <content type="text">${escapeXml(entry.content)}</content>`]
       : []),
     '  </entry>',
   ].join('\n');

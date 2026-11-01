@@ -4,6 +4,7 @@ const calls: string[] = [];
 const failing = new Set<number>();
 const failingIssues = new Set<number>();
 const failingPushes = new Set<number>();
+const failingNotices = new Set<number>();
 
 jest.unstable_mockModule(
   'cloudflare:workers',
@@ -94,6 +95,22 @@ jest.unstable_mockModule('@/domain/notify', () => ({
     if (failingPushes.has(user)) throw new Error('database down');
     return { sent: 1, failed: 0, removed: 0 };
   },
+  notifyNewStories: async (
+    _env: unknown,
+    _db: unknown,
+    user: number,
+    date: string,
+  ) => {
+    calls.push(`notice:${user}:${date}`);
+    if (failingNotices.has(user)) throw new Error('database down');
+    return { stories: 1, pushed: 1, emailed: 0, hooked: 0 };
+  },
+}));
+
+jest.unstable_mockModule('@/domain/notifications', () => ({
+  NotificationRepository: class {
+    notifiedUserIds = async () => [7];
+  },
 }));
 
 const { default: extraHandlers, DailyScrape } =
@@ -120,6 +137,7 @@ afterEach(() => {
   failing.clear();
   failingIssues.clear();
   failingPushes.clear();
+  failingNotices.clear();
   jest.restoreAllMocks();
 });
 
@@ -135,6 +153,9 @@ describe('DailyScrape', () => {
       'scrape:2:2026-11-01',
       'step:cluster edition',
       'cluster:2026-11-01',
+      'step:list notified readers',
+      'step:notify new stories for user 7',
+      'notice:7:2026-11-01',
       'step:backfill recent editions',
       'backfillRecent:7',
       'step:list readers',
@@ -183,6 +204,17 @@ describe('DailyScrape notifications', () => {
     await run();
     expect(calls).not.toContain('push:7:2026-11-01');
     expect(calls).toContain('push:8:2026-11-01');
+  });
+
+  it('logs new-story notifications that fail and goes on', async () => {
+    jest.spyOn(console, 'log').mockImplementation(() => undefined);
+    const error = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    failingNotices.add(7);
+    await run();
+    expect(String(error.mock.calls[0]?.[0])).toContain('notification.failed');
+    expect(calls).toContain('issue:7:2026-11-01');
   });
 
   it('logs a notification that fails and notifies the next reader', async () => {

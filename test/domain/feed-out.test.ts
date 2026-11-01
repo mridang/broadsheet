@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from '@jest/globals';
 
 import { databaseFrom, type Database } from '@/domain/db/database';
-import { serveFeed } from '@/domain/feed-out';
+import { keeps, serveFeed } from '@/domain/feed-out';
 import { OutboundRepository, type FeedTokenInput } from '@/domain/outbound';
 import { Repository } from '@/domain/repository';
 import { sha256Hex } from '@/lib/outbound/tokens';
@@ -16,7 +16,12 @@ beforeEach(() => {
   db = databaseFrom(sqliteD1(...APP_MIGRATIONS).d1);
 });
 
-const story = (url: string, title: string): ScrapedItem => ({
+const story = (
+  url: string,
+  title: string,
+  body_text?: string,
+): ScrapedItem => ({
+  ...(body_text ? { body_text } : {}),
   url,
   title,
   source: 'Src',
@@ -49,7 +54,7 @@ async function paper(): Promise<{ sectionId: number; articleId: number }> {
   const b = (await repo.addFeed(1, 'https://b.test/f'))!;
   await repo.updateFeed(1, a.id, { section_id: section.id });
   await repo.writeEdition(a.source_id, '2026-10-02', [
-    story('https://x/a', 'Alpha'),
+    story('https://x/a', 'Alpha', 'Alpha body.'),
   ]);
   await repo.writeEdition(b.source_id, '2026-10-02', [
     story('https://x/b', 'Beta'),
@@ -111,5 +116,62 @@ describe('serveFeed', () => {
     const t = await token({ scope: 'section', section_id: sectionId });
     await new Repository(db).removeSection(1, sectionId);
     expect((await fetchFeed(`?token=${t}`)).status).toBe(404);
+  });
+});
+
+describe('keeps', () => {
+  it.each([
+    ['all', -1, true],
+    ['unread', -1, false],
+    ['unread', 0, true],
+    ['focus', 0, false],
+    ['focus', 1, true],
+  ] as const)('a %s feed keeps a story scored %d: %s', (filter, score, yes) => {
+    expect(keeps(filter, score)).toBe(yes);
+  });
+});
+
+describe('serveFeed filters and content', () => {
+  it('carries each story’s kept text and a saved story’s tags', async () => {
+    const { articleId } = await paper();
+    await new Repository(db).saveArticle(1, articleId, ['rust', 'go']);
+    const xml = await (
+      await fetchFeed(`?token=${await token({ scope: 'saves' })}`)
+    ).text();
+    expect(xml).toContain('<content type="text">Alpha body.</content>');
+    expect(xml).toContain('<category term="rust"/>');
+  });
+
+  it('leaves disliked stories out of an unread edition feed', async () => {
+    await paper();
+    await new Repository(db).addClassifier(1, {
+      kind: 'title',
+      value: 'beta',
+      score: -1,
+    });
+    const xml = await (
+      await fetchFeed(
+        `?token=${await token({ scope: 'edition', filter: 'unread' })}`,
+      )
+    ).text();
+    expect(xml).toContain('<title>Alpha</title>');
+    expect(xml).not.toContain('<title>Beta</title>');
+  });
+
+  it('keeps only liked stories in a focus feed, and says so in its title', async () => {
+    await paper();
+    await new Repository(db).addClassifier(1, {
+      kind: 'title',
+      value: 'beta',
+      score: 1,
+    });
+    const xml = await (
+      await fetchFeed(
+        `?token=${await token({ scope: 'edition', filter: 'focus' })}`,
+      )
+    ).text();
+    expect(xml).toContain('(focus)');
+    expect(xml).toContain('<title>Beta</title>');
+    expect(xml).not.toContain('<title>Alpha</title>');
   });
 });

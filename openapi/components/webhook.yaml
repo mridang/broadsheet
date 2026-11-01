@@ -4,7 +4,7 @@ WebhookEvents:
   uniqueItems: true
   items:
     type: string
-    enum: [save, like]
+    enum: [save, like, story]
 WebhookInput:
   type: object
   additionalProperties: false

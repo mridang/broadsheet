@@ -121,3 +121,38 @@ describe('editionStories', () => {
     expect(await repo.editionStories(2)).toEqual([]);
   });
 });
+
+describe('bodies', () => {
+  it('finds the kept text of many stories, leaving out those with none', async () => {
+    const main = new Repository(db);
+    const feed = (await main.addFeed(1, 'https://a.test/f'))!;
+    await main.writeEdition(
+      feed.source_id,
+      '2026-10-02',
+      Array.from({ length: 95 }, (_, i) =>
+        story({
+          url: `https://x/${i}`,
+          ...(i ? { body_text: `Body ${i}` } : {}),
+        }),
+      ),
+    );
+    const ids = (await main.sourceArticles(feed.source_id, '2026-10-02')).map(
+      (a) => a.id,
+    );
+    const bodies = await repo.bodies(ids);
+    expect(bodies.size).toBe(94);
+    expect(await repo.bodies([])).toEqual(new Map());
+  });
+});
+
+describe('feed token filters', () => {
+  it('keeps the filter, and reads every token as all by default', async () => {
+    expect(
+      (await repo.addFeedToken(1, 'h1', { scope: 'edition', filter: 'focus' }))
+        .filter,
+    ).toBe('focus');
+    expect(
+      (await repo.addFeedToken(1, 'h2', { scope: 'edition' })).filter,
+    ).toBe('all');
+  });
+});
