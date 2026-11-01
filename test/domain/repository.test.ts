@@ -533,6 +533,16 @@ describe('reads', () => {
   it('refuses to note an article that does not exist', async () => {
     expect(await new Repository(db).markRead(1, 999)).toBeUndefined();
   });
+
+  it('marks a read story unread again, only for that person', async () => {
+    const repo = new Repository(db);
+    const { id } = await oneStory();
+    await repo.markRead(1, id);
+    expect(await repo.markUnread(2, id)).toBe(false);
+    expect(await repo.markUnread(1, id)).toBe(true);
+    expect(await repo.markUnread(1, id)).toBe(false);
+    expect((await repo.readState(1)).ids.size).toBe(0);
+  });
 });
 
 describe('feedStatistics', () => {

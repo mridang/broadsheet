@@ -993,6 +993,15 @@ export class Repository {
     return added.length > 0;
   }
 
+  /** Forget that the person opened a story. True when they had. */
+  async markUnread(userId: number, articleId: number): Promise<boolean> {
+    const removed = await this.#db
+      .delete(reads)
+      .where(and(eq(reads.user_id, userId), eq(reads.article_id, articleId)))
+      .returning({ id: reads.article_id });
+    return removed.length > 0;
+  }
+
   /** The stories the person has opened, by id and by address. */
   async readState(userId: number): Promise<ReadState> {
     const rows = await this.#db

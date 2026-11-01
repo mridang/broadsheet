@@ -35,6 +35,22 @@ item:
         $ref: '../components/common.yaml#/responses/NotFound'
       '429':
         $ref: '../components/common.yaml#/responses/TooManyRequests'
+  delete:
+    operationId: markUnread
+    tags: [reads]
+    summary: Mark a story unread again.
+    description: Rate limited by the `RL_API` binding. The story is no longer dimmed, and later editions may show it again.
+    responses:
+      '204':
+        description: The story is unread.
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '403':
+        $ref: '../components/common.yaml#/responses/Forbidden'
+      '404':
+        $ref: '../components/common.yaml#/responses/NotFound'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'
 Read:
   type: object
   required: [article_id]

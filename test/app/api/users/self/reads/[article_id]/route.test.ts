@@ -13,7 +13,8 @@ import {
   tokenFor,
 } from '../../../../../../domain/auth/auth-test-kit';
 
-const { POST } = await import('@/app/api/users/self/reads/[article_id]/route');
+const { POST, DELETE } =
+  await import('@/app/api/users/self/reads/[article_id]/route');
 
 let restore: () => void;
 let db: Database;
@@ -95,5 +96,35 @@ describe('POST /api/users/self/reads/:article_id', () => {
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
     expect((await read(story)).status).toBe(401);
+  });
+});
+
+const unread = (id: string | number) =>
+  DELETE(
+    new Request(`https://app.test/api/users/self/reads/${id}`, {
+      method: 'DELETE',
+      headers: { ...auth },
+    }),
+    { params: Promise.resolve({ article_id: String(id) }) },
+  );
+
+describe('DELETE /api/users/self/reads/:article_id', () => {
+  it('answers 204 and marks the story unread', async () => {
+    await read(story);
+    expect((await unread(story)).status).toBe(204);
+    expect((await new Repository(db).readState(7)).ids.size).toBe(0);
+  });
+
+  it.each(['999', 'abc'])('answers 404 for article %j', async (id) => {
+    expect((await unread(id)).status).toBe(404);
+  });
+
+  it('answers 404 for a story that was not read', async () => {
+    expect((await unread(story)).status).toBe(404);
+  });
+
+  it('answers 401 when nobody is signed in', async () => {
+    auth = {};
+    expect((await unread(story)).status).toBe(401);
   });
 });
