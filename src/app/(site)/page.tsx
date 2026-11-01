@@ -139,7 +139,7 @@ export default async function Home({
       }
     >
       <KeyboardShortcuts />
-      {user ? <ReadTracker /> : null}
+      {personal?.markReadOnOpen ? <ReadTracker /> : null}
       <Paper
         layout={issue.layout}
         articles={await issueArticles(repo, issue.layout)}

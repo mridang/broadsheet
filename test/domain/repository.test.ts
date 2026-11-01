@@ -16,6 +16,7 @@ import {
   sectionNames,
   sectionPath,
   treeOrder,
+  storyTime,
   type Profile,
   type Section,
 } from '@/domain/repository';
@@ -769,7 +770,9 @@ describe('reads', () => {
   it('marks many stories read, leaving out ones that are not articles', async () => {
     const repo = new Repository(db);
     const { id } = await oneStory();
-    expect(await repo.markManyRead(1, [id, id, 999])).toEqual([id]);
+    expect(await repo.markAllRead(1, { articleIds: [id, id, 999] })).toEqual([
+      id,
+    ]);
     expect([...(await repo.readState(1)).ids]).toEqual([id]);
   });
 
@@ -2054,6 +2057,14 @@ describe('autoMarkReadDays', () => {
   it('marks nothing read for a feed under no section', () => {
     expect(autoMarkReadDays(filed(null), sections)).toBeUndefined();
   });
+
+  it('falls back to the person’s own days when nothing above says', () => {
+    expect(autoMarkReadDays(filed(null), sections, 7)).toBe(7);
+  });
+
+  it('lets a section’s 0 win over the person’s days', () => {
+    expect(autoMarkReadDays(filed(3), sections, 7)).toBeUndefined();
+  });
 });
 
 describe('filedIn', () => {
@@ -2278,5 +2289,231 @@ describe('discoverArticles', () => {
     await repo.writeEdition(b.source_id, '2026-10-20', [story({})]);
     const [theirs] = await repo.sourceArticles(b.source_id, '2026-10-20');
     expect(await repo.discoverArticles(1, theirs!.id)).toBeUndefined();
+  });
+});
+
+describe('authors and tags', () => {
+  it('stores the author and tags a feed gave an item', async () => {
+    const repo = new Repository(db);
+    const { source_id } = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await repo.writeEdition(source_id, '2026-10-20', [
+      story({ author: 'Ada', tags: ['Rust'] }),
+    ]);
+    const [a] = await repo.sourceArticles(source_id, '2026-10-20');
+    expect(a).toMatchObject({ author: 'Ada', tags: '["Rust"]' });
+  });
+
+  it('stores no author and no tags when the feed gave none', async () => {
+    const repo = new Repository(db);
+    const { source_id } = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await repo.writeEdition(source_id, '2026-10-20', [story({})]);
+    const [a] = await repo.sourceArticles(source_id, '2026-10-20');
+    expect(a).toMatchObject({ author: null, tags: '[]' });
+  });
+});
+
+describe('reading preferences', () => {
+  it('keeps the intelligence level, mark-on-open and auto-read days', async () => {
+    const repo = new Repository(db);
+    await repo.updatePreferences(1, {
+      intelligence: 'focus',
+      mark_read_on_open: false,
+      auto_mark_read_days: 7,
+    });
+    expect(await repo.getPreferences(1)).toMatchObject({
+      intelligence: 'focus',
+      mark_read_on_open: false,
+      auto_mark_read_days: 7,
+    });
+  });
+});
+
+describe('classifier scopes', () => {
+  it('keeps one classifier per kind, value and scope', async () => {
+    const repo = new Repository(db);
+    const input = { kind: 'title', value: 'rust', score: 1 };
+    await repo.addClassifier(1, input);
+    const scoped = await repo.addClassifier(1, { ...input, scope_feed_id: 4 });
+    const again = await repo.addClassifier(1, {
+      ...input,
+      score: -2,
+      scope_feed_id: 4,
+    });
+    expect(scoped.created).toBe(true);
+    expect(again).toMatchObject({
+      created: false,
+      classifier: { id: scoped.classifier.id, score: -2 },
+    });
+    expect(await repo.listClassifiers(1)).toHaveLength(2);
+  });
+
+  it('tells a section scope from no scope', async () => {
+    const repo = new Repository(db);
+    const input = { kind: 'tag', value: 'x', score: 1 };
+    await repo.addClassifier(1, input);
+    const { created } = await repo.addClassifier(1, {
+      ...input,
+      scope_section_id: 2,
+    });
+    expect(created).toBe(true);
+  });
+});
+
+describe('save notes, highlights and filters', () => {
+  it('keeps notes and highlights when the save’s tags change', async () => {
+    const repo = new Repository(db);
+    const { id } = await oneStory();
+    await repo.saveArticle(1, id, ['a']);
+    await repo.annotateSave(1, id, {
+      notes: 'Read later',
+      highlights: ['one line'],
+    });
+    expect(await repo.saveArticle(1, id, ['b'])).toMatchObject({
+      story: { tags: ['b'], notes: 'Read later', highlights: ['one line'] },
+    });
+  });
+
+  it('lists only the saves from one source when asked', async () => {
+    const repo = new Repository(db);
+    const { source_id, id } = await oneStory();
+    await repo.saveArticle(1, id, []);
+    expect(await repo.listSaves(1, undefined, source_id)).toHaveLength(1);
+    expect(await repo.listSaves(1, undefined, source_id + 1)).toEqual([]);
+  });
+
+  it('counts the saves under each source', async () => {
+    const repo = new Repository(db);
+    const { source_id, id } = await oneStory();
+    await repo.saveArticle(1, id, []);
+    expect(await repo.savedSourceCounts(1)).toEqual([{ source_id, count: 1 }]);
+    expect(await repo.savedSourceCounts(2)).toEqual([]);
+  });
+});
+
+describe('saved tags', () => {
+  /** Two of person 1's stories saved, tagged a+b and b. */
+  async function tagged(): Promise<[number, number]> {
+    const repo = new Repository(db);
+    const { source_id, id } = await oneStory();
+    await repo.writeEdition(source_id, '2026-10-21', [
+      story({ url: 'https://x/2' }),
+    ]);
+    const [two] = await repo.sourceArticles(source_id, '2026-10-21');
+    await repo.saveArticle(1, id, ['a', 'b']);
+    await repo.saveArticle(1, two!.id, ['b']);
+    return [id, two!.id];
+  }
+
+  it('counts each tag, by name', async () => {
+    await tagged();
+    expect(await new Repository(db).savedTagCounts(1)).toEqual([
+      { tag: 'a', count: 1 },
+      { tag: 'b', count: 2 },
+    ]);
+  });
+
+  it('renames a tag on every save, merging into an existing one', async () => {
+    const repo = new Repository(db);
+    const [one] = await tagged();
+    expect(await repo.retagSaves(1, 'b', 'a')).toBe(2);
+    expect((await repo.getSave(1, one))?.tags).toEqual(['a']);
+    expect(await repo.savedTagCounts(1)).toEqual([{ tag: 'a', count: 2 }]);
+  });
+
+  it('takes a tag off every save, keeping the saves', async () => {
+    const repo = new Repository(db);
+    await tagged();
+    expect(await repo.retagSaves(1, 'b', undefined)).toBe(2);
+    expect(await repo.listSaves(1)).toHaveLength(2);
+    expect(await repo.savedTagCounts(1)).toEqual([{ tag: 'a', count: 1 }]);
+  });
+
+  it('changes nothing for a tag no save carries', async () => {
+    await tagged();
+    expect(await new Repository(db).retagSaves(1, 'zzz', 'a')).toBe(0);
+  });
+
+  it('leaves another person’s tags alone', async () => {
+    await tagged();
+    expect(await new Repository(db).retagSaves(2, 'a', 'c')).toBe(0);
+  });
+});
+
+describe('marking unread and many read', () => {
+  /** Person 1's source with three stories over two editions. */
+  async function three(): Promise<{ source_id: number; ids: number[] }> {
+    const repo = new Repository(db);
+    const { source_id } = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await repo.writeEdition(source_id, '2026-10-20', [
+      story({ url: 'https://x/1', published_at: '2026-10-20T00:00:00Z' }),
+      story({ url: 'https://x/2', published_at: '2026-10-20T12:00:00Z' }),
+    ]);
+    await repo.writeEdition(source_id, '2026-10-21', [
+      story({ url: 'https://x/3', published_at: '2026-10-21T00:00:00Z' }),
+    ]);
+    const ids = [
+      ...(await repo.sourceArticles(source_id, '2026-10-20')),
+      ...(await repo.sourceArticles(source_id, '2026-10-21')),
+    ]
+      .map((a) => a.id)
+      .sort((a, b) => a - b);
+    return { source_id, ids };
+  }
+
+  it('marks a read story unread once', async () => {
+    const repo = new Repository(db);
+    const { ids } = await three();
+    await repo.markRead(1, ids[0]!);
+    expect(await repo.markUnread(1, ids[0]!)).toBe(true);
+    expect(await repo.markUnread(1, ids[0]!)).toBe(false);
+    expect((await repo.readState(1)).ids.size).toBe(0);
+  });
+
+  it('marks every unread story read, giving back only the new ones', async () => {
+    const repo = new Repository(db);
+    const { ids } = await three();
+    await repo.markRead(1, ids[0]!);
+    expect(await repo.markAllRead(1)).toEqual(ids.slice(1));
+    expect((await repo.readState(1)).ids.size).toBe(3);
+  });
+
+  it.each([
+    ['one edition', { edition: '2026-10-21' }, 1],
+    ['before a time', { before: new Date('2026-10-20T06:00:00Z') }, 1],
+    ['after a time', { after: new Date('2026-10-20T06:00:00Z') }, 2],
+    ['another source', { sourceIds: [999] }, 0],
+  ])('marks only the stories of %s', async (_, scope, marked) => {
+    await three();
+    expect(await new Repository(db).markAllRead(1, scope)).toHaveLength(marked);
+  });
+
+  it('gives back the named stories, read already or now', async () => {
+    const repo = new Repository(db);
+    const { ids } = await three();
+    await repo.markRead(1, ids[0]!);
+    expect(
+      await repo.markAllRead(1, { articleIds: [ids[0]!, ids[1]!] }),
+    ).toEqual([ids[0], ids[1]]);
+  });
+
+  it('marks nothing in sources the person does not follow', async () => {
+    await three();
+    expect(await new Repository(db).markAllRead(2)).toEqual([]);
+  });
+});
+
+describe('storyTime', () => {
+  it.each([
+    [
+      { published_at: '2026-10-20T00:00:00Z', fetched_at: null },
+      Date.UTC(2026, 9, 20),
+    ],
+    [
+      { published_at: '', fetched_at: '2026-10-20 00:00:00' },
+      Date.UTC(2026, 9, 20),
+    ],
+    [{ published_at: null, fetched_at: null }, Number.NaN],
+  ])('reads %j', (a, at) => {
+    expect(storyTime(a)).toBe(at);
   });
 });

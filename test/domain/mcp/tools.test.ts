@@ -276,6 +276,22 @@ describe('classifiers', () => {
     ).rejects.toThrow('value: must be a non-blank string.');
   });
 
+  it('refuses a feed classifier on a feed the person does not follow', async () => {
+    await expect(
+      run('add_classifier', { kind: 'feed', value: '999', score: 'like' }),
+    ).rejects.toThrow('value: no such feed.');
+  });
+
+  it('adds a super dislike', async () => {
+    expect(
+      await run('add_classifier', {
+        kind: 'text',
+        value: 'sponsored',
+        score: 'super_dislike',
+      }),
+    ).toMatchObject({ classifier: { score: 'super_dislike' } });
+  });
+
   it('removes one', async () => {
     const { classifier } = (await run('add_classifier', {
       kind: 'title',

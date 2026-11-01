@@ -126,6 +126,12 @@ paths:
     $ref: './paths/rivers.yaml#/item'
   /api/users/self/saves:
     $ref: './paths/saves.yaml#/collection'
+  /api/users/self/saves/tags:
+    $ref: './paths/saves.yaml#/tags'
+  /api/users/self/saves/tags/{name}:
+    $ref: './paths/saves.yaml#/tag'
+  /api/users/self/saves/feeds:
+    $ref: './paths/saves.yaml#/feeds'
   /api/users/self/saves/{article_id}:
     $ref: './paths/saves.yaml#/item'
   /api/users/self/notifications/rules:

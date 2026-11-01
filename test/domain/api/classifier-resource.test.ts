@@ -11,6 +11,8 @@ describe('classifierResource', () => {
       classifierResource({
         id: 3,
         user_id: 9,
+        scope_feed_id: null,
+        scope_section_id: null,
         kind: 'source',
         value: 'a.test',
         score: 1,
@@ -30,6 +32,8 @@ describe('classifierResource', () => {
       classifierResource({
         id: 3,
         user_id: 9,
+        scope_feed_id: null,
+        scope_section_id: null,
         kind: 'tag',
         value: 'x',
         score: -1,
@@ -48,6 +52,8 @@ describe('classifierResource of a super-dislike', () => {
         kind: 'text',
         value: 'x',
         score: -2,
+        scope_feed_id: null,
+        scope_section_id: null,
         created_at: null,
       }).score,
     ).toBe('super_dislike');
@@ -71,7 +77,7 @@ describe('parseClassifierInput', () => {
   it.each([
     [
       { kind: 'colour', value: 'x', score: 'like' },
-      'kind: must be one of author, source, title, tag, text, feed.',
+      'kind: must be one of title, author, tag, text, url, feed, source.',
     ],
     [
       { kind: 'tag', value: ' ', score: 'like' },
@@ -86,10 +92,89 @@ describe('parseClassifierInput', () => {
       'score: must be like, dislike or super_dislike.',
     ],
     [
+      { kind: 'feed', value: 'abc', score: 'like' },
+      'value: a feed classifier names a feed id.',
+    ],
+    [
+      { kind: 'tag', value: 'x', score: 'like', feed_id: 3 },
+      'feed_id: not an id.',
+    ],
+    [
+      { kind: 'tag', value: 'x', score: 'like', section_id: 'x' },
+      'section_id: not an id.',
+    ],
+    [
+      { kind: 'tag', value: 'x', score: 'like', feed_id: '1', section_id: '2' },
+      'section_id: a classifier is scoped to a feed or a section.',
+    ],
+    [
       { kind: 'tag', value: 'x', score: 'like', id: '1' },
       'id: not a member of a classifier.',
     ],
   ])('refuses %j', (body, error) => {
     expect(parseClassifierInput(body)).toEqual({ ok: false, errors: [error] });
+  });
+});
+
+describe('parseClassifierInput scores and scopes', () => {
+  it('stores a super dislike as -2', () => {
+    expect(
+      parseClassifierInput({
+        kind: 'url',
+        value: 'ads',
+        score: 'super_dislike',
+      }),
+    ).toEqual({ ok: true, input: { kind: 'url', value: 'ads', score: -2 } });
+  });
+
+  it.each([
+    ['feed_id', 'scope_feed_id'],
+    ['section_id', 'scope_section_id'],
+  ])('scopes a classifier by %s', (member, stored) => {
+    expect(
+      parseClassifierInput({
+        kind: 'text',
+        value: 'x',
+        score: 'like',
+        [member]: '4',
+      }),
+    ).toEqual({
+      ok: true,
+      input: { kind: 'text', value: 'x', score: 1, [stored]: 4 },
+    });
+  });
+});
+
+describe('classifierResource scores and scopes', () => {
+  const stored = {
+    id: 3,
+    user_id: 9,
+    kind: 'tag',
+    value: 'x',
+    score: -2,
+    scope_feed_id: 4,
+    scope_section_id: null,
+    created_at: null,
+  };
+
+  it('shows a score of -2 as super_dislike with its feed scope', () => {
+    expect(classifierResource(stored)).toEqual({
+      id: '3',
+      kind: 'tag',
+      value: 'x',
+      score: 'super_dislike',
+      feed_id: '4',
+    });
+  });
+
+  it('shows a section scope', () => {
+    expect(
+      classifierResource({
+        ...stored,
+        score: 1,
+        scope_feed_id: null,
+        scope_section_id: 5,
+      }),
+    ).toMatchObject({ score: 'like', section_id: '5' });
   });
 });

@@ -5,6 +5,7 @@ import { getCurrentUser } from '@/lib/core/auth';
 import { getDatabase } from '@/domain/db/database';
 import { Repository } from '@/domain/repository';
 import { hostOf } from '@/domain/render/tiers';
+import { TagControls } from '@/app/(site)/saved/_components/tag-controls';
 import { StoryActions } from '@/app/(site)/_components/story-actions';
 import { StoryRow } from '@/components/stories/story-row';
 import { EmptyState } from '@/components/ui/notice';
@@ -15,7 +16,10 @@ export const dynamic = 'force-dynamic';
 /** The tab title of the saved stories. */
 export const metadata: Metadata = { title: 'Saved stories' };
 
-/** The stories the person kept, newest first, narrowed by `?tag=`. */
+/**
+ * The stories the person kept, newest first, narrowed by `?tag=`, with every
+ * tag and its count, and renaming or deleting the tag shown.
+ */
 export default async function SavedPage({
   searchParams,
 }: {
@@ -24,7 +28,11 @@ export default async function SavedPage({
   const user = await getCurrentUser();
   if (!user) redirect('/login');
   const { tag } = await searchParams;
-  const saves = await new Repository(getDatabase()).listSaves(user.id, tag);
+  const repo = new Repository(getDatabase());
+  const [saves, tags] = await Promise.all([
+    repo.listSaves(user.id, tag || undefined),
+    repo.savedTagCounts(user.id),
+  ]);
 
   return (
     <div className="max-w-3xl">
@@ -43,6 +51,16 @@ export default async function SavedPage({
           )
         }
       />
+      {tag ? <TagControls tag={tag} /> : null}
+      {tags.length ? (
+        <p>
+          {tags.map((t) => (
+            <a key={t.tag} href={`/saved?tag=${encodeURIComponent(t.tag)}`}>
+              {t.tag} ({t.count}){' '}
+            </a>
+          ))}
+        </p>
+      ) : null}
       {saves.length ? (
         <ul className="mt-8 divide-y divide-line border-y border-line">
           {saves.map(({ article, tags }) => (

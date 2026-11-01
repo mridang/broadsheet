@@ -7,6 +7,8 @@ import {
   feedHeader,
   isBoilerplate,
   pageDescription,
+  itemAuthor,
+  itemTags,
   parseFeed,
   siteName,
 } from '@/lib/scraping';
@@ -295,5 +297,58 @@ describe('feedHeader', () => {
 
   it('is empty for something that is not a feed', () => {
     expect(feedHeader('<html><body>hi</body></html>')).toEqual([]);
+  });
+});
+
+describe('itemAuthor', () => {
+  it.each([
+    [
+      '<author><name>Ada Lovelace</name><email>a@x</email></author>',
+      'Ada Lovelace',
+    ],
+    ['<dc:creator><![CDATA[Grace Hopper]]></dc:creator>', 'Grace Hopper'],
+    ['<author>ada@x.test (Ada Lovelace)</author>', 'Ada Lovelace'],
+    ['<author>Alan Turing</author>', 'Alan Turing'],
+    ['<title>No author</title>', ''],
+  ])('reads %s as %j', (block, author) => {
+    expect(itemAuthor(block)).toBe(author);
+  });
+
+  it('keeps at most 120 characters', () => {
+    expect(itemAuthor(`<author>${'a'.repeat(200)}</author>`)).toHaveLength(120);
+  });
+});
+
+describe('itemTags', () => {
+  it('reads RSS categories and Atom terms, once each', () => {
+    expect(
+      itemTags(
+        '<category>Rust</category><category><![CDATA[Go]]></category><category term="Rust"/><category term="Web" />',
+      ),
+    ).toEqual(['Rust', 'Go', 'Web']);
+  });
+
+  it('finds none in an item without categories', () => {
+    expect(itemTags('<title>x</title>')).toEqual([]);
+  });
+
+  it('keeps at most 20 tags of at most 60 characters', () => {
+    const many = Array.from(
+      { length: 25 },
+      (_, i) => `<category>t${i}${'x'.repeat(70)}</category>`,
+    ).join('');
+    const tags = itemTags(many);
+    expect(tags).toHaveLength(20);
+    expect(tags.every((t) => t.length === 60)).toBe(true);
+  });
+});
+
+describe('parseFeed authors and tags', () => {
+  it('gives each item its author and categories', () => {
+    const { items } = parseFeed(
+      `<rss><channel><title>F</title><item><title>T</title><link>https://a.test/1</link><dc:creator>Ada</dc:creator><category>Rust</category></item></channel></rss>`,
+      'https://a.test/feed',
+    );
+    expect(items[0]).toMatchObject({ author: 'Ada', tags: ['Rust'] });
   });
 });

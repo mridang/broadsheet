@@ -70,6 +70,7 @@ import type {
   FeedElement,
   ScrapedItem,
 } from '@/lib/scraping';
+import type { Intelligence } from '@/domain/render/tiers';
 
 /** A signed-in person. */
 export type User = typeof users.$inferSelect;
@@ -170,7 +171,10 @@ export interface FeedChanges {
   readonly custom_icon?: string | null;
   readonly auto_mark_read_days?: number | null;
 }
-/** The parts of a section a person can change; a null parent is top level. */
+/**
+ * The parts of a section a person can change; a null parent is top level and
+ * null days inherit.
+ */
 export interface SectionChanges {
   readonly name?: string;
   readonly position?: number;
@@ -266,11 +270,16 @@ const summaryColumns = Object.fromEntries(
 ) as Omit<ReturnType<typeof getTableColumns<typeof articles>>, 'body_text'>;
 /** A like or dislike a person trained the paper with. */
 export type Classifier = typeof classifiers.$inferSelect;
-/** What a classifier matches on, and whether it likes (1) or dislikes (-1). */
+/**
+ * What a classifier matches on, whether it likes (1), dislikes (-1) or super
+ * dislikes (-2), and where: one feed, one section, or (neither) everywhere.
+ */
 export interface ClassifierInput {
   readonly kind: string;
   readonly value: string;
   readonly score: number;
+  readonly scope_feed_id?: number;
+  readonly scope_section_id?: number;
 }
 /** A story a person kept: the article, their tags and when they saved it. */
 export interface SavedStory {
@@ -281,6 +290,33 @@ export interface SavedStory {
   readonly notes?: string | null;
   /** Passages they marked. */
   readonly highlights?: readonly string[];
+}
+/** Which unread stories a bulk mark-read covers; absent members cover all. */
+export interface ReadScope {
+  readonly sourceIds?: readonly number[];
+  readonly articleIds?: readonly number[];
+  readonly edition?: string;
+  readonly before?: Date;
+  readonly after?: Date;
+}
+
+/**
+ * When a story came out, in ms: its published time, else when it was fetched
+ * (SQLite's UTC `YYYY-MM-DD HH:MM:SS`); NaN when neither is known.
+ */
+export function storyTime(
+  a: Pick<Article, 'published_at' | 'fetched_at'>,
+): number {
+  if (a.published_at) return Date.parse(a.published_at);
+  return a.fetched_at
+    ? Date.parse(`${a.fetched_at.replace(' ', 'T')}Z`)
+    : Number.NaN;
+}
+
+/** A tag on a person's saves and how many saves carry it. */
+export interface TagCount {
+  readonly tag: string;
+  readonly count: number;
 }
 /** The stories a person has opened, by article id and by address. */
 export interface ReadState {
@@ -307,6 +343,12 @@ export interface Preferences {
   readonly briefing_length: 'short' | 'medium' | 'detailed';
   readonly briefing_style: 'editorial' | 'bullets' | 'headlines';
   readonly briefing_read_filter: 'unread' | 'focus';
+  /** How much of the paper training lets through (NewsBlur's intelligence). */
+  readonly intelligence: Intelligence;
+  /** Whether opening a story marks it read. */
+  readonly mark_read_on_open: boolean;
+  /** Days after which stories count as read when no feed or section says; 0 never. */
+  readonly auto_mark_read_days: number;
 }
 /** The preferences of someone who has changed nothing. */
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -318,6 +360,9 @@ export const DEFAULT_PREFERENCES: Preferences = {
   briefing_length: 'medium',
   briefing_style: 'bullets',
   briefing_read_filter: 'unread',
+  intelligence: 'unread',
+  mark_read_on_open: true,
+  auto_mark_read_days: 0,
 };
 /** One day in a person's list of stored issues. */
 export interface IssueListing {
@@ -454,7 +499,7 @@ function chunks<T>(list: readonly T[], size: number): T[][] {
   return out;
 }
 
-/** A stored tag list, or none when it is not a JSON array of strings. */
+/** A stored string list (tags, highlights), or none when it is not a JSON array of strings. */
 function tagsOf(stored: string): string[] {
   try {
     const parsed: unknown = JSON.parse(stored);
@@ -1079,7 +1124,7 @@ export class Repository {
     id: number,
     changes: SectionChanges,
   ): Promise<Section | undefined> {
-    if (Object.keys(changes).length) {
+    if (Object.values(changes).some((v) => v !== undefined)) {
       await this.#db
         .update(sections)
         .set(changes)
@@ -1222,6 +1267,8 @@ export class Repository {
         body_text: a.body_text || null,
         comments_url: a.comments_url || null,
         guid: a.guid || null,
+        author: a.author || null,
+        tags: JSON.stringify(a.tags ?? []),
         fetched_at: sql`(datetime('now'))`,
       };
       return this.#db
@@ -1506,8 +1553,8 @@ export class Repository {
   }
 
   /**
-   * Train the paper. A classifier for the same kind and value replaces the
-   * score of the one already there; `created` says whether it is new.
+   * Train the paper. A classifier for the same kind, value and scope replaces
+   * the score of the one already there; `created` says whether it is new.
    */
   async addClassifier(
     userId: number,
@@ -1518,6 +1565,12 @@ export class Repository {
         eq(classifiers.user_id, userId),
         eq(classifiers.kind, input.kind),
         eq(classifiers.value, input.value),
+        input.scope_feed_id === undefined
+          ? isNull(classifiers.scope_feed_id)
+          : eq(classifiers.scope_feed_id, input.scope_feed_id),
+        input.scope_section_id === undefined
+          ? isNull(classifiers.scope_section_id)
+          : eq(classifiers.scope_section_id, input.scope_section_id),
       ),
     });
     if (existing) {
@@ -1557,16 +1610,13 @@ export class Repository {
   > {
     if (!(await this.getArticle(userId, articleId))) return undefined;
     const before = await this.getSave(userId, articleId);
+    const set = { tags: JSON.stringify(tags) };
     await this.#db
       .insert(saves)
-      .values({
-        user_id: userId,
-        article_id: articleId,
-        tags: JSON.stringify(tags),
-      })
+      .values({ user_id: userId, article_id: articleId, ...set })
       .onConflictDoUpdate({
         target: [saves.user_id, saves.article_id],
-        set: { tags: JSON.stringify(tags) },
+        set,
       });
     const story = await this.getSave(userId, articleId);
     return { story: story!, created: !before };
@@ -1592,8 +1642,15 @@ export class Repository {
     return removed.length > 0;
   }
 
-  /** The person's saved stories, newest save first, optionally with one tag. */
-  async listSaves(userId: number, tag?: string): Promise<SavedStory[]> {
+  /**
+   * The person's saved stories, newest save first, optionally only those with
+   * one tag or from one source.
+   */
+  async listSaves(
+    userId: number,
+    tag?: string,
+    sourceId?: number,
+  ): Promise<SavedStory[]> {
     const rows = await this.#saved()
       .where(
         and(
@@ -1601,6 +1658,7 @@ export class Repository {
           tag === undefined
             ? undefined
             : sql`exists (select 1 from json_each(${saves.tags}) where json_each.value = ${tag})`,
+          sourceId === undefined ? undefined : eq(articles.source_id, sourceId),
         ),
       )
       .orderBy(desc(saves.created_at), desc(saves.article_id));
@@ -1678,22 +1736,6 @@ export class Repository {
       .onConflictDoNothing()
       .returning({ id: reads.article_id });
     return added.length > 0;
-  }
-
-  /**
-   * Note many stories as read at once (marking a whole edition, or the stories
-   * above or below one). Ids that are not articles in the person's feeds are
-   * left out; the rest come back, read now or already.
-   */
-  async markManyRead(
-    userId: number,
-    articleIds: readonly number[],
-  ): Promise<number[]> {
-    const done: number[] = [];
-    for (const id of new Set(articleIds)) {
-      if ((await this.markRead(userId, id)) !== undefined) done.push(id);
-    }
-    return done;
   }
 
   /** Forget that the person opened a story. True when they had. */
@@ -2584,6 +2626,12 @@ export class Repository {
           : 'bullets',
       briefing_read_filter:
         row.briefing_read_filter === 'focus' ? 'focus' : 'unread',
+      intelligence:
+        row.intelligence === 'focus' || row.intelligence === 'all'
+          ? row.intelligence
+          : 'unread',
+      mark_read_on_open: row.mark_read_on_open === 1,
+      auto_mark_read_days: row.auto_mark_read_days,
     };
   }
 
@@ -2602,6 +2650,9 @@ export class Repository {
       briefing_length: next.briefing_length,
       briefing_style: next.briefing_style,
       briefing_read_filter: next.briefing_read_filter,
+      intelligence: next.intelligence,
+      mark_read_on_open: next.mark_read_on_open ? 1 : 0,
+      auto_mark_read_days: next.auto_mark_read_days,
       updated_at: sql`(datetime('now'))`,
     };
     await this.#db
@@ -3028,6 +3079,135 @@ export class Repository {
       .slice(0, limit)
       .map((r) => ({ ...r, followed: followed.has(r.article.source_id) }));
   }
+
+  /** The tags on the person's saves, each with how many saves carry it. */
+  async savedTagCounts(userId: number): Promise<TagCount[]> {
+    const rows = await this.#db
+      .select({ tags: saves.tags })
+      .from(saves)
+      .where(eq(saves.user_id, userId));
+    const counts = new Map<string, number>();
+    for (const row of rows) {
+      for (const tag of tagsOf(row.tags)) {
+        counts.set(tag, (counts.get(tag) ?? 0) + 1);
+      }
+    }
+    return [...counts]
+      .map(([tag, count]) => ({ tag, count }))
+      .sort((a, b) => a.tag.localeCompare(b.tag));
+  }
+
+  /**
+   * How many of the person's saves came from each source. A story whose
+   * source they no longer follow is counted under it all the same.
+   */
+  async savedSourceCounts(
+    userId: number,
+  ): Promise<{ readonly source_id: number; readonly count: number }[]> {
+    const rows = await this.#db
+      .select({ source_id: articles.source_id, count: sql<number>`count(*)` })
+      .from(saves)
+      .innerJoin(articles, eq(saves.article_id, articles.id))
+      .where(eq(saves.user_id, userId))
+      .groupBy(articles.source_id)
+      .orderBy(asc(articles.source_id));
+    return rows;
+  }
+
+  /**
+   * Rename a tag on every save carrying it, merging with `to` where a save
+   * has both, or remove it from them when `to` is undefined. The number of
+   * saves changed: 0 when no save had the tag.
+   */
+  async retagSaves(
+    userId: number,
+    from: string,
+    to: string | undefined,
+  ): Promise<number> {
+    const rows = await this.#db
+      .select({ article_id: saves.article_id, tags: saves.tags })
+      .from(saves)
+      .where(
+        and(
+          eq(saves.user_id, userId),
+          sql`exists (select 1 from json_each(${saves.tags}) where json_each.value = ${from})`,
+        ),
+      );
+    const updates = rows.map((row) => {
+      const tags = tagsOf(row.tags).flatMap((t) =>
+        t === from ? (to === undefined ? [] : [to]) : [t],
+      );
+      return this.#db
+        .update(saves)
+        .set({ tags: JSON.stringify([...new Set(tags)]) })
+        .where(
+          and(eq(saves.user_id, userId), eq(saves.article_id, row.article_id)),
+        );
+    });
+    const [first, ...rest] = updates;
+    if (first) await this.#db.batch([first, ...rest]);
+    return rows.length;
+  }
+
+  /**
+   * Mark the person's unread stories read, as NewsBlur's mark-all, mark-feed
+   * and mark-stories read: all of their feeds or only some sources, only some
+   * stories, one edition, and only those published before or after a time.
+   * The ids now read: those it marked, and any of the named `articleIds`
+   * that were read already (ids not in the person's feeds are left out).
+   */
+  async markAllRead(userId: number, scope: ReadScope = {}): Promise<number[]> {
+    const rows = await this.#db
+      .select({
+        id: articles.id,
+        published_at: articles.published_at,
+        fetched_at: articles.fetched_at,
+        read: sql<number>`exists (select 1 from ${reads} where ${reads.user_id} = ${userId} and ${reads.article_id} = ${articles.id})`,
+      })
+      .from(articles)
+      .where(
+        and(
+          inArray(articles.source_id, this.#followed(userId)),
+          scope.sourceIds === undefined
+            ? undefined
+            : inArray(articles.source_id, [...scope.sourceIds]),
+          scope.articleIds === undefined
+            ? undefined
+            : inArray(articles.id, [...scope.articleIds]),
+          scope.edition === undefined
+            ? undefined
+            : eq(articles.edition, scope.edition),
+        ),
+      )
+      .orderBy(asc(articles.id));
+    const inScope = rows.filter((a) => {
+      if (!scope.before && !scope.after) return true;
+      const at = storyTime(a);
+      if (Number.isNaN(at)) return false;
+      return (
+        (!scope.before || at < scope.before.getTime()) &&
+        (!scope.after || at > scope.after.getTime())
+      );
+    });
+    const unread = inScope.filter((a) => !a.read);
+    // Thirty rows per INSERT keeps under D1's limit on bound variables.
+    const inserts = [];
+    for (let i = 0; i < unread.length; i += 30) {
+      inserts.push(
+        this.#db
+          .insert(reads)
+          .values(
+            unread
+              .slice(i, i + 30)
+              .map((a) => ({ user_id: userId, article_id: a.id })),
+          )
+          .onConflictDoNothing(),
+      );
+    }
+    const [first, ...rest] = inserts;
+    if (first) await this.#db.batch([first, ...rest]);
+    return (scope.articleIds ? inScope : unread).map((a) => a.id);
+  }
 }
 
 /**
@@ -3130,11 +3310,13 @@ export function filedIn(feed: Feed, ids: ReadonlySet<number>): boolean {
 /**
  * After how many days the feed's stories count as read, or undefined for
  * never: its own setting, else that of the section it prints under or the
- * nearest one above it that has one. 0 at any level means never.
+ * nearest one above it that has one, else the person's own (`person`). 0 at
+ * any level means never.
  */
 export function autoMarkReadDays(
   feed: Feed,
   all: readonly Section[],
+  person = 0,
 ): number | undefined {
   if (feed.auto_mark_read_days !== null) {
     return feed.auto_mark_read_days || undefined;
@@ -3150,5 +3332,5 @@ export function autoMarkReadDays(
     if (at.auto_mark_read_days !== null)
       return at.auto_mark_read_days || undefined;
   }
-  return undefined;
+  return person || undefined;
 }

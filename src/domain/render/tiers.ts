@@ -40,31 +40,92 @@ export function weight(a: Article): number {
   return w;
 }
 
-/** A trained like (1) or dislike (-1). */
+/**
+ * A trained like (1), dislike (-1) or super dislike (-2), everywhere or only
+ * in one feed or one section, as NewsBlur's feed, folder and global scopes.
+ */
 export interface Training {
   readonly kind: string;
   readonly value: string;
   readonly score: number;
+  readonly scope_feed_id?: number | null;
+  readonly scope_section_id?: number | null;
 }
 
 /**
- * The parts of a story training matches. Authors and tags are matched only
- * once the scrape records them.
+ * The parts of a story training matches. `tags` is the feed's categories,
+ * as a list or as the JSON array an article stores; `feed_id` is the feed
+ * (subscription) the story is printed under, when known, and scoped
+ * classifiers only reach stories whose feed or section is known.
  */
 export interface Classifiable {
   readonly title: string | null;
   readonly source: string | null;
   readonly author?: string | null;
-  readonly tags?: readonly string[];
-  /** The summary and text, matched by `text` classifiers. */
+  readonly tags?: string | readonly string[] | null;
   readonly summary?: string | null;
   readonly body_text?: string | null;
-  /** The source it came from, matched by `feed` classifiers (by source id). */
-  readonly source_id?: number;
+  readonly url?: string;
+  readonly feed_id?: number;
+  /** The section the story's feed is filed under, when known. */
+  readonly section_id?: number | null;
+}
+
+/**
+ * How much of the paper training lets through, as NewsBlur's intelligence
+ * levels: `focus` only liked stories, `unread` all but disliked ones, `all`
+ * every story, disliked ones last.
+ */
+export type Intelligence = 'focus' | 'unread' | 'all';
+
+/** The levels, from the narrowest. */
+export const INTELLIGENCE: readonly Intelligence[] = ['focus', 'unread', 'all'];
+
+/** The lowest verdict each level shows. */
+const FLOOR: Record<Intelligence, number> = { focus: 1, unread: 0, all: -2 };
+
+/** Whether a story with this verdict shows at this level. */
+export function shows(v: number, level: Intelligence = 'unread'): boolean {
+  return v >= FLOOR[level];
 }
 
 const same = (a: string, b: string): boolean =>
   a.localeCompare(b, undefined, { sensitivity: 'base' }) === 0;
+
+const has = (text: string | null | undefined, phrase: string): boolean =>
+  (text ?? '').toLowerCase().includes(phrase.toLowerCase());
+
+const wordy = (c: string | undefined): boolean =>
+  !!c && /[\p{L}\p{N}\p{M}_]/u.test(c);
+
+/**
+ * Whether a title holds the phrase, as NewsBlur matches titles: ignoring case,
+ * and where the phrase starts with a letter or digit, only at the start of a
+ * word ("art" matches "Art of war" but not "start").
+ */
+export function titleHas(title: string | null, phrase: string): boolean {
+  const t = (title ?? '').toLowerCase();
+  const p = phrase.toLowerCase();
+  if (!p) return false;
+  for (let at = t.indexOf(p); at >= 0; at = t.indexOf(p, at + 1)) {
+    if (!wordy(p[0]) || !wordy(t[at - 1])) return true;
+  }
+  return false;
+}
+
+/** A story's tags, whether stored as JSON or already a list. */
+export function tagsOf(tags: Classifiable['tags']): readonly string[] {
+  if (!tags) return [];
+  if (typeof tags !== 'string') return tags;
+  try {
+    const parsed: unknown = JSON.parse(tags);
+    return Array.isArray(parsed)
+      ? parsed.filter((t): t is string => typeof t === 'string')
+      : [];
+  } catch {
+    return [];
+  }
+}
 
 /** Whether one classifier matches the story (case-insensitively). */
 export function matches(story: Classifiable, c: Training): boolean {
@@ -73,37 +134,62 @@ export function matches(story: Classifiable, c: Training): boolean {
       return !!story.author && same(story.author, c.value);
     case 'source':
       return !!story.source && same(story.source, c.value);
-    case 'title':
-      return (story.title ?? '').toLowerCase().includes(c.value.toLowerCase());
-    case 'tag':
-      return (story.tags ?? []).some((t) => same(t, c.value));
-    case 'text':
-      return `${story.summary ?? ''} ${story.body_text ?? ''}`
-        .toLowerCase()
-        .includes(c.value.toLowerCase());
     case 'feed':
-      return (
-        story.source_id !== undefined && String(story.source_id) === c.value
-      );
+      return story.feed_id !== undefined && String(story.feed_id) === c.value;
+    case 'title':
+      return titleHas(story.title, c.value);
+    case 'url':
+      return has(story.url, c.value);
+    case 'text':
+      return has(story.summary, c.value) || has(story.body_text, c.value);
+    case 'tag':
+      return tagsOf(story.tags).some((t) => same(t, c.value));
     default:
       return false;
   }
 }
 
+/** Whether a classifier's scope reaches the story's feed. */
+function inScope(story: Classifiable, c: Training): boolean {
+  if (c.scope_feed_id != null) return story.feed_id === c.scope_feed_id;
+  if (c.scope_section_id != null) {
+    return story.section_id === c.scope_section_id;
+  }
+  return true;
+}
+
+/** Kinds about the whole feed or site, which yield to the story's own. */
+const BROAD: ReadonlySet<string> = new Set(['feed', 'source']);
+
+/** A verdict: super dislike, dislike, neutral or like. */
+export type Verdict = -2 | -1 | 0 | 1;
+
 /**
- * The person's verdict on a story: -1 when a super-dislike (score -2)
- * matches, whatever else does; otherwise 1 when any classifier likes it (a
- * like wins over a dislike), -1 when one dislikes it, 0 when none match.
+ * The score of the matching classifiers: a super dislike beats everything,
+ * then a like beats a dislike.
+ */
+function score(hits: readonly Training[]): Verdict {
+  if (hits.some((c) => c.score <= -2)) return -2;
+  if (hits.some((c) => c.score > 0)) return 1;
+  if (hits.some((c) => c.score < 0)) return -1;
+  return 0;
+}
+
+/**
+ * The person's verdict on a story, as NewsBlur's `compute_story_score`: the
+ * classifiers on the story itself (title, author, tag, text, URL) decide, a
+ * super dislike beating any like and a like beating a dislike; only when none
+ * of those match do the feed and site ones count.
  */
 export function verdict(
   story: Classifiable,
   training: readonly Training[],
-): -1 | 0 | 1 {
-  const hits = training.filter((c) => matches(story, c));
-  if (hits.some((c) => c.score <= -2)) return -1;
-  if (hits.some((c) => c.score > 0)) return 1;
-  if (hits.some((c) => c.score < 0)) return -1;
-  return 0;
+): Verdict {
+  const hits = training.filter((c) => inScope(story, c) && matches(story, c));
+  return (
+    score(hits.filter((c) => !BROAD.has(c.kind))) ||
+    score(hits.filter((c) => BROAD.has(c.kind)))
+  );
 }
 
 /**
@@ -115,14 +201,16 @@ export function coverageBoost(sources: number): number {
 }
 
 /**
- * A section's stories in the order tiers are assigned: disliked ones dropped,
- * liked ones first, each group by weight (highest first). `coverage` gives the
- * number of sources that covered each cluster, keyed by cluster id.
+ * A section's stories in the order tiers are assigned: those `level` does not
+ * show dropped, liked ones first and disliked ones last, each group by weight
+ * (highest first). `coverage` gives the number of sources that covered each
+ * cluster, keyed by cluster id.
  */
-export function rank<T extends Article>(
+export function rank<T extends Article & Classifiable>(
   arts: readonly T[],
   training: readonly Training[] = [],
   coverage: ReadonlyMap<number, number> = new Map(),
+  level: Intelligence = 'unread',
 ): T[] {
   const covered = (a: T): number =>
     a.cluster_id === null ? 1 : (coverage.get(a.cluster_id) ?? 1);
@@ -132,7 +220,7 @@ export function rank<T extends Article>(
       v: verdict(a, training),
       w: weight(a) + coverageBoost(covered(a)),
     }))
-    .filter((x) => x.v >= 0)
+    .filter((x) => shows(x.v, level))
     .sort((x, y) => y.v - x.v || y.w - x.w)
     .map((x) => x.a);
 }

@@ -55,7 +55,8 @@ export interface IssuePick {
 
 /**
  * Lay out `ownerId`'s paper for `date`. With a `readerId`, their training
- * orders it and the stories they read in other editions are left out. Muted
+ * orders it, the stories they read in other editions are left out, and so
+ * are editions older than their auto-mark-read days. Muted
  * feeds stay out; feeds filed under a section print under its heading. A
  * `pick` narrows it to a custom edition's stories.
  */
@@ -84,10 +85,12 @@ export async function composeLayout(
   );
   const desks = await Promise.all(
     feeds.map(async (feed) => {
-      // For a reader, a feed or section that marks stories read after some
-      // days leaves out the editions older than that.
+      // For a reader, a feed or section (else their own setting) that marks
+      // stories read after some days leaves out the editions older than that.
       const days =
-        readerId === undefined ? undefined : autoMarkReadDays(feed, sections);
+        readerId === undefined
+          ? undefined
+          : autoMarkReadDays(feed, sections, prefs.auto_mark_read_days);
       const oldest =
         days === undefined
           ? undefined

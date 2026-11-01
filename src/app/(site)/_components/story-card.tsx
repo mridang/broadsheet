@@ -10,6 +10,7 @@ import {
   ago,
   excerpt,
   hostOf,
+  tagsOf,
   type Tier,
 } from '@/domain/render/tiers';
 import { cn } from '@/components/ui/cn';
@@ -48,7 +49,8 @@ export const FOOT_LINK =
  * with a large photo, a feature is a card, a standard story a row) and how
  * long its excerpt is. The whole card is a link to the story; its controls sit
  * above that link. A story the person has read is dimmed; a signed-in person
- * (`personal`) gets the training and save controls. `also` names the other
+ * (`personal`) gets the training and save controls (`feedId` lets them train
+ * the feed). `also` names the other
  * sources that covered the same story.
  */
 export async function StoryCard({
@@ -58,6 +60,7 @@ export async function StoryCard({
   read = false,
   saved = false,
   personal = false,
+  feedId,
 }: {
   article: Article;
   tier: Exclude<Tier, 'brief'>;
@@ -65,6 +68,7 @@ export async function StoryCard({
   read?: boolean;
   saved?: boolean;
   personal?: boolean;
+  feedId?: number;
 }) {
   const [, budget] = TIER[tier];
   const ex = budget ? excerpt(article.summary, budget) : '';
@@ -171,6 +175,9 @@ export async function StoryCard({
               articleId={article.id}
               source={source}
               saved={saved}
+              feedId={feedId}
+              author={article.author}
+              tags={tagsOf(article.tags)}
             />
           ) : null}
         </div>

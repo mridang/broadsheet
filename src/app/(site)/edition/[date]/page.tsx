@@ -56,7 +56,7 @@ export default async function Edition({ params }: { params: Params }) {
       bar={<EditionBar selected={date} editions={editions} />}
     >
       <KeyboardShortcuts />
-      {user ? <ReadTracker /> : null}
+      {personal?.markReadOnOpen ? <ReadTracker /> : null}
       <Paper
         layout={issue.layout}
         articles={await issueArticles(repo, issue.layout)}

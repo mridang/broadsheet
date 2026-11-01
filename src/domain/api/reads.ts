@@ -2,7 +2,8 @@
  * @packageDocumentation
  *
  * Read tracking: noting that the signed-in person opened a story, so the
- * paper dims it today and leaves it out of later editions.
+ * paper dims it today and leaves it out of later editions; marking it unread
+ * again; and marking a whole feed, section, edition or paper read at once.
  */
 
 import {
@@ -173,39 +174,120 @@ export function createReadItem(
 /** The read-item controller bound to the production resolver. */
 export const readItem = createReadItem();
 
-/** The most stories one request may mark read: a whole edition fits. */
+/** The most ids one bulk mark-read may name: a whole edition fits. */
 export const MAX_BULK_READS = 500;
 
-/**
- * The article ids in a bulk-read body (`{"article_ids": ["1", "2"]}`), or the
- * sentence saying what is wrong with it.
- */
-export function parseBulkReads(
-  body: Readonly<Record<string, unknown>>,
-): { ok: true; ids: number[] } | { ok: false; error: string } {
-  const raw = body['article_ids'];
-  if (!Array.isArray(raw) || !raw.length) {
-    return { ok: false, error: 'article_ids must be a non-empty array.' };
+/** Which stories a bulk mark-read covers, as the API takes it. */
+interface ReadScopeInput {
+  readonly article_ids?: readonly number[];
+  readonly feed_ids?: readonly number[];
+  readonly section_id?: number;
+  readonly edition?: string;
+  readonly before?: Date;
+  readonly after?: Date;
+}
+
+/** A checked bulk mark-read body, or what was wrong with it. */
+type ReadScopeBody =
+  | { readonly ok: true; readonly scope: ReadScopeInput }
+  | { readonly ok: false; readonly errors: readonly string[] };
+
+/** A list of up to {@link MAX_BULK_READS} id strings as numbers, or undefined. */
+function ids(raw: unknown): number[] | undefined {
+  if (!Array.isArray(raw) || !raw.length || raw.length > MAX_BULK_READS) {
+    return undefined;
   }
-  if (raw.length > MAX_BULK_READS) {
-    return {
-      ok: false,
-      error: `article_ids may hold at most ${MAX_BULK_READS} ids.`,
-    };
-  }
-  const ids = raw.map((v) =>
+  const parsed = raw.map((v) =>
     typeof v === 'string' ? parseFeedId(v) : undefined,
   );
-  if (ids.some((id) => id === undefined)) {
-    return { ok: false, error: 'Each article id must be a string id.' };
+  return parsed.every((v) => v !== undefined) ? parsed : undefined;
+}
+
+/** An RFC 3339 time, or undefined. */
+function time(raw: unknown): Date | undefined {
+  if (
+    typeof raw !== 'string' ||
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/i.test(
+      raw,
+    )
+  ) {
+    return undefined;
   }
-  return { ok: true, ids: ids as number[] };
+  const at = new Date(raw);
+  return Number.isNaN(at.getTime()) ? undefined : at;
 }
 
 /**
- * `POST /api/users/self/reads`: note many stories read at once. 200 with the
- * ids now read (unknown ones are left out), 400 for a bad body, 401/403 when
- * not signed in or cross-site. Their other copies are read too, as for one.
+ * Check a bulk mark-read body, which names at least one member, each
+ * narrowing the rest:
+ * `article_ids` and `feed_ids` lists of ids, `section_id` an id, `edition` a
+ * `YYYY-MM-DD` date, `before` and `after` RFC 3339 times. Other members are
+ * refused.
+ */
+export function parseReadScope(
+  body: Readonly<Record<string, unknown>>,
+): ReadScopeBody {
+  const errors: string[] = [];
+  const scope: { -readonly [K in keyof ReadScopeInput]: ReadScopeInput[K] } =
+    {};
+  const known = [
+    'article_ids',
+    'feed_ids',
+    'section_id',
+    'edition',
+    'before',
+    'after',
+  ];
+  for (const key of Object.keys(body)) {
+    if (!known.includes(key)) {
+      errors.push(`${key}: not a member of a read scope.`);
+    }
+  }
+  for (const key of ['article_ids', 'feed_ids'] as const) {
+    if (body[key] === undefined) continue;
+    const list = ids(body[key]);
+    if (list) scope[key] = list;
+    else errors.push(`${key}: must be a list of 1 to ${MAX_BULK_READS} ids.`);
+  }
+  if (body['section_id'] !== undefined) {
+    const raw = body['section_id'];
+    const id = typeof raw === 'string' ? parseFeedId(raw) : undefined;
+    if (id === undefined) errors.push('section_id: not a section id.');
+    else scope.section_id = id;
+  }
+  const edition = body['edition'];
+  if (edition !== undefined) {
+    if (
+      typeof edition === 'string' &&
+      /^\d{4}-\d{2}-\d{2}$/.test(edition) &&
+      !Number.isNaN(Date.parse(edition))
+    ) {
+      scope.edition = edition;
+    } else errors.push('edition: must be a YYYY-MM-DD date.');
+  }
+  for (const key of ['before', 'after'] as const) {
+    if (body[key] === undefined) continue;
+    const at = time(body[key]);
+    if (at) scope[key] = at;
+    else errors.push(`${key}: must be an RFC 3339 time.`);
+  }
+  if (!errors.length && !Object.keys(scope).length) {
+    errors.push(
+      `A read scope names at least one of ${known.join(', ')}; send before as now to mark everything read.`,
+    );
+  }
+  return errors.length ? { ok: false, errors } : { ok: true, scope };
+}
+
+/**
+ * `POST /api/users/self/reads` {article_ids?, feed_ids?, section_id?,
+ * edition?, before?, after?}: mark the person's unread stories read, as
+ * NewsBlur's mark-all, mark-feed and mark-stories read: those the members
+ * name, each narrowing the rest (`before` as now marks everything). 200 with
+ * the stories now read (ids not in the person's feeds are left out), 400 for
+ * a body that is not a valid scope or names a feed or section the person does
+ * not have, 415 for a non-JSON body, 401/403 when not signed in or
+ * cross-site. Their other copies are read too, as for one.
  */
 export function createReadsCollection(
   resolver: CurrentUserResolver = requestCookieResolver,
@@ -215,30 +297,64 @@ export function createReadsCollection(
       request,
       uid: await liveUid(request, resolver),
     }),
-  }).on<number[], number[]>({
+  }).on<ReadScopeInput, readonly number[]>({
     method: 'POST',
     decode: async (request) => {
       const body = await readJsonObject(
         request,
-        'The reads must be a JSON object.',
+        'The read scope must be a JSON object.',
       );
       if (!body.ok) throw body.response;
-      const parsed = parseBulkReads(body.value);
-      if (!parsed.ok) throw problems.badRequest(parsed.error);
-      return parsed.ids;
+      const input = parseReadScope(body.value);
+      if (!input.ok) {
+        throw problems.badRequest('The read scope is not valid.', input.errors);
+      }
+      return input.scope;
     },
-    handle: async (ids, { uid }) => {
+    handle: async (scope, { uid }) => {
       const repo = new Repository(getDatabase());
-      const done = await repo.markManyRead(uid, ids);
+      const feeds = await repo.listFeeds(uid);
+      const errors: string[] = [];
+      const named = scope.feed_ids?.map((id) => feeds.find((f) => f.id === id));
+      if (named?.some((f) => !f)) errors.push('feed_ids: no such feed.');
+      if (
+        scope.section_id !== undefined &&
+        !(await repo.getSection(uid, scope.section_id))
+      ) {
+        errors.push('section_id: no such section.');
+      }
+      if (errors.length) {
+        throw problems.badRequest('The read scope is not valid.', errors);
+      }
+      const filed =
+        scope.section_id === undefined
+          ? undefined
+          : feeds.filter((f) => f.section_id === scope.section_id);
+      const chosen = [named, filed].filter((list) => list !== undefined);
+      const sourceIds = chosen.length
+        ? chosen
+            .map((list) => new Set(list.map((f) => f!.source_id)))
+            .reduce((a, b) => new Set([...a].filter((id) => b.has(id))))
+        : undefined;
+      const done = await repo.markAllRead(uid, {
+        ...(sourceIds ? { sourceIds: [...sourceIds] } : {}),
+        ...(scope.article_ids ? { articleIds: scope.article_ids } : {}),
+        ...(scope.edition ? { edition: scope.edition } : {}),
+        ...(scope.before ? { before: scope.before } : {}),
+        ...(scope.after ? { after: scope.after } : {}),
+      });
       await readCopies(repo, uid, done);
       return done;
     },
     encode: (done) =>
-      ok({
-        items: done.map((id): ReadResource => ({ article_id: String(id) })),
-      }),
+      ok(
+        {
+          items: done.map((id): ReadResource => ({ article_id: String(id) })),
+        },
+        { headers: { 'Cache-Control': 'no-store' } },
+      ),
   });
 }
 
-/** The reads-collection controller bound to the production resolver. */
+/** The read-collection controller bound to the production resolver. */
 export const readsCollection = createReadsCollection();

@@ -13,6 +13,7 @@ import {
   rank,
   verdict,
   weight,
+  type Classifiable,
   type Tier,
   type Training,
 } from '@/domain/render/tiers';
@@ -92,7 +93,7 @@ const byline = (a: Article): string => a.source || hostOf(a.url);
  * sources' names), and how many sources covered each cluster.
  */
 export function collapseClusters(
-  articles: readonly Article[],
+  articles: readonly (Article & Classifiable)[],
   training: readonly Training[] = [],
   printable?: ReadonlySet<number>,
   options: ClusterOptions = {},
@@ -160,14 +161,27 @@ export const DESK_STORIES = 14;
 
 /**
  * Lay out a paper from its sections' desks, the reader's training and how
- * they want clusters printed.
+ * they want clusters printed. Every intelligence level is laid out (disliked
+ * stories last), so the reader's level can be applied as the paper is printed.
  */
 export function layOut(
   groups: readonly DeskGroup[],
   training: readonly Training[] = [],
   options: ClusterOptions = {},
 ): Layout {
-  const all = groups.flatMap((g) => g.desks.flatMap((d) => d.articles));
+  // Each story carries the feed it prints under, so feed classifiers match.
+  const filed = groups.map((g) => ({
+    ...g,
+    desks: g.desks.map((d) => ({
+      ...d,
+      articles: d.articles.map((a) => ({
+        ...a,
+        feed_id: d.feed.id,
+        section_id: d.feed.section_id,
+      })),
+    })),
+  }));
+  const all = filed.flatMap((g) => g.desks.flatMap((d) => d.articles));
   // Which stories make their desk's cap before any copy is dropped: keeping
   // one of those means a story several desks carried is never cut from all.
   const allCoverage = collapseClusters(
@@ -177,9 +191,9 @@ export function layOut(
     options,
   ).coverage;
   const printable = new Set(
-    groups.flatMap((g) =>
+    filed.flatMap((g) =>
       g.desks.flatMap((d) =>
-        rank(d.articles, training, allCoverage)
+        rank(d.articles, training, allCoverage, 'all')
           .slice(0, DESK_STORIES)
           .map((a) => a.id),
       ),
@@ -192,13 +206,14 @@ export function layOut(
     options,
   );
   return {
-    groups: groups.map((group) => ({
+    groups: filed.map((group) => ({
       name: group.name,
       desks: group.desks.map(({ feed, articles }) => {
         const ranked = rank(
           articles.filter((a) => !dropped.has(a.id)),
           training,
           coverage,
+          'all',
         ).slice(0, DESK_STORIES);
         const tiers = assignTiers(ranked);
         return {

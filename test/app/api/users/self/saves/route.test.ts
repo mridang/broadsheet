@@ -96,3 +96,27 @@ describe('GET /api/users/self/saves', () => {
     expect((await list()).status).toBe(401);
   });
 });
+
+describe('GET /api/users/self/saves?feed_id', () => {
+  beforeEach(async () => {
+    await new Repository(db).saveArticle(7, story, []);
+  });
+
+  it('lists the saves from that feed', async () => {
+    const [feed] = await new Repository(db).listFeeds(7);
+    expect(await items(`?feed_id=${feed!.id}`)).toHaveLength(1);
+  });
+
+  it.each(['abc', '999'])(
+    'answers 400 for feed %j, which the person does not follow',
+    async (id) => {
+      const res = await list(`?feed_id=${id}`);
+      expect(res.status).toBe(400);
+      expect(res.headers.get('content-type')).toBe('application/problem+json');
+    },
+  );
+
+  it('lists every save for an empty tag', async () => {
+    expect(await items('?tag=')).toHaveLength(1);
+  });
+});

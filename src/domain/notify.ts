@@ -22,7 +22,7 @@ import {
   type NotificationFilter,
 } from '@/domain/notifications';
 import { OutboundRepository, type WebhookEvent } from '@/domain/outbound';
-import { verdict } from '@/domain/render/tiers';
+import { verdict, type Verdict } from '@/domain/render/tiers';
 import { matchesRule } from '@/domain/rules';
 import { Repository, type User } from '@/domain/repository';
 import { runInBackground } from '@/lib/core/runtime';
@@ -235,10 +235,7 @@ export interface StoryNotifications {
 }
 
 /** Whether a story with this verdict notifies under this filter. */
-export function notifies(
-  filter: NotificationFilter,
-  score: -1 | 0 | 1,
-): boolean {
+export function notifies(filter: NotificationFilter, score: Verdict): boolean {
   return filter === 'focus' ? score > 0 : score >= 0;
 }
 

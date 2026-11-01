@@ -27,6 +27,8 @@ const stored: Article = {
   comments_url: null,
   guid: null,
   original_summary: null,
+  author: null,
+  tags: '[]',
   fetched_at: null,
 };
 

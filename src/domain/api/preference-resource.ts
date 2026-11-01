@@ -6,6 +6,10 @@
  */
 
 import type { Preferences } from '@/domain/repository';
+import { INTELLIGENCE } from '@/domain/render/tiers';
+
+/** The most days a story may wait before it counts as read anyway. */
+const MAX_AUTO_READ_DAYS = 365;
 
 /** A person's preferences as the API shows them. */
 export interface PreferencesResource {
@@ -19,6 +23,9 @@ export interface PreferencesResource {
     readonly style: Preferences['briefing_style'];
     readonly read_filter: Preferences['briefing_read_filter'];
   };
+  readonly intelligence: Preferences['intelligence'];
+  readonly mark_read_on_open: boolean;
+  readonly auto_mark_read_days: number;
 }
 
 /** The story counts a note may cover. */
@@ -37,6 +44,9 @@ export function preferencesResource(p: Preferences): PreferencesResource {
       style: p.briefing_style,
       read_filter: p.briefing_read_filter,
     },
+    intelligence: p.intelligence,
+    mark_read_on_open: p.mark_read_on_open,
+    auto_mark_read_days: p.auto_mark_read_days,
   };
 }
 
@@ -50,6 +60,9 @@ const TOP = [
   'cluster_mode',
   'cluster_mark_read',
   'briefing',
+  'intelligence',
+  'mark_read_on_open',
+  'auto_mark_read_days',
 ];
 const BRIEFING = ['enabled', 'story_count', 'length', 'style', 'read_filter'];
 
@@ -61,7 +74,9 @@ const oneOf = <T extends string>(
 
 /**
  * Check the body of `PATCH /api/users/self/preferences`: any of the members
- * of {@link PreferencesResource}, each of its own type. Unknown members are
+ * of {@link PreferencesResource}, each of its own type (`intelligence` one of
+ * focus, unread or all; `auto_mark_read_days` a whole number of days, 0
+ * never). Unknown members are
  * refused.
  */
 export function parsePreferenceChanges(
@@ -72,11 +87,35 @@ export function parsePreferenceChanges(
   for (const key of Object.keys(body)) {
     if (!TOP.includes(key)) errors.push(`${key}: not a preference.`);
   }
-  for (const key of ['story_clustering', 'cluster_mark_read'] as const) {
+  for (const key of [
+    'story_clustering',
+    'cluster_mark_read',
+    'mark_read_on_open',
+  ] as const) {
     if (!(key in body)) continue;
     const value = body[key];
     if (typeof value === 'boolean') changes[key] = value;
     else errors.push(`${key}: must be true or false.`);
+  }
+  if ('intelligence' in body) {
+    const level = oneOf(body['intelligence'], INTELLIGENCE);
+    if (level) changes.intelligence = level;
+    else
+      errors.push(`intelligence: must be one of ${INTELLIGENCE.join(', ')}.`);
+  }
+  if ('auto_mark_read_days' in body) {
+    const days = body['auto_mark_read_days'];
+    if (
+      typeof days === 'number' &&
+      Number.isInteger(days) &&
+      days >= 0 &&
+      days <= MAX_AUTO_READ_DAYS
+    ) {
+      changes.auto_mark_read_days = days;
+    } else
+      errors.push(
+        `auto_mark_read_days: must be a whole number from 0 to ${MAX_AUTO_READ_DAYS}.`,
+      );
   }
   if ('cluster_mode' in body) {
     const mode = oneOf(body['cluster_mode'], ['title', 'related'] as const);

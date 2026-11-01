@@ -417,3 +417,32 @@ describe('custom editions', () => {
     expect(storyIds(issue.layout)).toHaveLength(2);
   });
 });
+
+describe('composeLayout and the reader’s own auto-mark-read days', () => {
+  const OLD = '2020-01-01';
+
+  beforeEach(async () => {
+    await repo.writeEdition(sourceId, OLD, [item(9)]);
+  });
+
+  it('leaves out an edition older than the reader’s days', async () => {
+    await repo.updatePreferences(uid, { auto_mark_read_days: 7 });
+    expect(storyIds(await composeLayout(repo, uid, OLD, uid))).toEqual([]);
+  });
+
+  it('lets a feed’s 0 keep every edition', async () => {
+    await repo.updatePreferences(uid, { auto_mark_read_days: 7 });
+    const [feed] = await repo.listFeeds(uid);
+    await repo.updateFeed(uid, feed!.id, { auto_mark_read_days: 0 });
+    expect(storyIds(await composeLayout(repo, uid, OLD, uid))).toHaveLength(1);
+  });
+
+  it('keeps every edition with the reader’s days at 0', async () => {
+    expect(storyIds(await composeLayout(repo, uid, OLD, uid))).toHaveLength(1);
+  });
+
+  it('keeps every edition for a paper laid out with no reader', async () => {
+    await repo.updatePreferences(uid, { auto_mark_read_days: 7 });
+    expect(storyIds(await composeLayout(repo, uid, OLD))).toHaveLength(1);
+  });
+});

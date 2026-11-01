@@ -19,6 +19,9 @@ describe('preferencesResource', () => {
         style: 'bullets',
         read_filter: 'unread',
       },
+      intelligence: 'unread',
+      mark_read_on_open: true,
+      auto_mark_read_days: 0,
     });
   });
 });
@@ -87,6 +90,52 @@ describe('parsePreferenceChanges', () => {
     [
       { briefing: { read_filter: 'all' } },
       'briefing.read_filter: must be unread or focus.',
+    ],
+  ])('refuses %j', (body, error) => {
+    const out = parsePreferenceChanges(body);
+    expect(out.ok ? [] : out.errors).toEqual([error]);
+  });
+});
+
+describe('reading preferences', () => {
+  it('shows the intelligence level, mark-on-open and auto-read days', () => {
+    expect(preferencesResource(DEFAULT_PREFERENCES)).toMatchObject({
+      intelligence: 'unread',
+      mark_read_on_open: true,
+      auto_mark_read_days: 0,
+    });
+  });
+
+  it('takes a change to each', () => {
+    expect(
+      parsePreferenceChanges({
+        intelligence: 'focus',
+        mark_read_on_open: false,
+        auto_mark_read_days: 14,
+      }),
+    ).toEqual({
+      ok: true,
+      changes: {
+        intelligence: 'focus',
+        mark_read_on_open: false,
+        auto_mark_read_days: 14,
+      },
+    });
+  });
+
+  it.each([
+    [
+      { intelligence: 'hidden' },
+      'intelligence: must be one of focus, unread, all.',
+    ],
+    [{ mark_read_on_open: 'yes' }, 'mark_read_on_open: must be true or false.'],
+    [
+      { auto_mark_read_days: 366 },
+      'auto_mark_read_days: must be a whole number from 0 to 365.',
+    ],
+    [
+      { auto_mark_read_days: 1.5 },
+      'auto_mark_read_days: must be a whole number from 0 to 365.',
     ],
   ])('refuses %j', (body, error) => {
     const out = parsePreferenceChanges(body);

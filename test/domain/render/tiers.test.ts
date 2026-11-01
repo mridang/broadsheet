@@ -6,7 +6,11 @@ import {
   coverageBoost,
   excerpt,
   rank,
+  shows,
+  tagsOf,
+  titleHas,
   verdict,
+  type Classifiable,
 } from '@/domain/render/tiers';
 
 function article(over: Partial<Article>): Article {
@@ -27,6 +31,8 @@ function article(over: Partial<Article>): Article {
     comments_url: null,
     guid: null,
     original_summary: null,
+    author: null,
+    tags: '[]',
     fetched_at: '',
     ...over,
   };
@@ -122,19 +128,28 @@ describe('verdict', () => {
     ).toBe(1);
   });
 
-  it('likes every story of a feed by its source id', () => {
+  it('likes every story of a feed by its feed id', () => {
     expect(
-      verdict({ title: 'x', source: null, source_id: 7 }, [like('feed', '7')]),
+      verdict({ title: 'x', source: null, feed_id: 7 }, [like('feed', '7')]),
     ).toBe(1);
   });
 
-  it('lets a super-dislike win over a like', () => {
+  it('lets a super-dislike win over a like on the story itself', () => {
+    expect(
+      verdict(article({ title: 'Rust ads' }), [
+        like('title', 'rust'),
+        { kind: 'title', value: 'ads', score: -2 },
+      ]),
+    ).toBe(-2);
+  });
+
+  it('lets a like on the story win over a super-dislike of its site', () => {
     expect(
       verdict(article({ title: 'Rust' }), [
         like('title', 'rust'),
         { kind: 'source', value: 'example', score: -2 },
       ]),
-    ).toBe(-1);
+    ).toBe(1);
   });
 
   it('ignores a kind it does not know', () => {
@@ -193,5 +208,143 @@ describe('coverageBoost', () => {
 
   it('treats no sources as one', () => {
     expect(coverageBoost(0)).toBe(0);
+  });
+});
+
+describe('verdict, as NewsBlur scores', () => {
+  const t = (kind: string, value: string, score: number, scope = {}) => ({
+    kind,
+    value,
+    score,
+    ...scope,
+  });
+
+  it.each<[string, string, Classifiable]>([
+    [
+      'text',
+      'borrow checker',
+      { ...article({ summary: 'About the borrow checker' }) },
+    ],
+    ['text', 'unsafe', article({ body_text: 'Some unsafe code' })],
+    ['url', '/rust/', article({ url: 'https://x.test/rust/1' })],
+    ['feed', '7', { ...article({}), feed_id: 7 }],
+    ['tag', 'rust', article({ tags: '["Rust"]' })],
+  ])('likes a story whose %s matches %j', (kind, value, story) => {
+    expect(verdict(story, [t(kind, value, 1)])).toBe(1);
+  });
+
+  it('lets a super dislike beat a like', () => {
+    expect(
+      verdict(article({ title: 'Rust ads' }), [
+        t('title', 'rust', 1),
+        t('title', 'ads', -2),
+      ]),
+    ).toBe(-2);
+  });
+
+  it('lets the story’s own classifiers beat the feed’s', () => {
+    expect(
+      verdict({ ...article({ title: 'Rust' }), feed_id: 7 }, [
+        t('feed', '7', -1),
+        t('title', 'rust', 1),
+      ]),
+    ).toBe(1);
+  });
+
+  it('falls back to the feed classifier when nothing else matches', () => {
+    expect(
+      verdict({ ...article({ title: 'Go' }), feed_id: 7 }, [
+        t('feed', '7', -1),
+        t('title', 'rust', 1),
+      ]),
+    ).toBe(-1);
+  });
+
+  it('lets a disliked story dislike its liked site', () => {
+    expect(
+      verdict(article({ title: 'Crypto' }), [
+        t('source', 'example', 1),
+        t('title', 'crypto', -1),
+      ]),
+    ).toBe(-1);
+  });
+
+  it.each([
+    ['its feed', { scope_feed_id: 7 }, { feed_id: 7 }, 1],
+    ['another feed', { scope_feed_id: 8 }, { feed_id: 7 }, 0],
+    ['its section', { scope_section_id: 3 }, { section_id: 3 }, 1],
+    ['another section', { scope_section_id: 4 }, { section_id: 3 }, 0],
+    ['an unknown feed', { scope_feed_id: 7 }, {}, 0],
+  ])('applies a classifier scoped to %s accordingly', (_, scope, where, v) => {
+    expect(
+      verdict({ ...article({ title: 'Rust' }), ...where }, [
+        t('title', 'rust', 1, scope),
+      ]),
+    ).toBe(v);
+  });
+});
+
+describe('titleHas', () => {
+  it.each([
+    ['Art of war', 'art', true],
+    ['The start', 'art', false],
+    ['Use C++ today', '++', true],
+    ['Big RUST news', 'rust', true],
+    [null, 'x', false],
+    ['Anything', '', false],
+  ])('%j holds %j: %s', (title, phrase, held) => {
+    expect(titleHas(title, phrase)).toBe(held);
+  });
+
+  it('finds a later match at a word start', () => {
+    expect(titleHas('Smart art', 'art')).toBe(true);
+  });
+});
+
+describe('tagsOf', () => {
+  it.each([
+    ['["a","b"]', ['a', 'b']],
+    [['c'], ['c']],
+    ['not json', []],
+    ['{"a":1}', []],
+    [null, []],
+  ])('reads %j as %j', (stored, tags) => {
+    expect(tagsOf(stored)).toEqual(tags);
+  });
+});
+
+describe('shows', () => {
+  it.each([
+    [1, 'focus', true],
+    [0, 'focus', false],
+    [0, 'unread', true],
+    [-1, 'unread', false],
+    [-2, 'all', true],
+  ] as const)('a verdict of %d at %s: %s', (v, level, shown) => {
+    expect(shows(v, level)).toBe(shown);
+  });
+
+  it('defaults to the unread level', () => {
+    expect(shows(-1)).toBe(false);
+  });
+});
+
+describe('rank at a level', () => {
+  const liked = article({ id: 1, title: 'Rust' });
+  const plain = article({ id: 2, title: 'Go', points: 50 });
+  const hated = article({ id: 3, title: 'Crypto', points: 99 });
+  const training = [
+    { kind: 'title', value: 'rust', score: 1 },
+    { kind: 'title', value: 'crypto', score: -1 },
+  ];
+
+  it.each([
+    ['focus', [1]],
+    ['unread', [1, 2]],
+    ['all', [1, 2, 3]],
+  ] as const)('keeps at %s the stories %j', (level, ids) => {
+    expect(
+      rank([hated, plain, liked], training, new Map(), level).map((a) => a.id),
+    ).toEqual(ids);
   });
 });

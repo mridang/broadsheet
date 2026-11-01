@@ -1,6 +1,13 @@
 Preferences:
   type: object
-  required: [story_clustering, cluster_mode, cluster_mark_read, briefing]
+  required:
+    - story_clustering
+    - cluster_mode
+    - cluster_mark_read
+    - briefing
+    - intelligence
+    - mark_read_on_open
+    - auto_mark_read_days
   properties:
     story_clustering:
       type: boolean
@@ -14,6 +21,20 @@ Preferences:
       description: Opening one copy of a story marks its other copies read.
     briefing:
       $ref: '#/BriefingPreferences'
+    intelligence:
+      $ref: '#/Intelligence'
+    mark_read_on_open:
+      type: boolean
+      description: Opening a story marks it read.
+    auto_mark_read_days:
+      type: integer
+      minimum: 0
+      maximum: 365
+      description: Days after which stories count as read when no feed or section says (0 never).
+Intelligence:
+  type: string
+  enum: [focus, unread, all]
+  description: How much of the paper training lets through, as NewsBlur's intelligence levels. Focus shows only liked stories, unread all but disliked ones, all every story with disliked ones last.
 BriefingPreferences:
   type: object
   required: [enabled, story_count, length, style, read_filter]
@@ -38,6 +59,14 @@ PreferenceChanges:
   type: object
   additionalProperties: false
   properties:
+    intelligence:
+      $ref: '#/Intelligence'
+    mark_read_on_open:
+      type: boolean
+    auto_mark_read_days:
+      type: integer
+      minimum: 0
+      maximum: 365
     story_clustering:
       type: boolean
     cluster_mode:

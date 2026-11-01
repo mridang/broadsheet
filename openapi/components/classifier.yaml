@@ -8,19 +8,26 @@ Classifier:
       $ref: '#/ClassifierKind'
     value:
       type: string
-      description: The author, source (the site a story is from), phrase in the title, tag, or phrase in the summary or text (`text`) to match, ignoring case; for `feed`, the id of the feed's source, as a string.
+      description: What to match, ignoring case. A phrase in the title (matched at the start of a word), the author, a tag, a phrase in the text, part of the story's address, a feed id, or the site a story is from.
     score:
       $ref: '#/ClassifierScore'
+    feed_id:
+      type: string
+      description: The classifier applies only to this feed's stories. Absent, with no `section_id`, it applies everywhere.
+    section_id:
+      type: string
+      description: The classifier applies only to the stories of this section's feeds.
     created_at:
       type: string
       format: date-time
 ClassifierKind:
   type: string
-  enum: [author, source, title, tag, text, feed]
+  enum: [title, author, tag, text, url, feed, source]
+  description: What a classifier matches, as NewsBlur's classifiers. The story's own (title, author, tag, text, url) decide; only when none of them match do the feed and site (`feed`, `source`) ones count.
 ClassifierScore:
   type: string
   enum: [like, dislike, super_dislike]
-  description: Liked stories are promoted toward the lead and features; disliked ones leave the paper. A like wins over a dislike; a super_dislike wins over a like.
+  description: Liked stories are promoted toward the lead and features; disliked ones are hidden at the reader's intelligence level (see the preferences). A super dislike beats any like, and a like beats a dislike.
 ClassifierInput:
   type: object
   additionalProperties: false
@@ -34,6 +41,14 @@ ClassifierInput:
       maxLength: 200
     score:
       $ref: '#/ClassifierScore'
+    feed_id:
+      type: string
+      pattern: '^[1-9][0-9]{0,14}$'
+      description: Scope the classifier to one of the person's feeds.
+    section_id:
+      type: string
+      pattern: '^[1-9][0-9]{0,14}$'
+      description: Scope the classifier to one of the person's sections. Not with `feed_id`.
 ClassifierPage:
   type: object
   required: [self, items]

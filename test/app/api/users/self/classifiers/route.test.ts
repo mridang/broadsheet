@@ -147,3 +147,67 @@ describe('GET /api/users/self/classifiers', () => {
     expect((await list()).status).toBe(401);
   });
 });
+
+describe('POST /api/users/self/classifiers feeds and scopes', () => {
+  const feeds = () => new Repository(db).listFeeds(7);
+
+  it('answers 201 for a feed classifier on the person’s own feed', async () => {
+    const [feed] = await feeds();
+    const res = await post(
+      JSON.stringify({ kind: 'feed', value: String(feed!.id), score: 'like' }),
+    );
+    expect(res.status).toBe(201);
+  });
+
+  it('answers 400 for a feed classifier on a feed the person does not follow', async () => {
+    const [feed] = await feeds();
+    auth = await cookieFor(8);
+    const res = await post(
+      JSON.stringify({ kind: 'feed', value: String(feed!.id), score: 'like' }),
+    );
+    expect(res.status).toBe(400);
+    expect(res.headers.get('content-type')).toBe('application/problem+json');
+  });
+
+  it('answers 201 with the scope for a classifier scoped to a section', async () => {
+    const section = await new Repository(db).addSection(7, 'Tech');
+    const res = await post(
+      JSON.stringify({
+        kind: 'title',
+        value: 'rust',
+        score: 'super_dislike',
+        section_id: String(section.id),
+      }),
+    );
+    expect(await res.json()).toMatchObject({
+      score: 'super_dislike',
+      section_id: String(section.id),
+    });
+  });
+
+  it('answers 400 for a scope naming another person’s feed', async () => {
+    const [feed] = await feeds();
+    auth = await cookieFor(8);
+    const res = await post(
+      JSON.stringify({
+        kind: 'title',
+        value: 'x',
+        score: 'like',
+        feed_id: String(feed!.id),
+      }),
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it('answers 400 for a scope naming a section the person does not have', async () => {
+    const res = await post(
+      JSON.stringify({
+        kind: 'title',
+        value: 'x',
+        score: 'like',
+        section_id: '99',
+      }),
+    );
+    expect(res.status).toBe(400);
+  });
+});

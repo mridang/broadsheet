@@ -164,6 +164,7 @@ describe('deliverWebhooks', () => {
 describe('notifies', () => {
   it.each([
     ['unread', -1, false],
+    ['unread', -2, false],
     ['unread', 0, true],
     ['unread', 1, true],
     ['focus', 0, false],

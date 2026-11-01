@@ -28,6 +28,8 @@ function article(over: Partial<Article>): Article {
     comments_url: null,
     guid: null,
     original_summary: null,
+    author: null,
+    tags: '[]',
     fetched_at: '',
     ...over,
   };
@@ -296,5 +298,63 @@ describe('parseLayout', () => {
     ],
   ])('refuses %s', (_name, stored) => {
     expect(parseLayout(stored)).toBeUndefined();
+  });
+});
+
+describe('layOut and training', () => {
+  const desk = (f: Feed, ids: number[]) => ({
+    name: null,
+    desks: [{ feed: f, articles: ids.map((id) => article({ id })) }],
+  });
+
+  it('keeps disliked stories, last, so any level can be printed', () => {
+    const layout = layOut(
+      [desk(feed(1), [1, 2])],
+      [{ kind: 'url', value: 'example.com/a', score: -1 }],
+    );
+    expect(storyIds(layout)).toHaveLength(2);
+  });
+
+  it('matches a feed classifier against the desk’s feed', () => {
+    const layout = layOut(
+      [
+        {
+          name: null,
+          desks: [
+            {
+              feed: feed(1),
+              articles: [article({ id: 1, points: 99, cluster_id: 5 })],
+            },
+            {
+              feed: feed(2),
+              articles: [article({ id: 2, source_id: 2, cluster_id: 5 })],
+            },
+          ],
+        },
+      ],
+      [{ kind: 'feed', value: '2', score: 1 }],
+    );
+    expect(storyIds(layout)).toEqual([2]);
+  });
+
+  it('applies a section-scoped classifier to the feeds filed there', () => {
+    const liked = layOut(
+      [
+        {
+          name: 'S',
+          desks: [
+            {
+              feed: feed(1, { section_id: 3 }),
+              articles: [
+                article({ id: 1, points: 99, title: 'Go' }),
+                article({ id: 2, title: 'Rust' }),
+              ],
+            },
+          ],
+        },
+      ],
+      [{ kind: 'title', value: 'rust', score: 1, scope_section_id: 3 }],
+    );
+    expect(storyIds(liked)).toEqual([2, 1]);
   });
 });

@@ -47,10 +47,12 @@ const location = (c: Classifier) => `/api/users/self/classifiers/${c.id}`;
  * `GET /api/users/self/classifiers?limit&cursor`: the person's classifiers,
  * newest first, a page at a time. 400 for a bad limit or cursor.
  *
- * `POST /api/users/self/classifiers` {kind, value, score}: train the paper.
+ * `POST /api/users/self/classifiers` {kind, value, score, feed_id?,
+ * section_id?}: train the paper, everywhere or only in one feed or section.
  * 201 with the classifier and its `Location`; 200 with it when one for the
  * same kind and value was there (its score now the one sent); 400 for a body
- * that is not a valid classifier, 415 for a non-JSON body.
+ * that is not a valid classifier or names a feed or section the person does
+ * not have, 415 for a non-JSON body.
  *
  * Both answer 401/403 when not signed in or cross-site.
  */
@@ -95,10 +97,25 @@ export function createClassifiersCollection(
         return input.input;
       },
       handle: async (input, { uid }) => {
-        const result = await new Repository(getDatabase()).addClassifier(
-          uid,
-          input,
-        );
+        const repo = new Repository(getDatabase());
+        const errors = [
+          ...(input.kind === 'feed' &&
+          !(await repo.getFeed(uid, Number(input.value)))
+            ? ['value: no such feed.']
+            : []),
+          ...(input.scope_feed_id !== undefined &&
+          !(await repo.getFeed(uid, input.scope_feed_id))
+            ? ['feed_id: no such feed.']
+            : []),
+          ...(input.scope_section_id !== undefined &&
+          !(await repo.getSection(uid, input.scope_section_id))
+            ? ['section_id: no such section.']
+            : []),
+        ];
+        if (errors.length) {
+          throw problems.badRequest('The classifier is not valid.', errors);
+        }
+        const result = await repo.addClassifier(uid, input);
         if (result.classifier.score > 0) {
           fireWebhooks(uid, 'like', classifierResource(result.classifier));
         }

@@ -10,6 +10,10 @@ export interface ScrapedItem {
   points: number;
   /** The feed's own id for the story (`<guid>`, Atom `<id>`), when it gives one. */
   guid?: string;
+  /** Who wrote it, as the feed names them. */
+  author?: string;
+  /** The feed's categories for it (RSS `<category>`, Atom `term`). */
+  tags?: string[];
   /** The article's readable text, when its page was fetched. */
   body_text?: string;
   /** Where the story is discussed, when the feed says. */

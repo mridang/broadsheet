@@ -123,6 +123,15 @@ describe('DELETE /api/users/self/reads/:article_id', () => {
     expect((await unread(story)).status).toBe(404);
   });
 
+  it('answers 404 as a problem, unmarking nothing, for another person', async () => {
+    await read(story);
+    auth = await cookieFor(8);
+    const res = await unread(story);
+    expect(res.status).toBe(404);
+    expect(res.headers.get('content-type')).toBe('application/problem+json');
+    expect((await new Repository(db).readState(7)).ids.size).toBe(1);
+  });
+
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
     expect((await unread(story)).status).toBe(401);

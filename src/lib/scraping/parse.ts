@@ -352,6 +352,41 @@ export function feedDetails(xml: string, feedUrl: string): FeedDetails {
   };
 }
 
+/** Longest author name and tag kept, and most tags kept per item. */
+const MAX_AUTHOR = 120;
+const MAX_TAG = 60;
+const MAX_TAGS = 20;
+
+/**
+ * Who wrote an item: Atom's `<author><name>`, then `dc:creator`, then RSS
+ * `<author>` (often `mail@x (Name)`, where the name in brackets is kept).
+ */
+export function itemAuthor(block: string): string {
+  const atom = block.match(
+    /<author[^>]*>[\s\S]*?<name[^>]*>([\s\S]*?)<\/name>/i,
+  );
+  const raw = atom?.[1]
+    ? decode(atom[1])
+    : tag(block, 'dc:creator') || tag(block, 'author');
+  const bracketed = raw.match(/^\S+@\S+\s*\((.+)\)$/);
+  return (bracketed?.[1] ?? raw).trim().slice(0, MAX_AUTHOR);
+}
+
+/** An item's categories: RSS `<category>` text and Atom `term`s, deduplicated. */
+export function itemTags(block: string): string[] {
+  const found = [
+    ...[...block.matchAll(/<category[^>]*>([\s\S]*?)<\/category>/gi)].map((m) =>
+      decode(m[1] ?? ''),
+    ),
+    ...[...block.matchAll(/<category[^>]*\bterm=["']([^"']+)["']/gi)].map((m) =>
+      decode(m[1] ?? ''),
+    ),
+  ]
+    .map((t) => t.slice(0, MAX_TAG))
+    .filter(Boolean);
+  return [...new Set(found)].slice(0, MAX_TAGS);
+}
+
 /** Minimal RSS 2.0 + Atom parser. */
 export function parseFeed(
   xml: string,
@@ -397,6 +432,8 @@ export function parseFeed(
       favicon: faviconFor(link),
       image: '',
       points,
+      author: itemAuthor(b),
+      tags: itemTags(b),
     });
   }
   return { title, items: items.slice(0, MAX_PER_FEED) };

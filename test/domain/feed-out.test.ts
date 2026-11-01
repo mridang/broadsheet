@@ -142,6 +142,8 @@ describe('serveFeed', () => {
 describe('keeps', () => {
   it.each([
     ['all', -1, true],
+    ['all', -2, true],
+    ['unread', -2, false],
     ['unread', -1, false],
     ['unread', 0, true],
     ['focus', 0, false],

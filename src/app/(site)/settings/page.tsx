@@ -13,6 +13,7 @@ import { AddWebhookForm } from '@/app/(site)/settings/_components/add-webhook-fo
 import { AddRuleForm } from '@/app/(site)/settings/_components/add-rule-form';
 import { RemoveRuleButton } from '@/app/(site)/settings/_components/remove-rule-button';
 import { FeedNotificationForm } from '@/app/(site)/settings/_components/feed-notification-form';
+import { ReadingPreferences } from '@/app/(site)/settings/_components/reading-preferences';
 import { PushSettings } from '@/app/(site)/settings/_components/push-settings';
 import { RemoveWebhookButton } from '@/app/(site)/settings/_components/remove-webhook-button';
 import { RevokeTokenButton } from '@/app/(site)/settings/_components/revoke-token-button';
@@ -42,7 +43,7 @@ export default async function SettingsPage() {
   const db = getDatabase();
   const outbound = new OutboundRepository(db);
   const repo = new Repository(db);
-  const [pushes, hooks, tokens, sections, feeds, notifying, rules] =
+  const [pushes, hooks, tokens, sections, feeds, notifying, rules, prefs] =
     await Promise.all([
       outbound.pushSubscriptions(user.id),
       outbound.listWebhooks(user.id),
@@ -51,6 +52,7 @@ export default async function SettingsPage() {
       repo.listFeeds(user.id),
       new NotificationRepository(db).feedNotifications(user.id),
       new NotificationRepository(db).rules(user.id),
+      repo.getPreferences(user.id),
     ]);
   const settings = new Map(notifying.map((n) => [n.feed_id, n]));
   const names = new Map(sections.map((s) => [s.id, s.name]));
@@ -63,6 +65,17 @@ export default async function SettingsPage() {
         title="Settings"
         description="Notifications, webhooks and private feeds."
       />
+      <PageSection
+        id="reading"
+        title="Reading"
+        description="How much of the paper your training lets through, and when stories count as read."
+      >
+        <ReadingPreferences
+          intelligence={prefs.intelligence}
+          markReadOnOpen={prefs.mark_read_on_open}
+          autoMarkReadDays={prefs.auto_mark_read_days}
+        />
+      </PageSection>
       <PageSection
         id="notifications"
         title="Notifications"

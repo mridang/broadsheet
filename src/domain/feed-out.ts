@@ -17,7 +17,7 @@ import {
   type FeedFilter,
   type FeedToken,
 } from '@/domain/outbound';
-import { verdict } from '@/domain/render/tiers';
+import { verdict, type Verdict } from '@/domain/render/tiers';
 import { Repository, type ArticleSummary } from '@/domain/repository';
 import { sha256Hex } from '@/lib/outbound/tokens';
 
@@ -61,7 +61,7 @@ function entryOf(
 }
 
 /** Whether a story with this verdict belongs in a feed with this filter. */
-export function keeps(filter: FeedFilter, score: -1 | 0 | 1): boolean {
+export function keeps(filter: FeedFilter, score: Verdict): boolean {
   if (filter === 'focus') return score > 0;
   if (filter === 'unread') return score >= 0;
   return true;

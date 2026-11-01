@@ -8,16 +8,31 @@
 
 import { ensureOk } from '@/components/api/problem-message';
 
-/** Like or dislike every story from `source` (`POST .../classifiers`). */
-export async function trainSource(
-  source: string,
+/** What a story can be trained on. */
+export type TrainKind = 'source' | 'feed' | 'author' | 'tag' | 'title';
+
+/** Like or dislike every story matching `kind` and `value` (`POST .../classifiers`). */
+export async function train(
+  kind: TrainKind,
+  value: string,
   score: 'like' | 'dislike',
 ): Promise<void> {
   await ensureOk(
     await fetch('/api/users/self/classifiers', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ kind: 'source', value: source, score }),
+      body: JSON.stringify({ kind, value, score }),
+    }),
+  );
+}
+
+/** Mark every unread story of one feed read (`POST .../reads`). */
+export async function markFeedRead(feedId: number): Promise<void> {
+  await ensureOk(
+    await fetch('/api/users/self/reads', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ feed_ids: [String(feedId)] }),
     }),
   );
 }

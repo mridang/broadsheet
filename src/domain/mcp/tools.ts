@@ -683,7 +683,7 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
           ? [
               {
                 kind: 'feed',
-                value: String(feed.source_id),
+                value: String(feed.id),
                 score: input['like_feed'] ? 'like' : 'dislike',
               },
             ]
@@ -702,23 +702,31 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
     name: 'add_classifier',
     title: 'Train the paper',
     description:
-      'Like or dislike stories by author, source, title words or tag. Liked stories lead the paper; disliked ones are left out. Training the same thing again changes its verdict.',
+      'Like or dislike stories by title words, author, tag, text, address, feed or site. Liked stories lead the paper; disliked ones are left out, and a super dislike beats any like. Training the same thing again changes its verdict.',
     input: z.object({
       kind: z
-        .enum(['author', 'source', 'title', 'tag'])
+        .enum(['title', 'author', 'tag', 'text', 'url', 'feed', 'source'])
         .describe('What to match on.'),
-      value: z.string().describe('The author, source, title words or tag.'),
+      value: z
+        .string()
+        .describe(
+          'The title words, author, tag, text, part of the address, feed id or site.',
+        ),
       score: z
-        .enum(['like', 'dislike'])
-        .describe('Whether to like or dislike.'),
+        .enum(['like', 'dislike', 'super_dislike'])
+        .describe('Whether to like, dislike or super dislike.'),
     }),
     readOnly: false,
     run: async (args, { uid, db }) => {
       const { input } = checked(parseClassifierInput(args));
-      const { classifier, created } = await new Repository(db).addClassifier(
-        uid,
-        input,
-      );
+      const repo = new Repository(db);
+      if (
+        input.kind === 'feed' &&
+        !(await repo.getFeed(uid, Number(input.value)))
+      ) {
+        throw new ToolFailure('value: no such feed.');
+      }
+      const { classifier, created } = await repo.addClassifier(uid, input);
       return { classifier: classifierResource(classifier), created };
     },
   }),

@@ -18,6 +18,7 @@ const { POST } = await import('@/app/api/users/self/reads/route');
 let restore: () => void;
 let db: Database;
 let story: number;
+let feedId: number;
 let auth: Record<string, string>;
 
 async function cookieFor(uid: number): Promise<Record<string, string>> {
@@ -37,7 +38,9 @@ beforeEach(async () => {
     .run('g7', 'a@b.com', 'g8', 'b@b.com');
   db = databaseFrom(made.d1);
   const repo = new Repository(db);
-  const { source_id } = (await repo.addFeed(7, 'https://a.test/f'))!;
+  const feed = (await repo.addFeed(7, 'https://a.test/f'))!;
+  const source_id = feed.source_id;
+  feedId = feed.id;
   await repo.writeEdition(source_id, '2026-10-20', [
     {
       url: 'https://x/1',
@@ -116,5 +119,55 @@ describe('POST /api/users/self/reads with copies', () => {
     expect([...(await repo.readState(7)).ids].toSorted()).toEqual(
       [story, copy].toSorted(),
     );
+  });
+});
+
+const items = async (body: unknown) =>
+  ((await (await readMany(body)).json()) as { items: unknown[] }).items;
+
+describe('POST /api/users/self/reads with a scope', () => {
+  it('marks every unread story read with before as now', async () => {
+    const now = new Date(Date.now() + 1000).toISOString();
+    expect(await items({ before: now })).toEqual([
+      { article_id: String(story) },
+    ]);
+  });
+
+  it('marks one feed’s stories read', async () => {
+    expect(await items({ feed_ids: [String(feedId)] })).toEqual([
+      { article_id: String(story) },
+    ]);
+  });
+
+  it('marks one edition’s stories read', async () => {
+    expect(await items({ edition: '2026-10-20' })).toHaveLength(1);
+  });
+
+  it('marks nothing in an empty section', async () => {
+    const section = await new Repository(db).addSection(7, 'Tech');
+    expect(await items({ section_id: String(section.id) })).toEqual([]);
+  });
+
+  it('answers 400 as a problem for a feed the person does not follow', async () => {
+    auth = await cookieFor(8);
+    const res = await readMany({ feed_ids: [String(feedId)] });
+    expect(res.status).toBe(400);
+    expect(res.headers.get('content-type')).toBe('application/problem+json');
+  });
+
+  it('answers 400 for a section the person does not have', async () => {
+    expect((await readMany({ section_id: '999' })).status).toBe(400);
+  });
+
+  it('answers 415 for a body that is not JSON', async () => {
+    const res = await POST(
+      new Request('https://app.test/api/users/self/reads', {
+        method: 'POST',
+        headers: { ...auth, 'Content-Type': 'text/plain' },
+        body: 'x',
+      }),
+      { params: Promise.resolve({}) },
+    );
+    expect(res.status).toBe(415);
   });
 });

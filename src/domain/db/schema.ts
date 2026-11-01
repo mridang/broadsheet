@@ -160,6 +160,10 @@ export const articles = sqliteTable(
     guid: text('guid'),
     /** The summary the story first had, kept once a later fetch changed it. */
     original_summary: text('original_summary'),
+    /** Who wrote it, as the feed names them. */
+    author: text('author'),
+    /** The feed's categories for it, as a JSON array. */
+    tags: text('tags').notNull().default('[]'),
     /** The day this row was scraped (YYYY-MM-DD, UTC) — one edition per day. */
     edition: text('edition'),
     /** The cluster of near-duplicates from other sources, when there is one. */
@@ -175,8 +179,9 @@ export const articles = sqliteTable(
 );
 
 /**
- * A person training the paper: `score` 1 likes and -1 dislikes stories whose
- * `kind` (author, source, title or tag) matches `value`.
+ * A person training the paper: `score` 1 likes, -1 dislikes and -2 super
+ * dislikes stories whose `kind` matches `value`, everywhere or only in one
+ * feed or section.
  */
 export const classifiers = sqliteTable(
   'classifiers',
@@ -186,12 +191,13 @@ export const classifiers = sqliteTable(
     kind: text('kind').notNull(),
     value: text('value').notNull(),
     score: integer('score').notNull(),
+    /** Only stories of this feed (subscription), as NewsBlur's feed scope. */
+    scope_feed_id: integer('scope_feed_id'),
+    /** Only stories of this section's feeds, as NewsBlur's folder scope. */
+    scope_section_id: integer('scope_section_id'),
     created_at: text('created_at').default(sql`(datetime('now'))`),
   },
-  (table) => [
-    unique().on(table.user_id, table.kind, table.value),
-    index('idx_classifiers_user').on(table.user_id),
-  ],
+  (table) => [index('idx_classifiers_user').on(table.user_id)],
 );
 
 /**
@@ -582,6 +588,12 @@ export const preferences = sqliteTable('preferences', {
   briefing_read_filter: text('briefing_read_filter')
     .notNull()
     .default('unread'),
+  /** How much training lets through: focus, unread (the default) or all. */
+  intelligence: text('intelligence').notNull().default('unread'),
+  /** Whether opening a story marks it read (0/1). */
+  mark_read_on_open: integer('mark_read_on_open').notNull().default(1),
+  /** Days after which stories count as read when no feed or section says; 0 never. */
+  auto_mark_read_days: integer('auto_mark_read_days').notNull().default(0),
   updated_at: text('updated_at').default(sql`(datetime('now'))`),
 });
 

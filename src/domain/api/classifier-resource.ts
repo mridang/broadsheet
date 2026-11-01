@@ -5,17 +5,26 @@
  * sends, and checking the body a client posts to train the paper.
  */
 
-import { MAX_NAME_LENGTH, rfc3339 } from '@/domain/api/feed-resource';
+import {
+  MAX_NAME_LENGTH,
+  parseFeedId,
+  rfc3339,
+} from '@/domain/api/feed-resource';
 import type { Classifier, ClassifierInput } from '@/domain/repository';
 
-/** What a classifier can match on. */
+/**
+ * What a classifier can match on, as NewsBlur's: a phrase in the title, the
+ * author, a tag, a phrase in the text, part of the story's address, one of the
+ * person's feeds (by id), or the site a story is from.
+ */
 export const KINDS = [
-  'author',
-  'source',
   'title',
+  'author',
   'tag',
   'text',
+  'url',
   'feed',
+  'source',
 ] as const;
 
 /** What a classifier says about the stories it matches, and its stored score. */
@@ -29,6 +38,10 @@ export interface ClassifierResource {
   readonly kind: string;
   readonly value: string;
   readonly score: Score;
+  /** Only this feed's stories; absent with no `section_id`, everywhere. */
+  readonly feed_id?: string;
+  /** Only the stories of this section's feeds. */
+  readonly section_id?: string;
   readonly created_at?: string;
 }
 
@@ -49,6 +62,12 @@ export function classifierResource(
         : classifier.score <= -2
           ? 'super_dislike'
           : 'dislike',
+    ...(classifier.scope_feed_id !== null
+      ? { feed_id: String(classifier.scope_feed_id) }
+      : {}),
+    ...(classifier.scope_section_id !== null
+      ? { section_id: String(classifier.scope_section_id) }
+      : {}),
     ...(created ? { created_at: created } : {}),
   };
 }
@@ -59,16 +78,17 @@ export type ClassifierBody =
   | { readonly ok: false; readonly errors: readonly string[] };
 
 /**
- * Check a classifier body: `kind` one of author, source, title or tag,
- * `value` a non-blank string, `score` like, dislike or super_dislike. Other members are
- * refused.
+ * Check a classifier body: `kind` one of title, author, tag, text, url, feed
+ * or source (a feed one naming a feed id), `score` like, dislike or
+ * super_dislike, `value` a non-blank string, and at most one scope, `feed_id`
+ * or `section_id`. Other members are refused.
  */
 export function parseClassifierInput(
   body: Readonly<Record<string, unknown>>,
 ): ClassifierBody {
   const errors: string[] = [];
   for (const key of Object.keys(body)) {
-    if (key !== 'kind' && key !== 'value' && key !== 'score') {
+    if (!['kind', 'value', 'score', 'feed_id', 'section_id'].includes(key)) {
       errors.push(`${key}: not a member of a classifier.`);
     }
   }
@@ -79,8 +99,21 @@ export function parseClassifierInput(
     errors.push('value: must be a non-blank string.');
   else if (value.trim().length > MAX_NAME_LENGTH)
     errors.push('value: too long.');
+  else if (kind === 'feed' && parseFeedId(value.trim()) === undefined)
+    errors.push('value: a feed classifier names a feed id.');
   if (typeof score !== 'string' || !Object.hasOwn(SCORES, score))
     errors.push('score: must be like, dislike or super_dislike.');
+  const scope = (key: 'feed_id' | 'section_id'): number | undefined => {
+    const raw = body[key];
+    if (raw === undefined) return undefined;
+    const id = typeof raw === 'string' ? parseFeedId(raw) : undefined;
+    if (id === undefined) errors.push(`${key}: not an id.`);
+    return id;
+  };
+  const feedId = scope('feed_id');
+  const sectionId = scope('section_id');
+  if (feedId !== undefined && sectionId !== undefined)
+    errors.push('section_id: a classifier is scoped to a feed or a section.');
   return errors.length
     ? { ok: false, errors }
     : {
@@ -89,6 +122,8 @@ export function parseClassifierInput(
           kind: kind as string,
           value: (value as string).trim(),
           score: SCORES[score as Score],
+          ...(feedId !== undefined ? { scope_feed_id: feedId } : {}),
+          ...(sectionId !== undefined ? { scope_section_id: sectionId } : {}),
         },
       };
 }
