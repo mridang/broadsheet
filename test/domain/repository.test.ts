@@ -266,6 +266,34 @@ describe('ftsQuery', () => {
 });
 
 describe('searchArticles and getArticle', () => {
+  it('list one feed, newest copy of each story only', async () => {
+    const repo = new Repository(db);
+    const a = (await addFeed(db, 1, 'https://a.test/f'))!;
+    const b = (await addFeed(db, 1, 'https://b.test/f'))!;
+    await repo.writeEdition(a.source_id, '2026-10-01', [
+      story({ url: 'https://x/1' }),
+    ]);
+    await repo.writeEdition(a.source_id, '2026-10-02', [
+      story({ url: 'https://x/1' }),
+      story({ url: 'https://x/2' }),
+    ]);
+    await repo.writeEdition(b.source_id, '2026-10-02', [
+      story({ url: 'https://y/1' }),
+    ]);
+    const listed = await repo.searchArticles(1, { feed: a.id, limit: 10 });
+    expect(listed.map((x) => [x.url, x.edition])).toEqual([
+      ['https://x/2', '2026-10-02'],
+      ['https://x/1', '2026-10-02'],
+    ]);
+  });
+
+  it('list nothing for a feed someone else follows', async () => {
+    const repo = new Repository(db);
+    const a = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await repo.writeEdition(a.source_id, '2026-10-01', [story({})]);
+    expect(await repo.searchArticles(2, { feed: a.id, limit: 10 })).toEqual([]);
+  });
+
   it('search the title, summary and body text of every edition', async () => {
     const repo = new Repository(db);
     const { source_id } = (await addFeed(db, 1, 'https://a.test/f'))!;

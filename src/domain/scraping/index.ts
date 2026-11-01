@@ -16,6 +16,8 @@ import {
   hostOf,
   ogImage,
   pageDescription,
+  feedDetails,
+  feedHeader,
   parseFeed,
   siteName,
 } from '@/lib/scraping';
@@ -138,6 +140,11 @@ export async function scrapeSource(
   const xml = await get(source.url);
   if (!xml) throw new Error(FETCH_FAILED);
   const { items } = parseFeed(xml, source.url);
+  await repo.recordDetails(
+    source.id,
+    feedDetails(xml, source.url),
+    feedHeader(xml),
+  );
   await enrich(items);
   await resolveNames(env, items);
   await repo.writeEdition(source.id, edition, items);

@@ -1,3 +1,4 @@
+import { FeedRail } from '@/components/feeds/feed-rail';
 import type { Metadata } from 'next';
 
 import { ensurePublicUser } from '@/domain/account';
@@ -98,7 +99,7 @@ export default async function Home({
     })
   ).slice(0, MOST_READ);
 
-  return (
+  const page = (
     <>
       {user ? (
         <EditionSwitcher
@@ -117,5 +118,14 @@ export default async function Home({
       />
       <MostRead stories={mostRead} />
     </>
+  );
+  // A signed-in reader gets their feeds down the side, as in any newsreader.
+  return user ? (
+    <div className="reader">
+      <FeedRail feeds={await repo.listFeeds(user.id)} />
+      <div>{page}</div>
+    </div>
+  ) : (
+    page
   );
 }

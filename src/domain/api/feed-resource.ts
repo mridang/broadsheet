@@ -6,6 +6,7 @@
  */
 
 import type { Feed, FeedChanges } from '@/domain/repository';
+import type { FeedElement } from '@/lib/scraping';
 
 /** Longest feed address accepted, in characters. */
 export const MAX_FEED_URL_LENGTH = 2048;
@@ -18,6 +19,28 @@ export interface FeedResource {
   readonly muted: boolean;
   readonly section_id?: string;
   readonly created_at?: string;
+  /** What the feed says about itself, from its header; absent until fetched. */
+  readonly format?: string;
+  readonly site_url?: string;
+  readonly description?: string;
+  readonly language?: string;
+  readonly icon?: string;
+  readonly updated_at?: string;
+  readonly update_minutes?: number;
+  readonly last_fetched_at?: string;
+  /** Every element of the feed's header, exactly as the feed gives it. */
+  readonly metadata: readonly FeedElement[];
+}
+
+/** The stored header JSON as elements, or none when unreadable. */
+function storedHeader(json: string | null): FeedElement[] {
+  if (!json) return [];
+  try {
+    const parsed: unknown = JSON.parse(json);
+    return Array.isArray(parsed) ? (parsed as FeedElement[]) : [];
+  } catch {
+    return [];
+  }
 }
 
 /** Longest feed title or section name accepted, in characters. */
@@ -48,6 +71,17 @@ export function feedResource(feed: Readonly<Feed>): FeedResource {
       ? { section_id: String(feed.section_id) }
       : {}),
     ...(created ? { created_at: created } : {}),
+    ...(feed.format ? { format: feed.format } : {}),
+    ...(feed.site_url ? { site_url: feed.site_url } : {}),
+    ...(feed.description ? { description: feed.description } : {}),
+    ...(feed.language ? { language: feed.language } : {}),
+    ...(feed.icon ? { icon: feed.icon } : {}),
+    ...(feed.feed_updated_at ? { updated_at: feed.feed_updated_at } : {}),
+    ...(feed.update_minutes ? { update_minutes: feed.update_minutes } : {}),
+    ...(feed.last_fetched_at && rfc3339(feed.last_fetched_at)
+      ? { last_fetched_at: rfc3339(feed.last_fetched_at) }
+      : {}),
+    metadata: storedHeader(feed.header),
   };
 }
 

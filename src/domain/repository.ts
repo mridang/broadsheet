@@ -40,7 +40,7 @@ import {
   users,
 } from '@/domain/db/schema';
 import { alias } from 'drizzle-orm/sqlite-core';
-import type { ScrapedItem } from '@/lib/scraping';
+import type { FeedDetails, FeedElement, ScrapedItem } from '@/lib/scraping';
 
 /** A signed-in person. */
 export type User = typeof users.$inferSelect;
@@ -61,6 +61,16 @@ export interface Feed {
   readonly title: string | null;
   readonly muted: boolean;
   readonly created_at: string | null;
+  readonly icon: string | null;
+  readonly format: string | null;
+  readonly site_url: string | null;
+  readonly description: string | null;
+  readonly language: string | null;
+  readonly feed_updated_at: string | null;
+  readonly update_minutes: number | null;
+  readonly last_fetched_at: string | null;
+  /** Every header element as stored JSON, or null before the first fetch. */
+  readonly header: string | null;
 }
 /** How a feed's source is doing: its last fetch and recent output. */
 export interface FeedStatistics {
@@ -96,6 +106,8 @@ export interface ArticleQuery {
   readonly q?: string;
   /** Only articles with a smaller id than this: the last one already shown. */
   readonly before?: number;
+  /** Only articles from this feed (the person's subscription id). */
+  readonly feed?: number;
   readonly limit: number;
 }
 
@@ -372,6 +384,15 @@ export class Repository {
         >`coalesce(${subscriptions.title_override}, ${sources.title})`,
         muted: sql<boolean>`${subscriptions.muted} != 0`.mapWith(Boolean),
         created_at: subscriptions.created_at,
+        icon: sources.icon,
+        format: sources.format,
+        site_url: sources.site_url,
+        description: sources.description,
+        language: sources.language,
+        feed_updated_at: sources.feed_updated_at,
+        update_minutes: sources.update_minutes,
+        last_fetched_at: sources.last_fetched_at,
+        header: sources.header,
       })
       .from(subscriptions)
       .innerJoin(sources, eq(subscriptions.source_id, sources.id));
@@ -402,7 +423,7 @@ export class Repository {
   ): Promise<Feed | undefined> {
     await this.#db
       .insert(sources)
-      .values({ url, title: title || url })
+      .values({ url, title: title || null })
       .onConflictDoNothing({ target: sources.url });
     const source = await this.#db.query.sources.findFirst({
       where: eq(sources.url, url),
@@ -461,18 +482,36 @@ export class Repository {
   /** Every source somebody follows: what the daily scrape fetches. */
   allSources(): Promise<Source[]> {
     return this.#db
-      .selectDistinct({
-        id: sources.id,
-        url: sources.url,
-        title: sources.title,
-        icon: sources.icon,
-        last_fetched_at: sources.last_fetched_at,
-        last_error: sources.last_error,
-        fail_count: sources.fail_count,
-        created_at: sources.created_at,
-      })
+      .selectDistinct(getTableColumns(sources))
       .from(sources)
       .innerJoin(subscriptions, eq(subscriptions.source_id, sources.id));
+  }
+
+  /**
+   * Store what a feed says about itself. Its own title replaces none, but never
+   * a title someone else gave the source.
+   */
+  async recordDetails(
+    sourceId: number,
+    details: FeedDetails,
+    header: readonly FeedElement[],
+  ): Promise<void> {
+    await this.#db
+      .update(sources)
+      .set({
+        title: details.title
+          ? sql`coalesce(${sources.title}, ${details.title})`
+          : sources.title,
+        icon: details.icon || null,
+        format: details.format ?? null,
+        site_url: details.site_url || null,
+        description: details.description || null,
+        language: details.language || null,
+        feed_updated_at: details.updated_at || null,
+        update_minutes: details.update_minutes ?? null,
+        header: JSON.stringify(header),
+      })
+      .where(eq(sources.id, sourceId));
   }
 
   /**
@@ -662,14 +701,20 @@ export class Repository {
   /**
    * Articles from the sources a person follows, from every edition, newest
    * first. With `q`, only those whose title, summary or body text holds every
-   * word. Asks for one more than `limit`, so the caller can tell whether
+   * word, and with `feed`, only those from that one feed. A story a feed keeps
+   * publishing is stored again in each day's edition, so only its newest copy
+   * is listed. Asks for one more than `limit`, so the caller can tell whether
    * another page follows.
    */
   searchArticles(
     userId: number,
-    { q = '', before, limit }: ArticleQuery,
+    { q = '', before, feed, limit }: ArticleQuery,
   ): Promise<ArticleSummary[]> {
     const match = ftsQuery(q);
+    const newest = this.#db
+      .select({ id: sql<number>`max(${articles.id})` })
+      .from(articles)
+      .groupBy(articles.source_id, articles.url);
     return this.#db
       .select(summaryColumns)
       .from(articles)
@@ -680,6 +725,21 @@ export class Repository {
             ? sql`${articles.id} IN (SELECT rowid FROM articles_fts WHERE articles_fts MATCH ${match})`
             : undefined,
           before !== undefined ? lt(articles.id, before) : undefined,
+          feed !== undefined
+            ? eq(
+                articles.source_id,
+                this.#db
+                  .select({ id: subscriptions.source_id })
+                  .from(subscriptions)
+                  .where(
+                    and(
+                      eq(subscriptions.id, feed),
+                      eq(subscriptions.user_id, userId),
+                    ),
+                  ),
+              )
+            : undefined,
+          inArray(articles.id, newest),
         ),
       )
       .orderBy(desc(articles.id))

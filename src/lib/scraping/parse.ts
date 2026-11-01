@@ -7,7 +7,8 @@
  */
 import type { ScrapedItem } from './types';
 
-const MAX_PER_FEED = 14;
+/** Most items kept from one fetch of a feed: enough for a full archive, not a runaway one. */
+const MAX_PER_FEED = 100;
 
 export const decode = (s = ''): string =>
   s
@@ -155,6 +156,200 @@ export const isBoilerplate = (s: string): boolean =>
 export function extractPoints(s: string): number {
   const m = s.match(/Points:\s*(\d+)/i);
   return m?.[1] ? Number(m[1]) : 0;
+}
+
+/** One element of a feed's header: its name, attributes, text and children. */
+export interface FeedElement {
+  readonly name: string;
+  readonly attributes: Readonly<Record<string, string>>;
+  readonly text: string;
+  readonly children: readonly FeedElement[];
+}
+
+/** Decode the five XML entities and numeric references in a text or attribute. */
+function xmlText(raw: string): string {
+  return raw
+    .replace(/&#(x[0-9a-f]+|\d+);/gi, (whole, code: string) => {
+      const n = /^x/i.test(code) ? parseInt(code.slice(1), 16) : Number(code);
+      return n > 0 && n <= 0x10ffff ? String.fromCodePoint(n) : whole;
+    })
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, '&');
+}
+
+/** Most header elements kept, so a hostile feed cannot grow without bound. */
+const MAX_HEADER_ELEMENTS = 500;
+
+/**
+ * Every element of a feed's header, exactly as the feed gives it: the children
+ * of the RSS or RDF `<channel>`, or of the Atom `<feed>`, except its items and
+ * entries, each with all its attributes, its text (CDATA unwrapped, entities
+ * decoded, whitespace collapsed) and its own children. Nothing is chosen or
+ * renamed, so whatever a feed declares is kept. Empty when there is no feed.
+ */
+export function feedHeader(xml: string): FeedElement[] {
+  interface Open {
+    name: string;
+    attributes: Record<string, string>;
+    text: string;
+    children: FeedElement[];
+  }
+  const source = xml
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<\?[\s\S]*?\?>/g, '')
+    .replace(/<!DOCTYPE[^>]*>/gi, '');
+  const root: Open = { name: '', attributes: {}, text: '', children: [] };
+  const stack: Open[] = [root];
+  let count = 0;
+  const token =
+    /<!\[CDATA\[([\s\S]*?)\]\]>|<(\/?)([\w:.-]+)((?:\s+[\w:.-]+\s*=\s*(?:"[^"]*"|'[^']*'))*)\s*(\/?)>|([^<]+)/g;
+  for (const m of source.matchAll(token)) {
+    const top = stack.at(-1)!;
+    if (m[1] !== undefined || m[6] !== undefined) {
+      top.text += m[1] ?? xmlText(m[6] ?? '');
+      continue;
+    }
+    const name = m[3] ?? '';
+    if (m[2]) {
+      if (stack.length > 1 && top.name === name) {
+        stack.pop();
+        stack.at(-1)!.children.push({
+          name: top.name,
+          attributes: top.attributes,
+          text: top.text.replace(/\s+/g, ' ').trim(),
+          children: top.children,
+        });
+      }
+      continue;
+    }
+    if (++count > MAX_HEADER_ELEMENTS * 50) break;
+    const attributes: Record<string, string> = {};
+    for (const a of (m[4] ?? '').matchAll(
+      /([\w:.-]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g,
+    )) {
+      attributes[a[1] ?? ''] = xmlText(a[2] ?? a[3] ?? '');
+    }
+    const open: Open = { name, attributes, text: '', children: [] };
+    if (m[5]) {
+      top.children.push({ ...open, children: [] });
+    } else {
+      stack.push(open);
+    }
+  }
+  while (stack.length > 1) {
+    const top = stack.pop()!;
+    stack.at(-1)!.children.push({
+      name: top.name,
+      attributes: top.attributes,
+      text: top.text.replace(/\s+/g, ' ').trim(),
+      children: top.children,
+    });
+  }
+  const document = root.children[0];
+  const container =
+    document?.name === 'feed'
+      ? document
+      : document?.children.find((c) => c.name === 'channel');
+  return (container?.children ?? [])
+    .filter((c) => c.name !== 'item' && c.name !== 'entry')
+    .slice(0, MAX_HEADER_ELEMENTS);
+}
+
+/** The kinds of feed this parser reads. */
+export type FeedFormat = 'rss' | 'atom' | 'rdf';
+
+/** What a feed says about itself, from its header. Blank fields were not given. */
+export interface FeedDetails {
+  readonly format?: FeedFormat;
+  readonly title: string;
+  /** The site the feed belongs to. */
+  readonly site_url: string;
+  readonly description: string;
+  readonly language: string;
+  /** When the feed says it last changed, as RFC 3339. */
+  readonly updated_at: string;
+  /** How often the feed says it changes, in minutes. */
+  readonly update_minutes?: number;
+  /** The feed's own image, else the site's favicon. */
+  readonly icon: string;
+}
+
+/** Minutes in one `sy:updatePeriod`. */
+const PERIOD_MINUTES: Readonly<Record<string, number>> = {
+  hourly: 60,
+  daily: 1440,
+  weekly: 10080,
+  monthly: 43200,
+  yearly: 525600,
+};
+
+/** An address made absolute against `base`, or blank when it is not one. */
+function absolute(href: string, base: string): string {
+  try {
+    return href ? new URL(href.trim(), base).href : '';
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Read a feed's header: its format, title, site, description, language, when
+ * it last changed, how often it says it changes (`sy:updatePeriod` and
+ * `sy:updateFrequency`, else `ttl`) and its image (`<image><url>`, `<icon>` or
+ * `<logo>`, else the site's favicon).
+ */
+export function feedDetails(xml: string, feedUrl: string): FeedDetails {
+  const format: FeedFormat | undefined = /<rdf:RDF[\s>]/i.test(xml)
+    ? 'rdf'
+    : /<rss[\s>]/i.test(xml)
+      ? 'rss'
+      : /<feed[\s>]/i.test(xml)
+        ? 'atom'
+        : undefined;
+  const head = xml.split(/<(?:item|entry)[\s>]/i)[0] ?? '';
+  const withoutImage = head.replace(/<image[\s>][\s\S]*?<\/image>/gi, '');
+  const alternate =
+    head.match(
+      /<link\b(?=[^>]*\brel=["']alternate["'])[^>]*\bhref=["']([^"']+)["']/i,
+    )?.[1] ??
+    head.match(/<link\b(?![^>]*\brel=)[^>]*\bhref=["']([^"']+)["']/i)?.[1] ??
+    '';
+  const site_url = absolute(tag(withoutImage, 'link') || alternate, feedUrl);
+  const changed =
+    tag(head, 'lastBuildDate') ||
+    tag(withoutImage, 'pubDate') ||
+    tag(withoutImage, 'updated') ||
+    tag(withoutImage, 'dc:date');
+  const date = changed ? new Date(changed) : null;
+  const period = PERIOD_MINUTES[tag(head, 'sy:updatePeriod').toLowerCase()];
+  const frequency = Number(tag(head, 'sy:updateFrequency') || 1);
+  const ttl = Number(tag(head, 'ttl'));
+  const update_minutes =
+    period && frequency > 0
+      ? Math.round(period / frequency)
+      : ttl > 0
+        ? ttl
+        : undefined;
+  const image =
+    head.match(/<image[\s>][\s\S]*?<url>([\s\S]*?)<\/url>/i)?.[1] ??
+    (tag(head, 'icon') || tag(head, 'logo'));
+  return {
+    ...(format ? { format } : {}),
+    title: tag(withoutImage, 'title'),
+    site_url,
+    description: (
+      tag(withoutImage, 'description') || tag(head, 'subtitle')
+    ).slice(0, 500),
+    language:
+      tag(head, 'language') ||
+      (head.match(/<feed\b[^>]*\bxml:lang=["']([^"']+)["']/i)?.[1] ?? ''),
+    updated_at: date && !Number.isNaN(date.getTime()) ? date.toISOString() : '',
+    ...(update_minutes ? { update_minutes } : {}),
+    icon: absolute(decode(image), feedUrl) || faviconFor(site_url || feedUrl),
+  };
 }
 
 /** Minimal RSS 2.0 + Atom parser. */

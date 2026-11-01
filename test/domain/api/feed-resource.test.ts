@@ -19,6 +19,15 @@ const stored = (over: Partial<Feed> = {}): Feed => ({
   url: 'https://a.test/feed.xml',
   title: 'A feed',
   created_at: '2026-01-02 03:04:05',
+  icon: null,
+  format: null,
+  site_url: null,
+  description: null,
+  language: null,
+  feed_updated_at: null,
+  update_minutes: null,
+  last_fetched_at: null,
+  header: null,
   ...over,
 });
 
@@ -30,7 +39,43 @@ describe('feedResource', () => {
       title: 'A feed',
       muted: false,
       created_at: '2026-01-02T03:04:05Z',
+      metadata: [],
     });
+  });
+
+  it('carries what the feed says about itself and its whole header', () => {
+    const header = [
+      { name: 'generator', attributes: {}, text: 'Hugo', children: [] },
+    ];
+    expect(
+      feedResource(
+        stored({
+          format: 'atom',
+          site_url: 'https://a.test/',
+          description: 'Notes',
+          language: 'en',
+          icon: 'https://a.test/i.png',
+          feed_updated_at: '2026-10-01T00:00:00.000Z',
+          update_minutes: 60,
+          last_fetched_at: '2026-10-02 06:00:00',
+          header: JSON.stringify(header),
+        }),
+      ),
+    ).toMatchObject({
+      format: 'atom',
+      site_url: 'https://a.test/',
+      description: 'Notes',
+      language: 'en',
+      icon: 'https://a.test/i.png',
+      updated_at: '2026-10-01T00:00:00.000Z',
+      update_minutes: 60,
+      last_fetched_at: '2026-10-02T06:00:00Z',
+      metadata: header,
+    });
+  });
+
+  it('shows no metadata when the stored header cannot be read', () => {
+    expect(feedResource(stored({ header: '{oops' })).metadata).toEqual([]);
   });
 
   it('leaves out a timestamp it cannot read', () => {
@@ -44,6 +89,7 @@ describe('feedResource', () => {
       id: '4',
       url: 'https://a.test/feed.xml',
       muted: false,
+      metadata: [],
     });
   });
 });

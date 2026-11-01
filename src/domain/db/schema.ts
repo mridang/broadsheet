@@ -46,6 +46,15 @@ export const sources = sqliteTable('sources', {
   last_fetched_at: text('last_fetched_at'),
   last_error: text('last_error'),
   fail_count: integer('fail_count').notNull().default(0),
+  /** What the feed says about itself, read from its header on every fetch. */
+  format: text('format'),
+  site_url: text('site_url'),
+  description: text('description'),
+  language: text('language'),
+  feed_updated_at: text('feed_updated_at'),
+  update_minutes: integer('update_minutes'),
+  /** Every header element, as JSON (`FeedElement[]`). */
+  header: text('header'),
   created_at: text('created_at').default(sql`(datetime('now'))`),
 });
 

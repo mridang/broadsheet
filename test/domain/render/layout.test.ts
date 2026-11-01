@@ -3,6 +3,7 @@ import { describe, expect, it } from '@jest/globals';
 import type { Article, Feed } from '@/domain/repository';
 import {
   collapseClusters,
+  DESK_STORIES,
   layOut,
   parseLayout,
   storyIds,
@@ -39,6 +40,15 @@ function feed(id: number, over: Partial<Feed> = {}): Feed {
     title: `Feed ${id}`,
     muted: false,
     created_at: null,
+    icon: null,
+    format: null,
+    site_url: null,
+    description: null,
+    language: null,
+    feed_updated_at: null,
+    update_minutes: null,
+    last_fetched_at: null,
+    header: null,
     ...over,
   };
 }
@@ -89,6 +99,16 @@ describe('collapseClusters', () => {
 });
 
 describe('layOut', () => {
+  it(`prints at most ${DESK_STORIES} stories from one feed`, () => {
+    const many = Array.from({ length: DESK_STORIES + 5 }, (_, i) =>
+      article({ id: i + 1 }),
+    );
+    const layout = layOut([
+      { name: null, desks: [{ feed: feed(1), articles: many }] },
+    ]);
+    expect(storyIds(layout)).toHaveLength(DESK_STORIES);
+  });
+
   it('prints a story many desks covered once, with the others named', () => {
     const layout = layOut([
       {

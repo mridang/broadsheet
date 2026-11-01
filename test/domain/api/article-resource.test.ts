@@ -60,6 +60,20 @@ describe('parseArticleQuery', () => {
   const parse = (query: string) =>
     parseArticleQuery(new URLSearchParams(query));
 
+  it('narrows the list to one feed', () => {
+    expect(parse('feed_id=7')).toEqual({
+      ok: true,
+      query: { q: '', before: undefined, feed: 7, limit: 20 },
+    });
+  });
+
+  it.each([
+    ['feed_id=x', 'feed_id: not a feed id.'],
+    ['feed_id=7&order=reads', 'feed_id: not with order reads or saves.'],
+  ])('refuses %s', (query, error) => {
+    expect(parse(query)).toMatchObject({ ok: false, errors: [error] });
+  });
+
   it('takes the words, a cursor this API issued and a limit', () => {
     const cursor = encodeCursor({ key: '42', id: '42' });
     expect(parse(`q=+rust+&cursor=${cursor}&limit=5`)).toEqual({

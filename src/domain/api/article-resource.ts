@@ -101,7 +101,14 @@ export type TrendingWindow = keyof typeof WINDOWS;
 const ORDERS = new Set(['newest', 'reads', 'saves']);
 
 /** The parameters `GET /api/articles` takes. */
-const PARAMETERS = new Set(['q', 'cursor', 'limit', 'order', 'window']);
+const PARAMETERS = new Set([
+  'q',
+  'feed_id',
+  'cursor',
+  'limit',
+  'order',
+  'window',
+]);
 
 /**
  * A checked article query, or what was wrong with it. With `trending`, the
@@ -154,6 +161,13 @@ export function parseArticleQuery(
   const q = (params.get('q') ?? '').trim();
   if (q.length > MAX_QUERY_LENGTH) errors.push('q: too long.');
   if (q && ranked) errors.push('q: not with order reads or saves.');
+  const rawFeed = params.get('feed_id');
+  const feed = rawFeed === null ? undefined : parseFeedId(rawFeed);
+  if (rawFeed !== null && feed === undefined) {
+    errors.push('feed_id: not a feed id.');
+  } else if (feed !== undefined && ranked) {
+    errors.push('feed_id: not with order reads or saves.');
+  }
   let before: number | undefined;
   let after: TrendingQuery['after'];
   const cursor = params.get('cursor');
@@ -174,7 +188,12 @@ export function parseArticleQuery(
     }
   }
   if (errors.length) return { ok: false, errors };
-  if (!ranked) return { ok: true, query: { q, before, limit } };
+  if (!ranked) {
+    return {
+      ok: true,
+      query: { q, before, ...(feed !== undefined ? { feed } : {}), limit },
+    };
+  }
   const days = WINDOWS[(window ?? 'week') as TrendingWindow];
   return {
     ok: true,

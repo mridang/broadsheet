@@ -50,7 +50,6 @@ describe('GET /api/feeds/suggestions', () => {
       items: [
         {
           url: 'https://other.test/f',
-          title: 'https://other.test/f',
           followers: 1,
         },
       ],

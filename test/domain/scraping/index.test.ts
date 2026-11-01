@@ -68,6 +68,18 @@ describe('scrapeSource', () => {
     expect(await source()).toMatchObject({ fail_count: 0, last_error: null });
   });
 
+  it('stores what the feed says about itself on the source', async () => {
+    serve({ 'https://a.test/f': FEED, 'https://a.test/story': PAGE });
+    await scrapeSource(db, env, { id: sourceId, url: 'https://a.test/f' });
+    expect(await source()).toMatchObject({
+      title: 'A',
+      format: 'rss',
+      header: JSON.stringify([
+        { name: 'title', attributes: {}, text: 'A', children: [] },
+      ]),
+    });
+  });
+
   it('throws when the feed cannot be fetched, recording nothing', async () => {
     serve({});
     await expect(

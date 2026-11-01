@@ -1,6 +1,6 @@
 Feed:
   type: object
-  required: [id, url, muted]
+  required: [id, url, muted, metadata]
   properties:
     id:
       type: string
@@ -18,6 +18,52 @@ Feed:
     created_at:
       type: string
       format: date-time
+    format:
+      type: string
+      enum: [rss, atom, rdf]
+      description: The kind of feed, as its document declares; absent until fetched.
+    site_url:
+      type: string
+      description: The site the feed belongs to.
+    description:
+      type: string
+    language:
+      type: string
+    icon:
+      type: string
+      description: The feed's own image, else the site's favicon.
+    updated_at:
+      type: string
+      format: date-time
+      description: When the feed says it last changed.
+    update_minutes:
+      type: integer
+      description: How often the feed says it changes (sy:updatePeriod and sy:updateFrequency, else ttl).
+    last_fetched_at:
+      type: string
+      format: date-time
+    metadata:
+      type: array
+      description: Every element of the feed's header (the RSS or RDF channel, or the Atom feed, without its items), exactly as the feed gives it. Empty until fetched.
+      items:
+        $ref: '#/FeedElement'
+FeedElement:
+  type: object
+  required: [name, attributes, text, children]
+  properties:
+    name:
+      type: string
+      description: The element's name as written, with any prefix (sy:updatePeriod, atom:link).
+    attributes:
+      type: object
+      additionalProperties:
+        type: string
+    text:
+      type: string
+    children:
+      type: array
+      items:
+        $ref: '#/FeedElement'
 FeedChanges:
   type: object
   additionalProperties: false

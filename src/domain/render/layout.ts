@@ -97,6 +97,9 @@ export function collapseClusters(
   return { dropped, also, coverage };
 }
 
+/** The most stories one feed's desk prints; the rest stay in the archive. */
+export const DESK_STORIES = 14;
+
 /** Lay out a paper from its sections' desks and the reader's training. */
 export function layOut(
   groups: readonly DeskGroup[],
@@ -114,7 +117,7 @@ export function layOut(
           articles.filter((a) => !dropped.has(a.id)),
           training,
           coverage,
-        );
+        ).slice(0, DESK_STORIES);
         const tiers = assignTiers(ranked);
         return {
           feed_id: feed.id,

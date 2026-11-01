@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/core/auth';
 import { getDatabase } from '@/domain/db/database';
 import { Repository } from '@/domain/repository';
-import { hostOf } from '@/domain/render/tiers';
+import { FeedSummary } from '@/components/feeds/feed-summary';
 
 import { AddFeedForm } from '@/app/(site)/feeds/_components/add-feed-form';
 import { AddSectionForm } from '@/app/(site)/feeds/_components/add-section-form';
@@ -52,8 +52,12 @@ export default async function FeedsPage() {
         feeds.map((f) => (
           <div className="feedrow" key={f.id}>
             <div>
-              <strong>{f.title || hostOf(f.url)}</strong>
-              <div className="u">{f.url}</div>
+              <FeedSummary feed={f} />
+              <p>
+                <a className="btn ghost small" href={`/feeds/${f.id}`}>
+                  Stories &amp; details →
+                </a>
+              </p>
               <FeedHealth statistics={stats.get(f.id)} />
               <FeedSettingsForm
                 id={f.id}
