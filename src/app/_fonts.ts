@@ -6,12 +6,9 @@
  * the layout itself is shared.
  */
 
-import { Lora, Source_Serif_4 } from 'next/font/google';
+import { Source_Serif_4 } from 'next/font/google';
 
-/**
- * The body face of the FT theme. Both theme faces are exposed as CSS variables,
- * which the newspaper stylesheet switches between per `data-theme`.
- */
+/** The reading face: the full text of a story, as a CSS variable. */
 const sourceSerif = Source_Serif_4({
   subsets: ['latin'],
   variable: '--font-source-serif',
@@ -19,21 +16,11 @@ const sourceSerif = Source_Serif_4({
   style: ['normal', 'italic'],
 });
 
-/** The body face of the Economist theme. */
-const lora = Lora({
-  subsets: ['latin'],
-  variable: '--font-lora',
-  weight: ['400', '500', '600', '700'],
-  style: ['normal', 'italic'],
-});
-
 /** The classes of `<html>`: the font variables. */
-export const HTML_CLASS = `${sourceSerif.variable} ${lora.variable}`;
+export const HTML_CLASS = sourceSerif.variable;
 
-/** The classes of `<body>`: the page colours and type come from the stylesheet. */
-export const BODY_CLASS = 'min-h-full';
+/** The classes of `<body>`: the app's sans; the page colours come from the stylesheet. */
+export const BODY_CLASS = 'min-h-full font-sans';
 
-/** Extra attributes for `<html>`: the default theme, which the theme script may change before first paint. */
-export const HTML_ATTRIBUTES: Readonly<Record<string, string>> = {
-  'data-theme': 'ft',
-};
+/** Extra attributes for `<html>`: none, as light and dark follow the device. */
+export const HTML_ATTRIBUTES: Readonly<Record<string, string>> = {};

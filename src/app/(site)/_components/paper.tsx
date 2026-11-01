@@ -21,14 +21,23 @@ export function Paper({
   return (
     <>
       {briefing ? (
-        <aside className="editors-note" aria-label="Editor's note">
-          <h2>Editor&rsquo;s note</h2>
-          <p>{briefing}</p>
+        <aside
+          className="mb-10 rounded-card border border-line bg-surface p-5 sm:p-6"
+          aria-label="Editor's note"
+        >
+          <h2 className="text-xs font-semibold tracking-wide text-accent uppercase">
+            Editor&rsquo;s note
+          </h2>
+          <p className="mt-2 leading-relaxed text-ink">{briefing}</p>
         </aside>
       ) : null}
       {layout.groups.map((group, i) => (
-        <div key={group.name ?? `unfiled-${i}`}>
-          {group.name ? <h2 className="deskhead">{group.name}</h2> : null}
+        <div key={group.name ?? `unfiled-${i}`} className="mt-14 first:mt-0">
+          {group.name ? (
+            <h2 className="mb-6 text-2xl font-semibold tracking-tight text-ink">
+              {group.name}
+            </h2>
+          ) : null}
           {group.desks.map((desk) => (
             <Section
               key={desk.feed_id}
@@ -39,15 +48,17 @@ export function Paper({
           ))}
         </div>
       ))}
-      <div className="foot">
-        THE HACKER TIMES — auto-generated from your feeds, refreshed daily.
-        Every day is archived.
+      <footer className="mt-16 border-t border-line pt-6 text-xs text-subtle">
+        <p>
+          The Hacker Times — auto-generated from your feeds, refreshed daily.
+          Every day is archived.
+        </p>
+        <p className="mt-1 print:hidden">
+          Generative layout: weight → tier → copyfit, with an In Brief list for
+          the low-weight tail. The same story from several sources shows once.
+        </p>
         <LegalLinks />
-      </div>
-      <div className="enginenote">
-        Generative layout: weight → tier → copyfit, with an In Brief rail for
-        the low-weight tail. The same story from several sources prints once.
-      </div>
+      </footer>
     </>
   );
 }

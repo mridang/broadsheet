@@ -5,7 +5,7 @@ The Hacker Times: a personalised daily newspaper that turns web feeds into a pri
 - Logged-out visitors get a public Hacker News edition.
 - Logged-in users (Google sign-in) get a personalised paper from feeds they add and remove.
 - Every feed is fetched, scraped and rebuilt once a day by a Cron Trigger.
-- The layout is generative: each story's weight (recency, image, length) decides its tier (lead, feature, standard, with a weak tail collapsed into an "In Brief" rail), the excerpt is copyfit to that tier's budget, and lead and feature photos float so the copy wraps around them. There are FT and Economist themes with a dynamic address-bar `theme-color`.
+- The layout is generative: each story's weight (recency, image, length) decides its tier (lead, feature, standard, with a weak tail collapsed into an "In brief" list), and the excerpt is copyfit to that tier's budget: a lead spans its desk with a large photo, a feature is a card and a standard story a row. Light and dark follow the device.
 
 ## Stack
 

@@ -10,17 +10,33 @@ export function MostRead({
 }: Readonly<{ stories: readonly TrendingArticle[] }>) {
   if (!stories.length) return null;
   return (
-    <aside className="editors-note" aria-label="Most read">
-      <h2>Most read</h2>
-      <ol>
-        {stories.map(({ article, count }) => (
-          <li key={article.id}>
-            <a href={`/article/${article.id}`}>
-              {article.title ?? article.url}
-            </a>{' '}
-            <span className="muted">
-              {count} {count === 1 ? 'reader' : 'readers'}
+    <aside
+      className="rounded-card border border-line bg-surface p-5 print:hidden"
+      aria-label="Most read"
+    >
+      <h2 className="text-xs font-semibold tracking-wide text-subtle uppercase">
+        Most read
+      </h2>
+      <ol className="mt-3 space-y-4">
+        {stories.map(({ article, count }, i) => (
+          <li key={article.id} className="flex gap-3">
+            <span
+              aria-hidden="true"
+              className="w-4 shrink-0 text-lg leading-6 font-semibold text-accent tabular-nums"
+            >
+              {i + 1}
             </span>
+            <div className="min-w-0">
+              <a
+                className="focus-ring rounded-sm text-sm leading-snug font-medium text-ink hover:text-accent"
+                href={`/article/${article.id}`}
+              >
+                {article.title ?? article.url}
+              </a>{' '}
+              <span className="block text-xs text-subtle">
+                {count} {count === 1 ? 'reader' : 'readers'}
+              </span>
+            </div>
           </li>
         ))}
       </ol>

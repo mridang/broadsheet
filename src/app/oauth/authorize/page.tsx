@@ -13,6 +13,8 @@ import {
   validateAuthorizeRequest,
   type AuthorizeParams,
 } from '@/lib/oauth';
+import { BrandMark } from '@/components/site/logo';
+import { buttonClass } from '@/components/ui/button';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,11 +62,15 @@ export default async function AuthorizePage({
   );
   if (!check.ok) {
     return (
-      <div className="panel center">
-        <h2>Can&apos;t connect this app</h2>
-        <p className="muted">{check.description}</p>
-        <p className="muted">Error: {check.error}</p>
-      </div>
+      <main id="main" className="px-4">
+        <div className="mx-auto my-10 max-w-md rounded-card border border-line bg-surface px-6 py-10 shadow-sm sm:my-20 sm:px-10">
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Can&apos;t connect this app
+          </h1>
+          <p className="mt-3 text-sm text-muted">{check.description}</p>
+          <p className="mt-2 text-sm text-muted">Error: {check.error}</p>
+        </div>
+      </main>
     );
   }
 
@@ -82,33 +88,52 @@ export default async function AuthorizePage({
 
   const { client, redirectUri, scope } = check.request;
   return (
-    <div className="panel center">
-      <h2>Connect {client.name}</h2>
-      <p className="muted">
-        {client.name} wants to reach your paper as {user.email}. It will be able
-        to read your feeds, editions, saved stories and the archive
-        {scope.includes(SCOPE_WRITE)
-          ? ', and to follow and unfollow feeds, save stories and train the paper'
-          : ''}
-        .
-      </p>
-      <p className="muted">
-        You will be sent back to <code>{returnAddress(redirectUri)}</code>.
-      </p>
-      <form method="post" action="/oauth/consent">
-        {AUTHORIZE_FIELDS.flatMap((name) => {
-          const value = params[name];
-          return value === undefined
-            ? []
-            : [<input key={name} type="hidden" name={name} value={value} />];
-        })}
-        <button className="btn" type="submit" name="decision" value="approve">
-          Approve
-        </button>{' '}
-        <button className="btn" type="submit" name="decision" value="cancel">
-          Cancel
-        </button>
-      </form>
-    </div>
+    <main id="main" className="px-4">
+      <div className="mx-auto my-10 max-w-md rounded-card border border-line bg-surface px-6 py-10 shadow-sm sm:my-20 sm:px-10">
+        <BrandMark className="size-10" />
+        <h1 className="mt-5 text-2xl font-semibold tracking-tight">
+          Connect {client.name}
+        </h1>
+        <p className="mt-3 text-sm leading-relaxed text-muted">
+          {client.name} wants to reach your paper as {user.email}. It will be
+          able to read your feeds, editions, saved stories and the archive
+          {scope.includes(SCOPE_WRITE)
+            ? ', and to follow and unfollow feeds, save stories and train the paper'
+            : ''}
+          .
+        </p>
+        <p className="mt-3 text-sm text-muted">
+          You will be sent back to{' '}
+          <code className="font-mono text-xs text-ink">
+            {returnAddress(redirectUri)}
+          </code>
+          .
+        </p>
+        <form method="post" action="/oauth/consent" className="mt-8 flex gap-3">
+          {AUTHORIZE_FIELDS.flatMap((name) => {
+            const value = params[name];
+            return value === undefined
+              ? []
+              : [<input key={name} type="hidden" name={name} value={value} />];
+          })}
+          <button
+            className={buttonClass({})}
+            type="submit"
+            name="decision"
+            value="approve"
+          >
+            Approve
+          </button>{' '}
+          <button
+            className={buttonClass({ variant: 'outline' })}
+            type="submit"
+            name="decision"
+            value="cancel"
+          >
+            Cancel
+          </button>
+        </form>
+      </div>
+    </main>
   );
 }

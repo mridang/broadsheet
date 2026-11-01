@@ -1,4 +1,3 @@
-import { FeedRail } from '@/components/feeds/feed-rail';
 import type { Metadata } from 'next';
 
 import { ensurePublicUser } from '@/domain/account';
@@ -15,6 +14,7 @@ import {
   storedEditionIssue,
   storedIssue,
 } from '@/domain/issues';
+import { FrontPage } from '@/app/(site)/_components/front-page';
 import { Paper } from '@/app/(site)/_components/paper';
 import { loadPersonal } from '@/app/(site)/_components/personal';
 import { ReadTracker } from '@/app/(site)/_components/read-tracker';
@@ -24,6 +24,9 @@ import { MostRead } from '@/app/(site)/_components/most-read';
 import { KeyboardShortcuts } from '@/app/(site)/_components/keyboard-shortcuts';
 import { TopicPicker } from '@/app/(site)/_components/topic-picker';
 import { TOPICS } from '@/domain/topics';
+import { buttonClass } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/notice';
+import { PageHeader } from '@/components/ui/page-header';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,21 +58,26 @@ export default async function Home({
   if (!feeds.length) {
     if (user && !(await repo.listFeeds(user.id)).length) {
       return (
-        <div className="panel">
-          <h2>Welcome</h2>
-          <TopicPicker topics={TOPICS} />
+        <div className="max-w-3xl">
+          <PageHeader title="Welcome" />
+          <div className="mt-6">
+            <TopicPicker topics={TOPICS} />
+          </div>
         </div>
       );
     }
     return (
-      <div className="panel">
-        <h2>No feeds yet</h2>
-        <p className="muted">Sign in and add some feeds to build your paper.</p>
-        <p>
-          <a className="btn" href="/feeds">
-            Manage feeds →
-          </a>
-        </p>
+      <div className="max-w-3xl">
+        <EmptyState
+          title="No feeds yet"
+          action={
+            <a className={buttonClass({})} href="/feeds">
+              Manage feeds →
+            </a>
+          }
+        >
+          Sign in and add some feeds to build your paper.
+        </EmptyState>
       </div>
     );
   }
@@ -99,15 +107,25 @@ export default async function Home({
     })
   ).slice(0, MOST_READ);
 
-  const page = (
-    <>
-      {user ? (
-        <EditionSwitcher
-          editions={papers.map((p) => ({ id: p.id, name: p.name }))}
-          selected={paper?.id}
-        />
-      ) : null}
-      <EditionBar selected={selected} editions={editions} />
+  return (
+    <FrontPage
+      title={paper?.name ?? (user ? 'Your paper' : 'Today’s paper')}
+      description={
+        user
+          ? 'Personalised from your feeds, laid out every morning.'
+          : 'The Hacker News edition, laid out every morning.'
+      }
+      bar={<EditionBar selected={selected} editions={editions} />}
+      switcher={
+        user ? (
+          <EditionSwitcher
+            editions={papers.map((p) => ({ id: p.id, name: p.name }))}
+            selected={paper?.id}
+          />
+        ) : null
+      }
+      side={mostRead.length ? <MostRead stories={mostRead} /> : undefined}
+    >
       <KeyboardShortcuts />
       {user ? <ReadTracker /> : null}
       <Paper
@@ -116,16 +134,6 @@ export default async function Home({
         briefing={issue.briefing}
         personal={personal}
       />
-      <MostRead stories={mostRead} />
-    </>
-  );
-  // A signed-in reader gets their feeds down the side, as in any newsreader.
-  return user ? (
-    <div className="reader">
-      <FeedRail feeds={await repo.listFeeds(user.id)} />
-      <div>{page}</div>
-    </div>
-  ) : (
-    page
+    </FrontPage>
   );
 }

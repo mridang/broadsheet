@@ -12,16 +12,44 @@ import {
   hostOf,
   type Tier,
 } from '@/domain/render/tiers';
+import { cn } from '@/components/ui/cn';
 
 /** The width a source's favicon is asked for, in pixels (Google's service sends 64). */
 const FAVICON_WIDTH = 64;
 
+/** How each tier is laid out in its desk's two-column grid. */
+const LOOK: Record<
+  Exclude<Tier, 'brief'>,
+  { card: string; photo: string; title: string }
+> = {
+  lead: {
+    card: 'flex flex-col gap-5 pb-8 sm:col-span-2 md:flex-row-reverse md:items-start',
+    photo: 'aspect-[16/10] w-full rounded-card md:w-1/2',
+    title: 'text-2xl leading-tight sm:text-3xl',
+  },
+  feature: {
+    card: 'flex flex-col overflow-hidden rounded-card border border-line bg-surface',
+    photo: 'aspect-video w-full',
+    title: 'text-lg leading-snug',
+  },
+  standard: {
+    card: 'flex flex-row-reverse items-start gap-4 border-t border-line py-5 sm:col-span-2',
+    photo: 'h-20 w-28 shrink-0 rounded-control sm:h-24 sm:w-36',
+    title: 'text-base leading-snug sm:text-lg',
+  },
+};
+
+/** A small control or link at the foot of a story, above the link that covers it. */
+export const FOOT_LINK =
+  'focus-ring pointer-events-auto relative z-10 rounded-sm font-medium text-subtle hover:text-ink';
+
 /**
- * One story. Tier fixes the lane span and excerpt budget; lead/feature
- * photos float (alternating side by id) so the body copy wraps around them.
- * A story the person has read is dimmed; a signed-in person (`personal`) gets
- * the training and save controls. `also` names the other sources that covered
- * the same story.
+ * One story. Its tier decides how much room it gets (a lead spans the desk
+ * with a large photo, a feature is a card, a standard story a row) and how
+ * long its excerpt is. The whole card is a link to the story; its controls sit
+ * above that link. A story the person has read is dimmed; a signed-in person
+ * (`personal`) gets the training and save controls. `also` names the other
+ * sources that covered the same story.
  */
 export async function StoryCard({
   article,
@@ -32,60 +60,101 @@ export async function StoryCard({
   personal = false,
 }: {
   article: Article;
-  tier: Tier;
+  tier: Exclude<Tier, 'brief'>;
   also?: readonly string[];
   read?: boolean;
   saved?: boolean;
   personal?: boolean;
 }) {
-  const [span, budget] = TIER[tier];
-  const side = article.id % 2 ? 'ph-l' : 'ph-r';
+  const [, budget] = TIER[tier];
   const ex = budget ? excerpt(article.summary, budget) : '';
   const signer = imageSigner();
   const photo = await pictureSrc(article.image ?? '', IMG_WIDTH[tier], signer);
   const icon = await pictureSrc(article.favicon ?? '', FAVICON_WIDTH, signer);
-  const cls = `card t-${tier} w${span}${photo ? '' : ' noimg'}${read ? ' read' : ''}`;
+  const look = LOOK[tier];
+  const source = article.source || hostOf(article.url);
 
   return (
     <article
-      className={cls}
+      className={cn(
+        'group relative transition-opacity data-read:opacity-55',
+        'print:break-inside-avoid print:after:block print:after:text-[9px] print:after:wrap-anywhere print:after:text-ink/70 print:after:content-[attr(data-url)]',
+        look.card,
+      )}
+      data-story=""
       data-url={article.url}
       data-article-id={personal ? article.id : undefined}
       data-comments-url={article.comments_url ?? undefined}
+      data-read={read ? '' : undefined}
     >
       <a
-        className="hit focus-ring-flush"
+        className="focus-ring-flush absolute inset-0 rounded-card"
+        data-story-link=""
         href={article.url}
         target="_blank"
         rel="noopener noreferrer"
         aria-label={article.title ?? ''}
       />
-      <div className="meat">
-        <div className="kicker">
-          <span className="num">•</span>
+      {photo ? (
+        <img
+          data-part=""
+          loading="lazy"
+          src={photo}
+          alt=""
+          className={cn('bg-ink/5 object-cover', look.photo)}
+        />
+      ) : null}
+      <div
+        className={cn(
+          'pointer-events-none min-w-0 flex-1',
+          tier === 'feature' && 'p-4',
+        )}
+      >
+        <p className="flex items-center gap-2 text-xs font-medium text-subtle">
           {icon ? (
-            <img className="fav" loading="lazy" src={icon} alt="" />
-          ) : null}{' '}
-          {article.source || hostOf(article.url)}
-          <span className="score">
+            <img
+              className="size-4 rounded-sm"
+              loading="lazy"
+              src={icon}
+              alt=""
+            />
+          ) : null}
+          <span className="truncate">{source}</span>
+          <span aria-hidden="true">·</span>
+          <span className="shrink-0">
             {article.points ? `▲ ${article.points}` : ago(article.published_at)}
           </span>
-        </div>
-        <h2 className="hl">{article.title}</h2>
-        {photo ? (
-          <figure className={`ph ${side}`}>
-            <img loading="lazy" src={photo} alt="" />
-          </figure>
+        </p>
+        <h2
+          className={cn(
+            'mt-2 font-semibold tracking-tight text-balance text-ink group-hover:text-accent',
+            look.title,
+          )}
+        >
+          {article.title}
+        </h2>
+        {ex ? (
+          <p
+            data-part=""
+            className={cn(
+              'mt-2 text-sm leading-relaxed text-muted print:line-clamp-none',
+              tier === 'standard' ? 'line-clamp-2' : 'line-clamp-4',
+              tier === 'lead' && 'sm:text-base',
+            )}
+          >
+            {ex}
+          </p>
         ) : null}
-        {ex ? <p className="ex">{ex}</p> : null}
         {also.length ? (
-          <p className="also">Also covered by: {also.join(', ')}</p>
+          <p data-part="" className="mt-2 text-xs text-subtle">
+            Also covered by: {also.join(', ')}
+          </p>
         ) : null}
-        <div className="storyfoot">
-          <span className="more">Read full story ↗</span>
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+          <span className="text-subtle print:hidden">Read full story ↗</span>
           {article.body_text ? (
             <a
-              className="more textlink focus-ring"
+              className={FOOT_LINK}
               data-action="full-text"
               href={`/article/${article.id}`}
             >
@@ -99,7 +168,7 @@ export async function StoryCard({
           {personal ? (
             <StoryActions
               articleId={article.id}
-              source={article.source || hostOf(article.url)}
+              source={source}
               saved={saved}
             />
           ) : null}

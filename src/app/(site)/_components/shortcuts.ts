@@ -29,7 +29,6 @@ export type Shortcut =
   | 'search'
   | 'fullscreen'
   | 'masthead'
-  | 'theme'
   | 'help';
 
 /** The keys, as the help overlay lists them. */
@@ -62,8 +61,7 @@ export const SHORTCUTS: ReadonlyArray<readonly [keys: string, does: string]> = [
   ['R', 'Fetch every feed again now'],
   ['/', 'Search'],
   ['F', 'Full screen'],
-  ['U', 'Hide or show the masthead'],
-  ['S', 'Switch the paper’s style'],
+  ['U', 'Hide or show the top bar'],
   ['?', 'Show or hide these shortcuts'],
 ];
 
@@ -114,7 +112,6 @@ const KEYS: Readonly<Record<string, Shortcut>> = {
   '/': 'search',
   F: 'fullscreen',
   U: 'masthead',
-  S: 'theme',
   '?': 'help',
 };
 

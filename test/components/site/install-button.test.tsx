@@ -11,9 +11,8 @@ describe('InstallButton', () => {
     expect(html(<InstallButton />)).not.toContain('<button');
   });
 
-  it('keeps the bar the masthead styles, and a card for the iOS tip that hides while empty', () => {
+  it('keeps a card for the iOS tip that hides while empty', () => {
     const out = html(<InstallButton />);
-    expect(out).toContain('class="installbar"');
     expect(out).toContain('empty:hidden');
   });
 });

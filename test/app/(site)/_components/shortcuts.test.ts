@@ -60,7 +60,6 @@ describe('shortcutFor', () => {
     ['/', 'search'],
     ['F', 'fullscreen'],
     ['U', 'masthead'],
-    ['S', 'theme'],
     ['?', 'help'],
   ])('maps %s to %s', (key, shortcut) => {
     expect(shortcutFor(press(key))).toBe(shortcut);
@@ -74,6 +73,10 @@ describe('shortcutFor', () => {
     ['ArrowUp', { shiftKey: true }, 'prev-section'],
   ])('maps %s with %j to %s', (key, mods, shortcut) => {
     expect(shortcutFor(press(key, mods))).toBe(shortcut);
+  });
+
+  it('has no style key, as light and dark follow the device', () => {
+    expect(shortcutFor(press('S'))).toBeNull();
   });
 
   it('does not treat an inherited name as a key', () => {
@@ -130,8 +133,8 @@ describe('step', () => {
 
 describe('SHORTCUTS', () => {
   it('lists a line for each group of keys the page answers to', () => {
-    expect(SHORTCUTS).toHaveLength(31);
-    expect(new Set(SHORTCUTS.map(([keys]) => keys)).size).toBe(31);
+    expect(SHORTCUTS).toHaveLength(30);
+    expect(new Set(SHORTCUTS.map(([keys]) => keys)).size).toBe(30);
   });
 });
 

@@ -3,6 +3,7 @@
 import { useState, useSyncExternalStore, type ReactElement } from 'react';
 
 import { webSpeech, type ReadAloud } from '@/app/(site)/_components/read-aloud';
+import { CHIP } from '@/app/(site)/_components/story-actions';
 
 /** One reader for the page, so starting one story stops the last. */
 let shared: ReadAloud | null | undefined;
@@ -35,7 +36,7 @@ export function ListenButton({
   return (
     <button
       type="button"
-      className="listen focus-ring"
+      className={CHIP}
       data-action="listen"
       aria-pressed={playing}
       aria-label={`${playing ? 'Stop reading' : 'Listen to'} ${title}`}

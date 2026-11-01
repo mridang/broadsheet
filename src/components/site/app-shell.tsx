@@ -28,11 +28,11 @@ export async function AppShell({
   }
   const sidebar = <AppSidebar user={user} feeds={feeds} />;
   return (
-    <div className="app-ui flex min-h-dvh flex-col font-sans">
+    <div className="flex min-h-dvh flex-col">
       <SkipLink />
       <AppHeader user={user} menu={sidebar} />
       <div className="mx-auto flex w-full max-w-7xl flex-1 gap-10 px-4 sm:px-6 lg:px-8">
-        <aside className="sticky top-16 hidden h-[calc(100dvh-4rem)] w-60 shrink-0 self-start overflow-y-auto py-8 lg:block">
+        <aside className="sticky top-16 hidden h-[calc(100dvh-4rem)] w-60 shrink-0 self-start overflow-y-auto py-8 lg:block print:hidden">
           {sidebar}
         </aside>
         <main id="main" className="min-w-0 flex-1 pt-8 pb-20 sm:pt-10">

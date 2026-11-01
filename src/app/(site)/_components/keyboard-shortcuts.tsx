@@ -20,19 +20,21 @@ import {
   markRead,
   markUnread,
 } from '@/app/(site)/_components/story-requests';
+import { buttonClass } from '@/components/ui/button';
+import { fieldClass } from '@/components/ui/field';
 
 /** The link that covers each story; focusing it is focusing the story. */
-const STORY = 'article.card > a.hit';
+const STORY = 'article[data-story] > a[data-story-link]';
 
 /** What a collapsed story hides: everything below its headline. */
-const BODY = '.ph, .ex, .also';
+const BODY = '[data-part]';
 
 /** A section of the paper, for the `g` picker. */
 type Desk = Readonly<{ name: string; first: number }>;
 
 /** The paper's sections, each with the index of its first story. */
 function desks(cards: readonly HTMLElement[]): Desk[] {
-  return Array.from(document.querySelectorAll('section.zone')).flatMap(
+  return Array.from(document.querySelectorAll('section[data-desk]')).flatMap(
     (zone) => {
       const first = cards.findIndex((card) => zone.contains(card));
       const name = zone.querySelector('h3')?.textContent?.trim() ?? '';
@@ -44,8 +46,7 @@ function desks(cards: readonly HTMLElement[]): Desk[] {
 /**
  * NewsBlur's reading keys on the paper, listed in full by `?`. They move
  * between stories, sections and editions; open, expand, collapse, save, mark
- * and read aloud the focused story; and switch the page's style, masthead and
- * full screen. Keys typed into a field are left alone. The stories' links take
+ * and read aloud the focused story; and hide the top bar or go full screen. Keys typed into a field are left alone. The stories' links take
  * the focus, so Tab, the focus ring and a screen reader all follow the same
  * place j and k do.
  */
@@ -91,7 +92,7 @@ export function KeyboardShortcuts(): ReactElement {
         stories[to]?.focus();
         stories[to]?.scrollIntoView({ block: 'nearest' });
       };
-      const unread = () => cards.map((c) => c.classList.contains('read'));
+      const unread = () => cards.map((c) => c.hasAttribute('data-read'));
       switch (shortcut) {
         case 'next':
         case 'prev':
@@ -107,7 +108,9 @@ export function KeyboardShortcuts(): ReactElement {
           return;
         case 'next-section':
         case 'prev-section': {
-          const zones = Array.from(document.querySelectorAll('section.zone'));
+          const zones = Array.from(
+            document.querySelectorAll('section[data-desk]'),
+          );
           go(
             sectionStep(
               cards.map((c) => zones.findIndex((z) => z.contains(c))),
@@ -181,7 +184,7 @@ export function KeyboardShortcuts(): ReactElement {
           const id = Number(card?.dataset['articleId']);
           if (!card || !id) return;
           take();
-          if (card.classList.toggle('read')) markRead(id);
+          if (card.toggleAttribute('data-read')) markRead(id);
           else markUnread(id);
           return;
         }
@@ -193,7 +196,7 @@ export function KeyboardShortcuts(): ReactElement {
             .filter((c) => c.dataset['articleId']);
           if (!marked.length) return;
           take();
-          marked.forEach((c) => c.classList.add('read'));
+          marked.forEach((c) => c.toggleAttribute('data-read', true));
           markManyRead(marked.map((c) => Number(c.dataset['articleId'])));
           return;
         }
@@ -216,15 +219,14 @@ export function KeyboardShortcuts(): ReactElement {
           else void document.documentElement.requestFullscreen?.();
           return;
         case 'masthead': {
-          const mast = document.querySelector<HTMLElement>('header.mast');
-          if (!mast) return;
+          const bar = document.querySelector<HTMLElement>(
+            'header[data-top-bar]',
+          );
+          if (!bar) return;
           take();
-          mast.hidden = !mast.hidden;
+          bar.hidden = !bar.hidden;
           return;
         }
-        case 'theme':
-          act('.switcher button[aria-pressed="false"]', document);
-          return;
       }
     }
     document.addEventListener('keydown', onKey);
@@ -246,27 +248,45 @@ export function KeyboardShortcuts(): ReactElement {
 
   return (
     <>
-      <dialog ref={help} className="keyhelp" aria-labelledby="keyhelp-title">
-        <h2 id="keyhelp-title">Keyboard shortcuts</h2>
-        <dl>
+      <dialog
+        ref={help}
+        className="m-auto max-h-[85dvh] w-[min(26rem,calc(100vw-2rem))] rounded-card border border-line bg-surface p-6 text-ink shadow-xl backdrop:bg-black/40"
+        aria-labelledby="keyhelp-title"
+      >
+        <h2 id="keyhelp-title" className="text-lg font-semibold">
+          Keyboard shortcuts
+        </h2>
+        <dl className="mt-4 divide-y divide-line text-sm">
           {SHORTCUTS.map(([keys, does]) => (
-            <div key={keys}>
-              <dt>
-                <kbd>{keys}</kbd>
+            <div key={keys} className="flex gap-4 py-2">
+              <dt className="w-24 shrink-0">
+                <kbd className="rounded border border-line bg-ink/5 px-1.5 py-0.5 font-mono text-xs">
+                  {keys}
+                </kbd>
               </dt>
-              <dd>{does}</dd>
+              <dd className="text-muted">{does}</dd>
             </div>
           ))}
         </dl>
-        <form method="dialog">
-          <button type="submit" className="btn small focus-ring">
+        <form method="dialog" className="mt-5">
+          <button
+            type="submit"
+            className={buttonClass({ variant: 'outline', size: 'sm' })}
+          >
             Close
           </button>
         </form>
       </dialog>
-      <dialog ref={picker} className="keyhelp" aria-labelledby="goto-title">
-        <h2 id="goto-title">Go to a section</h2>
+      <dialog
+        ref={picker}
+        className="m-auto w-[min(26rem,calc(100vw-2rem))] rounded-card border border-line bg-surface p-6 text-ink shadow-xl backdrop:bg-black/40"
+        aria-labelledby="goto-title"
+      >
+        <h2 id="goto-title" className="text-lg font-semibold">
+          Go to a section
+        </h2>
         <form
+          className="mt-4"
           onSubmit={(event) => {
             event.preventDefault();
             if (shown[0]) choose(shown[0]);
@@ -277,15 +297,20 @@ export function KeyboardShortcuts(): ReactElement {
             aria-label="Section name"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
+            className={fieldClass('w-full')}
           />
         </form>
-        <dl>
+        <dl className="mt-3 max-h-80 overflow-y-auto">
           {shown.map((desk) => (
             <div key={desk.first}>
               <dd>
                 <button
                   type="button"
-                  className="btn ghost small focus-ring"
+                  className={buttonClass({
+                    variant: 'ghost',
+                    size: 'sm',
+                    className: 'w-full justify-start font-medium',
+                  })}
                   onClick={() => choose(desk)}
                 >
                   {desk.name}

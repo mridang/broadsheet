@@ -5,7 +5,7 @@ import { useEffect } from 'react';
 import { markRead } from '@/app/(site)/_components/story-requests';
 
 /** The link that covers each story, carrying the story's article id. */
-const STORY = 'article.card[data-article-id] > a.hit';
+const STORY = 'article[data-article-id] > a[data-story-link]';
 
 /**
  * Notes a story as read when its link is opened (a click, a middle click or
@@ -18,7 +18,7 @@ export function ReadTracker(): null {
       const card = link?.parentElement;
       const id = Number(card?.dataset['articleId']);
       if (!card || !id) return;
-      card.classList.add('read');
+      card.toggleAttribute('data-read', true);
       markRead(id);
     }
     document.addEventListener('click', onOpen);

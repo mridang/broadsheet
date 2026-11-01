@@ -9,12 +9,12 @@ describe('KeyboardShortcuts', () => {
   it('keeps the help in a closed dialog named by its heading', () => {
     expect(out).toMatch(/<dialog[^>]*aria-labelledby="keyhelp-title"/);
     expect(out).not.toMatch(/<dialog[^>]*\sopen/);
-    expect(out).toContain('id="keyhelp-title">Keyboard shortcuts</h2>');
+    expect(out).toMatch(/id="keyhelp-title"[^>]*>Keyboard shortcuts<\/h2>/);
   });
 
   it('lists each key', () => {
     ['n', 'g', 'A', 'Y', 'Shift Enter', 'c', '?'].forEach((key) =>
-      expect(out).toContain(`<kbd>${key}</kbd>`),
+      expect(out).toContain(`>${key}</kbd>`),
     );
   });
 

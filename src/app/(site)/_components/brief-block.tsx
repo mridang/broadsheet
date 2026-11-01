@@ -1,25 +1,32 @@
 import type { Article } from '@/domain/repository';
 import { hostOf } from '@/domain/render/tiers';
 
-/** The low-weight tail, rendered as a newspaper "In Brief" rail. */
+/** The low-weight tail of a desk, as a compact "In brief" list. */
 export function BriefBlock({ items }: { items: Article[] }) {
   return (
-    <article className="card w-all brief-block">
-      <div className="meat">
-        <div className="brief-h">In Brief</div>
+    <div className="mt-2 rounded-card bg-ink/3 p-5 sm:col-span-2 print:break-inside-avoid">
+      <h3 className="text-xs font-semibold tracking-wide text-subtle uppercase">
+        In brief
+      </h3>
+      <ul className="mt-3 divide-y divide-line">
         {items.map((a) => (
-          <a
-            key={a.id}
-            className="brief-item"
-            href={a.url}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <span className="bt">{a.title}</span>
-            <span className="bs">{a.source || hostOf(a.url)}</span>
-          </a>
+          <li key={a.id}>
+            <a
+              className="focus-ring group flex items-baseline justify-between gap-4 rounded-sm py-2 print:after:text-[9px] print:after:content-['_('_attr(href)_')']"
+              href={a.url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <span className="text-sm font-medium text-ink group-hover:text-accent">
+                {a.title}
+              </span>
+              <span className="shrink-0 text-xs text-subtle">
+                {a.source || hostOf(a.url)}
+              </span>
+            </a>
+          </li>
         ))}
-      </div>
-    </article>
+      </ul>
+    </div>
   );
 }

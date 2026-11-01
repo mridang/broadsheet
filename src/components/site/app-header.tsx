@@ -19,7 +19,10 @@ export function AppHeader({
   menu,
 }: Readonly<{ user: User | null; menu: ReactNode }>): ReactElement {
   return (
-    <header className="sticky top-0 z-30 border-b border-line bg-paper/90 backdrop-blur">
+    <header
+      data-top-bar=""
+      className="sticky top-0 z-30 border-b border-line bg-paper/90 backdrop-blur print:hidden"
+    >
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 sm:px-6 lg:px-8">
         <details className="group lg:hidden">
           <summary
@@ -70,9 +73,7 @@ export function AppHeader({
               <span className="hidden max-w-40 truncate text-sm text-muted sm:inline">
                 {user.name || user.email}
               </span>
-              <SignOutButton
-                className={buttonClass({ variant: 'outline', size: 'sm' })}
-              />
+              <SignOutButton />
             </>
           ) : (
             <a

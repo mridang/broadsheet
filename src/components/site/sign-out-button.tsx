@@ -2,6 +2,8 @@
 
 import type { ReactElement } from 'react';
 
+import { buttonClass } from '@/components/ui/button';
+
 /**
  * Signs the person out: ends the session on the server, then goes to the front
  * page whether or not that request succeeded (a failed request must not leave
@@ -16,15 +18,14 @@ async function signOut(): Promise<void> {
   window.location.assign('/');
 }
 
-/**
- * "Sign out": in the masthead it is styled as the other account links; the app
- * bar passes its own `className`.
- */
-export function SignOutButton({
-  className = 'navlink',
-}: Readonly<{ className?: string }>): ReactElement {
+/** "Sign out" in the app's top bar. */
+export function SignOutButton(): ReactElement {
   return (
-    <button type="button" className={className} onClick={() => void signOut()}>
+    <button
+      type="button"
+      className={buttonClass({ variant: 'outline', size: 'sm' })}
+      onClick={() => void signOut()}
+    >
       Sign out
     </button>
   );

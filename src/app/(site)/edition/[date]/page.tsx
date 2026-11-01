@@ -12,6 +12,7 @@ import {
   storedIssue,
 } from '@/domain/issues';
 import { formatEdition } from '@/domain/render/tiers';
+import { FrontPage } from '@/app/(site)/_components/front-page';
 import { Paper } from '@/app/(site)/_components/paper';
 import { loadPersonal } from '@/app/(site)/_components/personal';
 import { ReadTracker } from '@/app/(site)/_components/read-tracker';
@@ -49,8 +50,11 @@ export default async function Edition({ params }: { params: Params }) {
   const personal = user ? await loadPersonal(repo, user.id) : undefined;
 
   return (
-    <>
-      <EditionBar selected={date} editions={editions} />
+    <FrontPage
+      title="Back issue"
+      description={`The paper as it was on ${formatEdition(date)}.`}
+      bar={<EditionBar selected={date} editions={editions} />}
+    >
       <KeyboardShortcuts />
       {user ? <ReadTracker /> : null}
       <Paper
@@ -59,6 +63,6 @@ export default async function Edition({ params }: { params: Params }) {
         briefing={issue.briefing}
         personal={personal}
       />
-    </>
+    </FrontPage>
   );
 }

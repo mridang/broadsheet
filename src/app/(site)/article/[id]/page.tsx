@@ -94,7 +94,7 @@ export default async function ArticlePage({
         ) : null}
       </div>
       {paragraphs.length ? (
-        <div className="mt-8 space-y-5 font-(family-name:--font-source-serif) text-lg leading-8 text-ink/90">
+        <div className="mt-8 space-y-5 font-serif text-lg leading-8 text-ink/90">
           {paragraphs.map((text, i) => (
             <p key={i}>{text}</p>
           ))}

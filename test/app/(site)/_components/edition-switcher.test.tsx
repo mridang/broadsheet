@@ -6,7 +6,9 @@ import { html } from '../../../components/render';
 describe('EditionSwitcher', () => {
   it('marks the daily paper when no custom edition shows', () => {
     const out = html(<EditionSwitcher editions={[]} />);
-    expect(out).toContain('<a href="/" aria-current="page">Daily</a>');
+    expect(out).toMatch(
+      /<a class="[^"]*" href="\/" aria-current="page">Daily<\/a>/,
+    );
     expect(out).toContain('href="/editions"');
   });
 
@@ -20,8 +22,8 @@ describe('EditionSwitcher', () => {
         selected={5}
       />,
     );
-    expect(out).toContain('<a href="/?edition=4">Weekend</a>');
-    expect(out).toContain('<a href="/?edition=5" aria-current="page">Rust</a>');
-    expect(out).toContain('<a href="/">Daily</a>');
+    expect(out).toMatch(/href="\/\?edition=4">Weekend<\/a>/);
+    expect(out).toContain('href="/?edition=5" aria-current="page">Rust</a>');
+    expect(out).toContain('href="/">Daily</a>');
   });
 });

@@ -4,9 +4,9 @@ import { SignOutButton } from '@/components/site/sign-out-button';
 import { html } from '../render';
 
 describe('SignOutButton', () => {
-  it('is a button that looks like the masthead’s other account links', () => {
-    expect(html(<SignOutButton />)).toBe(
-      '<button type="button" class="navlink">Sign out</button>',
+  it('is a plain button, not a link', () => {
+    expect(html(<SignOutButton />)).toMatch(
+      /^<button type="button" class="[^"]*">Sign out<\/button>$/,
     );
   });
 });
@@ -27,7 +27,7 @@ describe('signing out', () => {
       window: { location: { assign } },
     });
     jest.spyOn(globalThis, 'fetch').mockImplementation(fetchSpy as never);
-    const { props } = SignOutButton({});
+    const { props } = SignOutButton();
     await (props as { onClick: () => Promise<void> | void }).onClick();
     await new Promise((resolve) => setTimeout(resolve, 0));
     return fetchSpy;

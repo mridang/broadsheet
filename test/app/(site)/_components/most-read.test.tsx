@@ -21,7 +21,7 @@ describe('MostRead', () => {
         ]}
       />,
     );
-    expect(out).toContain('<a href="/article/1">Big</a>');
+    expect(out).toMatch(/<a[^>]*href="\/article\/1">Big<\/a>/);
     expect(out).toContain('3 readers');
     expect(out).toContain('https://x/2</a>');
     expect(out).toContain('1 reader<');
