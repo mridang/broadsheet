@@ -164,7 +164,7 @@ export function SaveButton({
     <>
       <IconButton
         label={`${isSaved ? 'Saved' : 'Save'} ${title}`.trim()}
-        className="relative z-10"
+        className="pointer-events-auto relative z-10"
         data-action="save"
         disabled={save.busy}
         aria-pressed={isSaved}

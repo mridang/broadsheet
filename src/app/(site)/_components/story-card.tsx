@@ -43,7 +43,7 @@ const LOOK: Record<
     title: 'text-2xl leading-tight sm:text-3xl',
   },
   feature: {
-    card: 'flex flex-col rounded-card border border-line bg-surface transition-shadow hover:shadow-raised',
+    card: 'flex flex-col rounded-card border border-line bg-surface transition-shadow has-[[data-story-link]:hover]:shadow-raised',
     photo: 'aspect-video w-full rounded-t-card',
     title: 'text-lg leading-snug',
   },
@@ -58,6 +58,12 @@ const LOOK: Record<
 export const FOOT_LINK =
   'focus-ring pointer-events-auto relative z-10 rounded-control font-medium text-subtle transition-colors hover:text-ink';
 
+/**
+ * How a read story is dimmed: its words and photo fade, never the card, so its
+ * menu stays opaque and above the stories after it.
+ */
+const DIM = 'transition-opacity group-data-read:opacity-55';
+
 /** The look of the button that opens a story's menu: a quiet icon button. */
 const MORE =
   'focus-ring inline-flex size-8 items-center justify-center rounded-control text-muted transition-colors hover:bg-ink/5 hover:text-ink active:bg-ink/10 group-open:bg-ink/5 group-open:text-ink';
@@ -66,7 +72,7 @@ const MORE =
  * One story. Its tier decides how much room it gets (a lead spans the desk
  * with a large photo, a feature is a card, a standard story a row) and how
  * long its excerpt is. The whole card is a link to the story; its controls sit
- * above that link. A story the person has read is dimmed; a signed-in person
+ * above that link. A story the person has read is dimmed (its words, not its controls); a signed-in person
  * (`personal`) gets the training and save controls (`feedId` lets them train
  * the feed, and share the story). `also` names the other sources that
  * covered the same story; with their `siblings` (its cluster) it gets a badge
@@ -111,7 +117,7 @@ export async function StoryCard({
   return (
     <article
       className={cn(
-        'group relative min-w-0 transition-opacity data-read:opacity-55',
+        'group relative min-w-0 has-[details[open]]:z-40',
         'print:break-inside-avoid print:after:block print:after:text-label print:after:wrap-anywhere print:after:text-ink/70 print:after:content-[attr(data-url)]',
         look.card,
       )}
@@ -135,7 +141,11 @@ export async function StoryCard({
           loading="lazy"
           src={photo}
           alt=""
-          className={cn('bg-ink/5 object-cover', look.photo)}
+          className={cn(
+            'pointer-events-none bg-ink/5 object-cover',
+            DIM,
+            look.photo,
+          )}
         />
       ) : null}
       <div
@@ -144,7 +154,12 @@ export async function StoryCard({
           tier === 'feature' && 'p-4',
         )}
       >
-        <p className="flex items-center gap-2 text-xs font-medium text-subtle">
+        <p
+          className={cn(
+            'flex items-center gap-2 text-xs font-medium text-subtle',
+            DIM,
+          )}
+        >
           {icon ? (
             <img
               className="size-4 rounded-control"
@@ -162,7 +177,8 @@ export async function StoryCard({
         </p>
         <h2
           className={cn(
-            'mt-2 font-semibold tracking-tight text-balance text-ink group-hover:text-accent',
+            'mt-2 font-semibold tracking-tight text-balance text-ink group-has-[[data-story-link]:hover]:text-accent',
+            DIM,
             look.title,
           )}
         >
@@ -173,6 +189,7 @@ export async function StoryCard({
             data-part=""
             className={cn(
               'mt-2 text-sm leading-relaxed text-muted print:line-clamp-none',
+              DIM,
               tier === 'standard' ? 'line-clamp-2' : 'line-clamp-4',
               tier === 'lead' && 'sm:text-base',
             )}
@@ -188,7 +205,7 @@ export async function StoryCard({
             {...(readIds ? { read: readIds } : {})}
           />
         ) : also.length ? (
-          <p data-part="" className="mt-2 text-xs text-subtle">
+          <p data-part="" className={cn('mt-2 text-xs text-subtle', DIM)}>
             Also covered by: {also.join(', ')}
           </p>
         ) : null}

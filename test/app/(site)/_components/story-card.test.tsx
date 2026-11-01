@@ -125,6 +125,45 @@ describe('StoryCard', () => {
     expect(out).toContain('data-action="save"');
   });
 
+  it("dims a read story's words, never the card that holds its menu", async () => {
+    const out = html(
+      await StoryCard({
+        article: article(),
+        tier: 'standard',
+        personal: true,
+        read: true,
+      }),
+    );
+    expect(out).not.toMatch(/<article[^>]*opacity/);
+    expect(out).toMatch(/<h2[^>]*group-data-read:opacity-55/);
+  });
+
+  it('raises a story above the next while its menu is open', async () => {
+    expect(
+      html(await StoryCard({ article: article(), tier: 'standard' })),
+    ).toMatch(/<article[^>]*has-\[details\[open\]\]:z-40/);
+  });
+
+  it('lets the save button and the photo take clicks over the story link', async () => {
+    const out = html(
+      await StoryCard({
+        article: article({ image: 'https://example.com/p.jpg' }),
+        tier: 'standard',
+        personal: true,
+      }),
+    );
+    expect(out).toMatch(
+      /<button[^>]*pointer-events-auto[^>]*data-action="save"/,
+    );
+    expect(out).toMatch(/<img[^>]*class="pointer-events-none /);
+  });
+
+  it('highlights the headline only when the story link is hovered', async () => {
+    const out = html(await StoryCard({ article: article(), tier: 'feature' }));
+    expect(out).not.toContain('group-hover:text-accent');
+    expect(out).toContain('group-has-[[data-story-link]:hover]:text-accent');
+  });
+
   it('gives a visitor no controls and no id', async () => {
     const out = html(await StoryCard({ article: article(), tier: 'standard' }));
     expect(out).not.toContain('data-article-id');
