@@ -5,6 +5,12 @@ collection:
     summary: List the saved stories, newest save first.
     description: Rate limited by the `RL_API` binding.
     parameters:
+      - name: q
+        in: query
+        description: Only the stories matching these words as `GET /api/articles` matches `q`; a `tag:` term also matches the person's own tags on the save.
+        schema:
+          type: string
+          maxLength: 200
       - name: tag
         in: query
         description: Only the stories saved with this tag; empty for every one.

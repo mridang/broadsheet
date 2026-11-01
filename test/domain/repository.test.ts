@@ -9,6 +9,7 @@ import {
   DEFAULT_PREFERENCES,
   conversationTitle,
   ftsQuery,
+  searchTerms,
   MAX_BACKOFF_MINUTES,
   Repository,
   autoMarkReadDays,
@@ -426,9 +427,39 @@ describe('ftsQuery', () => {
     );
     expect(ftsQuery('   ')).toBe('');
   });
+
+  it('limits author: and tag: terms to their column', () => {
+    expect(ftsQuery('rust author:"Ada Lovelace" tag:news tags:x"y')).toBe(
+      '"rust" author : "Ada Lovelace" tags : "news" tags : "x""y"',
+    );
+  });
+});
+
+describe('searchTerms', () => {
+  it('reads author: and tag: terms out of the words', () => {
+    expect(searchTerms('Author:ada  rust TAG:"big news" author:"" go')).toEqual(
+      { words: ['rust', 'go'], authors: ['ada'], tags: ['big news'] },
+    );
+  });
 });
 
 describe('searchArticles and getArticle', () => {
+  it('search by author and tag, as NewsBlur does', async () => {
+    const repo = new Repository(db);
+    const { source_id } = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await repo.writeEdition(source_id, '2026-10-01', [
+      story({ url: 'https://x/1', author: 'Ada Lovelace', tags: ['Science'] }),
+      story({ url: 'https://x/2', title: 'Ada on engines', tags: ['History'] }),
+    ]);
+    const urls = async (q: string) =>
+      (await repo.searchArticles(1, { q, limit: 10 })).map((a) => a.url);
+    expect(await urls('author:"ada lovelace"')).toEqual(['https://x/1']);
+    expect(await urls('author:ada')).toEqual(['https://x/1']);
+    expect(await urls('tag:history')).toEqual(['https://x/2']);
+    expect(await urls('science')).toEqual(['https://x/1']);
+    expect(await urls('ada')).toEqual(['https://x/2', 'https://x/1']);
+  });
+
   it('list one feed, newest copy of each story only', async () => {
     const repo = new Repository(db);
     const a = (await addFeed(db, 1, 'https://a.test/f'))!;
@@ -707,6 +738,32 @@ describe('saves', () => {
     expect(await repo.listSaves(1, 'keep')).toHaveLength(1);
     expect(await repo.listSaves(1, 'other')).toEqual([]);
     expect(await repo.listSaves(2)).toEqual([]);
+  });
+
+  it("searches saves, a tag: term matching the person's own tags too", async () => {
+    const repo = new Repository(db);
+    const { source_id } = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await repo.writeEdition(source_id, '2026-10-01', [
+      story({ url: 'https://x/1', author: 'Ada', tags: ['Science'] }),
+      story({ url: 'https://x/2', title: 'Engines' }),
+    ]);
+    const ids = new Map(
+      (await repo.sourceArticles(source_id, '2026-10-01')).map((a) => [
+        a.url,
+        a.id,
+      ]),
+    );
+    await repo.saveArticle(1, ids.get('https://x/1')!, []);
+    await repo.saveArticle(1, ids.get('https://x/2')!, ['Later']);
+    const urls = async (q: string) =>
+      (await repo.listSaves(1, undefined, undefined, q)).map(
+        (s) => s.article.url,
+      );
+    expect(await urls('author:ada')).toEqual(['https://x/1']);
+    expect(await urls('tag:science')).toEqual(['https://x/1']);
+    expect(await urls('tag:later')).toEqual(['https://x/2']);
+    expect(await urls('engines')).toEqual(['https://x/2']);
+    expect(await urls('engines tag:science')).toEqual([]);
   });
 
   it('unsaves a story once', async () => {

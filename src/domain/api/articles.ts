@@ -85,7 +85,8 @@ async function trendingPage(
 /**
  * `GET /api/articles?q=&order=&window=&cursor=&limit=`: articles from the
  * sources the person follows, from every edition. Newest first by default,
- * and with `q`, only those whose title, summary or text holds every word. With
+ * and with `q`, only those whose title, summary, text, author or tags hold
+ * every word (`author:` and `tag:` terms only that field, as NewsBlur's). With
  * `order=reads` or `order=saves`, ranked instead by how many people read or
  * saved each in the `window` (only counts, never who). 200 with `{self, next?,
  * items}`, 400 for a bad parameter, 401 when not signed in.

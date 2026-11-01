@@ -12,6 +12,7 @@ import {
 } from '@/domain/api/auth';
 import { parseFeedId } from '@/domain/api/feed-resource';
 import { idOf } from '@/domain/api/feeds';
+import { MAX_QUERY_LENGTH } from '@/domain/api/article-resource';
 import { newestPage, pageRequest, type PageRequest } from '@/domain/api/paging';
 import {
   parseSaveInput,
@@ -46,6 +47,7 @@ type SaveContent = Omit<Extract<SaveBody, { ok: true }>, 'ok'>;
 interface SaveQuery extends PageRequest {
   readonly tag: string | undefined;
   readonly sourceId: number | undefined;
+  readonly q: string;
 }
 
 /**
@@ -86,9 +88,9 @@ async function optionalObject(
 }
 
 /**
- * `GET /api/users/self/saves?tag&feed_id&limit&cursor`: the person's saved
+ * `GET /api/users/self/saves?q&tag&feed_id&limit&cursor`: the person's saved
  * stories, newest save first, only those with `tag` or from the feed
- * `feed_id` when given. 400 for a bad limit or cursor or a feed the person
+ * `feed_id` when given, and matching `q` (words, `author:` and `tag:`). 400 for a bad limit, cursor or too long a `q`, or a feed the person
  * does not follow, 401 when not signed in.
  */
 export function createSavesCollection(
@@ -103,15 +105,20 @@ export function createSavesCollection(
     method: 'GET',
     decode: async (request, { uid }) => {
       const query = new URL(request.url).searchParams;
+      const q = (query.get('q') ?? '').trim();
+      if (q.length > MAX_QUERY_LENGTH) {
+        throw problems.badRequest('The search is too long.', ['q: too long.']);
+      }
       return {
         ...pageRequest(request),
         tag: query.get('tag') || undefined,
         sourceId: await feedSource(query.get('feed_id'), uid),
+        q,
       };
     },
-    handle: async ({ tag, sourceId, ...paging }, { uid }) =>
+    handle: async ({ tag, sourceId, q, ...paging }, { uid }) =>
       newestPage(
-        await new Repository(getDatabase()).listSaves(uid, tag, sourceId),
+        await new Repository(getDatabase()).listSaves(uid, tag, sourceId, q),
         (s) => ({ key: s.saved_at ?? '', id: String(s.article.id) }),
         paging,
       ),

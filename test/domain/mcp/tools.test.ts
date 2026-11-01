@@ -502,6 +502,17 @@ describe('list_saved', () => {
       tags: ['go', 'rust'],
     });
   });
+
+  it('searches saves by a tag: term, with every tag in use', async () => {
+    const { articleId } = await seed();
+    const repo = new Repository(db);
+    await repo.saveArticle(1, articleId, ['rust']);
+    await repo.saveArticle(1, articleId + 1, ['go']);
+    expect(await run('list_saved', { query: 'tag:go' })).toMatchObject({
+      saves: [{ tags: ['go'] }],
+      tags: ['go', 'rust'],
+    });
+  });
 });
 
 describe('get_briefing', () => {

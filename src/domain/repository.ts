@@ -231,16 +231,59 @@ export interface ArchiveStats {
 }
 
 /**
+ * A person's search, split as NewsBlur's: `author:` and `tag:` (or `tags:`)
+ * terms, quoted for more than one word (`author:"Ada Lovelace"`), and the
+ * plain words left over.
+ */
+export interface SearchTerms {
+  readonly words: readonly string[];
+  readonly authors: readonly string[];
+  readonly tags: readonly string[];
+}
+
+/** Read `author:` and `tag:` terms out of a person's search. */
+export function searchTerms(q: string): SearchTerms {
+  const words: string[] = [];
+  const authors: string[] = [];
+  const tags: string[] = [];
+  for (const [token, field, quoted, bare] of q.matchAll(
+    /(author|tags?):(?:"([^"]*)"|(\S+))|\S+/gi,
+  )) {
+    const value = (quoted ?? bare ?? '').trim();
+    if (!field) words.push(token);
+    else if (value) {
+      (field.toLowerCase() === 'author' ? authors : tags).push(value);
+    }
+  }
+  return { words, authors, tags };
+}
+
+/** A value as an FTS5 phrase, its quotes doubled so nothing in it is run. */
+function phrase(value: string): string {
+  return `"${value.replace(/"/g, '""')}"`;
+}
+
+/**
  * A person's search words as an FTS5 query: each word a quoted phrase, so the
  * operators and punctuation of FTS5 syntax are matched as text, never run.
- * Every word must appear. Empty when there are no words.
+ * Every word must appear, in any column; an `author:` term only in the
+ * author and a `tag:` term only in the feed's tags (see {@link searchTerms}).
+ * Empty when there are no words.
  */
 export function ftsQuery(q: string): string {
-  return q
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((word) => `"${word.replace(/"/g, '""')}"`)
-    .join(' ');
+  return ftsMatch(searchTerms(q));
+}
+
+/** {@link ftsQuery} for terms already read, leaving out `tags` when told. */
+function ftsMatch(
+  { words, authors, tags }: SearchTerms,
+  withTags = true,
+): string {
+  return [
+    ...words.map(phrase),
+    ...authors.map((a) => `author : ${phrase(a)}`),
+    ...(withTags ? tags.map((t) => `tags : ${phrase(t)}`) : []),
+  ].join(' ');
 }
 
 /** A search a person keeps. */
@@ -1769,13 +1812,17 @@ export class Repository {
 
   /**
    * The person's saved stories, newest save first, optionally only those with
-   * one tag or from one source.
+   * one tag or from one source, and with `q` only those matching it as
+   * {@link ftsQuery} does, a `tag:` term matching the person's own tags too.
    */
   async listSaves(
     userId: number,
     tag?: string,
     sourceId?: number,
+    q = '',
   ): Promise<SavedStory[]> {
+    const terms = searchTerms(q);
+    const match = ftsMatch(terms, false);
     const rows = await this.#saved()
       .where(
         and(
@@ -1784,6 +1831,13 @@ export class Repository {
             ? undefined
             : sql`exists (select 1 from json_each(${saves.tags}) where json_each.value = ${tag})`,
           sourceId === undefined ? undefined : eq(articles.source_id, sourceId),
+          match
+            ? sql`${articles.id} IN (SELECT rowid FROM articles_fts WHERE articles_fts MATCH ${match})`
+            : undefined,
+          ...terms.tags.map(
+            (t) =>
+              sql`(exists (select 1 from json_each(${saves.tags}) where lower(json_each.value) = lower(${t})) OR ${articles.id} IN (SELECT rowid FROM articles_fts WHERE articles_fts MATCH ${`tags : ${phrase(t)}`}))`,
+          ),
         ),
       )
       .orderBy(desc(saves.created_at), desc(saves.article_id));

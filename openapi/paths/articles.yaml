@@ -12,7 +12,7 @@ collection:
     parameters:
       - name: q
         in: query
-        description: Words every article must hold in its title, summary or text.
+        description: Words every article must hold in its title, summary, text, author or tags. An `author:` or `tag:` term (quoted for several words, as `author:"Ada Lovelace"`) matches only that field, as NewsBlur's search does.
         schema:
           type: string
           maxLength: 200

@@ -82,6 +82,16 @@ describe('GET /api/users/self/saves', () => {
     expect(await items('?tag=other')).toEqual([]);
   });
 
+  it('lists only the stories matching q', async () => {
+    expect(await items('?q=one')).toHaveLength(1);
+    expect(await items('?q=tag%3Akeep')).toHaveLength(1);
+    expect(await items('?q=author%3Anobody')).toEqual([]);
+  });
+
+  it('answers 400 for too long a q', async () => {
+    expect((await list(`?q=${'a'.repeat(201)}`)).status).toBe(400);
+  });
+
   it('shows nobody else’s saves', async () => {
     auth = await cookieFor(8);
     expect(await items()).toEqual([]);

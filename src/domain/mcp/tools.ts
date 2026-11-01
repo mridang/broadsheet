@@ -431,7 +431,7 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
     name: 'search_articles',
     title: 'Search articles',
     description:
-      'List or search every edition of the feeds the person follows, newest first by default. With a query, every word must appear in the title, summary or text. Narrow by feeds, section, site, dates and read state; disliked stories are left out unless include_hidden is set.',
+      'List or search every edition of the feeds the person follows, newest first by default. With a query, every word must appear in the title, summary, text, author or tags; author:name and tag:name (quoted for several words) match only that field. Narrow by feeds, section, site, dates and read state; disliked stories are left out unless include_hidden is set.',
     input: z.object({
       query: z
         .string()
@@ -1031,16 +1031,21 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
     name: 'list_saved',
     title: 'List saved stories',
     description:
-      "List the person's saved stories, newest save first, optionally only those with one tag, with every tag in use.",
+      "List or search the person's saved stories, newest save first, optionally only those with one tag, with every tag in use. A query matches like search_articles, and its tag:name terms match the person's own tags too.",
     input: z.object({
       tag: z.string().optional().describe('Only stories saved with this tag.'),
+      query: z
+        .string()
+        .max(MAX_QUERY_LENGTH)
+        .default('')
+        .describe('Words, author:name and tag:name terms to look for.'),
     }),
     readOnly: true,
-    run: async ({ tag }, { uid, db }) => {
+    run: async ({ tag, query }, { uid, db }) => {
       const repo = new Repository(db);
       const [shown, all] = await Promise.all([
-        repo.listSaves(uid, tag),
-        tag === undefined ? undefined : repo.listSaves(uid),
+        repo.listSaves(uid, tag, undefined, query),
+        tag === undefined && !query ? undefined : repo.listSaves(uid),
       ]);
       return {
         saves: shown.slice(0, MAX_SEARCH).map(saveResource),
