@@ -9,7 +9,7 @@ import {
   type EditionEdit,
 } from '@/app/(site)/editions/_components/edition-requests';
 import { buttonClass } from '@/components/ui/button';
-import { CHECK_LABEL, CHECKBOX, fieldClass } from '@/components/ui/field';
+import { CHECK_LABEL } from '@/components/ui/field';
 import { ErrorText } from '@/components/ui/notice';
 
 /** A section an edition may print. */
@@ -78,7 +78,7 @@ export function EditionForm({
         defaultValue={draft.name}
         maxLength={200}
         required
-        className={fieldClass('sm:col-span-2')}
+        className="sm:col-span-2"
       />
       {sections.length ? (
         <fieldset className="flex flex-wrap gap-x-4 gap-y-2 sm:col-span-2">
@@ -92,7 +92,6 @@ export function EditionForm({
                 name="section"
                 value={s.id}
                 defaultChecked={draft.section_ids.includes(s.id)}
-                className={CHECKBOX}
               />{' '}
               {s.name}
             </label>
@@ -106,7 +105,6 @@ export function EditionForm({
         aria-label="Search"
         defaultValue={draft.query}
         maxLength={200}
-        className={fieldClass()}
       />
       <input
         name="tag"
@@ -115,7 +113,6 @@ export function EditionForm({
         aria-label="Tag"
         defaultValue={draft.tag}
         maxLength={50}
-        className={fieldClass()}
       />
       <button
         className={buttonClass({ className: 'justify-self-start' })}

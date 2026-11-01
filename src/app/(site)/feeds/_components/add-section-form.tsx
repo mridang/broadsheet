@@ -6,7 +6,6 @@ import { addSection } from '@/app/(site)/feeds/_components/feed-requests';
 import type { SectionOption } from '@/app/(site)/feeds/_components/feed-settings-form';
 import { useFeedAction } from '@/app/(site)/feeds/_components/use-feed-action';
 import { buttonClass } from '@/components/ui/button';
-import { fieldClass } from '@/components/ui/field';
 import { ErrorText } from '@/components/ui/notice';
 
 /**
@@ -37,17 +36,12 @@ export function AddSectionForm({
           name="name"
           type="text"
           placeholder="New section"
-          className={fieldClass('w-full sm:flex-1')}
+          className="w-full sm:flex-1"
           maxLength={200}
           required
         />
         {sections.length ? (
-          <select
-            name="parent_id"
-            aria-label="Inside"
-            defaultValue=""
-            className={fieldClass()}
-          >
+          <select name="parent_id" aria-label="Inside" defaultValue="">
             <option value="">Top level</option>
             {sections.map((s) => (
               <option key={s.id} value={String(s.id)}>

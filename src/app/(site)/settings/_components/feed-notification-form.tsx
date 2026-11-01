@@ -8,8 +8,7 @@ import {
   type NotificationRequest,
 } from '@/app/(site)/settings/_components/settings-requests';
 import { buttonClass } from '@/components/ui/button';
-import { CHECK_LABEL, CHECKBOX } from '@/components/ui/field';
-import { Select } from '@/components/ui/input';
+import { CHECK_LABEL, SMALL_FIELD } from '@/components/ui/field';
 import { ErrorText } from '@/components/ui/notice';
 
 /** The request a filled-in notification form makes. */
@@ -49,15 +48,15 @@ export function FeedNotificationForm({
       <strong className="w-full truncate text-sm font-medium text-ink sm:w-auto sm:flex-1">
         {title}
       </strong>
-      <Select
+      <select
         name="filter"
-        size="sm"
+        className={SMALL_FIELD}
         defaultValue={filter}
         aria-label={`Which new stories in ${title} notify you`}
       >
         <option value="unread">Any story not disliked</option>
         <option value="focus">Only liked stories</option>
-      </Select>
+      </select>
       {(['web', 'email', 'webhook'] as const).map((channel) => (
         <label key={channel} className={CHECK_LABEL}>
           <input
@@ -65,7 +64,6 @@ export function FeedNotificationForm({
             type="checkbox"
             value={channel}
             defaultChecked={channels.includes(channel)}
-            className={CHECKBOX}
           />{' '}
           {channel === 'web'
             ? 'Push'

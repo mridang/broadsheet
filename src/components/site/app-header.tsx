@@ -6,7 +6,6 @@ import type { User } from '@/domain/repository';
 import { Wordmark } from '@/components/site/logo';
 import { SignOutButton } from '@/components/site/sign-out-button';
 import { ButtonLink, TextLink } from '@/components/ui/button';
-import { fieldClass } from '@/components/ui/field';
 import { MENU_ITEM, Menu, MenuDivider } from '@/components/ui/menu';
 import { Icon } from '@/components/ui/icons';
 
@@ -56,7 +55,7 @@ export function AppHeader({
               type="search"
               maxLength={200}
               placeholder="Search stories"
-              className={fieldClass('w-full rounded-full border-line pl-9')}
+              className="w-full rounded-full border-line pl-9"
             />
           </label>
         </form>
@@ -68,19 +67,7 @@ export function AppHeader({
               triggerClassName="focus-ring flex size-9 items-center justify-center rounded-full bg-ink/10 text-sm font-semibold text-ink uppercase transition-colors hover:bg-ink/15 active:bg-ink/20"
               trigger={(user.name || user.email).slice(0, 1)}
             >
-              <div className="px-3 py-2">
-                {user.name ? (
-                  <p className="truncate text-sm font-medium text-ink">
-                    {user.name}
-                  </p>
-                ) : null}
-                <p className="truncate text-xs text-subtle">{user.email}</p>
-              </div>
-              <MenuDivider />
-              <TextLink bare href="/settings" className={MENU_ITEM}>
-                Settings
-              </TextLink>
-              <SignOutButton />
+              <AccountPanel user={user} />
             </Menu>
           ) : (
             <ButtonLink size="sm" href="/login">
@@ -90,5 +77,24 @@ export function AppHeader({
         </div>
       </div>
     </header>
+  );
+}
+
+/** What the account menu holds: who is signed in, Settings, and Sign out. */
+export function AccountPanel({ user }: Readonly<{ user: User }>): ReactElement {
+  return (
+    <>
+      <div className="px-3 py-2">
+        {user.name ? (
+          <p className="truncate text-sm font-medium text-ink">{user.name}</p>
+        ) : null}
+        <p className="truncate text-xs text-subtle">{user.email}</p>
+      </div>
+      <MenuDivider />
+      <TextLink bare href="/settings" className={MENU_ITEM}>
+        Settings
+      </TextLink>
+      <SignOutButton />
+    </>
   );
 }

@@ -1,102 +1,53 @@
-'use client';
-
-import {
-  useEffect,
-  useRef,
-  type ComponentProps,
-  type ReactElement,
-  type ReactNode,
-} from 'react';
+import type { ComponentProps, ReactElement, ReactNode } from 'react';
 
 import { cn } from '@/components/ui/cn';
-
-/** Which edge of its button a menu lines up with. */
-const ALIGN = {
-  start: 'sm:left-0',
-  end: 'sm:right-0',
-} as const;
+import { Popover } from '@/components/ui/popover';
 
 /**
- * A button that opens a floating panel: a menu of actions or a small form.
- * It is a `<details>`, so it works before the page's script has loaded; once
- * it has, Escape and a click elsewhere close it. On a phone the panel is a
- * sheet along the bottom of the screen. `trigger` is the button's content and
- * `triggerClassName` its look (a `CHIP`, `buttonClass(...)`, an icon button).
+ * A button that opens a floating panel: a menu of actions or a small form. It
+ * is the shared {@link Popover}, so the open panel sits in the browser's top
+ * layer, above every card and the sticky header, and Escape, a click outside
+ * and choosing an item close it. `trigger` is the button's content and
+ * `triggerClassName` its look (a `CHIP`, `buttonClass(...)`, an icon button);
+ * the button carries `data-state="open"` while its panel shows.
  */
 export function Menu({
   trigger,
   triggerClassName,
   label,
-  align = 'end',
   width = 'w-56',
   className,
-  panelRef,
   children,
-  ...summary
-}: Readonly<
-  {
-    trigger: ReactNode;
-    triggerClassName: string;
-    /** The button's name for a screen reader, when it shows only an icon. */
-    label?: string;
-    align?: keyof typeof ALIGN;
-    /** The panel's width class above phone size. */
-    width?: string;
-    className?: string;
-    /** Lets the caller close the menu after an action. */
-    panelRef?: React.RefObject<HTMLDetailsElement | null>;
-    children: ReactNode;
-  } & Omit<ComponentProps<'summary'>, 'className' | 'children'>
->): ReactElement {
-  const own = useRef<HTMLDetailsElement>(null);
-  const ref = panelRef ?? own;
-
-  useEffect(() => {
-    const close = (e: Event): void => {
-      const el = ref.current;
-      if (!el?.open) return;
-      if (e instanceof KeyboardEvent) {
-        if (e.key !== 'Escape') return;
-        el.open = false;
-        el.querySelector('summary')?.focus();
-        return;
-      }
-      if (!el.contains(e.target as Node)) el.open = false;
-    };
-    document.addEventListener('keydown', close);
-    document.addEventListener('pointerdown', close);
-    return () => {
-      document.removeEventListener('keydown', close);
-      document.removeEventListener('pointerdown', close);
-    };
-  }, [ref]);
-
+}: Readonly<{
+  trigger: ReactNode;
+  triggerClassName: string;
+  /** The button's name for a screen reader, when it shows only an icon. */
+  label?: string;
+  /** The panel's width class. */
+  width?: string;
+  className?: string;
+  children: ReactNode;
+}>): ReactElement {
   return (
-    <details ref={ref} className={cn('group relative open:z-50', className)}>
-      <summary
-        aria-label={label}
-        className={cn(
-          'list-none [&::-webkit-details-marker]:hidden',
-          triggerClassName,
-        )}
-        {...summary}
-      >
-        {trigger}
-      </summary>
-      <div
-        className={cn(
-          'fixed inset-x-0 bottom-0 z-50 max-h-[85dvh] overflow-y-auto rounded-t-card border border-line bg-surface p-1.5 shadow-overlay',
-          'sm:absolute sm:inset-x-auto sm:bottom-auto sm:mt-1.5 sm:rounded-card',
-          ALIGN[align],
+    <div className={className}>
+      <Popover
+        {...(label ? { label } : {})}
+        button={trigger}
+        buttonClassName={triggerClassName}
+        panelClassName={cn(
+          'max-h-[min(32rem,80dvh)] max-w-[calc(100vw-2rem)] overflow-y-auto shadow-overlay',
           width,
-          'max-sm:w-auto',
         )}
       >
         {children}
-      </div>
-    </details>
+      </Popover>
+    </div>
   );
 }
+
+/** The look of a quiet icon button that opens a menu, such as a story's "⋯". */
+export const MENU_TRIGGER =
+  'focus-ring inline-flex size-8 items-center justify-center rounded-control text-muted transition-colors hover:bg-ink/5 hover:text-ink active:bg-ink/10 data-[state=open]:bg-ink/5 data-[state=open]:text-ink';
 
 /** The look of one row of a menu: a button or a link. */
 export const MENU_ITEM =

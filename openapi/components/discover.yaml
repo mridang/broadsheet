@@ -33,24 +33,6 @@ Podcast:
     link:
       type: string
       format: uri
-Subreddit:
-  type: object
-  required: [name, feed_url, link]
-  properties:
-    name:
-      type: string
-    title:
-      type: string
-    description:
-      type: string
-    subscribers:
-      type: integer
-    feed_url:
-      type: string
-      format: uri
-    link:
-      type: string
-      format: uri
 ConversionInput:
   type: object
   description: Exactly one of `url` and `google_news`.
@@ -59,7 +41,7 @@ ConversionInput:
     url:
       type: string
       maxLength: 2000
-      description: A newsletter, blog, subreddit, YouTube channel or playlist, or feed address.
+      description: A newsletter, blog, YouTube channel or playlist, or feed address.
     google_news:
       type: object
       additionalProperties: false
@@ -92,7 +74,6 @@ Conversion:
         - beehiiv
         - convertkit
         - revue
-        - reddit
         - youtube
         - google-news
         - direct

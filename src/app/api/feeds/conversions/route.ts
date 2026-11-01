@@ -1,5 +1,5 @@
 /**
- * The feed of a newsletter, blog, subreddit or channel, or a Google News feed.
+ * The feed of a newsletter, blog or channel, or a Google News feed.
  *
  *   POST /api/feeds/conversions {url} | {google_news} → 200
  *

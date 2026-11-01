@@ -1,7 +1,6 @@
 'use client';
 
 import { Chip } from '@/components/ui/badge';
-import { Input, Select } from '@/components/ui/input';
 import { SectionHeader } from '@/components/ui/page-header';
 import { useRef, useState, type FormEvent, type ReactElement } from 'react';
 
@@ -21,7 +20,7 @@ import {
   PRESET_QUESTIONS,
 } from '@/domain/assistant';
 import { Button } from '@/components/ui/button';
-import { CARD, CHECKBOX, CHECK_LABEL } from '@/components/ui/field';
+import { CARD, CHECK_LABEL, SMALL_FIELD } from '@/components/ui/field';
 import { ErrorText } from '@/components/ui/notice';
 
 /**
@@ -92,7 +91,7 @@ export function AskBox({ id }: Readonly<{ id: number }>): ReactElement {
         </div>
       ))}
       <form className="mt-4 flex flex-col gap-2 sm:flex-row" onSubmit={submit}>
-        <Input
+        <input
           name="question"
           type="text"
           placeholder={
@@ -118,8 +117,8 @@ export function AskBox({ id }: Readonly<{ id: number }>): ReactElement {
       <p className="mt-3 flex flex-wrap items-center gap-4">
         <label className={CHECK_LABEL}>
           Model
-          <Select
-            size="sm"
+          <select
+            className={SMALL_FIELD}
             value={model}
             onChange={(event) =>
               setModel(event.currentTarget.value as AnswerModelName)
@@ -130,12 +129,11 @@ export function AskBox({ id }: Readonly<{ id: number }>): ReactElement {
                 {name}
               </option>
             ))}
-          </Select>
+          </select>
         </label>
         <label className={CHECK_LABEL}>
           <input
             type="checkbox"
-            className={CHECKBOX}
             checked={thinking}
             onChange={(event) => setThinking(event.currentTarget.checked)}
           />

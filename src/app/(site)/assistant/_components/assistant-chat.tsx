@@ -13,7 +13,7 @@ import {
 import { useApiAction } from '@/components/api/use-api-action';
 import { Markdown } from '@/components/site/markdown';
 import { MAX_QUESTION_LENGTH } from '@/domain/assistant';
-import { CARD, fieldClass } from '@/components/ui/field';
+import { CARD } from '@/components/ui/field';
 import { ErrorText } from '@/components/ui/notice';
 import { cn } from '@/components/ui/cn';
 
@@ -119,9 +119,7 @@ export function AssistantChat({
           maxLength={MAX_QUESTION_LENGTH}
           required
           aria-label="Your question"
-          className={fieldClass(
-            'w-full border-transparent hover:border-transparent sm:flex-1',
-          )}
+          className="w-full border-transparent hover:border-transparent sm:flex-1"
         />
         <button className={buttonClass({})} type="submit" disabled={busy}>
           Ask

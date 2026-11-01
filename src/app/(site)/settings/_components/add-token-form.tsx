@@ -8,7 +8,6 @@ import {
   type TokenRequest,
 } from '@/app/(site)/settings/_components/settings-requests';
 import { buttonClass } from '@/components/ui/button';
-import { fieldClass } from '@/components/ui/field';
 import { ErrorText } from '@/components/ui/notice';
 
 /** The request a filled-in token form makes. */
@@ -75,7 +74,6 @@ export function AddTokenForm({
           name="feed"
           defaultValue="saves"
           aria-label="What the feed shows"
-          className={fieldClass()}
         >
           <option value="saves">Saved stories</option>
           <option value="highlights">Highlights</option>
@@ -90,7 +88,6 @@ export function AddTokenForm({
           name="filter"
           defaultValue="all"
           aria-label="Which stories a section or edition feed keeps"
-          className={fieldClass()}
         >
           <option value="all">Every story</option>
           <option value="unread">Leave out disliked stories</option>
@@ -101,7 +98,7 @@ export function AddTokenForm({
           type="text"
           placeholder="Only this tag (saved stories)"
           maxLength={50}
-          className={fieldClass('w-full sm:flex-1')}
+          className="w-full sm:flex-1"
         />
         <button className={buttonClass({})} type="submit" disabled={busy}>
           Make feed

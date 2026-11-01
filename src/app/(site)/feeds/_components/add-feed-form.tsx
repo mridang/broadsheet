@@ -5,7 +5,6 @@ import type { FormEvent, ReactElement } from 'react';
 import { followFeed } from '@/app/(site)/feeds/_components/feed-requests';
 import { useFeedAction } from '@/app/(site)/feeds/_components/use-feed-action';
 import { buttonClass } from '@/components/ui/button';
-import { fieldClass } from '@/components/ui/field';
 import { ErrorText } from '@/components/ui/notice';
 
 /** The box at the top of the feed manager for following another feed. */
@@ -27,7 +26,7 @@ export function AddFeedForm(): ReactElement {
           type="url"
           placeholder="https://example.com/feed.xml"
           aria-label="Feed address"
-          className={fieldClass('w-full sm:flex-1')}
+          className="w-full sm:flex-1"
           required
         />
         <button className={buttonClass({})} type="submit" disabled={busy}>

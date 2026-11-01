@@ -5,8 +5,7 @@ import { useState, type FormEvent, type ReactElement } from 'react';
 import { useApiAction } from '@/components/api/use-api-action';
 import { addWebhook } from '@/app/(site)/settings/_components/settings-requests';
 import { buttonClass } from '@/components/ui/button';
-import { CHECK_LABEL, CHECKBOX } from '@/components/ui/field';
-import { Input } from '@/components/ui/input';
+import { CHECK_LABEL } from '@/components/ui/field';
 import { ErrorText } from '@/components/ui/notice';
 
 /** The box for adding a webhook; shows the signing secret once it is made. */
@@ -46,7 +45,7 @@ export function AddWebhookForm(): ReactElement {
     <>
       <form className="flex flex-col gap-3" onSubmit={submit}>
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Input
+          <input
             name="url"
             type="url"
             aria-label="Webhook address"
@@ -60,33 +59,16 @@ export function AddWebhookForm(): ReactElement {
         </div>
         <div className="flex flex-wrap gap-x-5 gap-y-2">
           <label className={CHECK_LABEL}>
-            <input
-              name="events"
-              type="checkbox"
-              value="save"
-              defaultChecked
-              className={CHECKBOX}
-            />{' '}
+            <input name="events" type="checkbox" value="save" defaultChecked />{' '}
             Saves
           </label>
           <label className={CHECK_LABEL}>
-            <input
-              name="events"
-              type="checkbox"
-              value="like"
-              defaultChecked
-              className={CHECKBOX}
-            />{' '}
+            <input name="events" type="checkbox" value="like" defaultChecked />{' '}
             Likes
           </label>
           <label className={CHECK_LABEL}>
-            <input
-              name="events"
-              type="checkbox"
-              value="story"
-              className={CHECKBOX}
-            />{' '}
-            New stories in notifying feeds
+            <input name="events" type="checkbox" value="story" /> New stories in
+            notifying feeds
           </label>
         </div>
       </form>

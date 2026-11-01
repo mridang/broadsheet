@@ -16,7 +16,7 @@ export function SavedSearches({
 }: Readonly<{ searches: readonly SavedSearch[] }>) {
   if (!searches.length) return null;
   return (
-    <nav aria-label="Saved searches" className="mt-6">
+    <nav aria-label="Saved searches">
       <List>
         {searches.map((s) => (
           <ListItem

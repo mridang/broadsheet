@@ -9,10 +9,9 @@ import {
   type TrainKind,
   type TrainScore,
 } from '@/app/(site)/_components/story-requests';
-import { CHECKBOX, CHECK_LABEL, fieldClass } from '@/components/ui/field';
+import { CHECK_LABEL, SMALL_FIELD } from '@/components/ui/field';
 
 /** A small field, sized to sit beside the trainer's pills. */
-const SMALL_FIELD = fieldClass(undefined, 'sm');
 
 /** What a phrase can be matched against, as NewsBlur's trainer offers. */
 const KINDS: ReadonlyArray<readonly [TrainKind, string]> = [
@@ -80,7 +79,6 @@ export function PhraseTrainer({
         <label className={CHECK_LABEL}>
           <input
             type="checkbox"
-            className={CHECKBOX}
             checked={regex}
             onChange={(e) => setRegex(e.target.checked)}
           />{' '}

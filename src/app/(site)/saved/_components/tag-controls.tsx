@@ -1,11 +1,12 @@
 'use client';
 
+import { cn } from '@/components/ui/cn';
+import { SMALL_FIELD } from '@/components/ui/field';
 import { useState, type ReactElement } from 'react';
 
 import { ensureOk } from '@/components/api/problem-message';
 import { useApiAction } from '@/components/api/use-api-action';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { ErrorText } from '@/components/ui/notice';
 
 const path = (tag: string) =>
@@ -37,10 +38,9 @@ export function TagControls({ tag }: Readonly<{ tag: string }>): ReactElement {
         }, 'Could not rename the tag.');
       }}
     >
-      <Input
-        size="sm"
+      <input
         aria-label="Rename tag"
-        className="w-40"
+        className={cn(SMALL_FIELD, 'w-40')}
         value={name}
         onChange={(e) => setName(e.target.value)}
       />

@@ -5,7 +5,6 @@ import type { FormEvent, ReactElement } from 'react';
 import { useApiAction } from '@/components/api/use-api-action';
 import { buttonClass } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/notice';
-import { fieldClass } from '@/components/ui/field';
 import { pinRiver, unpinRiver } from '@/app/(site)/_components/river-requests';
 
 /** Something a river can list, as the picker offers it. */
@@ -39,18 +38,14 @@ export function RiverPicker({
         className="mt-3 flex flex-wrap items-center gap-2"
         onSubmit={submit}
       >
-        <select
-          className={fieldClass()}
-          name="river_id"
-          aria-label="Stories from"
-        >
+        <select name="river_id" aria-label="Stories from">
           {options.map((o) => (
             <option key={o.river_id} value={o.river_id}>
               {o.label}
             </option>
           ))}
         </select>
-        <select className={fieldClass()} name="side" aria-label="Column">
+        <select name="side" aria-label="Column">
           <option value="left">Left</option>
           <option value="right">Right</option>
         </select>

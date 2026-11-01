@@ -6,7 +6,6 @@ import { importTopics } from '@/app/(site)/feeds/_components/feed-requests';
 import { useFeedAction } from '@/app/(site)/feeds/_components/use-feed-action';
 import type { Topic } from '@/domain/topics';
 import { buttonClass } from '@/components/ui/button';
-import { CHECKBOX } from '@/components/ui/field';
 import { ErrorText } from '@/components/ui/notice';
 
 /**
@@ -40,7 +39,7 @@ export function TopicPicker({
                 type="checkbox"
                 name="topic"
                 value={topic.id}
-                className={`${CHECKBOX} mt-0.5`}
+                className="mt-0.5"
               />{' '}
               <span className="min-w-0">
                 <strong className="block text-sm font-semibold">

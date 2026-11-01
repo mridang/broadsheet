@@ -7,7 +7,6 @@ export const TABS = [
   ['sites', 'Trending sites'],
   ['picks', 'Recommended'],
   ['podcasts', 'Podcasts'],
-  ['reddit', 'Reddit'],
   ['news', 'Google News'],
 ] as const;
 

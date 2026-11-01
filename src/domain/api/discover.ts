@@ -8,10 +8,8 @@
  * - `GET /api/sources?q&limit` (see `api/sources`): search the sources
  *   anyone follows (the feed autocomplete).
  * - `GET /api/podcasts?q&limit`: podcasts by iTunes Search, with their feeds.
- * - `GET /api/subreddits?q&limit`: subreddits by Reddit's search, or its
- *   popular ones without `q`, with their feeds.
  * - `POST /api/feeds/conversions` {url} or {google_news}: the feed of a
- *   newsletter, blog, subreddit or channel address, or a Google News feed.
+ *   newsletter, blog or channel address, or a Google News feed.
  * - `GET /api/news/topics`: the Google News topics a feed can follow.
  * - `GET`/`POST /api/feeds/recommendations` and
  *   `PATCH /api/feeds/recommendations/{id}`: feeds put forward for everyone,
@@ -33,10 +31,8 @@ import {
   GOOGLE_NEWS_TOPICS,
   googleNewsFeed,
   podcastsFrom,
-  subredditsFrom,
   type Conversion,
   type Podcast,
-  type Subreddit,
 } from '@/domain/discover';
 import {
   ApiController,
@@ -238,47 +234,6 @@ export function createPodcastsCollection(
 
 /** The podcasts controller bound to the production resolver. */
 export const podcastsCollection = createPodcastsCollection();
-
-/**
- * `GET /api/subreddits?q&limit`: subreddits found by Reddit's search, or its
- * popular ones without `q`, each with its feed, as one page. 400 for a bad
- * parameter, 401 when not signed in, 502 when Reddit does not answer.
- */
-export function createSubredditsCollection(
-  resolver: CurrentUserResolver = requestCookieResolver,
-  get: typeof fetchJson = fetchJson,
-): ApiController<UidContext> {
-  return new ApiController<UidContext>({ context: signedIn(resolver) }).on<
-    { q: string | undefined; limit: number },
-    Subreddit[] | Response
-  >({
-    method: 'GET',
-    decode: (request) => {
-      const p = params(request, ['q']);
-      return {
-        q: p.get('q') === null ? undefined : searchText(p),
-        limit: p.limit,
-      };
-    },
-    handle: async ({ q, limit }) => {
-      const query = new URLSearchParams({ limit: String(limit) });
-      if (q) query.set('q', q);
-      const body = await get(
-        `https://www.reddit.com/subreddits/${q ? 'search' : 'popular'}.json?${query}`,
-      );
-      return body === undefined
-        ? upstreamFailed('Reddit')
-        : subredditsFrom(body);
-    },
-    encode: (items) =>
-      items instanceof Response
-        ? items
-        : page(items, undefined, { 'Cache-Control': 'private, max-age=300' }),
-  });
-}
-
-/** The subreddits controller bound to the production resolver. */
-export const subredditsCollection = createSubredditsCollection();
 
 /** Check a conversion request: exactly one of `url` and `google_news`. */
 export function parseConversion(

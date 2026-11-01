@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { AppHeader } from '@/components/site/app-header';
+import { AccountPanel, AppHeader } from '@/components/site/app-header';
 import type { User } from '@/domain/repository';
 import { html } from '../render';
 
@@ -22,21 +22,31 @@ describe('AppHeader', () => {
     expect(out).not.toContain('Sign out');
   });
 
-  it('names the person and lets them sign out', () => {
+  it('opens an account menu for a signed-in person', () => {
     const out = html(<AppHeader user={user()} menu={null} />);
+    expect(out).toMatch(/<button type="button" aria-label="Account"/);
+    expect(out).not.toContain('href="/login"');
+  });
+});
+
+describe('AccountPanel', () => {
+  it('names the person and lets them sign out', () => {
+    const out = html(<AccountPanel user={user()} />);
     expect(out).toContain('Ada Lovelace');
     expect(out).toMatch(
       /<button type="button" class="[^"]*">Sign out<\/button>/,
     );
-    expect(out).not.toContain('href="/login"');
+    expect(out).toContain('href="/settings"');
   });
 
   it('falls back to the email when there is no name', () => {
-    expect(
-      html(<AppHeader user={user({ name: null })} menu={null} />),
-    ).toContain('ada@example.com');
+    expect(html(<AccountPanel user={user({ name: null })} />)).toContain(
+      'ada@example.com',
+    );
   });
+});
 
+describe('AppHeader search', () => {
   it('searches the archive with a plain GET form', () => {
     expect(html(<AppHeader user={null} menu={null} />)).toMatch(
       /<form role="search"[^>]*action="\/search" method="get"/,

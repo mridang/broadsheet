@@ -2,7 +2,7 @@ import { formatEdition } from '@/domain/render/tiers';
 import { buttonClass } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { Icon } from '@/components/ui/icons';
-import { MENU_ITEM } from '@/components/ui/menu';
+import { MENU_ITEM, Menu } from '@/components/ui/menu';
 
 /** The look of the previous- and next-day arrows. */
 const ARROW = buttonClass({
@@ -58,34 +58,38 @@ export function EditionBar({
       )}
 
       {editions.length > 1 && (
-        <details className="relative">
-          <summary
-            aria-label="Browse the archive"
-            title="Archive"
-            className={cn(
-              ARROW,
-              'list-none [&::-webkit-details-marker]:hidden',
-            )}
-          >
-            <Icon name="editions" className="size-4" />
-          </summary>
-          <div className="absolute right-0 z-20 mt-1.5 max-h-80 w-56 overflow-y-auto rounded-card border border-line bg-surface p-1.5 shadow-overlay">
-            {editions.map((d) => (
-              <a
-                key={d}
-                href={`/edition/${d}`}
-                aria-current={d === selected ? 'page' : undefined}
-                className={cn(
-                  MENU_ITEM,
-                  'text-muted aria-[current=page]:bg-ink/[0.07] aria-[current=page]:font-semibold aria-[current=page]:text-ink',
-                )}
-              >
-                {formatEdition(d)}
-              </a>
-            ))}
-          </div>
-        </details>
+        <Menu
+          label="Browse the archive"
+          triggerClassName={ARROW}
+          trigger={<Icon name="editions" className="size-4" />}
+        >
+          <ArchiveLinks editions={editions} selected={selected} />
+        </Menu>
       )}
     </div>
+  );
+}
+
+/** Every issue in the archive, newest first, the one showing marked. */
+export function ArchiveLinks({
+  editions,
+  selected,
+}: Readonly<{ editions: readonly string[]; selected: string }>) {
+  return (
+    <>
+      {editions.map((d) => (
+        <a
+          key={d}
+          href={`/edition/${d}`}
+          aria-current={d === selected ? 'page' : undefined}
+          className={cn(
+            MENU_ITEM,
+            'text-muted aria-[current=page]:bg-ink/[0.07] aria-[current=page]:font-semibold aria-[current=page]:text-ink',
+          )}
+        >
+          {formatEdition(d)}
+        </a>
+      ))}
+    </>
   );
 }

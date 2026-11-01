@@ -78,42 +78,6 @@ podcasts:
         $ref: '../components/common.yaml#/responses/TooManyRequests'
       '502':
         $ref: '../components/common.yaml#/responses/BadGateway'
-subreddits:
-  get:
-    operationId: searchSubreddits
-    tags: [discover]
-    summary: Search subreddits, or list the popular ones, with their feeds.
-    description: Rate limited by the `RL_API` binding. Found by Reddit's public listings; subreddits marked for adults are left out. Without `q`, Reddit's popular subreddits. One page.
-    parameters:
-      - name: q
-        in: query
-        description: What to search for; leave out for the popular ones.
-        schema:
-          type: string
-      - $ref: '../components/common.yaml#/parameters/Limit'
-    responses:
-      '200':
-        description: The subreddits.
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [self, items]
-              properties:
-                self:
-                  type: string
-                items:
-                  type: array
-                  items:
-                    $ref: '../components/discover.yaml#/Subreddit'
-      '400':
-        $ref: '../components/common.yaml#/responses/BadRequest'
-      '401':
-        $ref: '../components/common.yaml#/responses/Unauthorized'
-      '429':
-        $ref: '../components/common.yaml#/responses/TooManyRequests'
-      '502':
-        $ref: '../components/common.yaml#/responses/BadGateway'
 conversions:
   post:
     operationId: convertToFeed

@@ -22,7 +22,6 @@ import {
   markUnread,
 } from '@/app/(site)/_components/story-requests';
 import { buttonClass } from '@/components/ui/button';
-import { fieldClass } from '@/components/ui/field';
 
 /** The link that covers each story; focusing it is focusing the story. */
 const STORY = 'article[data-story] > a[data-story-link]';
@@ -309,7 +308,7 @@ export function KeyboardShortcuts(): ReactElement {
             aria-label="Section name"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            className={fieldClass('w-full')}
+            className="w-full"
           />
         </form>
         <dl className="mt-3 max-h-80 overflow-y-auto">

@@ -5,7 +5,6 @@ import {
   GOOGLE_NEWS_TOPICS,
   googleNewsFeed,
   podcastsFrom,
-  subredditsFrom,
 } from '@/domain/discover';
 
 describe('convertToFeed', () => {
@@ -41,11 +40,6 @@ describe('convertToFeed', () => {
       'revue',
     ],
     [
-      'https://www.reddit.com/r/rust/',
-      'https://www.reddit.com/r/rust/.rss',
-      'reddit',
-    ],
-    [
       'https://www.youtube.com/channel/UCabcdefghijklmnopqrstuv',
       'https://www.youtube.com/feeds/videos.xml?channel_id=UCabcdefghijklmnopqrstuv',
       'youtube',
@@ -72,7 +66,6 @@ describe('convertToFeed', () => {
     'ftp://example.com',
     'https://medium.com',
     'https://buttondown.email',
-    'https://www.reddit.com/user/x',
     'https://www.youtube.com/@handle',
     'not a url at all',
   ])('finds nothing for %s', (url) => {
@@ -136,33 +129,5 @@ describe('podcastsFrom', () => {
   it('finds none in an answer of another shape', () => {
     expect(podcastsFrom(null)).toEqual([]);
     expect(podcastsFrom({ results: 'x' })).toEqual([]);
-  });
-});
-
-describe('subredditsFrom', () => {
-  it('keeps subreddits with a feed, leaving out adult ones', () => {
-    expect(
-      subredditsFrom({
-        data: {
-          children: [
-            { data: { display_name: 'rust', subscribers: 5, title: 'Rust' } },
-            { data: { display_name: 'nsfw', over18: true } },
-            { data: { display_name: 'bad name!' } },
-          ],
-        },
-      }),
-    ).toEqual([
-      {
-        name: 'rust',
-        title: 'Rust',
-        subscribers: 5,
-        feed_url: 'https://www.reddit.com/r/rust/.rss',
-        link: 'https://www.reddit.com/r/rust',
-      },
-    ]);
-  });
-
-  it('finds none in an answer of another shape', () => {
-    expect(subredditsFrom({})).toEqual([]);
   });
 });

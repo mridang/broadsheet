@@ -10,7 +10,6 @@ import { getCurrentUser } from '@/lib/core/auth';
 import { encodeCursor } from '@/lib/core/api';
 import { StoryRow, ROW_LINK } from '@/components/stories/story-row';
 import { buttonClass } from '@/components/ui/button';
-import { fieldClass } from '@/components/ui/field';
 import { EmptyState, Notice } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
 import { SaveSearchButton } from '@/app/(site)/search/_components/save-search-button';
@@ -59,17 +58,12 @@ export default async function SearchPage({
     : undefined;
 
   return (
-    <div className="max-w-3xl">
+    <div className="flex max-w-3xl flex-col gap-6">
       <PageHeader
         title="Search the archive"
         description="Every edition of your feeds, back to the first."
       />
-      <form
-        className="mt-8 flex gap-2"
-        action="/search"
-        method="get"
-        role="search"
-      >
+      <form className="flex gap-2" action="/search" method="get" role="search">
         <label htmlFor="q" className="sr-only">
           Words to find
         </label>
@@ -80,7 +74,7 @@ export default async function SearchPage({
           defaultValue={query.q}
           maxLength={200}
           placeholder="Words in a headline or story"
-          className={fieldClass('min-w-0 flex-1')}
+          className="min-w-0 flex-1"
         />
         <button type="submit" className={buttonClass({ size: 'wide' })}>
           Search
@@ -94,19 +88,15 @@ export default async function SearchPage({
         />
       ) : null}
       {!input.ok ? (
-        <div className="mt-6">
-          <Notice tone="danger">That search could not be read.</Notice>
-        </div>
+        <Notice tone="danger">That search could not be read.</Notice>
       ) : query.q && !items.length ? (
-        <div className="mt-8">
-          <EmptyState
-            icon="search"
-            title="No stories hold every one of those words."
-          />
-        </div>
+        <EmptyState
+          icon="search"
+          title="No stories hold every one of those words."
+        />
       ) : null}
       {items.length ? (
-        <ol className="mt-8 divide-y divide-line border-y border-line">
+        <ol className="divide-y divide-line border-y border-line">
           {items.map((a) => (
             <StoryRow
               key={a.id}
@@ -131,7 +121,7 @@ export default async function SearchPage({
         </ol>
       ) : null}
       {older ? (
-        <p className="mt-6">
+        <p>
           <a
             className={buttonClass({ variant: 'outline', size: 'sm' })}
             href={older}

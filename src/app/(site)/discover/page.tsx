@@ -18,7 +18,6 @@ import {
   GOOGLE_NEWS_TOPICS,
   googleNewsFeed,
   podcastsFrom,
-  subredditsFrom,
 } from '@/domain/discover';
 import { Repository, type TrendingKind } from '@/domain/repository';
 import { pictureSrc } from '@/domain/render/pictures';
@@ -133,31 +132,6 @@ async function podcasts(
   };
 }
 
-/** Subreddits Reddit finds for `q`, or its popular ones. */
-async function subreddits(
-  q: string,
-  followed: ReadonlySet<string>,
-): Promise<Found> {
-  const query = new URLSearchParams({ limit: String(LIMIT) });
-  if (q) query.set('q', q);
-  const body = await fetchJson(
-    `https://www.reddit.com/subreddits/${q ? 'search' : 'popular'}.json?${query}`,
-  );
-  if (body === undefined) {
-    return { feeds: [], failed: 'Reddit did not answer. Try again later.' };
-  }
-  return {
-    feeds: subredditsFrom(body).map((s) => ({
-      url: s.feed_url,
-      title: `r/${s.name}`,
-      ...(s.description || s.title ? { detail: s.description || s.title } : {}),
-      meta: [s.subscribers ? count(s.subscribers, 'member') : ''],
-      link: s.link,
-      followed: followed.has(s.feed_url),
-    })),
-  };
-}
-
 /** Google News: a search for `q`, then each of its topics. */
 function news(q: string, followed: ReadonlySet<string>): Found {
   const search = q ? googleNewsFeed({ query: q }) : undefined;
@@ -185,10 +159,6 @@ const ABOUT: Record<
     title: 'Podcasts',
     search: { label: 'Find podcasts', placeholder: 'A show, a topic, a host' },
   },
-  reddit: {
-    title: 'Reddit',
-    search: { label: 'Find subreddits', placeholder: 'A subreddit or topic' },
-  },
   news: {
     title: 'Google News',
     search: {
@@ -200,7 +170,7 @@ const ABOUT: Record<
 
 /**
  * Discover, as NewsBlur has it: trending sites (popular, rising, hidden gems
- * and new), the editors' recommendations, podcasts from iTunes, subreddits
+ * and new), the editors' recommendations, podcasts from iTunes,
  * and Google News topics and searches, each with a "Follow" button. Every
  * tab and search is a link; the lists come straight from the same domain code
  * the Discover API answers with.
@@ -220,7 +190,7 @@ export default async function DiscoverPage({
   const header = (
     <PageHeader
       title="Discover"
-      description="Find new feeds: what other readers follow, podcasts, subreddits and the news."
+      description="Find new feeds: what other readers follow, podcasts and the news."
     />
   );
   if (!user) {
@@ -251,9 +221,7 @@ export default async function DiscoverPage({
           ? q
             ? await podcasts(q, followed)
             : { feeds: [] }
-          : tab === 'reddit'
-            ? await subreddits(q, followed)
-            : news(q, followed);
+          : news(q, followed);
 
   return (
     <div className="max-w-3xl">

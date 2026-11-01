@@ -5,7 +5,7 @@ import type { FormEvent, ReactElement } from 'react';
 import { editFeed } from '@/app/(site)/feeds/_components/feed-requests';
 import { useFeedAction } from '@/app/(site)/feeds/_components/use-feed-action';
 import { buttonClass } from '@/components/ui/button';
-import { CHECK_LABEL, CHECKBOX, fieldClass } from '@/components/ui/field';
+import { CHECK_LABEL } from '@/components/ui/field';
 import { ErrorText } from '@/components/ui/notice';
 
 /** A section a feed can be filed under. */
@@ -59,7 +59,7 @@ export function FeedSettingsForm({
           aria-label="Name"
           defaultValue={title}
           maxLength={200}
-          className={fieldClass('w-full sm:col-span-4')}
+          className="w-full sm:col-span-4"
         />
         <input
           name="url"
@@ -67,12 +67,11 @@ export function FeedSettingsForm({
           aria-label="Address"
           defaultValue={url}
           maxLength={2048}
-          className={fieldClass('w-full')}
+          className="w-full"
         />
         <select
           name="section_id"
           aria-label="Section"
-          className={fieldClass()}
           defaultValue={sectionId === null ? '' : String(sectionId)}
         >
           <option value="">No section</option>
@@ -83,13 +82,7 @@ export function FeedSettingsForm({
           ))}
         </select>
         <label className={CHECK_LABEL}>
-          <input
-            name="muted"
-            type="checkbox"
-            defaultChecked={muted}
-            className={CHECKBOX}
-          />{' '}
-          Muted
+          <input name="muted" type="checkbox" defaultChecked={muted} /> Muted
         </label>
         <button
           className={buttonClass({ variant: 'outline' })}

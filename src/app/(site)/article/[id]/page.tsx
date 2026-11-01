@@ -101,6 +101,7 @@ export default async function ArticlePage({
             articleId={article.id}
             shared={shared}
             title={article.title ?? ''}
+            summaryClassName={ROW_LINK}
           />
         ) : null}
         {user ? (

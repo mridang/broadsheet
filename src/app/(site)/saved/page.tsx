@@ -8,7 +8,12 @@ import { getDatabase } from '@/domain/db/database';
 import { Repository } from '@/domain/repository';
 import { hostOf } from '@/domain/render/tiers';
 import { TagControls } from '@/app/(site)/saved/_components/tag-controls';
-import { StoryActions } from '@/app/(site)/_components/story-actions';
+import {
+  SaveButton,
+  StoryActions,
+} from '@/app/(site)/_components/story-actions';
+import { Icon } from '@/components/ui/icons';
+import { MENU_TRIGGER, Menu } from '@/components/ui/menu';
 import { StoryRow } from '@/components/stories/story-row';
 import { EmptyState } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
@@ -95,11 +100,24 @@ export default async function SavedPage({
                   <Badge>{t}</Badge>
                 </TextLink>
               ))}
-              <StoryActions
-                articleId={article.id}
-                source={article.source || hostOf(article.url)}
-                saved
-              />
+              <span className="ml-auto flex items-center gap-1">
+                <SaveButton
+                  articleId={article.id}
+                  saved
+                  title={article.title ?? ''}
+                />
+                <Menu
+                  label="More actions"
+                  width="w-72"
+                  triggerClassName={MENU_TRIGGER}
+                  trigger={<Icon name="more" />}
+                >
+                  <StoryActions
+                    source={article.source || hostOf(article.url)}
+                    title={article.title ?? ''}
+                  />
+                </Menu>
+              </span>
             </StoryRow>
           ))}
         </ul>

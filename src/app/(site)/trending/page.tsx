@@ -10,7 +10,7 @@ import { encodeCursor } from '@/lib/core/api';
 import { hostOf } from '@/domain/render/tiers';
 import { StoryRow } from '@/components/stories/story-row';
 import { buttonClass } from '@/components/ui/button';
-import { CHECK_LABEL, CHECKBOX, fieldClass } from '@/components/ui/field';
+import { CHECK_LABEL } from '@/components/ui/field';
 import { EmptyState } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
 
@@ -82,7 +82,6 @@ export default async function TrendingPage({
         method="get"
       >
         <select
-          className={fieldClass()}
           name="order"
           aria-label="List"
           defaultValue={params.get('order') ?? 'reads'}
@@ -94,7 +93,6 @@ export default async function TrendingPage({
           ))}
         </select>
         <select
-          className={fieldClass()}
           name="window"
           aria-label="Over"
           defaultValue={params.get('window') ?? 'week'}
@@ -104,7 +102,6 @@ export default async function TrendingPage({
           <option value="month">This month</option>
         </select>
         <select
-          className={fieldClass()}
           name="sort"
           aria-label="From"
           defaultValue={params.get('sort') ?? 'newest'}
@@ -115,7 +112,6 @@ export default async function TrendingPage({
         {user ? (
           <label className={CHECK_LABEL}>
             <input
-              className={CHECKBOX}
               type="checkbox"
               name="read"
               value="false"

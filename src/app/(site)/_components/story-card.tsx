@@ -5,7 +5,12 @@ import {
   StoryActions,
 } from '@/app/(site)/_components/story-actions';
 import { Icon } from '@/components/ui/icons';
-import { MENU_ITEM, Menu, MenuDivider } from '@/components/ui/menu';
+import {
+  MENU_ITEM,
+  MENU_TRIGGER,
+  Menu,
+  MenuDivider,
+} from '@/components/ui/menu';
 import { ListenButton } from '@/app/(site)/_components/listen-button';
 import { ShareButton } from '@/app/(site)/_components/share-button';
 import { StoryChanges } from '@/app/(site)/_components/story-changes';
@@ -64,10 +69,6 @@ export const FOOT_LINK =
  */
 const DIM = 'transition-opacity group-data-read:opacity-55';
 
-/** The look of the button that opens a story's menu: a quiet icon button. */
-const MORE =
-  'focus-ring inline-flex size-8 items-center justify-center rounded-control text-muted transition-colors hover:bg-ink/5 hover:text-ink active:bg-ink/10 group-open:bg-ink/5 group-open:text-ink';
-
 /**
  * One story. Its tier decides how much room it gets (a lead spans the desk
  * with a large photo, a feature is a card, a standard story a row) and how
@@ -117,7 +118,7 @@ export async function StoryCard({
   return (
     <article
       className={cn(
-        'group relative min-w-0 has-[details[open]]:z-40',
+        'group relative min-w-0',
         'print:break-inside-avoid print:after:block print:after:text-label print:after:wrap-anywhere print:after:text-ink/70 print:after:content-[attr(data-url)]',
         look.card,
       )}
@@ -229,49 +230,83 @@ export async function StoryCard({
           <Menu
             label="More actions"
             className="pointer-events-auto relative z-10 print:hidden"
-            triggerClassName={MORE}
+            triggerClassName={MENU_TRIGGER}
             trigger={<Icon name="more" />}
             width="w-72"
           >
-            {article.body_text ? (
-              <a
-                className={MENU_ITEM}
-                data-action="full-text"
-                href={`/article/${article.id}`}
-              >
-                Full text
-              </a>
-            ) : null}
-            <ListenButton
-              articleId={article.id}
-              title={article.title ?? ''}
-              text={spokenText(article.title ?? '', ex)}
-              className={MENU_ITEM}
+            <StoryMenuItems
+              article={article}
+              excerpt={ex}
+              source={source}
+              personal={personal}
+              shared={shared}
+              feedId={feedId}
             />
-            {personal ? (
-              <ShareButton
-                articleId={article.id}
-                shared={shared}
-                title={article.title ?? ''}
-                inline
-                summaryClassName={MENU_ITEM}
-              />
-            ) : null}
-            {personal ? (
-              <>
-                <MenuDivider />
-                <StoryActions
-                  source={source}
-                  feedId={feedId}
-                  author={article.author}
-                  tags={tagsOf(article.tags)}
-                  title={article.title ?? ''}
-                />
-              </>
-            ) : null}
           </Menu>
         </div>
       </div>
     </article>
+  );
+}
+
+/**
+ * What a story's "More actions" menu holds: its full text when it was kept,
+ * Listen, and for a signed-in person Share and the training controls.
+ */
+export function StoryMenuItems({
+  article,
+  excerpt,
+  source,
+  personal,
+  shared,
+  feedId,
+}: Readonly<{
+  article: Article;
+  excerpt: string;
+  source: string;
+  personal: boolean;
+  shared: boolean;
+  feedId?: number | undefined;
+}>) {
+  const ex = excerpt;
+  return (
+    <>
+      {article.body_text ? (
+        <a
+          className={MENU_ITEM}
+          data-action="full-text"
+          href={`/article/${article.id}`}
+        >
+          Full text
+        </a>
+      ) : null}
+      <ListenButton
+        articleId={article.id}
+        title={article.title ?? ''}
+        text={spokenText(article.title ?? '', ex)}
+        className={MENU_ITEM}
+      />
+      {personal ? (
+        <ShareButton
+          articleId={article.id}
+          shared={shared}
+          title={article.title ?? ''}
+          inline
+          summaryClassName={MENU_ITEM}
+        />
+      ) : null}
+      {personal ? (
+        <>
+          <MenuDivider />
+          <StoryActions
+            source={source}
+            feedId={feedId}
+            author={article.author}
+            tags={tagsOf(article.tags)}
+            title={article.title ?? ''}
+          />
+        </>
+      ) : null}
+    </>
   );
 }

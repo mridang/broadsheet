@@ -30,17 +30,12 @@ export { CHIP } from '@/components/ui/badge';
  * again.
  */
 export function StoryActions({
-  articleId,
-  saved = false,
   source,
   feedId,
   author,
   tags = [],
   title = '',
 }: Readonly<{
-  /** With it, the save button is shown alongside (outside a story's menu). */
-  articleId?: number;
-  saved?: boolean;
   source: string;
   feedId?: number;
   author?: string | null;
@@ -84,8 +79,8 @@ export function StoryActions({
     ));
 
   return (
-    <span className="flex flex-wrap items-center gap-1.5 px-1.5 pt-1">
-      <span className="mr-auto px-1.5 text-xs text-subtle">{source}</span>
+    <span className="flex flex-wrap items-center gap-1.5 pt-1 pr-1.5">
+      <span className="mr-auto px-3 text-xs text-subtle">{source}</span>
       <button
         type="button"
         className={CHIP}
@@ -133,9 +128,6 @@ export function StoryActions({
           <PhraseTrainer title={title} />
         </div>
       </details>
-      {articleId !== undefined ? (
-        <SaveButton articleId={articleId} saved={saved} title={title} />
-      ) : null}
       {error ? (
         <span className="w-full px-3 text-xs text-danger" role="alert">
           {error}

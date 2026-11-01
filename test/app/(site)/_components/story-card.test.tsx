@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { StoryCard } from '@/app/(site)/_components/story-card';
+import { StoryCard, StoryMenuItems } from '@/app/(site)/_components/story-card';
 import type { Article } from '@/domain/repository';
 import { html } from '../../../components/render';
 
@@ -107,8 +107,18 @@ describe('StoryCard', () => {
         shared: true,
       }),
     );
-    expect(out).toContain('data-action="share"');
-    expect(out).toContain('✓ Shared');
+    expect(out).toMatch(/<button type="button" aria-label="More actions"/);
+    const items = html(
+      <StoryMenuItems
+        article={article()}
+        excerpt=""
+        source="A Source"
+        personal
+        shared
+      />,
+    );
+    expect(items).toContain('data-action="share"');
+    expect(items).toContain('✓ Shared');
   });
 
   it('dims a read story and gives a reader its id and controls', async () => {
@@ -138,12 +148,6 @@ describe('StoryCard', () => {
     expect(out).toMatch(/<h2[^>]*group-data-read:opacity-55/);
   });
 
-  it('raises a story above the next while its menu is open', async () => {
-    expect(
-      html(await StoryCard({ article: article(), tier: 'standard' })),
-    ).toMatch(/<article[^>]*has-\[details\[open\]\]:z-40/);
-  });
-
   it('lets the save button and the photo take clicks over the story link', async () => {
     const out = html(
       await StoryCard({
@@ -170,18 +174,21 @@ describe('StoryCard', () => {
     expect(out).not.toContain('data-action="save"');
   });
 
-  it('links the full text only when it was kept', async () => {
-    expect(
-      html(await StoryCard({ article: article(), tier: 'standard' })),
-    ).not.toContain('data-action="full-text"');
-    expect(
+  it('links the full text only when it was kept', () => {
+    const items = (over: Partial<Article>) =>
       html(
-        await StoryCard({
-          article: article({ body_text: 'All of it.' }),
-          tier: 'standard',
-        }),
-      ),
-    ).toContain('data-action="full-text" href="/article/7"');
+        <StoryMenuItems
+          article={article(over)}
+          excerpt=""
+          source="A Source"
+          personal={false}
+          shared={false}
+        />,
+      );
+    expect(items({})).not.toContain('data-action="full-text"');
+    expect(items({ body_text: 'All of it.' })).toContain(
+      'data-action="full-text" href="/article/7"',
+    );
   });
 
   it('shows its photo through the image proxy', async () => {

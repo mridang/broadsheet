@@ -6,8 +6,7 @@ import { useState, type FormEvent, type ReactElement } from 'react';
 import { problemError } from '@/components/api/problem-message';
 import { useApiAction } from '@/components/api/use-api-action';
 import { Button, TextLink } from '@/components/ui/button';
-import { Input, Textarea } from '@/components/ui/input';
-import { CARD, CHECK_LABEL, CHECKBOX } from '@/components/ui/field';
+import { CARD, CHECK_LABEL } from '@/components/ui/field';
 import { ErrorText } from '@/components/ui/notice';
 
 /** The body a filled-in email form posts. */
@@ -68,34 +67,29 @@ export function EmailStoryForm({
           className={`${CARD} mt-3 grid w-full gap-3 p-4 sm:w-96`}
           onSubmit={submit}
         >
-          <Input
+          <input
             name="to"
             type="text"
             placeholder="Addresses, separated by commas"
             aria-label="Who to send it to"
             required
           />
-          <Input
+          <input
             name="from_name"
             type="text"
             maxLength={200}
             placeholder="Your name"
             aria-label="The name to send it under"
           />
-          <Textarea
+          <textarea
             name="comment"
             maxLength={2048}
             aria-label="A note"
             className="h-20"
           />
           <label className={CHECK_LABEL}>
-            <input
-              name="copy_me"
-              type="checkbox"
-              defaultChecked
-              className={CHECKBOX}
-            />{' '}
-            Send me a copy
+            <input name="copy_me" type="checkbox" defaultChecked /> Send me a
+            copy
           </label>
           <Button
             size="sm"

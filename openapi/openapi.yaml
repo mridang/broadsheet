@@ -103,8 +103,6 @@ paths:
     $ref: './paths/discover.yaml#/recommendation'
   /api/podcasts:
     $ref: './paths/discover.yaml#/podcasts'
-  /api/subreddits:
-    $ref: './paths/discover.yaml#/subreddits'
   /api/news/topics:
     $ref: './paths/discover.yaml#/newsTopics'
   /api/transcriptions:

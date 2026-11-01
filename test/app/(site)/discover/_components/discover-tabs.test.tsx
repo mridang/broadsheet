@@ -21,7 +21,7 @@ describe('tabOf', () => {
 });
 
 describe('DiscoverTabs', () => {
-  const out = html(<DiscoverTabs current="reddit" />);
+  const out = html(<DiscoverTabs current="podcasts" />);
 
   it('links each tab to its own address', () => {
     TABS.forEach(([id, label]) =>
@@ -34,7 +34,7 @@ describe('DiscoverTabs', () => {
   it('marks only the current tab', () => {
     expect(out.match(/aria-current="page"/g)).toHaveLength(1);
     expect(out).toMatch(
-      /aria-current="page"[^>]*href="\/discover\?tab=reddit"/,
+      /aria-current="page"[^>]*href="\/discover\?tab=podcasts"/,
     );
   });
 

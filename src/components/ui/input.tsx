@@ -6,52 +6,7 @@ import {
 } from 'react';
 
 import { cn } from '@/components/ui/cn';
-import {
-  CHECKBOX,
-  CHECK_LABEL,
-  HINT,
-  LABEL,
-  fieldClass,
-  textareaClass,
-} from '@/components/ui/field';
-
-/** A field's size, as `fieldClass` takes it. */
-type Size = 'sm' | 'md';
-
-/** A one-line text box. */
-export function Input({
-  size,
-  className,
-  ...props
-}: Readonly<
-  { size?: Size } & Omit<ComponentProps<'input'>, 'size'>
->): ReactElement {
-  return <input className={fieldClass(className, size)} {...props} />;
-}
-
-/** A drop-down list of choices. */
-export function Select({
-  size,
-  className,
-  children,
-  ...props
-}: Readonly<
-  { size?: Size } & Omit<ComponentProps<'select'>, 'size'>
->): ReactElement {
-  return (
-    <select className={fieldClass(cn('pr-8', className), size)} {...props}>
-      {children}
-    </select>
-  );
-}
-
-/** A box for several lines of text. */
-export function Textarea({
-  className,
-  ...props
-}: Readonly<ComponentProps<'textarea'>>): ReactElement {
-  return <textarea className={textareaClass(className)} {...props} />;
-}
+import { HINT, LABEL } from '@/components/ui/field';
 
 /**
  * A field with its label above and a line of help beneath. `children` is a
@@ -77,24 +32,6 @@ export function Field({
       <div className="mt-1.5">{children(id)}</div>
       {hint ? <p className={HINT}>{hint}</p> : null}
     </div>
-  );
-}
-
-/** A tick box with its words beside it. */
-export function Checkbox({
-  label,
-  className,
-  ...props
-}: Readonly<
-  { label: ReactNode } & Omit<ComponentProps<'input'>, 'type' | 'className'> & {
-      className?: string;
-    }
->): ReactElement {
-  return (
-    <label className={cn(CHECK_LABEL, className)}>
-      <input type="checkbox" className={CHECKBOX} {...props} />
-      {label}
-    </label>
   );
 }
 

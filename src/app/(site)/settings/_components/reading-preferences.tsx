@@ -5,7 +5,7 @@ import { useState, type ReactElement, type ReactNode } from 'react';
 import { ensureOk } from '@/components/api/problem-message';
 import { useApiAction } from '@/components/api/use-api-action';
 import { Card } from '@/components/ui/card';
-import { Input, Select, Toggle } from '@/components/ui/input';
+import { Toggle } from '@/components/ui/input';
 import { ErrorText } from '@/components/ui/notice';
 
 /** The intelligence levels, as the reader picks them. */
@@ -53,7 +53,7 @@ export function ReadingPreferences({
         label="Show"
         description="How much of the paper your training lets through."
       >
-        <Select
+        <select
           aria-label="Which stories to show"
           value={level}
           disabled={action.busy}
@@ -67,7 +67,7 @@ export function ReadingPreferences({
               {label}
             </option>
           ))}
-        </Select>
+        </select>
       </SettingRow>
       <div className="px-5 py-4">
         <Toggle
@@ -96,7 +96,7 @@ export function ReadingPreferences({
         description="In days; 0 never marks them."
       >
         <span className="inline-flex items-center gap-2 text-sm text-muted">
-          <Input
+          <input
             type="number"
             aria-label="Days until stories count as read"
             className="w-20"

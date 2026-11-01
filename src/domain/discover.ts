@@ -1,10 +1,10 @@
 /**
  * @packageDocumentation
  *
- * Finding feeds, after NewsBlur's discover: turning a newsletter, blog,
- * subreddit or YouTube channel address into its feed, building a Google News
- * feed for a search or a topic, and reading the answers of the public search
- * services (iTunes for podcasts, Reddit for subreddits). Nothing here touches
+ * Finding feeds, after NewsBlur's discover: turning a newsletter, blog or
+ * YouTube channel address into its feed, building a Google News feed for a
+ * search or a topic, and reading the answers of iTunes Search for podcasts.
+ * Nothing here touches
  * the database or the network; the controllers in `api/discover` do.
  */
 
@@ -17,7 +17,6 @@ export type Platform =
   | 'beehiiv'
   | 'convertkit'
   | 'revue'
-  | 'reddit'
   | 'youtube'
   | 'google-news'
   | 'direct'
@@ -44,9 +43,9 @@ function looksLikeFeed(url: string): boolean {
 }
 
 /**
- * The feed of a newsletter, blog, subreddit or YouTube channel address, after
+ * The feed of a newsletter, blog or YouTube channel address, after
  * NewsBlur's newsletter conversion: Substack, Medium, Ghost, Buttondown,
- * Beehiiv, ConvertKit and Revue by their own rules; a subreddit as its `.rss`;
+ * Beehiiv, ConvertKit and Revue by their own rules;
  * a YouTube channel (`/channel/UC…`) as its videos feed; an address that is
  * already a feed as it is; anything else with `/feed` added. Undefined for
  * something that is not an `http(s)` address.
@@ -112,14 +111,6 @@ export function convertToFeed(input: string): Conversion | undefined {
       feed_url: `https://www.getrevue.co/profile/${name}/feed`,
       platform: 'revue',
       title: titled(name),
-    };
-  }
-  if (host === 'reddit.com' || host.endsWith('.reddit.com')) {
-    if (first !== 'r' || !second) return undefined;
-    return {
-      feed_url: `https://www.reddit.com/r/${second}/.rss`,
-      platform: 'reddit',
-      title: `r/${second}`,
     };
   }
   if (host === 'youtube.com' || host.endsWith('.youtube.com')) {
@@ -277,44 +268,6 @@ export function podcastsFrom(body: unknown): Podcast[] {
         ...(str(r['collectionViewUrl'])
           ? { link: str(r['collectionViewUrl']) }
           : {}),
-      },
-    ];
-  });
-}
-
-/** A subreddit found by search, with its feed. */
-export interface Subreddit {
-  readonly name: string;
-  readonly title?: string;
-  readonly description?: string;
-  readonly subscribers?: number;
-  readonly feed_url: string;
-  readonly link: string;
-}
-
-/** The subreddits in a Reddit listing, leaving out the ones marked for adults. */
-export function subredditsFrom(body: unknown): Subreddit[] {
-  const children = (body as { data?: { children?: unknown } } | null)?.data
-    ?.children;
-  if (!Array.isArray(children)) return [];
-  return children.flatMap((child: unknown) => {
-    const d = ((child as { data?: unknown } | null)?.data ?? {}) as Record<
-      string,
-      unknown
-    >;
-    const name = str(d['display_name']);
-    if (!name || !/^\w+$/.test(name) || d['over18'] === true) return [];
-    const subscribers = d['subscribers'];
-    return [
-      {
-        name,
-        ...(str(d['title']) ? { title: str(d['title']) } : {}),
-        ...(str(d['public_description'])
-          ? { description: str(d['public_description']) }
-          : {}),
-        ...(typeof subscribers === 'number' ? { subscribers } : {}),
-        feed_url: `https://www.reddit.com/r/${name}/.rss`,
-        link: `https://www.reddit.com/r/${name}`,
       },
     ];
   });

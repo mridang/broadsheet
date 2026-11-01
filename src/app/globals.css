@@ -211,6 +211,79 @@ body {
   }
 }
 
+/*
+ * Popover panels (the account menu). The
+ * browser puts an open popover in the top layer, above everything, so it is
+ * never clipped by or stacked under the sticky header; it also supplies Escape,
+ * clicking outside and focus return. What it does not do is place the panel,
+ * which is done here, in three tiers (the last of which is written first,
+ * because the others take over from it).
+ *
+ * Tier 3, a browser with no Popover API at all (before Safari 17, Firefox 125,
+ * Chrome 114): the panel is an ordinary box under its button, shown while the
+ * component marks it `data-open`, which is how it worked before popovers.
+ */
+[data-popover] {
+  display: none;
+  position: absolute;
+  inset: auto;
+  top: 100%;
+  right: 0;
+  z-index: 50;
+  margin: 0.5rem 0 0;
+}
+
+[data-popover][data-open] {
+  display: block;
+}
+
+@supports selector(:popover-open) {
+  /* With popovers, the browser decides whether the panel shows (`revert` hands
+   * `display` back to it) and puts it in the top layer; undo the box above. */
+  [data-popover],
+  [data-popover][data-open] {
+    display: revert;
+  }
+
+  [data-popover] {
+    position: fixed;
+    inset: auto;
+    z-index: auto;
+    margin: 0;
+  }
+
+  /* Tier 2, no anchor positioning (Safari before 26, Firefox before 147): the
+   * component measures the button when the panel opens and passes where the
+   * panel goes in two custom properties. */
+  @supports not (position-area: bottom) {
+    [data-popover] {
+      top: var(--popover-top, 4rem);
+      right: var(--popover-right, 1rem);
+    }
+  }
+}
+
+/* Tier 1, CSS anchor positioning: hang the panel under its button with their
+ * right edges together, flipping it above the button when there is no room
+ * below. Only the button whose panel is open is the anchor, so one fixed name
+ * serves every popover on the page (an inline style per instance is not
+ * allowed by the content security policy, and only one `popover="auto"` is
+ * open at a time). */
+@supports selector(:popover-open) and selector(:has(*)) and (anchor-name: --a)
+  and (position-anchor: --a) and (position-area: bottom) and
+  (position-try-fallbacks: flip-block) {
+  [popovertarget]:has(+ [data-popover]:popover-open) {
+    anchor-name: --popover-anchor;
+  }
+
+  [data-popover] {
+    position-anchor: --popover-anchor;
+    position-area: bottom span-left;
+    margin-top: 0.5rem;
+    position-try-fallbacks: flip-block;
+  }
+}
+
 /* ==========================================================================
  * 4. This app's styles: they differ per app. Sections 2 and 3 never do.
  * ======================================================================== */
@@ -246,6 +319,123 @@ body {
     --warning: #f2b54a;
     --success: #57c785;
     color-scheme: dark;
+  }
+}
+
+/* Form controls. Pages write the browser's own `<input>`, `<select>`,
+ * `<textarea>`, tick boxes and radios with no classes, and get this one look:
+ * a hairline field on the surface colour, the ink focus ring, and a chevron
+ * drawn into every select (Tailwind's reset leaves a bare select with none).
+ * They sit in the base layer, after Tailwind's reset, so they beat the reset
+ * and a utility class on one control still beats them. */
+@layer base {
+  input:not(
+    [type='checkbox'],
+    [type='radio'],
+    [type='range'],
+    [type='file'],
+    [type='color'],
+    [type='hidden'],
+    [type='button'],
+    [type='submit'],
+    [type='reset']
+  ),
+  select,
+  textarea {
+    min-height: 2.5rem;
+    border: 1px solid var(--color-field);
+    border-radius: var(--radius-control);
+    background-color: var(--color-surface);
+    padding: 0.5rem 0.75rem;
+    color: var(--color-ink);
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    transition: border-color 150ms;
+  }
+
+  input:not(
+      [type='checkbox'],
+      [type='radio'],
+      [type='range'],
+      [type='file'],
+      [type='color'],
+      [type='hidden'],
+      [type='button'],
+      [type='submit'],
+      [type='reset']
+    ):hover:not(:disabled),
+  select:hover:not(:disabled),
+  textarea:hover:not(:disabled) {
+    border-color: var(--color-muted);
+  }
+
+  input:not(
+      [type='checkbox'],
+      [type='radio'],
+      [type='range'],
+      [type='file'],
+      [type='color'],
+      [type='hidden'],
+      [type='button'],
+      [type='submit'],
+      [type='reset']
+    ):focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 0;
+  }
+
+  input:disabled,
+  select:disabled,
+  textarea:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-subtle);
+  }
+
+  textarea {
+    display: block;
+    width: 100%;
+    line-height: 1.625;
+  }
+
+  /* A select draws its own chevron, with room for it. The shared rule above
+   * outranks a bare `select`, so this one names the chevron's room again. */
+  select:not([multiple]):not([size]) {
+    appearance: none;
+    padding-right: 2.25rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b655c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-position: right 0.75rem center;
+    background-repeat: no-repeat;
+    background-size: 1rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    select:not([multiple]):not([size]) {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a8a091' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    }
+  }
+
+  input:is([type='checkbox'], [type='radio']):not([role='switch']) {
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+  }
+
+  /* eslint-disable css/use-baseline -- a browser without it keeps its own tick colour, which is fine. */
+  input:is([type='checkbox'], [type='radio']):not([role='switch']) {
+    accent-color: var(--color-accent);
+  }
+  /* eslint-enable css/use-baseline */
+
+  input:is([type='checkbox'], [type='radio']):focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 2px;
   }
 }
 
