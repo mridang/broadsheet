@@ -20,6 +20,7 @@ import {
 } from '@/app/(site)/_components/player';
 import { webSpeech, type ReadAloud } from '@/app/(site)/_components/read-aloud';
 import { CHIP } from '@/app/(site)/_components/story-actions';
+import { cn } from '@/components/ui/cn';
 
 /** One reader for the page, so starting one story stops the last. */
 let shared: ReadAloud | null | undefined;
@@ -52,7 +53,7 @@ function listenTo(id: number): void {
  * rate, picking up where they left off, and stops on a second press. When it
  * comes to its end the next queued story plays. "Queue" adds the story to (or
  * takes it out of) what plays next. It renders nothing on the server or where
- * the browser cannot speak.
+ * the browser cannot speak, and neither prints.
  */
 export function ListenButton({
   articleId,
@@ -78,7 +79,7 @@ export function ListenButton({
     <>
       <button
         type="button"
-        className={CHIP}
+        className={cn(CHIP, 'print:hidden')}
         data-action="listen"
         data-article-id={articleId}
         aria-pressed={playing}
@@ -113,7 +114,7 @@ export function ListenButton({
       </button>
       <button
         type="button"
-        className={CHIP}
+        className={cn(CHIP, 'print:hidden')}
         data-action="queue"
         aria-pressed={queued}
         aria-label={`${queued ? 'Take out of the queue' : 'Queue'} ${title}`}

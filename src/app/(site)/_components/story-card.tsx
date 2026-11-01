@@ -2,6 +2,15 @@ import type { Article } from '@/domain/repository';
 import { pictureSrc } from '@/domain/render/pictures';
 import { StoryActions } from '@/app/(site)/_components/story-actions';
 import { ListenButton } from '@/app/(site)/_components/listen-button';
+import { ShareButton } from '@/app/(site)/_components/share-button';
+import { StoryChanges } from '@/app/(site)/_components/story-changes';
+import {
+  ClusterBadge,
+  ClusterPreview,
+  clusterPictures,
+} from '@/app/(site)/_components/cluster-preview';
+import type { Sibling } from '@/domain/render/layout';
+import { hasChanges } from '@/domain/render/changes';
 import { spokenText } from '@/app/(site)/_components/read-aloud';
 import { imageSigner } from '@/lib/cloudflare/images/server';
 import {
@@ -50,23 +59,34 @@ export const FOOT_LINK =
  * long its excerpt is. The whole card is a link to the story; its controls sit
  * above that link. A story the person has read is dimmed; a signed-in person
  * (`personal`) gets the training and save controls (`feedId` lets them train
- * the feed). `also` names the other
- * sources that covered the same story.
+ * the feed, and share the story). `also` names the other sources that
+ * covered the same story; with their `siblings` (its cluster) it gets a badge
+ * and a preview of each copy, `clusterExpanded` with pictures and openings,
+ * and `readIds` dims the copies read. A story whose text changed since it was
+ * first seen can show what changed.
  */
 export async function StoryCard({
   article,
   tier,
   also = [],
+  siblings = [],
   read = false,
   saved = false,
+  shared = false,
+  readIds,
+  clusterExpanded = false,
   personal = false,
   feedId,
 }: {
   article: Article;
   tier: Exclude<Tier, 'brief'>;
   also?: readonly string[];
+  siblings?: readonly Sibling[];
   read?: boolean;
   saved?: boolean;
+  shared?: boolean;
+  readIds?: ReadonlySet<number>;
+  clusterExpanded?: boolean;
   personal?: boolean;
   feedId?: number;
 }) {
@@ -75,13 +95,14 @@ export async function StoryCard({
   const signer = imageSigner();
   const photo = await pictureSrc(article.image ?? '', IMG_WIDTH[tier], signer);
   const icon = await pictureSrc(article.favicon ?? '', FAVICON_WIDTH, signer);
+  const previews = await clusterPictures(siblings, clusterExpanded);
   const look = LOOK[tier];
   const source = article.source || hostOf(article.url);
 
   return (
     <article
       className={cn(
-        'group relative transition-opacity data-read:opacity-55',
+        'group relative min-w-0 transition-opacity data-read:opacity-55',
         'print:break-inside-avoid print:after:block print:after:text-[9px] print:after:wrap-anywhere print:after:text-ink/70 print:after:content-[attr(data-url)]',
         look.card,
       )}
@@ -128,6 +149,7 @@ export async function StoryCard({
           <span className="shrink-0">
             {article.points ? `▲ ${article.points}` : ago(article.published_at)}
           </span>
+          {siblings.length ? <ClusterBadge siblings={siblings} /> : null}
         </p>
         <h2
           className={cn(
@@ -149,10 +171,23 @@ export async function StoryCard({
             {ex}
           </p>
         ) : null}
-        {also.length ? (
+        {siblings.length ? (
+          <ClusterPreview
+            siblings={siblings}
+            expanded={clusterExpanded}
+            pictures={previews}
+            {...(readIds ? { read: readIds } : {})}
+          />
+        ) : also.length ? (
           <p data-part="" className="mt-2 text-xs text-subtle">
             Also covered by: {also.join(', ')}
           </p>
+        ) : null}
+        {hasChanges(article.original_summary, article.summary) ? (
+          <StoryChanges
+            original={article.original_summary!}
+            current={article.summary ?? ''}
+          />
         ) : null}
         <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
           <span className="text-subtle print:hidden">Read full story ↗</span>
@@ -170,6 +205,13 @@ export async function StoryCard({
             title={article.title ?? ''}
             text={spokenText(article.title ?? '', ex)}
           />
+          {personal ? (
+            <ShareButton
+              articleId={article.id}
+              shared={shared}
+              title={article.title ?? ''}
+            />
+          ) : null}
           {personal ? (
             <StoryActions
               articleId={article.id}

@@ -107,3 +107,25 @@ export function recordReadTime(articleId: number, seconds: number): void {
     keepalive: true,
   }).catch(() => undefined);
 }
+
+/**
+ * Share the story with a comment, or stop sharing it
+ * (`POST`/`DELETE .../shares/:id`).
+ */
+export async function setShared(
+  articleId: number,
+  shared: boolean,
+  comments = '',
+): Promise<void> {
+  await ensureOk(
+    await fetch(`/api/users/self/shares/${articleId}`, {
+      method: shared ? 'POST' : 'DELETE',
+      ...(shared
+        ? {
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ comments: comments.trim() || null }),
+          }
+        : {}),
+    }),
+  );
+}

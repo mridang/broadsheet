@@ -25,6 +25,7 @@ export const CHIP =
  * Thumbs up and down on a story's source, a trainer for its feed, author, tags
  * and phrases of the reader's own (see `PhraseTrainer`), and saving the story.
  * Training reloads the page so the paper is set again; saving flips in place.
+ * The trainer opens as a panel (a sheet along the bottom on a phone).
  */
 export function StoryActions({
   articleId,
@@ -82,7 +83,7 @@ export function StoryActions({
     ));
 
   return (
-    <span className="inline-flex items-center gap-1.5">
+    <span className="inline-flex flex-wrap items-center gap-1.5">
       <button
         type="button"
         className={CHIP}
@@ -113,14 +114,22 @@ export function StoryActions({
       >
         👎
       </button>
-      <details>
-        <summary>Train</summary>
-        {targets.map((target) => (
-          <span key={`${target.kind}:${target.value}`}>
-            {target.label} {thumbs(target)}
-          </span>
-        ))}
-        <PhraseTrainer title={title} />
+      <details className="relative print:hidden">
+        <summary className={CHIP}>Train</summary>
+        <div className="pointer-events-auto fixed inset-x-4 bottom-4 z-20 space-y-2 rounded-card border border-line bg-surface p-4 text-sm shadow-lg sm:absolute sm:inset-x-auto sm:bottom-auto sm:left-0 sm:mt-2 sm:w-80">
+          {targets.map((target) => (
+            <span
+              key={`${target.kind}:${target.value}`}
+              className="flex items-center gap-1.5"
+            >
+              <span className="mr-auto truncate font-medium text-ink">
+                {target.label}
+              </span>
+              {thumbs(target)}
+            </span>
+          ))}
+          <PhraseTrainer title={title} />
+        </div>
       </details>
       <button
         type="button"

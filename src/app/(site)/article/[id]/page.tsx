@@ -14,6 +14,9 @@ import { withText } from '@/domain/scraping/index';
 import { mailtoLink } from '@/domain/api/emails';
 import { EmailStoryForm } from '@/app/(site)/article/[id]/_components/email-story-form';
 import { ROW_LINK } from '@/components/stories/story-row';
+import { ShareButton } from '@/app/(site)/_components/share-button';
+import { StoryChanges } from '@/app/(site)/_components/story-changes';
+import { hasChanges } from '@/domain/render/changes';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,7 +43,8 @@ function dateline(published: string | null, edition: string | null): string {
  * One story set in the paper's type: headline, dateline, standfirst and the
  * full text kept from its page, with the original a click away. Shows only
  * stories from the reader's own feeds (a visitor reads the public paper's).
- * A signed-in reader can ask questions about it. Similar stories from any
+ * A story changed since it was first seen shows what changed. A signed-in
+ * reader can share it and ask questions about it. Similar stories from any
  * source follow, linking out to those from feeds the reader does not follow.
  */
 export default async function ArticlePage({
@@ -60,6 +64,9 @@ export default async function ArticlePage({
   const similar = (await repo.discoverArticles(ownerId, article.id)) ?? [];
   const paragraphs = (article.body_text ?? '').split('\n\n').filter(Boolean);
   const date = dateline(article.published_at, article.edition);
+  const shared = user
+    ? (await repo.sharedArticleIds(user.id)).has(article.id)
+    : false;
 
   return (
     <article className="mx-auto max-w-2xl">
@@ -75,6 +82,12 @@ export default async function ArticlePage({
           {article.summary}
         </p>
       ) : null}
+      {hasChanges(article.original_summary, article.summary) ? (
+        <StoryChanges
+          original={article.original_summary!}
+          current={article.summary ?? ''}
+        />
+      ) : null}
       <div className="mt-6 flex flex-wrap items-start gap-x-5 gap-y-2 border-y border-line py-3 text-sm">
         <a
           className={ROW_LINK}
@@ -84,6 +97,13 @@ export default async function ArticlePage({
         >
           Read the original ↗
         </a>
+        {user ? (
+          <ShareButton
+            articleId={article.id}
+            shared={shared}
+            title={article.title ?? ''}
+          />
+        ) : null}
         {user ? (
           <EmailStoryForm articleId={article.id} mailto={mailtoLink(article)} />
         ) : (

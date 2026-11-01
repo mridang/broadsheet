@@ -56,6 +56,8 @@ const reader = (
   ],
   read: new Set(),
   saved: new Set(),
+  shared: new Set(),
+  clusterExpanded: false,
   level,
   markReadOnOpen: true,
   markReadOnScroll: false,

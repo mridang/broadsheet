@@ -5,6 +5,7 @@ import {
   markRead,
   markUnread,
   recordReadTime,
+  setShared,
 } from '@/app/(site)/_components/story-requests';
 
 const real = globalThis.fetch;
@@ -78,5 +79,42 @@ describe('recordReadTime', () => {
       body: '{"seconds":32}',
       keepalive: true,
     });
+  });
+});
+
+describe('setShared', () => {
+  it('posts the share with its trimmed comment', async () => {
+    const fetch = spy();
+    await setShared(4, true, ' Read this ');
+    expect(fetch).toHaveBeenCalledWith('/api/users/self/shares/4', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{"comments":"Read this"}',
+    });
+  });
+
+  it('sends no comment when it is blank', async () => {
+    const fetch = spy();
+    await setShared(4, true, '  ');
+    expect(fetch.mock.calls[0]![1].body).toBe('{"comments":null}');
+  });
+
+  it('deletes the share to stop sharing', async () => {
+    const fetch = spy();
+    await setShared(4, false);
+    expect(fetch).toHaveBeenCalledWith('/api/users/self/shares/4', {
+      method: 'DELETE',
+    });
+  });
+
+  it('throws the server’s refusal', async () => {
+    globalThis.fetch = jest.fn(
+      async () =>
+        new Response('{"title":"No such article."}', {
+          status: 404,
+          headers: { 'Content-Type': 'application/problem+json' },
+        }),
+    ) as never;
+    await expect(setShared(4, true)).rejects.toThrow();
   });
 });

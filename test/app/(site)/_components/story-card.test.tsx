@@ -52,6 +52,65 @@ describe('StoryCard', () => {
     ).toContain('Also covered by: B, C');
   });
 
+  it('badges a clustered story and previews each other copy', async () => {
+    const out = html(
+      await StoryCard({
+        article: article(),
+        tier: 'standard',
+        also: ['B'],
+        siblings: [
+          {
+            id: 8,
+            source: 'B',
+            url: 'https://b.test/1',
+            tier: 'title',
+            title: 'Same',
+          },
+          { id: 9, source: 'C', url: 'https://c.test/1', tier: 'related' },
+        ],
+        readIds: new Set([8]),
+      }),
+    );
+    expect(out).toContain('+2 sources');
+    expect(out).toMatch(/<ul[^>]*aria-label="Also covered by"/);
+    expect(out).toContain('href="https://b.test/1"');
+    expect(out).not.toContain('Also covered by: B');
+  });
+
+  it('shows what changed in a story whose text changed', async () => {
+    const out = html(
+      await StoryCard({
+        article: article({ original_summary: 'What was said.' }),
+        tier: 'standard',
+      }),
+    );
+    expect(out).toContain('show changes');
+    expect(out).toMatch(/<del[^>]*>was said\. <\/del>/);
+  });
+
+  it('offers no changes when the text is the same', async () => {
+    const out = html(
+      await StoryCard({
+        article: article({ original_summary: null }),
+        tier: 'standard',
+      }),
+    );
+    expect(out).not.toContain('show changes');
+  });
+
+  it('lets a reader share the story', async () => {
+    const out = html(
+      await StoryCard({
+        article: article(),
+        tier: 'standard',
+        personal: true,
+        shared: true,
+      }),
+    );
+    expect(out).toContain('data-action="share"');
+    expect(out).toContain('✓ Shared');
+  });
+
   it('dims a read story and gives a reader its id and controls', async () => {
     const out = html(
       await StoryCard({

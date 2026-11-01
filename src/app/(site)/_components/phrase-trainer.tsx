@@ -9,6 +9,11 @@ import {
   type TrainKind,
   type TrainScore,
 } from '@/app/(site)/_components/story-requests';
+import { CHECKBOX, CHECK_LABEL } from '@/components/ui/field';
+
+/** A small field, sized to sit beside the trainer's pills. */
+const SMALL_FIELD =
+  'focus-ring-flush h-8 rounded-control border border-field bg-surface px-2 text-xs text-ink';
 
 /** What a phrase can be matched against, as NewsBlur's trainer offers. */
 const KINDS: ReadonlyArray<readonly [TrainKind, string]> = [
@@ -53,9 +58,10 @@ export function PhraseTrainer({
         ];
 
   return (
-    <span>
+    <span className="flex flex-wrap items-center gap-2 border-t border-line pt-3">
       <select
         aria-label="What to match"
+        className={SMALL_FIELD}
         value={kind}
         onChange={(e) => setKind(e.target.value as TrainKind)}
       >
@@ -67,13 +73,15 @@ export function PhraseTrainer({
       </select>{' '}
       <input
         aria-label="Phrase"
+        className={`${SMALL_FIELD} order-first basis-full`}
         value={value}
         onChange={(e) => setValue(e.target.value)}
       />{' '}
       {REGEX.has(kind) ? (
-        <label>
+        <label className={CHECK_LABEL}>
           <input
             type="checkbox"
+            className={CHECKBOX}
             checked={regex}
             onChange={(e) => setRegex(e.target.checked)}
           />{' '}
@@ -96,7 +104,14 @@ export function PhraseTrainer({
           {label}
         </button>
       ))}
-      {action.error ? <span role="alert">{action.error}</span> : null}
+      {action.error ? (
+        <span
+          className="basis-full text-xs text-red-700 dark:text-red-400"
+          role="alert"
+        >
+          {action.error}
+        </span>
+      ) : null}
     </span>
   );
 }

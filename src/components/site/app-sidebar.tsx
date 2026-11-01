@@ -13,7 +13,11 @@ type Place = readonly [href: string, label: string, icon: IconName];
 /** The places a signed-in reader has. */
 const SIGNED_IN: readonly Place[] = [
   ['/', 'Front page', 'home'],
+  ['/briefings', 'Briefings', 'briefing'],
   ['/saved', 'Saved', 'bookmark'],
+  ['/shared', 'Shared', 'share'],
+  ['/trending', 'Trending', 'trending'],
+  ['/discover', 'Discover', 'compass'],
   ['/search', 'Search', 'search'],
   ['/assistant', 'Assistant', 'sparkle'],
   ['/editions', 'Editions', 'editions'],

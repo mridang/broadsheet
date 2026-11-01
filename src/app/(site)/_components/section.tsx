@@ -16,6 +16,9 @@ export interface Personal {
   readonly training: readonly Training[];
   readonly read: ReadonlySet<number>;
   readonly saved: ReadonlySet<number>;
+  readonly shared: ReadonlySet<number>;
+  /** Whether a cluster's copies show their picture and opening. */
+  readonly clusterExpanded: boolean;
   /** How much of the paper their training lets through. */
   readonly level: Intelligence;
   /** The section each of their feeds is filed under, by feed id. */
@@ -99,10 +102,14 @@ export function Section({
               article={s.a}
               tier={s.tier}
               also={s.also}
+              siblings={s.siblings}
               personal={!!personal}
               feedId={desk.feed_id}
               read={personal?.read.has(s.id)}
               saved={personal?.saved.has(s.id)}
+              shared={personal?.shared.has(s.id)}
+              readIds={personal?.read}
+              clusterExpanded={personal?.clusterExpanded}
             />
           ))}
           {briefs.length ? <BriefBlock items={briefs} /> : null}

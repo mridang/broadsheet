@@ -28,7 +28,11 @@ describe('AppSidebar', () => {
     });
     [
       '/',
+      '/briefings',
       '/saved',
+      '/shared',
+      '/trending',
+      '/discover',
       '/search',
       '/assistant',
       '/editions',
