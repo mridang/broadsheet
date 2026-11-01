@@ -137,6 +137,17 @@ describe('read_paper', () => {
     });
   });
 
+  it('names a nested section after the sections it is in', async () => {
+    const { feedId } = await seed();
+    const repo = new Repository(db);
+    const tech = await repo.addSection(1, 'Tech');
+    const ai = await repo.addSection(1, 'AI', undefined, tech.id);
+    await repo.updateFeed(1, feedId, { section_id: ai.id });
+    expect(await run('read_paper')).toMatchObject({
+      desks: [{ section: 'Tech · AI' }],
+    });
+  });
+
   it('leaves out disliked and read stories', async () => {
     const { articleId } = await seed();
     const repo = new Repository(db);

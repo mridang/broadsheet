@@ -90,6 +90,24 @@ describe('composeLayout', () => {
     const layout = await composeLayout(repo, uid, DAY);
     expect(layout.groups.map((g) => g.name)).toEqual(['Tech']);
   });
+
+  it('heads a nested section with the sections it is in', async () => {
+    const tech = await repo.addSection(uid, 'Tech');
+    const ai = await repo.addSection(uid, 'AI', undefined, tech.id);
+    const [feed] = await repo.listFeeds(uid);
+    await repo.updateFeed(uid, feed!.id, { section_id: ai.id });
+    const layout = await composeLayout(repo, uid, DAY);
+    expect(layout.groups.map((g) => g.name)).toEqual(['Tech · AI']);
+  });
+
+  it('prints a feed again once its timed mute has run out', async () => {
+    const [feed] = await repo.listFeeds(uid);
+    await repo.updateFeed(uid, feed!.id, {
+      muted: true,
+      muted_until: '2000-01-01 00:00:00',
+    });
+    expect(storyIds(await composeLayout(repo, uid, DAY))).toHaveLength(2);
+  });
 });
 
 describe('briefingPrompt', () => {
@@ -242,6 +260,21 @@ describe('custom editions', () => {
       await editionPick(repo, edition({ section_ids: [section.id] }), DAY),
     );
     expect(storyIds(layout)).toEqual([]);
+  });
+
+  it('prints the feeds of the sections nested in its sections', async () => {
+    const tech = await repo.addSection(uid, 'Tech');
+    const ai = await repo.addSection(uid, 'AI', undefined, tech.id);
+    const [feed] = await repo.listFeeds(uid);
+    await repo.updateFeed(uid, feed!.id, { section_id: ai.id });
+    const layout = await composeLayout(
+      repo,
+      uid,
+      DAY,
+      uid,
+      await editionPick(repo, edition({ section_ids: [tech.id] }), DAY),
+    );
+    expect(storyIds(layout)).toHaveLength(2);
   });
 
   it('stores an issue with a note that reads back by edition', async () => {

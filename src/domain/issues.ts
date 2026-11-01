@@ -11,6 +11,8 @@ import {
   Repository,
   type Article,
   type CustomEdition,
+  sectionAndDescendants,
+  sectionPath,
 } from '@/domain/repository';
 import {
   layOut,
@@ -60,17 +62,23 @@ export async function composeLayout(
   readerId?: number,
   pick?: IssuePick,
 ): Promise<Layout> {
-  const feeds = (await repo.listFeeds(ownerId)).filter(
-    (f) =>
-      !f.muted &&
-      (!pick?.sectionIds.length ||
-        (f.section_id !== null && pick.sectionIds.includes(f.section_id))),
-  );
-  const [reads, training, sections] = await Promise.all([
+  const [all, reads, training, sections] = await Promise.all([
+    repo.listFeeds(ownerId),
     readerId === undefined ? undefined : repo.readState(readerId),
     readerId === undefined ? [] : repo.listClassifiers(readerId),
     repo.listSections(ownerId),
   ]);
+  // A picked section takes in the sections nested under it.
+  const picked = new Set(
+    (pick?.sectionIds ?? []).flatMap((id) => [
+      ...sectionAndDescendants(sections, id),
+    ]),
+  );
+  const feeds = all.filter(
+    (f) =>
+      !f.muted &&
+      (!picked.size || (f.section_id !== null && picked.has(f.section_id))),
+  );
   const desks = await Promise.all(
     feeds.map(async (feed) => ({
       feed,
@@ -83,7 +91,7 @@ export async function composeLayout(
   );
   const groups: DeskGroup[] = [
     { id: null, name: null },
-    ...sections.map((s) => ({ id: s.id, name: s.name })),
+    ...sections.map((s) => ({ id: s.id, name: sectionPath(sections, s.id) })),
   ]
     .map((group) => ({
       name: group.name,

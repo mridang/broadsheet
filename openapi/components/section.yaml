@@ -9,7 +9,10 @@ Section:
     position:
       type: integer
       minimum: 0
-      description: Sections go down the front page in this order.
+      description: Sections go down the front page in this order, among the sections that share a parent.
+    parent_id:
+      type: string
+      description: The section this one nests under; absent at the top level. A nested section's feeds print under a heading that names the sections it is in, and an edition that prints a section prints the sections inside it too.
     created_at:
       type: string
       format: date-time
@@ -25,3 +28,7 @@ SectionChanges:
       type: integer
       minimum: 0
       maximum: 10000
+    parent_id:
+      type: [string, 'null']
+      pattern: '^[1-9][0-9]{0,14}$'
+      description: One of the person's sections to nest under, or null for the top level. The section itself, or one inside it, is refused with 400.

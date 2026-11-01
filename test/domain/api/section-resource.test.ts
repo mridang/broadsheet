@@ -13,6 +13,7 @@ describe('sectionResource', () => {
         user_id: 9,
         name: 'Tech',
         position: 2,
+        parent_id: null,
         created_at: '2026-01-02 03:04:05',
       }),
     ).toEqual({
@@ -30,6 +31,7 @@ describe('sectionResource', () => {
         user_id: 9,
         name: 'Tech',
         position: 0,
+        parent_id: null,
         created_at: null,
       }),
     ).toEqual({ id: '4', name: 'Tech', position: 0 });
@@ -42,6 +44,8 @@ describe('parseSectionInput', () => {
     [{ name: 'Tech', position: 3 }, true, { name: 'Tech', position: 3 }],
     [{ position: 0 }, false, { position: 0 }],
     [{}, false, {}],
+    [{ parent_id: '3' }, false, { parent_id: 3 }],
+    [{ parent_id: null }, false, { parent_id: null }],
   ])('accepts %j (name required: %s)', (body, required, changes) => {
     expect(parseSectionInput(body, required)).toEqual({ ok: true, changes });
   });
@@ -62,6 +66,8 @@ describe('parseSectionInput', () => {
       'position: must be a whole number from 0 to 10000.',
     ],
     [{ name: 'a', colour: 'red' }, true, 'colour: not a member of a section.'],
+    [{ parent_id: 3 }, false, 'parent_id: not a section id.'],
+    [{ parent_id: 'top' }, false, 'parent_id: not a section id.'],
   ])(
     'refuses %j (name required: %s), naming the field',
     (body, required, error) => {
@@ -71,4 +77,19 @@ describe('parseSectionInput', () => {
       });
     },
   );
+});
+
+describe('sectionResource of a nested section', () => {
+  it('names its parent as a string', () => {
+    expect(
+      sectionResource({
+        id: 4,
+        user_id: 9,
+        name: 'AI',
+        position: 0,
+        parent_id: 2,
+        created_at: null,
+      }),
+    ).toMatchObject({ parent_id: '2' });
+  });
 });

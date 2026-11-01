@@ -5,7 +5,11 @@
  * checking the bodies a client posts to add or change one.
  */
 
-import { MAX_NAME_LENGTH, rfc3339 } from '@/domain/api/feed-resource';
+import {
+  MAX_NAME_LENGTH,
+  parseFeedId,
+  rfc3339,
+} from '@/domain/api/feed-resource';
 import type { Section, SectionChanges } from '@/domain/repository';
 
 /** Highest position a section may take. */
@@ -16,6 +20,8 @@ export interface SectionResource {
   readonly id: string;
   readonly name: string;
   readonly position: number;
+  /** The section this one nests under; absent at the top level. */
+  readonly parent_id?: string;
   readonly created_at?: string;
 }
 
@@ -26,6 +32,9 @@ export function sectionResource(section: Readonly<Section>): SectionResource {
     id: String(section.id),
     name: section.name,
     position: section.position,
+    ...(section.parent_id !== null
+      ? { parent_id: String(section.parent_id) }
+      : {}),
     ...(created ? { created_at: created } : {}),
   };
 }
@@ -37,7 +46,7 @@ export type SectionInput =
 
 /**
  * Check a section body: `name` a non-blank string, `position` a whole number
- * from 0. `POST` needs the name (`required`); `PATCH` takes either. Other
+ * from 0, `parent_id` a section id or null for the top level. `POST` needs the name (`required`); `PATCH` takes either. Other
  * members are refused.
  */
 export function parseSectionInput(
@@ -48,7 +57,7 @@ export function parseSectionInput(
   const changes: { -readonly [K in keyof SectionChanges]: SectionChanges[K] } =
     {};
   for (const key of Object.keys(body)) {
-    if (key !== 'name' && key !== 'position') {
+    if (!['name', 'position', 'parent_id'].includes(key)) {
       errors.push(`${key}: not a member of a section.`);
     }
   }
@@ -73,6 +82,13 @@ export function parseSectionInput(
       errors.push(
         `position: must be a whole number from 0 to ${MAX_POSITION}.`,
       );
+  }
+  if ('parent_id' in body) {
+    const raw = body['parent_id'];
+    const id = typeof raw === 'string' ? parseFeedId(raw) : undefined;
+    if (raw === null) changes.parent_id = null;
+    else if (id === undefined) errors.push('parent_id: not a section id.');
+    else changes.parent_id = id;
   }
   return errors.length ? { ok: false, errors } : { ok: true, changes };
 }

@@ -53,6 +53,24 @@ describe('POST /api/sections', () => {
     expect(await new Repository(db).listSections(7)).toHaveLength(1);
   });
 
+  it('nests a new section under one of the caller’s sections', async () => {
+    const parent = await new Repository(db).addSection(7, 'Tech');
+    const res = await post(
+      JSON.stringify({ name: 'AI', parent_id: String(parent.id) }),
+    );
+    expect(res.status).toBe(201);
+    expect(await res.json()).toMatchObject({ parent_id: String(parent.id) });
+  });
+
+  it('answers 400 naming parent_id for a parent that is not the caller’s', async () => {
+    const res = await post(JSON.stringify({ name: 'AI', parent_id: '999' }));
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { errors: string[] }).errors[0]).toMatch(
+      /^parent_id:/,
+    );
+    expect(await new Repository(db).listSections(7)).toHaveLength(0);
+  });
+
   it('answers 400 as a problem naming the missing name', async () => {
     const res = await post('{}');
     expect(res.status).toBe(400);

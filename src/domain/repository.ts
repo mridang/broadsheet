@@ -59,7 +59,11 @@ export interface Feed {
   readonly section_id: number | null;
   readonly url: string;
   readonly title: string | null;
+  /** Out of the paper now: muted, and the mute has not run out. */
   readonly muted: boolean;
+  /** When a timed mute runs out (SQLite UTC); null when there is none. */
+  readonly muted_until: string | null;
+  readonly position: number;
   readonly created_at: string | null;
   readonly icon: string | null;
   readonly format: string | null;
@@ -88,12 +92,16 @@ export interface FeedStatistics {
 export interface FeedChanges {
   readonly title?: string | null;
   readonly muted?: boolean;
+  /** When the mute runs out (SQLite UTC), or null to mute for good. */
+  readonly muted_until?: string | null;
   readonly section_id?: number | null;
+  readonly position?: number;
 }
-/** The parts of a section a person can change. */
+/** The parts of a section a person can change; a null parent is top level. */
 export interface SectionChanges {
   readonly name?: string;
   readonly position?: number;
+  readonly parent_id?: number | null;
 }
 /** An article scraped from a source. */
 export type Article = typeof articles.$inferSelect;
@@ -382,7 +390,12 @@ export class Repository {
         title: sql<
           string | null
         >`coalesce(${subscriptions.title_override}, ${sources.title})`,
-        muted: sql<boolean>`${subscriptions.muted} != 0`.mapWith(Boolean),
+        muted:
+          sql<boolean>`(${subscriptions.muted} != 0 and (${subscriptions.muted_until} is null or ${subscriptions.muted_until} > datetime('now')))`.mapWith(
+            Boolean,
+          ),
+        muted_until: subscriptions.muted_until,
+        position: subscriptions.position,
         created_at: subscriptions.created_at,
         icon: sources.icon,
         format: sources.format,
@@ -401,7 +414,11 @@ export class Repository {
   listFeeds(userId: number): Promise<Feed[]> {
     return this.#feeds()
       .where(eq(subscriptions.user_id, userId))
-      .orderBy(asc(subscriptions.created_at), asc(subscriptions.id));
+      .orderBy(
+        asc(subscriptions.position),
+        asc(subscriptions.created_at),
+        asc(subscriptions.id),
+      );
   }
 
   /** The person's feed with this id, or undefined when it is not theirs. */
@@ -447,8 +464,9 @@ export class Repository {
   }
 
   /**
-   * Rename, mute or file one of the person's feeds. Undefined when it is not
-   * theirs. A blank title goes back to the source's own.
+   * Rename, mute, order or file one of the person's feeds. Undefined when it
+   * is not theirs. A blank title goes back to the source's own; unmuting
+   * clears any time the mute was to run out.
    */
   async updateFeed(
     userId: number,
@@ -458,7 +476,12 @@ export class Repository {
     const set: Partial<typeof subscriptions.$inferInsert> = {};
     if (changes.title !== undefined) set.title_override = changes.title || null;
     if (changes.muted !== undefined) set.muted = changes.muted ? 1 : 0;
+    if (changes.muted_until !== undefined) {
+      set.muted_until = changes.muted_until;
+    }
+    if (changes.muted === false) set.muted_until = null;
     if (changes.section_id !== undefined) set.section_id = changes.section_id;
+    if (changes.position !== undefined) set.position = changes.position;
     if (Object.keys(set).length) {
       await this.#db
         .update(subscriptions)
@@ -536,13 +559,17 @@ export class Repository {
       .where(eq(sources.id, sourceId));
   }
 
-  /** The person's sections, in the order they go down the page. */
-  listSections(userId: number): Promise<Section[]> {
-    return this.#db
+  /**
+   * The person's sections, in the order they go down the page: each section
+   * by position, followed by the sections nested under it.
+   */
+  async listSections(userId: number): Promise<Section[]> {
+    const rows = await this.#db
       .select()
       .from(sections)
       .where(eq(sections.user_id, userId))
       .orderBy(asc(sections.position), asc(sections.id));
+    return treeOrder(rows);
   }
 
   /** The person's section with this id, or undefined when it is not theirs. */
@@ -552,32 +579,39 @@ export class Repository {
     });
   }
 
-  /** Add a section; without a position it goes after the others. */
+  /**
+   * Add a section, under `parentId` when given; without a position it goes
+   * after its siblings.
+   */
   async addSection(
     userId: number,
     name: string,
     position?: number,
+    parentId: number | null = null,
   ): Promise<Section> {
     const at =
       position ??
-      (await this.listSections(userId)).reduce(
-        (last, s) => Math.max(last, s.position + 1),
-        0,
-      );
+      (await this.listSections(userId))
+        .filter((s) => s.parent_id === parentId)
+        .reduce((last, s) => Math.max(last, s.position + 1), 0);
     const rows = await this.#db
       .insert(sections)
-      .values({ user_id: userId, name, position: at })
+      .values({ user_id: userId, name, position: at, parent_id: parentId })
       .returning();
     return rows[0]!;
   }
 
-  /** Rename or move a section. Undefined when it is not the person's. */
+  /**
+   * Rename, reorder or move a section under another. Undefined when it is not
+   * the person's. Checking that a new parent is theirs and not the section or
+   * one under it is {@link canNestUnder}'s job.
+   */
   async updateSection(
     userId: number,
     id: number,
     changes: SectionChanges,
   ): Promise<Section | undefined> {
-    if (changes.name !== undefined || changes.position !== undefined) {
+    if (Object.keys(changes).length) {
       await this.#db
         .update(sections)
         .set(changes)
@@ -587,15 +621,39 @@ export class Repository {
   }
 
   /**
-   * Remove a section; its feeds stay, under no section. True when there was
-   * one to remove.
+   * Whether section `id` (undefined for a new one) may nest under `parentId`:
+   * the parent is the person's, and is neither the section nor one nested
+   * under it.
+   */
+  async canNestUnder(
+    userId: number,
+    id: number | undefined,
+    parentId: number,
+  ): Promise<boolean> {
+    const all = await this.listSections(userId);
+    const parents = new Map(all.map((s) => [s.id, s.parent_id]));
+    if (!parents.has(parentId)) return false;
+    for (let at: number | null | undefined = parentId; at != null;) {
+      if (at === id) return false;
+      at = parents.get(at);
+    }
+    return true;
+  }
+
+  /**
+   * Remove a section; its feeds stay, under no section, and the sections
+   * nested in it move up to its parent. True when there was one to remove.
    */
   async removeSection(userId: number, id: number): Promise<boolean> {
     const removed = await this.#db
       .delete(sections)
       .where(and(eq(sections.id, id), eq(sections.user_id, userId)))
-      .returning({ id: sections.id });
+      .returning({ id: sections.id, parent_id: sections.parent_id });
     if (!removed.length) return false;
+    await this.#db
+      .update(sections)
+      .set({ parent_id: removed[0]!.parent_id })
+      .where(and(eq(sections.user_id, userId), eq(sections.parent_id, id)));
     await this.#db
       .update(subscriptions)
       .set({ section_id: null })
@@ -1404,4 +1462,63 @@ export class Repository {
       .limit(limit);
     return rows.map((r) => ({ ...r, followers: Number(r.followers) }));
   }
+}
+
+/**
+ * Sections in page order: top-level ones in the order given, each followed by
+ * the sections nested under it. A section whose parent is gone counts as top
+ * level.
+ */
+export function treeOrder(rows: readonly Section[]): Section[] {
+  const ids = new Set(rows.map((s) => s.id));
+  const children = new Map<number | null, Section[]>();
+  for (const s of rows) {
+    const parent =
+      s.parent_id !== null && ids.has(s.parent_id) ? s.parent_id : null;
+    children.set(parent, [...(children.get(parent) ?? []), s]);
+  }
+  const out: Section[] = [];
+  const seen = new Set<number>();
+  const visit = (parent: number | null): void => {
+    for (const s of children.get(parent) ?? []) {
+      if (seen.has(s.id)) continue;
+      seen.add(s.id);
+      out.push(s);
+      visit(s.id);
+    }
+  };
+  visit(null);
+  // A cycle has no way in from the top; print what it holds at the end.
+  return [...out, ...rows.filter((s) => !seen.has(s.id))];
+}
+
+/** The ids of `id` and every section nested under it, however deep. */
+export function sectionAndDescendants(
+  all: readonly Section[],
+  id: number,
+): Set<number> {
+  const found = new Set([id]);
+  for (let grew = true; grew;) {
+    grew = false;
+    for (const s of all) {
+      if (s.parent_id !== null && found.has(s.parent_id) && !found.has(s.id)) {
+        found.add(s.id);
+        grew = true;
+      }
+    }
+  }
+  return found;
+}
+
+/** A section's heading: its name after the names of the sections it is in. */
+export function sectionPath(all: readonly Section[], id: number): string {
+  const byId = new Map(all.map((s) => [s.id, s]));
+  const names: string[] = [];
+  const seen = new Set<number>();
+  for (let at = byId.get(id); at && !seen.has(at.id);) {
+    seen.add(at.id);
+    names.unshift(at.name);
+    at = at.parent_id === null ? undefined : byId.get(at.parent_id);
+  }
+  return names.join(' · ');
 }

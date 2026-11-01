@@ -118,6 +118,22 @@ describe('PATCH /api/feeds/:id', () => {
     });
   });
 
+  it('mutes the feed until a time, and says when', async () => {
+    const res = await patch(
+      mine,
+      JSON.stringify({ muted: true, muted_until: '2999-01-01T00:00:00Z' }),
+    );
+    expect(await res.json()).toMatchObject({
+      muted: true,
+      muted_until: '2999-01-01T00:00:00Z',
+    });
+  });
+
+  it('moves the feed in the caller’s order', async () => {
+    const res = await patch(mine, JSON.stringify({ position: 3 }));
+    expect(await res.json()).toMatchObject({ position: 3 });
+  });
+
   it('files the feed under one of the caller’s sections', async () => {
     const section = await new Repository(db).addSection(7, 'Tech');
     const res = await patch(

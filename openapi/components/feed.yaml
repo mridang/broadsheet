@@ -1,6 +1,6 @@
 Feed:
   type: object
-  required: [id, url, muted, metadata]
+  required: [id, url, muted, position, metadata]
   properties:
     id:
       type: string
@@ -11,7 +11,15 @@ Feed:
       description: The person's own name for the feed, else the feed's.
     muted:
       type: boolean
-      description: A muted feed stays followed but is left out of the paper.
+      description: A muted feed stays followed but is left out of the paper. False again once a timed mute runs out.
+    muted_until:
+      type: string
+      format: date-time
+      description: When a timed mute runs out; absent when the feed is not muted for a time.
+    position:
+      type: integer
+      minimum: 0
+      description: Where the feed sits in the person's order; ties go by when it was followed.
     section_id:
       type: string
       description: The section the feed is filed under; absent when none.
@@ -74,6 +82,15 @@ FeedChanges:
       description: The person's own name for the feed; null or blank goes back to the feed's own.
     muted:
       type: boolean
+      description: False also forgets any time a mute was to run out.
+    muted_until:
+      type: [string, 'null']
+      format: date-time
+      description: When the mute runs out, or null to mute for good.
+    position:
+      type: integer
+      minimum: 0
+      maximum: 10000
     section_id:
       type: [string, 'null']
       pattern: '^[1-9][0-9]{0,14}$'

@@ -72,6 +72,43 @@ describe('PATCH /api/sections/:id', () => {
     expect(await res.json()).toMatchObject({ name: 'Science', position: 3 });
   });
 
+  it('moves the section under another of the caller’s sections', async () => {
+    const parent = await new Repository(db).addSection(7, 'Science');
+    const res = await patch(
+      mine,
+      JSON.stringify({ parent_id: String(parent.id) }),
+    );
+    expect(await res.json()).toMatchObject({ parent_id: String(parent.id) });
+  });
+
+  it('answers 400 naming parent_id for a section inside this one', async () => {
+    const child = await new Repository(db).addSection(7, 'AI', undefined, mine);
+    const res = await patch(
+      mine,
+      JSON.stringify({ parent_id: String(child.id) }),
+    );
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { errors: string[] }).errors[0]).toMatch(
+      /^parent_id:/,
+    );
+  });
+
+  it('answers 400 for another person’s section as the parent', async () => {
+    const theirs = await new Repository(db).addSection(8, 'Theirs');
+    const res = await patch(
+      mine,
+      JSON.stringify({ parent_id: String(theirs.id) }),
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it('answers 404 rather than 400 for another person’s section with a bad parent', async () => {
+    auth = await cookieFor(8);
+    expect(
+      (await patch(mine, JSON.stringify({ parent_id: String(mine) }))).status,
+    ).toBe(404);
+  });
+
   it('answers 400 as a problem naming the bad field', async () => {
     const res = await patch(mine, JSON.stringify({ name: '' }));
     expect(res.status).toBe(400);

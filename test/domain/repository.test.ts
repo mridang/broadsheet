@@ -6,7 +6,11 @@ import {
   anyWordQuery,
   ftsQuery,
   Repository,
+  sectionAndDescendants,
+  sectionPath,
+  treeOrder,
   type Profile,
+  type Section,
 } from '@/domain/repository';
 import type { ScrapedItem } from '@/lib/scraping';
 import { APP_MIGRATIONS } from '../lib/core/db/migrations';
@@ -967,5 +971,160 @@ describe('listEditions', () => {
     await repo.writeEdition(quiet.source_id, '2026-10-21', [item]);
     await repo.updateFeed(1, quiet.id, { muted: true });
     expect(await repo.listEditions(1)).toEqual(['2026-10-20']);
+  });
+});
+
+describe('feed order and timed mutes', () => {
+  it('lists feeds in the order the person gave them', async () => {
+    const repo = new Repository(db);
+    const a = (await addFeed(db, 1, 'https://a.test/a'))!;
+    const b = (await addFeed(db, 1, 'https://a.test/b'))!;
+    await repo.updateFeed(1, a.id, { position: 2 });
+    await repo.updateFeed(1, b.id, { position: 1 });
+    expect((await listFeeds(db, 1)).map((f) => f.id)).toEqual([b.id, a.id]);
+  });
+
+  it('counts a feed as muted only until its mute runs out', async () => {
+    const repo = new Repository(db);
+    const feed = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await repo.updateFeed(1, feed.id, {
+      muted: true,
+      muted_until: '2999-01-01 00:00:00',
+    });
+    expect((await repo.getFeed(1, feed.id))?.muted).toBe(true);
+    await repo.updateFeed(1, feed.id, { muted_until: '2000-01-01 00:00:00' });
+    expect((await repo.getFeed(1, feed.id))?.muted).toBe(false);
+  });
+
+  it('forgets when a mute was to run out once the feed is unmuted', async () => {
+    const repo = new Repository(db);
+    const feed = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await repo.updateFeed(1, feed.id, {
+      muted: true,
+      muted_until: '2999-01-01 00:00:00',
+    });
+    await repo.updateFeed(1, feed.id, { muted: false });
+    expect((await repo.getFeed(1, feed.id))?.muted_until).toBeNull();
+  });
+});
+
+describe('nested sections', () => {
+  it('lists each section followed by the sections nested in it', async () => {
+    const repo = new Repository(db);
+    const b = await repo.addSection(1, 'B', 1);
+    const a = await repo.addSection(1, 'A', 0);
+    await repo.addSection(1, 'B2', undefined, b.id);
+    await repo.addSection(1, 'A1', undefined, a.id);
+    expect((await repo.listSections(1)).map((s) => s.name)).toEqual([
+      'A',
+      'A1',
+      'B',
+      'B2',
+    ]);
+  });
+
+  it('puts a new nested section after its siblings only', async () => {
+    const repo = new Repository(db);
+    const top = await repo.addSection(1, 'Top');
+    await repo.addSection(1, 'Other');
+    expect(
+      (await repo.addSection(1, 'Child', undefined, top.id)).position,
+    ).toBe(0);
+  });
+
+  it('allows a parent that is the person’s and outside the section', async () => {
+    const repo = new Repository(db);
+    const a = await repo.addSection(1, 'A');
+    const b = await repo.addSection(1, 'B', undefined, a.id);
+    const c = await repo.addSection(1, 'C');
+    const theirs = await repo.addSection(2, 'Theirs');
+    expect(await repo.canNestUnder(1, c.id, b.id)).toBe(true);
+    expect(await repo.canNestUnder(1, undefined, a.id)).toBe(true);
+    expect(await repo.canNestUnder(1, a.id, a.id)).toBe(false);
+    expect(await repo.canNestUnder(1, a.id, b.id)).toBe(false);
+    expect(await repo.canNestUnder(1, c.id, theirs.id)).toBe(false);
+    expect(await repo.canNestUnder(1, c.id, 999)).toBe(false);
+  });
+
+  it('moves a section under another, and back to the top level', async () => {
+    const repo = new Repository(db);
+    const a = await repo.addSection(1, 'A');
+    const b = await repo.addSection(1, 'B');
+    expect(
+      (await repo.updateSection(1, b.id, { parent_id: a.id }))?.parent_id,
+    ).toBe(a.id);
+    expect(
+      (await repo.updateSection(1, b.id, { parent_id: null }))?.parent_id,
+    ).toBeNull();
+  });
+
+  it('moves the sections inside a removed one up to its parent', async () => {
+    const repo = new Repository(db);
+    const a = await repo.addSection(1, 'A');
+    const b = await repo.addSection(1, 'B', undefined, a.id);
+    const c = await repo.addSection(1, 'C', undefined, b.id);
+    await repo.removeSection(1, b.id);
+    expect((await repo.getSection(1, c.id))?.parent_id).toBe(a.id);
+  });
+});
+
+const section = (
+  id: number,
+  name: string,
+  parent_id: number | null,
+): Section => ({
+  id,
+  user_id: 1,
+  name,
+  position: 0,
+  parent_id,
+  created_at: null,
+});
+
+describe('treeOrder', () => {
+  it('puts each section before the ones nested in it', () => {
+    expect(
+      treeOrder([section(2, 'Child', 1), section(1, 'Top', null)]).map(
+        (s) => s.id,
+      ),
+    ).toEqual([1, 2]);
+  });
+
+  it('counts a section whose parent is gone as top level', () => {
+    expect(treeOrder([section(2, 'Orphan', 9)]).map((s) => s.id)).toEqual([2]);
+  });
+
+  it('still lists sections caught in a loop', () => {
+    expect(
+      treeOrder([section(1, 'A', 2), section(2, 'B', 1)])
+        .map((s) => s.id)
+        .toSorted(),
+    ).toEqual([1, 2]);
+  });
+});
+
+describe('sectionAndDescendants', () => {
+  it('finds a section and every section under it, however deep', () => {
+    const all = [
+      section(1, 'A', null),
+      section(2, 'B', 1),
+      section(3, 'C', 2),
+      section(4, 'D', null),
+    ];
+    expect([...sectionAndDescendants(all, 1)].toSorted()).toEqual([1, 2, 3]);
+  });
+});
+
+describe('sectionPath', () => {
+  it('names a section after the sections it is in', () => {
+    const all = [section(1, 'Tech', null), section(2, 'AI', 1)];
+    expect(sectionPath(all, 2)).toBe('Tech · AI');
+    expect(sectionPath(all, 1)).toBe('Tech');
+  });
+
+  it('stops at a loop rather than running forever', () => {
+    expect(sectionPath([section(1, 'A', 2), section(2, 'B', 1)], 1)).toBe(
+      'B · A',
+    );
   });
 });

@@ -33,7 +33,7 @@ import {
 } from '@/domain/api/section-resource';
 import type { Database } from '@/domain/db/database';
 import { rank } from '@/domain/render/tiers';
-import { Repository } from '@/domain/repository';
+import { Repository, sectionPath } from '@/domain/repository';
 import { refreshSource, todayEdition } from '@/domain/scraping/index';
 import { messageResource } from '@/domain/api/conversation-resource';
 import { issueResource } from '@/domain/api/issue-resource';
@@ -228,7 +228,9 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
         date && editions.includes(date)
           ? date
           : (editions[0] ?? todayEdition());
-      const names = new Map(sections.map((s) => [s.id, s.name]));
+      const names = new Map(
+        sections.map((s) => [s.id, sectionPath(sections, s.id)]),
+      );
       const desks = await Promise.all(
         feeds
           .filter((f) => !f.muted)

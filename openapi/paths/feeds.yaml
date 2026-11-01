@@ -99,7 +99,7 @@ item:
   patch:
     operationId: changeFeed
     tags: [feeds]
-    summary: Rename, mute or file a feed under a section.
+    summary: Rename, mute (for good or for a time), reorder or file a feed under a section.
     description: Rate limited by the `RL_API` binding. Only the members sent are changed. A `section_id` that is not one of the person's sections is a 400. An id that cannot name a feed is a 404.
     parameters:
       - name: id

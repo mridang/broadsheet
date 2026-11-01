@@ -17,6 +17,9 @@ export interface FeedResource {
   readonly url: string;
   readonly title?: string;
   readonly muted: boolean;
+  /** When a timed mute runs out; absent when the feed is not muted for a time. */
+  readonly muted_until?: string;
+  readonly position: number;
   readonly section_id?: string;
   readonly created_at?: string;
   /** What the feed says about itself, from its header; absent until fetched. */
@@ -43,6 +46,27 @@ function storedHeader(json: string | null): FeedElement[] {
   }
 }
 
+/** Highest position a feed may take. */
+const MAX_FEED_POSITION = 10_000;
+
+/**
+ * An RFC 3339 date-time as SQLite stores times (`YYYY-MM-DD HH:MM:SS`, UTC),
+ * or undefined when it is not one.
+ */
+export function sqliteTime(text: string): string | undefined {
+  if (
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/i.test(
+      text,
+    )
+  ) {
+    return undefined;
+  }
+  const ms = Date.parse(text);
+  return Number.isNaN(ms)
+    ? undefined
+    : new Date(ms).toISOString().slice(0, 19).replace('T', ' ');
+}
+
 /** Longest feed title or section name accepted, in characters. */
 export const MAX_NAME_LENGTH = 200;
 
@@ -67,6 +91,10 @@ export function feedResource(feed: Readonly<Feed>): FeedResource {
     url: feed.url,
     ...(feed.title ? { title: feed.title } : {}),
     muted: feed.muted,
+    ...(feed.muted && feed.muted_until && rfc3339(feed.muted_until)
+      ? { muted_until: rfc3339(feed.muted_until) }
+      : {}),
+    position: feed.position,
     ...(feed.section_id !== null
       ? { section_id: String(feed.section_id) }
       : {}),
@@ -124,7 +152,8 @@ export type FeedChangesInput =
 
 /**
  * Check a `PATCH /api/feeds/:id` body: `title` a string or null, `muted` a
- * boolean, `section_id` a section id or null. Other members are refused.
+ * boolean, `muted_until` an RFC 3339 time or null, `position` a whole number
+ * from 0, `section_id` a section id or null. Other members are refused.
  */
 export function parseFeedChanges(
   body: Readonly<Record<string, unknown>>,
@@ -132,7 +161,9 @@ export function parseFeedChanges(
   const errors: string[] = [];
   const changes: { -readonly [K in keyof FeedChanges]: FeedChanges[K] } = {};
   for (const key of Object.keys(body)) {
-    if (!['title', 'muted', 'section_id'].includes(key)) {
+    if (
+      !['title', 'muted', 'muted_until', 'section_id', 'position'].includes(key)
+    ) {
       errors.push(`${key}: not a member of a feed that can be changed.`);
     }
   }
@@ -148,6 +179,29 @@ export function parseFeedChanges(
     const muted = body['muted'];
     if (typeof muted === 'boolean') changes.muted = muted;
     else errors.push('muted: must be true or false.');
+  }
+  if ('muted_until' in body) {
+    const raw = body['muted_until'];
+    const at = typeof raw === 'string' ? sqliteTime(raw) : undefined;
+    if (raw === null) changes.muted_until = null;
+    else if (at === undefined) {
+      errors.push('muted_until: must be an RFC 3339 date-time.');
+    } else changes.muted_until = at;
+  }
+  if ('position' in body) {
+    const position = body['position'];
+    if (
+      typeof position === 'number' &&
+      Number.isInteger(position) &&
+      position >= 0 &&
+      position <= MAX_FEED_POSITION
+    ) {
+      changes.position = position;
+    } else {
+      errors.push(
+        `position: must be a whole number from 0 to ${MAX_FEED_POSITION}.`,
+      );
+    }
   }
   if ('section_id' in body) {
     const raw = body['section_id'];

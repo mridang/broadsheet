@@ -39,6 +39,8 @@ function feed(id: number, over: Partial<Feed> = {}): Feed {
     url: `https://feed${id}.test/rss`,
     title: `Feed ${id}`,
     muted: false,
+    muted_until: null,
+    position: 0,
     created_at: null,
     icon: null,
     format: null,

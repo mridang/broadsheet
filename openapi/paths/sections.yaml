@@ -3,7 +3,7 @@ collection:
     operationId: addSection
     tags: [sections]
     summary: Add a section to group feeds under on the front page.
-    description: Rate limited by the `RL_API` binding. Without a position the section goes after the others.
+    description: Rate limited by the `RL_API` binding. Without a position the section goes after its siblings. A `parent_id` that is not one of the person's sections is a 400.
     requestBody:
       required: true
       content:
@@ -44,7 +44,7 @@ item:
   patch:
     operationId: changeSection
     tags: [sections]
-    summary: Rename or move a section.
+    summary: Rename, reorder or move a section under another.
     description: Rate limited by the `RL_API` binding. Only the members sent are changed. An id that cannot name a section is a 404.
     requestBody:
       required: true
@@ -74,7 +74,7 @@ item:
   delete:
     operationId: removeSection
     tags: [sections]
-    summary: Remove a section; its feeds stay, under no section.
+    summary: Remove a section; its feeds stay, under no section, and the sections inside it move up to its parent.
     description: Rate limited by the `RL_API` binding. An id that cannot name a section is a 404.
     responses:
       '204':

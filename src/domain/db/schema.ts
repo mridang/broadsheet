@@ -58,7 +58,10 @@ export const sources = sqliteTable('sources', {
   created_at: text('created_at').default(sql`(datetime('now'))`),
 });
 
-/** A heading a person groups their feeds under on the front page. */
+/**
+ * A heading a person groups their feeds under on the front page. A section
+ * with a `parent_id` nests under that one.
+ */
 export const sections = sqliteTable(
   'sections',
   {
@@ -66,6 +69,7 @@ export const sections = sqliteTable(
     user_id: integer('user_id').notNull(),
     name: text('name').notNull(),
     position: integer('position').notNull().default(0),
+    parent_id: integer('parent_id'),
     created_at: text('created_at').default(sql`(datetime('now'))`),
   },
   (table) => [index('idx_sections_user').on(table.user_id)],
@@ -73,7 +77,8 @@ export const sections = sqliteTable(
 
 /**
  * A person following a source: what the API calls a feed. Unique per
- * (user, source); `muted` (0/1) keeps it out of the paper.
+ * (user, source); `muted` (0/1) keeps it out of the paper, until
+ * `muted_until` when that is set. `position` orders the person's feeds.
  */
 export const subscriptions = sqliteTable(
   'subscriptions',
@@ -84,6 +89,8 @@ export const subscriptions = sqliteTable(
     section_id: integer('section_id'),
     title_override: text('title_override'),
     muted: integer('muted').notNull().default(0),
+    muted_until: text('muted_until'),
+    position: integer('position').notNull().default(0),
     created_at: text('created_at').default(sql`(datetime('now'))`),
   },
   (table) => [

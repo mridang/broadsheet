@@ -47,13 +47,19 @@ export async function editFeed(id: number, edit: FeedEdit): Promise<void> {
   );
 }
 
-/** Add a section called `name` (`POST /api/sections`). */
-export async function addSection(name: string): Promise<void> {
+/**
+ * Add a section called `name`, inside the section `parentId` when given
+ * (`POST /api/sections`).
+ */
+export async function addSection(
+  name: string,
+  parentId?: string,
+): Promise<void> {
   await ensureOk(
     await fetch('/api/sections', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify(parentId ? { name, parent_id: parentId } : { name }),
     }),
   );
 }

@@ -12,6 +12,8 @@ const feed = (over: Partial<Feed> = {}): Feed => ({
   url: 'https://a.test/feed',
   title: 'Shopify Engineering',
   muted: false,
+  muted_until: null,
+  position: 0,
   created_at: null,
   icon: null,
   format: 'atom',

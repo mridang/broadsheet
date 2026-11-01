@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 
 import { getCurrentUser } from '@/lib/core/auth';
 import { getDatabase } from '@/domain/db/database';
-import { Repository } from '@/domain/repository';
+import { Repository, sectionPath } from '@/domain/repository';
 import { FeedSummary } from '@/components/feeds/feed-summary';
 
 import { AddFeedForm } from '@/app/(site)/feeds/_components/add-feed-form';
@@ -38,7 +38,10 @@ export default async function FeedsPage() {
       ),
     ),
   );
-  const options = sections.map((s) => ({ id: s.id, name: s.name }));
+  const options = sections.map((s) => ({
+    id: s.id,
+    name: sectionPath(sections, s.id),
+  }));
 
   return (
     <div className="panel">
@@ -78,8 +81,8 @@ export default async function FeedsPage() {
       <p className="muted">
         Sections group feeds under their own headings on the front page.
       </p>
-      <AddSectionForm />
-      {sections.map((s) => (
+      <AddSectionForm sections={options} />
+      {options.map((s) => (
         <div className="feedrow" key={s.id}>
           <strong>{s.name}</strong>
           <RemoveSectionButton id={s.id} />

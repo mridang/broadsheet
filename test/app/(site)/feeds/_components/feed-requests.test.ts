@@ -104,6 +104,16 @@ describe('addSection', () => {
     });
   });
 
+  it('names the parent when the section goes inside another', async () => {
+    const spy = answer(new Response('{}', { status: 201 }));
+    await addSection('AI', '3');
+    expect(spy).toHaveBeenCalledWith('/api/sections', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'AI', parent_id: '3' }),
+    });
+  });
+
   it('throws when the server refuses', async () => {
     answer(refusal('The section is not valid.'));
     await expect(addSection('')).rejects.toBeInstanceOf(ProblemError);
