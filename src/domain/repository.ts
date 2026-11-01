@@ -617,22 +617,27 @@ export class Repository {
   }
 
   /**
-   * Write one day's edition for a source: replace just THIS edition's rows (so a
-   * same-day re-run is idempotent) and insert the current items dated to
-   * `edition`. Stories someone saved or read keep their rows, so the save and
-   * the read still point at them. Past editions are never touched — history is kept indefinitely.
+   * Write one day's edition for a source: upsert the current items dated to
+   * `edition`, then drop that edition's rows the feed no longer lists (stories
+   * someone saved or read excepted). A same-day re-run is idempotent and keeps each story's
+   * id, so links to it and state about it survive; text a re-run could not
+   * fetch again is kept. Past editions are never touched — history is kept
+   * indefinitely.
    */
   async writeEdition(
     sourceId: number,
     edition: string,
     items: ScrapedItem[],
   ): Promise<void> {
-    const del = this.#db
+    // The addresses go in as one JSON parameter: D1 binds at most 100.
+    const listed = JSON.stringify(items.map((a) => a.url));
+    const stale = this.#db
       .delete(articles)
       .where(
         and(
           eq(articles.source_id, sourceId),
           eq(articles.edition, edition),
+          sql`${articles.url} NOT IN (SELECT value FROM json_each(${listed}))`,
           notInArray(
             articles.id,
             this.#db.select({ id: saves.article_id }).from(saves),
@@ -643,33 +648,32 @@ export class Repository {
           ),
         ),
       );
-    if (!items.length) {
-      await del;
-      return;
-    }
     // One INSERT per row: a single multi-row insert blows past D1's ~100
     // bound-variable limit. db.batch runs them in one transaction.
-    const inserts = items.map((a) =>
-      this.#db
+    const upserts = items.map((a) => {
+      const row = {
+        title: a.title,
+        source: a.source || '',
+        image: a.image || '',
+        favicon: a.favicon || '',
+        summary: a.summary || '',
+        published_at: a.published_at || '',
+        points: a.points || 0,
+        body_text: a.body_text || null,
+        fetched_at: sql`(datetime('now'))`,
+      };
+      return this.#db
         .insert(articles)
-        .values({
-          source_id: sourceId,
-          url: a.url,
-          title: a.title,
-          source: a.source || '',
-          image: a.image || '',
-          favicon: a.favicon || '',
-          summary: a.summary || '',
-          published_at: a.published_at || '',
-          points: a.points || 0,
-          body_text: a.body_text || null,
-          edition,
-        })
-        .onConflictDoNothing({
+        .values({ source_id: sourceId, url: a.url, edition, ...row })
+        .onConflictDoUpdate({
           target: [articles.source_id, articles.url, articles.edition],
-        }),
-    );
-    await this.#db.batch([del, ...inserts]);
+          set: {
+            ...row,
+            body_text: sql`coalesce(excluded.body_text, ${articles.body_text})`,
+          },
+        });
+    });
+    await this.#db.batch([stale, ...upserts]);
   }
 
   sourceArticles(sourceId: number, edition: string) {

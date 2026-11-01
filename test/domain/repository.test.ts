@@ -360,6 +360,26 @@ describe('searchArticles and getArticle', () => {
     expect(await repo.getArticle(2, article!.id)).toBeUndefined();
   });
 
+  it('keep ids and fetched text when an edition is written again', async () => {
+    const repo = new Repository(db);
+    const { source_id } = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await repo.writeEdition(source_id, '2026-10-01', [
+      story({ url: 'https://x/1', title: 'Rust', body_text: 'The text.' }),
+      story({ url: 'https://x/2', title: 'Gone' }),
+    ]);
+    const [before] = await repo.searchArticles(1, { q: 'rust', limit: 10 });
+    await repo.writeEdition(source_id, '2026-10-01', [
+      story({ url: 'https://x/1', title: 'Rust again' }),
+    ]);
+    const after = await repo.getArticle(1, before!.id);
+    expect(after).toMatchObject({
+      title: 'Rust again',
+      body_text: 'The text.',
+    });
+    expect(await repo.searchArticles(1, { limit: 10 })).toHaveLength(1);
+    expect(await repo.searchArticles(1, { q: 'gone', limit: 10 })).toEqual([]);
+  });
+
   it('forget the old text when an edition is written again', async () => {
     const repo = new Repository(db);
     const { source_id } = (await addFeed(db, 1, 'https://a.test/f'))!;
