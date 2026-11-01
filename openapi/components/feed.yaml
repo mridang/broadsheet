@@ -102,19 +102,18 @@ FeedChanges:
 FeedStatistics:
   type: object
   required:
-    [
-      fail_count,
-      subscribers,
-      active_subscribers,
-      story_count,
-      stories_last_month,
-      average_stories_per_month,
-      stories_per_day,
-      stories_per_month,
-      stories_per_weekday,
-      stories_per_hour,
-      fetch_history,
-    ]
+    - fail_count
+    - subscribers
+    - active_subscribers
+    - story_count
+    - stories_last_month
+    - average_stories_per_month
+    - stories_per_day
+    - stories_per_month
+    - stories_per_weekday
+    - stories_per_hour
+    - fetch_history
+
   properties:
     last_fetched_at:
       type: string
