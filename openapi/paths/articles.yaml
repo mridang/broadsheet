@@ -3,7 +3,7 @@ collection:
     operationId: searchArticles
     tags: [articles]
     summary: Search the archive of articles from the feeds the person follows, or list the most read or saved.
-    description: Rate limited by the `RL_API` binding. Every edition is searched, newest article first. Without `q` every article is listed. With `order=reads` or `order=saves` the articles are ranked by how many people, across everyone, read or saved each within the `window`, most first; only the counts are shown, never who, and `q` is refused.
+    description: Rate limited by the `RL_API` binding. Every edition is searched, newest article first (oldest first with `order=oldest`). Without `q` every article is listed. With `order=reads` or `order=saves` the articles are ranked by how many people, across everyone, read or saved each within the `window`, most first; only the counts are shown, never who, and `q` is refused.
     parameters:
       - name: q
         in: query
@@ -19,10 +19,10 @@ collection:
           pattern: '^[1-9][0-9]*$'
       - name: order
         in: query
-        description: Newest first, or ranked by reads or saves.
+        description: Newest or oldest first, or ranked by reads or saves.
         schema:
           type: string
-          enum: [newest, reads, saves]
+          enum: [newest, oldest, reads, saves]
           default: newest
       - name: window
         in: query
@@ -61,7 +61,7 @@ item:
     operationId: getArticle
     tags: [articles]
     summary: Read one article with its text.
-    description: Rate limited by the `RL_API` binding. An article from a source the person does not follow, or an id that cannot name one, is a 404.
+    description: Rate limited by the `RL_API` binding. When the daily scrape did not fetch the article's text, it is fetched from the original page the first time it is asked for and kept; a page with less than 100 characters of text is kept as having none. An article from a source the person does not follow, or an id that cannot name one, is a 404.
     parameters:
       - name: id
         in: path

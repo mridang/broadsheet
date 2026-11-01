@@ -23,8 +23,11 @@ import { SESSION_SECRET, tokenFor } from '../../../domain/auth/auth-test-kit';
 const refreshSource = jest.fn<(...args: unknown[]) => Promise<unknown>>(
   async () => ({ ok: true, n: 0 }),
 );
+/** What feed discovery finds for an address; the address itself by default. */
+let discovered: (url: string) => string | undefined = (url) => url;
 jest.unstable_mockModule('@/domain/scraping/index', () => ({
   refreshSource,
+  discoverFeed: async (url: string) => discovered(url),
 }));
 
 const { GET, POST } = await import('@/app/api/feeds/route');
@@ -43,6 +46,7 @@ async function cookieFor(uid: number): Promise<Record<string, string>> {
 
 beforeEach(async () => {
   refreshSource.mockClear();
+  discovered = (url) => url;
   const made = sqliteD1(...APP_MIGRATIONS);
   raw = made.raw;
   restore = installCloudflareContext(made.d1, { SESSION_SECRET });
@@ -111,6 +115,32 @@ describe('POST /api/feeds', () => {
     );
     expect(stored(7)).toHaveLength(1);
     expect(refreshSource).not.toHaveBeenCalled();
+  });
+
+  it('follows the feed a page declares instead of the page', async () => {
+    discovered = () => 'https://a.test/atom.xml';
+    const res = await follow('https://a.test/');
+    expect(res.status).toBe(201);
+    expect(await body(res)).toMatchObject({ url: 'https://a.test/atom.xml' });
+  });
+
+  it('answers 200 with the feed already followed that a page leads to', async () => {
+    const first = await body(await follow('https://a.test/atom.xml'));
+    discovered = () => 'https://a.test/atom.xml';
+    const again = await follow('https://a.test/');
+    expect(again.status).toBe(200);
+    expect((await body(again)).id).toBe(first.id);
+  });
+
+  it('answers 400 for a page with no feed to be found, storing nothing', async () => {
+    discovered = () => undefined;
+    const res = await follow('https://a.test/');
+    expect(res.status).toBe(400);
+    expect(res.headers.get('content-type')).toBe('application/problem+json');
+    expect((await body(res)).errors).toEqual([
+      'url: no feed was found at this address.',
+    ]);
+    expect(stored(7)).toHaveLength(0);
   });
 
   it('lets two people follow the same address', async () => {

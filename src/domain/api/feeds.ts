@@ -44,7 +44,7 @@ import {
   type Section,
   type FeedStatistics,
 } from '@/domain/repository';
-import { refreshSource } from '@/domain/scraping/index';
+import { discoverFeed, refreshSource } from '@/domain/scraping/index';
 import { getEnv, runInBackground } from '@/lib/core/runtime';
 import { getDatabase } from '@/domain/db/database';
 import {
@@ -190,11 +190,22 @@ export function createFeedsCollection(
       handle: async ({ url }, { uid }) => {
         const db = getDatabase();
         const repo = new Repository(db);
-        const existing = await repo.getFeedByUrl(uid, url);
+        const typed = await repo.getFeedByUrl(uid, url);
+        if (typed) {
+          return { feed: typed, created: false };
+        }
+        // A page's address follows the feed it declares, as NewsBlur does.
+        const found = await discoverFeed(url);
+        if (!found) {
+          throw problems.badRequest('The feed could not be added.', [
+            'url: no feed was found at this address.',
+          ]);
+        }
+        const existing = await repo.getFeedByUrl(uid, found);
         if (existing) {
           return { feed: existing, created: false };
         }
-        const feed = await repo.addFeed(uid, url);
+        const feed = await repo.addFeed(uid, found);
         if (!feed) {
           throw problems.badRequest('The feed could not be added.');
         }

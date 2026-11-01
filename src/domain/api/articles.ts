@@ -29,6 +29,7 @@ import {
   type TrendingQuery,
 } from '@/domain/repository';
 import { getDatabase } from '@/domain/db/database';
+import { withText } from '@/domain/scraping/index';
 
 /** The signed-in caller's id and the request, for an article endpoint. */
 interface UidContext {
@@ -135,9 +136,10 @@ export function createArticleItem(
     method: 'GET',
     handle: async (_input, { request, uid }) => {
       const id = parseFeedId(idOf(request));
-      return id !== undefined
-        ? new Repository(getDatabase()).getArticle(uid, id)
-        : undefined;
+      if (id === undefined) return undefined;
+      const db = getDatabase();
+      const article = await new Repository(db).getArticle(uid, id);
+      return article && withText(db, article);
     },
     encode: (article) =>
       article

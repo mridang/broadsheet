@@ -55,6 +55,11 @@ export const sources = sqliteTable('sources', {
   update_minutes: integer('update_minutes'),
   /** Every header element, as JSON (`FeedElement[]`). */
   header: text('header'),
+  /** The validators of the last answer, sent back for a conditional GET. */
+  etag: text('etag'),
+  last_modified: text('last_modified'),
+  /** When the source may be fetched again; it backs off while failing. */
+  next_fetch_at: text('next_fetch_at'),
   created_at: text('created_at').default(sql`(datetime('now'))`),
 });
 
@@ -426,3 +431,16 @@ export const story_emails = sqliteTable(
     index('idx_story_emails_user').on(table.user_id, table.created_at),
   ],
 );
+
+/**
+ * A search a person keeps, optionally within one of their feeds
+ * (`feed_id`, a subscription id). Unique per (user, query, feed) through an
+ * expression index in migration 0016.
+ */
+export const savedSearches = sqliteTable('saved_searches', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  user_id: integer('user_id').notNull(),
+  query: text('query').notNull(),
+  feed_id: integer('feed_id'),
+  created_at: text('created_at').default(sql`(datetime('now'))`),
+});

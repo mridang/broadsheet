@@ -40,7 +40,8 @@ const AI_STEP = {
 } as const;
 
 /**
- * The daily scrape, as a Workflow: list the sources somebody follows, fetch
+ * The daily scrape, as a Workflow: list the sources somebody follows that are
+ * due (a failing source backs off), fetch
  * each as its own step (retried on its own, so one slow or broken feed neither
  * holds up nor reruns the others), cluster the edition's near-duplicates,
  * tell each person with notifying feeds about the new stories in them,
@@ -58,19 +59,27 @@ export class DailyScrape extends WorkflowEntrypoint<CloudflareEnv> {
     const db = databaseFrom(this.env.DB);
     const edition = event.timestamp.toISOString().slice(0, 10);
     const sources = await step.do('list sources', async () =>
-      (await new Repository(db).allSources()).map(({ id, url }): Fetchable => ({
-        id,
-        url,
-      })),
+      (await new Repository(db).dueSources()).map(
+        ({ id, url, etag, last_modified, last_fetched_at }): Fetchable => ({
+          id,
+          url,
+          etag,
+          last_modified,
+          last_fetched_at,
+        }),
+      ),
     );
     let ok = 0;
     let articles = 0;
     for (const source of sources) {
       try {
-        articles += await step.do(`fetch source ${source.id}`, FETCH_STEP, () =>
-          scrapeSource(db, this.env, source, edition),
+        const result = await step.do(
+          `fetch source ${source.id}`,
+          FETCH_STEP,
+          () => scrapeSource(db, this.env, source, edition),
         );
-        ok++;
+        articles += result.articles;
+        if (!result.failed) ok++;
       } catch (error) {
         await step.do(`record failure of source ${source.id}`, async () => {
           await new Repository(db).recordFetch(

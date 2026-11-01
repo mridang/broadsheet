@@ -13,6 +13,9 @@ import { logInfo, logWarn } from '@/utils/logging';
 import {
   articleText,
   domainClean,
+  feedCandidates,
+  isFeed,
+  retryAfterMinutes,
   hostOf,
   ogImage,
   pageDescription,
@@ -36,6 +39,10 @@ export type { ScrapedItem } from '@/lib/scraping';
 const UA =
   'Mozilla/5.0 (compatible; HackerTimesBot/1.0; +https://broadsheet.apps.mrida.ng)';
 const ENRICH = 10; // article pages fetched per feed for og:image, site name and text
+const MAX_REDIRECTS = 5;
+const DISCOVERY_PROBES = 6; // candidate addresses tried when finding a page's feed
+/** Shorter text than this is a failed extraction, not an article (NewsBlur's cut). */
+export const MIN_TEXT = 100;
 
 async function get(url: string, ms = 15000): Promise<string> {
   const c = new AbortController();
@@ -150,7 +157,7 @@ async function enrich(items: ScrapedItem[]): Promise<void> {
       const name = siteName(page);
       if (name) it.source = name;
       const text = articleText(page);
-      if (text) it.body_text = text;
+      if (text.length >= MIN_TEXT) it.body_text = text;
     }),
   );
 }
@@ -158,38 +165,147 @@ async function enrich(items: ScrapedItem[]): Promise<void> {
 /** The current edition date (YYYY-MM-DD, UTC). */
 export const todayEdition = (): string => new Date().toISOString().slice(0, 10);
 
-/** The address of a source to fetch and the id its articles are stored under. */
-export type Fetchable = Pick<Source, 'id' | 'url'>;
+/**
+ * The address of a source to fetch, the id its articles are stored under, and
+ * what a conditional GET needs: the validators of its last answer and when it
+ * was last fetched.
+ */
+export type Fetchable = Pick<Source, 'id' | 'url'> &
+  Partial<Pick<Source, 'etag' | 'last_modified' | 'last_fetched_at'>>;
 
 /** Why a source's fetch failed, as recorded on the source. */
 export const FETCH_FAILED = 'The feed could not be fetched.';
 
+/** What fetching a feed's address answered. */
+export interface FeedAnswer {
+  readonly status: number;
+  readonly body: string;
+  readonly etag: string | null;
+  readonly lastModified: string | null;
+  /** Minutes a 429 or 503 asked to be left alone for. */
+  readonly retryAfter?: number;
+  /** Where the feed now lives, when every redirect on the way was permanent. */
+  readonly movedTo?: string;
+}
+
 /**
- * Fetch one source and write today's edition of it, recording the success on
- * the source. Throws {@link FETCH_FAILED} when the feed cannot be fetched, so a
- * caller that retries can try again before recording the failure.
+ * Fetch a feed's address, conditionally when validators are given, following
+ * up to {@link MAX_REDIRECTS} redirects by hand so a move for good (301 or
+ * 308 all the way) can be told from a temporary one. Throws when the address
+ * cannot be reached at all.
+ */
+export async function fetchFeed(
+  url: string,
+  validators: { etag?: string | null; lastModified?: string | null } = {},
+): Promise<FeedAnswer> {
+  const headers: Record<string, string> = {
+    'user-agent': UA,
+    accept:
+      'application/rss+xml, application/atom+xml, application/feed+json, application/xml;q=0.9, */*;q=0.8',
+  };
+  if (validators.etag) headers['if-none-match'] = validators.etag;
+  if (validators.lastModified)
+    headers['if-modified-since'] = validators.lastModified;
+  let at = url;
+  let permanent = true;
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    const r = await fetch(at, {
+      headers,
+      redirect: 'manual',
+      signal: AbortSignal.timeout(15000),
+    });
+    const location = r.headers.get('location');
+    if (r.status >= 300 && r.status < 400 && r.status !== 304 && location) {
+      permanent &&= r.status === 301 || r.status === 308;
+      at = new URL(location, at).href;
+      continue;
+    }
+    return {
+      status: r.status,
+      body: r.status === 200 ? await r.text() : '',
+      etag: r.headers.get('etag'),
+      lastModified: r.headers.get('last-modified'),
+      retryAfter:
+        r.status === 429 || r.status === 503
+          ? retryAfterMinutes(r.headers.get('retry-after'))
+          : undefined,
+      movedTo: permanent && at !== url ? at : undefined,
+    };
+  }
+  throw new Error('The feed redirects too many times.');
+}
+
+/** How one source's fetch went. */
+export interface ScrapeResult {
+  /** Stories written; 0 when the feed had not changed or the fetch failed. */
+  readonly articles: number;
+  /** Why the fetch failed for good, already recorded on the source. */
+  readonly failed?: string;
+}
+
+/**
+ * Fetch one source and write today's edition of it, recording on the source
+ * how it went. When today's edition was already written, the fetch is
+ * conditional and a 304 leaves it as it is. A feed that moved for good is
+ * followed to its new address. An answer that will not change on a retry (a
+ * 4xx, a 429 or 503 that says when to come back, a page that is not a feed) is
+ * recorded and returned as `failed`; a network failure or other 5xx throws, so
+ * a caller that retries can try again before recording it.
  */
 export async function scrapeSource(
   db: Database,
   env: CloudflareEnv,
   source: Fetchable,
   edition: string = todayEdition(),
-): Promise<number> {
+): Promise<ScrapeResult> {
   const repo = new Repository(db);
-  const xml = await get(source.url);
-  if (!xml) throw new Error(FETCH_FAILED);
-  const { items } = parseFeed(xml, source.url);
-  const details = feedDetails(xml, source.url);
+  const fetchedToday = source.last_fetched_at?.slice(0, 10) === edition;
+  let answer: FeedAnswer;
+  try {
+    answer = await fetchFeed(
+      source.url,
+      fetchedToday
+        ? { etag: source.etag, lastModified: source.last_modified }
+        : {},
+    );
+  } catch {
+    throw new Error(FETCH_FAILED);
+  }
+  if (answer.movedTo) await repo.moveSource(source.id, answer.movedTo);
+  if (answer.status === 304) {
+    await repo.recordFetch(source.id);
+    return { articles: 0 };
+  }
+  if (answer.status !== 200) {
+    const error = `The feed answered HTTP ${answer.status}.`;
+    if (answer.status >= 500 && answer.retryAfter === undefined) {
+      throw new Error(error);
+    }
+    await repo.recordFetch(source.id, { error, retryAfter: answer.retryAfter });
+    return { articles: 0, failed: error };
+  }
+  const xml = answer.body;
+  if (!isFeed(xml)) {
+    const error = 'The address is not a feed.';
+    await repo.recordFetch(source.id, error);
+    return { articles: 0, failed: error };
+  }
+  const url = answer.movedTo ?? source.url;
+  const { items } = parseFeed(xml, url);
+  const details = feedDetails(xml, url);
   await repo.recordDetails(
     source.id,
-    { ...details, icon: await siteIcon(details, source.url) },
+    { ...details, icon: await siteIcon(details, url) },
     feedHeader(xml),
   );
   await enrich(items);
   await resolveNames(env, items);
   await repo.writeEdition(source.id, edition, items);
-  await repo.recordFetch(source.id);
-  return items.length;
+  await repo.recordFetch(source.id, {
+    etag: answer.etag?.slice(0, 255) ?? null,
+    lastModified: answer.lastModified,
+  });
+  return { articles: items.length };
 }
 
 /**
@@ -203,7 +319,8 @@ export async function refreshSource(
   edition: string = todayEdition(),
 ): Promise<{ ok: boolean; n: number }> {
   try {
-    return { ok: true, n: await scrapeSource(db, env, source, edition) };
+    const result = await scrapeSource(db, env, source, edition);
+    return { ok: !result.failed, n: result.articles };
   } catch (error) {
     await new Repository(db).recordFetch(
       source.id,
@@ -211,6 +328,55 @@ export async function refreshSource(
     );
     return { ok: false, n: 0 };
   }
+}
+
+/**
+ * The feed address for what a person typed: the address itself when it is a
+ * feed, else the best feed its page declares or links to, else a feed at one
+ * of the usual paths (at most {@link DISCOVERY_PROBES} addresses are tried).
+ * The address as given when it cannot be fetched (its first fetch will record
+ * why); undefined when it is a page with no feed to be found.
+ */
+export async function discoverFeed(url: string): Promise<string | undefined> {
+  let page: FeedAnswer;
+  try {
+    page = await fetchFeed(url);
+  } catch {
+    return url;
+  }
+  const here = page.movedTo ?? url;
+  if (page.status !== 200 || isFeed(page.body)) return here;
+  for (const candidate of feedCandidates(page.body, here).slice(
+    0,
+    DISCOVERY_PROBES,
+  )) {
+    try {
+      const answer = await fetchFeed(candidate);
+      if (answer.status === 200 && isFeed(answer.body)) {
+        return answer.movedTo ?? candidate;
+      }
+    } catch {
+      // Unreachable candidate: try the next.
+    }
+  }
+  return undefined;
+}
+
+/**
+ * An article with its full text, fetching and keeping the text the first time
+ * it is asked for when the scrape did not fetch it (NewsBlur's original text,
+ * on demand). A page with too little text is remembered as having none, so it
+ * is not fetched again.
+ */
+export async function withText<
+  T extends { id: number; url: string; body_text: string | null },
+>(db: Database, article: T): Promise<T> {
+  if (article.body_text !== null) return article;
+  const page = await get(article.url, 12000);
+  const text = articleText(page);
+  const body_text = text.length >= MIN_TEXT ? text : '';
+  await new Repository(db).setBodyText(article.id, body_text);
+  return { ...article, body_text };
 }
 
 // ---- historical backfill via the HN Algolia API (hnrss only serves today) ----

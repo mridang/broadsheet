@@ -52,7 +52,7 @@ collection:
     operationId: followFeed
     tags: [feeds]
     summary: Follow a feed.
-    description: Rate limited by the `RL_API` binding. The first edition of a new feed is fetched in the background.
+    description: Rate limited by the `RL_API` binding. The address may be a page, in which case the feed it declares or links to, or one at a usual path, is followed instead, and an address that is a page with no feed to be found is a 400. The first edition of a new feed is fetched in the background.
     requestBody:
       required: true
       content:

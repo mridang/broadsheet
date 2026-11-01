@@ -1,0 +1,88 @@
+collection:
+  get:
+    operationId: listSavedSearches
+    tags: [searches]
+    summary: List the archive searches the person keeps, newest first.
+    description: Rate limited by the `RL_API` binding.
+    parameters:
+      - $ref: '../components/common.yaml#/parameters/Limit'
+      - $ref: '../components/common.yaml#/parameters/Cursor'
+    responses:
+      '200':
+        description: One page of saved searches.
+        content:
+          application/json:
+            schema:
+              $ref: '../components/search.yaml#/SavedSearchPage'
+      '400':
+        $ref: '../components/common.yaml#/responses/BadRequest'
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'
+  post:
+    operationId: saveSearch
+    tags: [searches]
+    summary: Keep an archive search, optionally within one feed.
+    description: Rate limited by the `RL_API` binding. Saving the same words for the same feed again answers 200 with the search kept before. A `feed_id` that is not one of the person's feeds is a 400.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/search.yaml#/SavedSearchInput'
+    responses:
+      '200':
+        description: The same search was kept before.
+        headers:
+          Location:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: '../components/search.yaml#/SavedSearch'
+      '201':
+        description: The search is kept.
+        headers:
+          Location:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: '../components/search.yaml#/SavedSearch'
+      '400':
+        $ref: '../components/common.yaml#/responses/BadRequest'
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '403':
+        $ref: '../components/common.yaml#/responses/Forbidden'
+      '415':
+        $ref: '../components/common.yaml#/responses/UnsupportedMediaType'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'
+item:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[1-9][0-9]{0,14}$'
+  delete:
+    operationId: removeSavedSearch
+    tags: [searches]
+    summary: Forget a saved search.
+    description: Rate limited by the `RL_API` binding. An id that cannot name a saved search is a 404.
+    responses:
+      '204':
+        description: The saved search is gone.
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '403':
+        $ref: '../components/common.yaml#/responses/Forbidden'
+      '404':
+        $ref: '../components/common.yaml#/responses/NotFound'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'

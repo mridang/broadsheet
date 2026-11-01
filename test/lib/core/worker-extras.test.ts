@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, jest } from '@jest/globals';
 
 const calls: string[] = [];
 const failing = new Set<number>();
+const refusing = new Set<number>();
 const failingIssues = new Set<number>();
 const failingPushes = new Set<number>();
 const failingNotices = new Set<number>();
@@ -25,7 +26,7 @@ jest.unstable_mockModule('@/domain/db/database', () => ({
 
 jest.unstable_mockModule('@/domain/repository', () => ({
   Repository: class {
-    allSources = async () => [
+    dueSources = async () => [
       { id: 1, url: 'https://a.test/f', title: 'A' },
       { id: 2, url: 'https://b.test/f', title: 'B' },
     ];
@@ -47,7 +48,10 @@ jest.unstable_mockModule('@/domain/scraping/index', () => ({
   ) => {
     calls.push(`scrape:${source.id}:${edition}`);
     if (failing.has(source.id)) throw new Error('feed down');
-    return 5;
+    if (refusing.has(source.id)) {
+      return { articles: 0, failed: 'The feed answered HTTP 404.' };
+    }
+    return { articles: 5 };
   },
   backfillRecent: async (_db: unknown, _env: unknown, days: number) => {
     calls.push(`backfillRecent:${days}`);
@@ -135,6 +139,7 @@ const run = () =>
 afterEach(() => {
   calls.length = 0;
   failing.clear();
+  refusing.clear();
   failingIssues.clear();
   failingPushes.clear();
   failingNotices.clear();
@@ -180,6 +185,13 @@ describe('DailyScrape', () => {
     expect(calls).toContain('step:record failure of source 1');
     expect(calls).toContain('recordFetch:1:feed down');
     expect(calls).toContain('scrape:2:2026-11-01');
+  });
+
+  it('counts a source whose answer was refused without retrying or recording it again', async () => {
+    jest.spyOn(console, 'log').mockImplementation(() => undefined);
+    refusing.add(1);
+    expect(await run()).toEqual({ sources: 2, ok: 1, articles: 5 });
+    expect(calls).not.toContain('step:record failure of source 1');
   });
 });
 

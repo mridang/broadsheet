@@ -29,6 +29,7 @@ tags:
   - name: sections
   - name: reads
   - name: saves
+  - name: searches
   - name: sessions
   - name: tokens
   - name: topics
@@ -84,6 +85,10 @@ paths:
     $ref: './paths/classifiers.yaml#/collection'
   /api/users/self/classifiers/{id}:
     $ref: './paths/classifiers.yaml#/item'
+  /api/users/self/searches:
+    $ref: './paths/searches.yaml#/collection'
+  /api/users/self/searches/{id}:
+    $ref: './paths/searches.yaml#/item'
   /api/users/self/reads/{article_id}:
     $ref: './paths/reads.yaml#/item'
   /api/users/self/saves:

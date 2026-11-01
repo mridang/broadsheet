@@ -9,6 +9,7 @@ import { getDatabase } from '@/domain/db/database';
 import { hostOf } from '@/domain/render/tiers';
 import { Repository } from '@/domain/repository';
 import { getCurrentUser } from '@/lib/core/auth';
+import { withText } from '@/domain/scraping/index';
 import { mailtoLink } from '@/domain/api/emails';
 import { EmailStoryForm } from '@/app/(site)/article/[id]/_components/email-story-form';
 import { ROW_LINK } from '@/components/stories/story-row';
@@ -49,8 +50,10 @@ export default async function ArticlePage({
   if (id === undefined) notFound();
   const user = await getCurrentUser();
   const ownerId = user ? user.id : await ensurePublicUser();
-  const article = await new Repository(getDatabase()).getArticle(ownerId, id);
-  if (!article) notFound();
+  const db = getDatabase();
+  const stored = await new Repository(db).getArticle(ownerId, id);
+  if (!stored) notFound();
+  const article = await withText(db, stored);
   const paragraphs = (article.body_text ?? '').split('\n\n').filter(Boolean);
   const date = dateline(article.published_at, article.edition);
 

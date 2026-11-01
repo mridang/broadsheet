@@ -86,6 +86,13 @@ describe('parseArticleQuery', () => {
     });
   });
 
+  it('takes order=oldest for an oldest-first search', () => {
+    expect(parse('q=rust&order=oldest')).toEqual({
+      ok: true,
+      query: { q: 'rust', before: undefined, oldest: true, limit: 20 },
+    });
+  });
+
   it('names every bad parameter', () => {
     expect(parse(`q=${'a'.repeat(201)}&cursor=nope&limit=0&page=2`)).toEqual({
       ok: false,
@@ -127,7 +134,7 @@ describe('parseArticleQuery ranked', () => {
   });
 
   it.each([
-    ['order=popular', 'order: must be newest, reads or saves.'],
+    ['order=popular', 'order: must be newest, oldest, reads or saves.'],
     ['order=reads&window=year', 'window: must be day, week or month.'],
     ['window=day', 'window: only with order reads or saves.'],
     ['order=saves&q=rust', 'q: not with order reads or saves.'],

@@ -24,7 +24,10 @@ import {
 const refreshSource = jest.fn<(...args: unknown[]) => Promise<unknown>>(
   async () => ({ ok: true, n: 0 }),
 );
-jest.unstable_mockModule('@/domain/scraping/index', () => ({ refreshSource }));
+jest.unstable_mockModule('@/domain/scraping/index', () => ({
+  refreshSource,
+  discoverFeed: async (url: string) => url,
+}));
 
 const route = await import('@/app/api/feeds/imports/route');
 

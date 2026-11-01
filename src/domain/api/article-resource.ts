@@ -97,8 +97,8 @@ export const WINDOWS = { day: 1, week: 7, month: 30 } as const;
 /** A trending window the API accepts. */
 export type TrendingWindow = keyof typeof WINDOWS;
 
-/** What `order` may be: newest first, or most read or saved. */
-const ORDERS = new Set(['newest', 'reads', 'saves']);
+/** What `order` may be: newest or oldest first, or most read or saved. */
+const ORDERS = new Set(['newest', 'oldest', 'reads', 'saves']);
 
 /** The parameters `GET /api/articles` takes. */
 const PARAMETERS = new Set([
@@ -134,7 +134,7 @@ export function sqliteSince(now: Date, days: number): string {
  * Check the query of `GET /api/articles`: `q` at most
  * {@link MAX_QUERY_LENGTH} characters, `cursor` one this API issued, `limit` a
  * whole number from 1 to the page maximum, `order` `newest` (the default),
- * `reads` or `saves`, and `window` (`day`, `week` or `month`, a week by
+ * `oldest`, `reads` or `saves`, and `window` (`day`, `week` or `month`, a week by
  * default) only with a ranked order, which takes no `q`. Other parameters are
  * refused.
  */
@@ -149,7 +149,8 @@ export function parseArticleQuery(
     }
   }
   const order = params.get('order') ?? 'newest';
-  if (!ORDERS.has(order)) errors.push('order: must be newest, reads or saves.');
+  if (!ORDERS.has(order))
+    errors.push('order: must be newest, oldest, reads or saves.');
   const ranked = order === 'reads' || order === 'saves';
   const window = params.get('window');
   if (window !== null) {
@@ -191,7 +192,13 @@ export function parseArticleQuery(
   if (!ranked) {
     return {
       ok: true,
-      query: { q, before, ...(feed !== undefined ? { feed } : {}), limit },
+      query: {
+        q,
+        before,
+        ...(feed !== undefined ? { feed } : {}),
+        ...(order === 'oldest' ? { oldest: true } : {}),
+        limit,
+      },
     };
   }
   const days = WINDOWS[(window ?? 'week') as TrendingWindow];

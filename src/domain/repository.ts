@@ -14,7 +14,9 @@ import {
   desc,
   eq,
   getTableColumns,
+  gt,
   inArray,
+  isNull,
   lt,
   ne,
   notInArray,
@@ -34,6 +36,7 @@ import {
   messages,
   reads,
   saves,
+  savedSearches,
   sections,
   sources,
   subscriptions,
@@ -116,6 +119,8 @@ export interface ArticleQuery {
   readonly before?: number;
   /** Only articles from this feed (the person's subscription id). */
   readonly feed?: number;
+  /** Oldest first instead of newest first; `before` then means after. */
+  readonly oldest?: boolean;
   readonly limit: number;
 }
 
@@ -131,6 +136,23 @@ export function ftsQuery(q: string): string {
     .map((word) => `"${word.replace(/"/g, '""')}"`)
     .join(' ');
 }
+
+/** A search a person keeps. */
+export type SavedSearch = typeof savedSearches.$inferSelect;
+
+/** What a fetch of a source learned besides its stories. */
+export interface FetchOutcome {
+  /** Why it failed; absent when it worked. */
+  readonly error?: string;
+  /** Minutes the server asked to be left alone for (`Retry-After`). */
+  readonly retryAfter?: number;
+  /** The validators of a successful answer, for the next conditional GET. */
+  readonly etag?: string | null;
+  readonly lastModified?: string | null;
+}
+
+/** Longest a failing source is left before it is tried again: a week. */
+export const MAX_BACKOFF_MINUTES = 7 * 24 * 60;
 
 /** Every column of an article but its body text: what a list selects. */
 const summaryColumns = Object.fromEntries(
@@ -541,7 +563,16 @@ export class Repository {
    * Note how a fetch of a source went: a success clears the error and the
    * failure count, a failure records why and counts it.
    */
-  async recordFetch(sourceId: number, error?: string): Promise<void> {
+  async recordFetch(
+    sourceId: number,
+    outcome: string | FetchOutcome = {},
+  ): Promise<void> {
+    const { error, retryAfter, etag, lastModified } =
+      typeof outcome === 'string' ? { error: outcome } : outcome;
+    // A day longer for each failure in a row before this one, up to a week,
+    // or longer when the server asked for it (NewsBlur's geometric backoff on
+    // a daily schedule). A source is never given up on.
+    const wait = sql`max(min(${sources.fail_count} * 1440, ${MAX_BACKOFF_MINUTES}), ${retryAfter ?? 0})`;
     await this.#db
       .update(sources)
       .set(
@@ -549,14 +580,49 @@ export class Repository {
           ? {
               last_error: error,
               fail_count: sql`${sources.fail_count} + 1`,
+              next_fetch_at: sql`datetime('now', '+' || ${wait} || ' minutes')`,
             }
           : {
               last_fetched_at: sql`(datetime('now'))`,
               last_error: null,
               fail_count: 0,
+              next_fetch_at: null,
+              ...(etag !== undefined ? { etag } : {}),
+              ...(lastModified !== undefined
+                ? { last_modified: lastModified }
+                : {}),
             },
       )
       .where(eq(sources.id, sourceId));
+  }
+
+  /**
+   * The sources somebody follows that are due a fetch: never backed off, or
+   * due within the hour (so a daily run a few seconds early still takes them).
+   */
+  async dueSources(): Promise<Source[]> {
+    return (await this.allSources()).filter(
+      (s) =>
+        !s.next_fetch_at ||
+        Date.parse(`${s.next_fetch_at.replace(' ', 'T')}Z`) <=
+          Date.now() + 60 * 60 * 1000,
+    );
+  }
+
+  /**
+   * Point a source at the address its feed moved to for good. False, leaving
+   * it alone, when another source already has that address.
+   */
+  async moveSource(sourceId: number, url: string): Promise<boolean> {
+    const taken = await this.#db.query.sources.findFirst({
+      where: eq(sources.url, url),
+    });
+    if (taken) return false;
+    await this.#db
+      .update(sources)
+      .set({ url, etag: null, last_modified: null })
+      .where(eq(sources.id, sourceId));
+    return true;
   }
 
   /**
@@ -785,7 +851,7 @@ export class Repository {
    */
   searchArticles(
     userId: number,
-    { q = '', before, feed, limit }: ArticleQuery,
+    { q = '', before, feed, oldest = false, limit }: ArticleQuery,
   ): Promise<ArticleSummary[]> {
     const match = ftsQuery(q);
     const newest = this.#db
@@ -801,7 +867,9 @@ export class Repository {
           match
             ? sql`${articles.id} IN (SELECT rowid FROM articles_fts WHERE articles_fts MATCH ${match})`
             : undefined,
-          before !== undefined ? lt(articles.id, before) : undefined,
+          before !== undefined
+            ? (oldest ? gt : lt)(articles.id, before)
+            : undefined,
           feed !== undefined
             ? eq(
                 articles.source_id,
@@ -819,8 +887,70 @@ export class Repository {
           inArray(articles.id, newest),
         ),
       )
-      .orderBy(desc(articles.id))
+      .orderBy(oldest ? asc(articles.id) : desc(articles.id))
       .limit(limit + 1);
+  }
+
+  /**
+   * Keep the text fetched for an article later; blank records that its page
+   * held none, so it is not fetched again.
+   */
+  async setBodyText(id: number, text: string): Promise<void> {
+    await this.#db
+      .update(articles)
+      .set({ body_text: text })
+      .where(eq(articles.id, id));
+  }
+
+  /** The person's saved searches, newest first. */
+  listSearches(userId: number): Promise<SavedSearch[]> {
+    return this.#db
+      .select()
+      .from(savedSearches)
+      .where(eq(savedSearches.user_id, userId))
+      .orderBy(desc(savedSearches.created_at), desc(savedSearches.id));
+  }
+
+  /** The person's saved search with this id, or undefined. */
+  getSearch(userId: number, id: number): Promise<SavedSearch | undefined> {
+    return this.#db.query.savedSearches.findFirst({
+      where: and(eq(savedSearches.id, id), eq(savedSearches.user_id, userId)),
+    });
+  }
+
+  /**
+   * Save a search, or find the same one saved before. `created` says which.
+   */
+  async addSearch(
+    userId: number,
+    query: string,
+    feedId: number | null,
+  ): Promise<{ search: SavedSearch; created: boolean }> {
+    const same = and(
+      eq(savedSearches.user_id, userId),
+      eq(savedSearches.query, query),
+      feedId === null
+        ? isNull(savedSearches.feed_id)
+        : eq(savedSearches.feed_id, feedId),
+    );
+    const existing = await this.#db.query.savedSearches.findFirst({
+      where: same,
+    });
+    if (existing) return { search: existing, created: false };
+    const [search] = await this.#db
+      .insert(savedSearches)
+      .values({ user_id: userId, query, feed_id: feedId })
+      .returning();
+    return { search: search!, created: true };
+  }
+
+  /** Forget a saved search. True when there was one to remove. */
+  async removeSearch(userId: number, id: number): Promise<boolean> {
+    const removed = await this.#db
+      .delete(savedSearches)
+      .where(and(eq(savedSearches.id, id), eq(savedSearches.user_id, userId)))
+      .returning({ id: savedSearches.id });
+    return removed.length > 0;
   }
 
   /**

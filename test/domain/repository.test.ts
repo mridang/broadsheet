@@ -5,6 +5,7 @@ import { databaseFrom, type Database } from '@/domain/db/database';
 import {
   anyWordQuery,
   ftsQuery,
+  MAX_BACKOFF_MINUTES,
   Repository,
   sectionAndDescendants,
   sectionPath,
@@ -213,6 +214,96 @@ describe('recordFetch', () => {
     expect(source).toMatchObject({ last_error: null, fail_count: 0 });
     expect(source?.last_fetched_at).toEqual(expect.any(String));
   });
+
+  /** Minutes from now until the source may be fetched again. */
+  const minutesAway = async (repo: Repository) => {
+    const next = (await repo.allSources())[0]!.next_fetch_at!;
+    return (Date.parse(`${next.replace(' ', 'T')}Z`) - Date.now()) / 60000;
+  };
+
+  it('backs a failing source off a day for each failure before, up to a week', async () => {
+    const repo = new Repository(db);
+    const { source_id } = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await repo.recordFetch(source_id, 'down');
+    expect(await minutesAway(repo)).toBeLessThan(1);
+    await repo.recordFetch(source_id, 'down');
+    expect(Math.round(await minutesAway(repo))).toBe(1440);
+    for (let i = 0; i < 10; i++) await repo.recordFetch(source_id, 'down');
+    expect(Math.round(await minutesAway(repo))).toBe(MAX_BACKOFF_MINUTES);
+  });
+
+  it('waits as long as the server asked when that is longer', async () => {
+    const repo = new Repository(db);
+    const { source_id } = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await repo.recordFetch(source_id, { error: 'busy', retryAfter: 120 });
+    expect(Math.round(await minutesAway(repo))).toBe(120);
+  });
+
+  it('keeps the validators of a success and clears the backoff', async () => {
+    const repo = new Repository(db);
+    const { source_id } = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await repo.recordFetch(source_id, 'down');
+    await repo.recordFetch(source_id, { etag: '"x"', lastModified: 'then' });
+    expect((await repo.allSources())[0]).toMatchObject({
+      etag: '"x"',
+      last_modified: 'then',
+      next_fetch_at: null,
+    });
+  });
+});
+
+describe('dueSources', () => {
+  it('leaves out a source backed off past the next hour', async () => {
+    const repo = new Repository(db);
+    const { source_id } = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await repo.recordFetch(source_id, 'down');
+    expect(await repo.dueSources()).toHaveLength(1);
+    await repo.recordFetch(source_id, 'down');
+    expect(await repo.dueSources()).toEqual([]);
+  });
+});
+
+describe('moveSource', () => {
+  it('moves a source to its new address and forgets its validators', async () => {
+    const repo = new Repository(db);
+    const { source_id } = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await repo.recordFetch(source_id, { etag: '"x"' });
+    expect(await repo.moveSource(source_id, 'https://b.test/f')).toBe(true);
+    expect((await repo.allSources())[0]).toMatchObject({
+      url: 'https://b.test/f',
+      etag: null,
+    });
+  });
+
+  it('refuses an address another source already has', async () => {
+    const repo = new Repository(db);
+    const { source_id } = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await addFeed(db, 1, 'https://b.test/f');
+    expect(await repo.moveSource(source_id, 'https://b.test/f')).toBe(false);
+  });
+});
+
+describe('saved searches', () => {
+  it('keep a search once per feed, newest first, for their owner only', async () => {
+    const repo = new Repository(db);
+    const feed = (await addFeed(db, 1, 'https://a.test/f'))!;
+    const a = await repo.addSearch(1, 'rust', null);
+    const b = await repo.addSearch(1, 'rust', feed.id);
+    expect(a.created && b.created).toBe(true);
+    expect(await repo.addSearch(1, 'rust', null)).toEqual({
+      search: a.search,
+      created: false,
+    });
+    expect((await repo.listSearches(1)).map((s) => s.id)).toEqual([
+      b.search.id,
+      a.search.id,
+    ]);
+    expect(await repo.listSearches(2)).toEqual([]);
+    expect(await repo.getSearch(2, a.search.id)).toBeUndefined();
+    expect(await repo.removeSearch(2, a.search.id)).toBe(false);
+    expect(await repo.removeSearch(1, a.search.id)).toBe(true);
+    expect(await repo.removeSearch(1, a.search.id)).toBe(false);
+  });
 });
 
 describe('allSources', () => {
@@ -331,6 +422,28 @@ describe('searchArticles and getArticle', () => {
       ),
     ).toEqual(['https://x/1']);
     expect(await repo.searchArticles(1, { limit: 10 })).toHaveLength(2);
+  });
+
+  it('list oldest first when asked, paging forwards', async () => {
+    const repo = new Repository(db);
+    const { source_id } = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await repo.writeEdition(
+      source_id,
+      '2026-10-01',
+      [1, 2, 3].map((n) => story({ url: `https://x/${n}` })),
+    );
+    const first = await repo.searchArticles(1, { limit: 2, oldest: true });
+    expect(first.map((a) => a.url)).toEqual([
+      'https://x/1',
+      'https://x/2',
+      'https://x/3',
+    ]);
+    const rest = await repo.searchArticles(1, {
+      limit: 2,
+      oldest: true,
+      before: first[1]!.id,
+    });
+    expect(rest.map((a) => a.url)).toEqual(['https://x/3']);
   });
 
   it('page by id, asking for one more than the limit', async () => {
