@@ -128,7 +128,7 @@ export function edgeCacheKey(
   const url = new URL(request.url);
   const query = allowedQuery(url, allowed)?.toString() ?? '';
   return new Request(
-    `https://edge.${SITE_NAME}.invalid/${encodeURIComponent(version)}${url.pathname}${query ? `?${query}` : ''}`,
+    `https://edge.${SITE_NAME.toLowerCase()}.invalid/${encodeURIComponent(version)}${url.pathname}${query ? `?${query}` : ''}`,
   );
 }
 

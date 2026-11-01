@@ -183,6 +183,12 @@ describe('edgeCacheKey', () => {
     expect(a).not.toBe(b);
   });
 
+  it('keeps the host lowercase', () => {
+    expect(new URL(edgeCacheKey(get('/'), 'v1').url).hostname).toBe(
+      'edge.broadsheet.invalid',
+    );
+  });
+
   it('has the release id in it', () => {
     expect(edgeCacheKey(get('/'), 'rel-9').url).toContain('rel-9');
   });

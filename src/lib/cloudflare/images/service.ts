@@ -208,7 +208,7 @@ export async function serveImage(
   const result = await fetchImage(url, width, {
     images: deps.images,
     fetcher: deps.fetcher,
-    userAgent: `${SITE_NAME}/1.0 (+${SITE_URL})`,
+    userAgent: `${SITE_NAME.toLowerCase()}/1.0 (+${SITE_URL})`,
   });
   if (!result.ok) {
     // An address that leads somewhere it should not is refused outright; any

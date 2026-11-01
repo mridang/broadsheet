@@ -1,4 +1,4 @@
-# broadsheet
+# Broadsheet
 
 The Hacker Times: a personalised daily newspaper that turns web feeds into a print-style front page, generated fresh every day. A Next.js app on Cloudflare Workers backed by D1.
 

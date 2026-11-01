@@ -7,7 +7,7 @@
  */
 
 /** The name of the site, as it appears in titles and structured data. */
-export const SITE_NAME = 'broadsheet';
+export const SITE_NAME = 'Broadsheet';
 /** The site's public address, with no trailing slash. */
 export const SITE_URL = 'https://broadsheet.apps.mrida.ng';
 

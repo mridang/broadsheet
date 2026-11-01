@@ -17,7 +17,9 @@ describe('site identity', () => {
   });
 
   it('names the site in its address', () => {
-    expect(new URL(SITE_URL).hostname.startsWith(`${SITE_NAME}.`)).toBe(true);
+    expect(
+      new URL(SITE_URL).hostname.startsWith(`${SITE_NAME.toLowerCase()}.`),
+    ).toBe(true);
   });
 
   it('gives the site a default title and description', () => {
