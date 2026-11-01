@@ -1,0 +1,42 @@
+Source:
+  description: A feed trending across the app. Only counts are shown, never who; a source shows only once two or more people follow it and are behind its count. Following one is `POST /api/feeds` with its `url`.
+  type: object
+  required: [id, url, followers]
+  properties:
+    id:
+      type: string
+    url:
+      type: string
+      format: uri
+    title:
+      type: string
+    site_url:
+      type: string
+      format: uri
+    followers:
+      type: integer
+      minimum: 2
+    read_count:
+      type: integer
+      minimum: 2
+      description: With `order=reads`, the distinct readers in the window.
+    read_seconds:
+      type: integer
+      minimum: 0
+      description: With `order=read_time`, the seconds spent in the window.
+    follow_score:
+      type: number
+      minimum: 4
+      description: With `order=follows`, the people who started following in the window, each weighted down the longer ago they followed (NewsBlur's decay tables); a source needs four.
+SourcePage:
+  type: object
+  required: [self, items]
+  properties:
+    self:
+      type: string
+    next:
+      type: string
+    items:
+      type: array
+      items:
+        $ref: '#/Source'

@@ -221,6 +221,8 @@ export const reads = sqliteTable(
   {
     user_id: integer('user_id').notNull(),
     article_id: integer('article_id').notNull(),
+    /** Seconds the person spent on the story (migration 0025). */
+    seconds: integer('seconds').notNull().default(0),
     created_at: text('created_at').default(sql`(datetime('now'))`),
   },
   (table) => [
@@ -618,3 +620,22 @@ export const players = sqliteTable('players', {
   history: text('history').notNull().default('[]'),
   updated_at: text('updated_at').default(sql`(datetime('now'))`),
 });
+
+/**
+ * A story list a person pins to a column of their front page (migration
+ * 0025). `river_id` names it (`all`, `saves`, `feed:{id}`, `section:{id}`,
+ * `search:{id}`, `edition:{id}`); `side` is left or right and `position` its
+ * place there.
+ */
+export const rivers = sqliteTable(
+  'rivers',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    user_id: integer('user_id').notNull(),
+    river_id: text('river_id').notNull(),
+    side: text('side').notNull(),
+    position: integer('position').notNull(),
+    created_at: text('created_at').default(sql`(datetime('now'))`),
+  },
+  (table) => [unique().on(table.user_id, table.side, table.position)],
+);

@@ -505,14 +505,35 @@ describe('get_briefing', () => {
 });
 
 describe('get_trending', () => {
-  it('ranks stories by how many read them', async () => {
+  it('ranks stories by how many read them, from two readers', async () => {
     const { articleId } = await seed();
-    await new Repository(db).markRead(1, articleId);
+    const repo = new Repository(db);
+    await repo.markRead(1, articleId);
+    expect(await run('get_trending')).toEqual({ articles: [] });
+    await repo.addFeed(2, 'https://a.test/feed');
+    await repo.markRead(2, articleId);
     expect(await run('get_trending')).toEqual({
       articles: [
-        expect.objectContaining({ title: 'Rust ships', read_count: 1 }),
+        expect.objectContaining({ title: 'Rust ships', read_count: 2 }),
       ],
     });
+  });
+
+  it('leaves out what the person read when asked for unread', async () => {
+    const { articleId } = await seed();
+    const repo = new Repository(db);
+    await repo.addFeed(2, 'https://a.test/feed');
+    await repo.markRead(1, articleId);
+    await repo.markRead(2, articleId);
+    expect(await run('get_trending', { unread: true })).toEqual({
+      articles: [],
+    });
+  });
+
+  it('refuses a list NewsBlur does not have', () => {
+    const found = TOOLS.find((t) => t.name === 'get_trending')!;
+    expect(found.input.safeParse({ order: 'hot' }).success).toBe(false);
+    expect(found.input.safeParse({ order: 'long_reads' }).success).toBe(true);
   });
 });
 

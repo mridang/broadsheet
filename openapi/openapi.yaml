@@ -30,9 +30,11 @@ tags:
   - name: sections
   - name: preferences
   - name: reads
+  - name: rivers
   - name: saves
   - name: searches
   - name: sessions
+  - name: sources
   - name: tokens
   - name: topics
   - name: usage
@@ -90,6 +92,8 @@ paths:
     $ref: './paths/feeds.yaml#/removals'
   /api/push/configuration:
     $ref: './paths/push.yaml#/configuration'
+  /api/sources:
+    $ref: './paths/sources.yaml#/collection'
   /api/sections:
     $ref: './paths/sections.yaml#/collection'
   /api/sections/{id}:
@@ -116,6 +120,10 @@ paths:
     $ref: './paths/preferences.yaml#/item'
   /api/users/self/reads/{article_id}:
     $ref: './paths/reads.yaml#/item'
+  /api/users/self/rivers:
+    $ref: './paths/rivers.yaml#/collection'
+  /api/users/self/rivers/{id}:
+    $ref: './paths/rivers.yaml#/item'
   /api/users/self/saves:
     $ref: './paths/saves.yaml#/collection'
   /api/users/self/saves/{article_id}:

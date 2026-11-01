@@ -52,17 +52,20 @@ ArticlePage:
       items:
         $ref: '#/TrendingArticle'
 TrendingArticle:
-  description: An article in a list. Ranked by `order=reads` or `order=saves`, it carries how many people read or saved it in the window; only the count, never who.
+  description: An article in a list. Ranked by a trending order, it carries its count in the window; only the count, never who. `read_count` comes with `reads`, `long_reads` and `good_reads`, `save_count` with `saves`, and `read_seconds` with `read_time`.
   allOf:
     - $ref: '#/Article'
     - type: object
       properties:
         read_count:
           type: integer
-          minimum: 1
+          minimum: 2
         save_count:
           type: integer
-          minimum: 1
+          minimum: 2
+        read_seconds:
+          type: integer
+          minimum: 0
 DiscoveredArticle:
   allOf:
     - $ref: '#/Article'

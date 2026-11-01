@@ -90,6 +90,40 @@ item:
         $ref: '../components/common.yaml#/responses/Forbidden'
       '404':
         $ref: '../components/common.yaml#/responses/NotFound'
+  patch:
+    operationId: recordReadTime
+    tags: [reads]
+    summary: Note how long the person spent on a story they read.
+    description: Rate limited by the `RL_API` binding. The longest time recorded stays; more than 1200 seconds counts as 1200. Trending ranks read time, long reads and good reads from it. A story with no read is a 404.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [seconds]
+            properties:
+              seconds:
+                type: integer
+                minimum: 0
+    responses:
+      '200':
+        description: The read with the seconds now stored.
+        content:
+          application/json:
+            schema:
+              $ref: '#/Read'
+      '400':
+        $ref: '../components/common.yaml#/responses/BadRequest'
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '403':
+        $ref: '../components/common.yaml#/responses/Forbidden'
+      '404':
+        $ref: '../components/common.yaml#/responses/NotFound'
+      '415':
+        $ref: '../components/common.yaml#/responses/UnsupportedMediaType'
       '429':
         $ref: '../components/common.yaml#/responses/TooManyRequests'
 Read:
@@ -98,3 +132,7 @@ Read:
   properties:
     article_id:
       type: string
+    seconds:
+      type: integer
+      minimum: 0
+      maximum: 1200

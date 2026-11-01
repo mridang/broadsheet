@@ -49,6 +49,21 @@ import {
   users,
 } from '@/domain/db/schema';
 import { alias } from 'drizzle-orm/sqlite-core';
+import {
+  byRank,
+  decayWeight,
+  diversify,
+  domainOf,
+  LIST_SIZE,
+  MAX_READ_SECONDS,
+  MIN_FOLLOW_SCORE,
+  MIN_PEOPLE,
+  MIN_READ_SECONDS,
+  rank,
+  SMALL_FEED_SLOTS,
+  titleKey,
+  topicOf,
+} from '@/domain/trending';
 import type {
   FeedActivity,
   FeedDetails,
@@ -338,22 +353,75 @@ export interface EditionChanges {
   readonly tag?: string | null;
 }
 
+/**
+ * What trending ranks articles by, as NewsBlur's lists do: `reads` the well
+ * read (distinct readers), `read_time` the seconds spent, `long_reads` the
+ * long stories people read through, `good_reads` the ones they read deeply
+ * and kept, and `saves` the most saved.
+ */
+export const TRENDING_ORDERS = [
+  'reads',
+  'saves',
+  'read_time',
+  'long_reads',
+  'good_reads',
+] as const;
+
 /** What trending ranks articles by. */
-export type TrendingOrder = 'reads' | 'saves';
+export type TrendingOrder = (typeof TRENDING_ORDERS)[number];
 
 /** Where a page of {@link Repository.trendingArticles} starts and how long. */
 export interface TrendingQuery {
   readonly order: TrendingOrder;
   /** Only reads or saves at or after this SQLite time count. */
   readonly since: string;
-  /** The count and id of the last article of the page before. */
+  /** The place in the list and id of the last article of the page before. */
+  readonly after?: { readonly position: number; readonly id: number };
+  /** Leave out the stories the person has read. */
+  readonly unread?: boolean;
+  /** `oldest` serves the list from its end, as NewsBlur's `order=oldest`. */
+  readonly sort?: 'newest' | 'oldest';
+  readonly limit: number;
+}
+
+/**
+ * An article with its trending count in the window: people who read or saved
+ * it, or for `read_time` the seconds they spent.
+ */
+export interface TrendingArticle {
+  readonly article: ArticleSummary;
+  readonly count: number;
+  /** Its place in the served list, for the cursor. */
+  readonly position: number;
+}
+
+/** What trending ranks sources by: readers, seconds read, or new followers. */
+export const SOURCE_ORDERS = ['reads', 'read_time', 'follows'] as const;
+
+/** What trending ranks sources by. */
+export type SourceOrder = (typeof SOURCE_ORDERS)[number];
+
+/** Where a page of {@link Repository.trendingSources} starts and how long. */
+export interface SourceTrendingQuery {
+  readonly order: SourceOrder;
+  /** Only reads or follows at or after this SQLite time count. */
+  readonly since: string;
+  /** Sources with no story since this edition date are stale and left out. */
+  readonly freshSince: string;
+  /** The window in days, and now as a SQLite time, to age follows by. */
+  readonly days: number;
+  readonly now: string;
   readonly after?: { readonly count: number; readonly id: number };
   readonly limit: number;
 }
 
-/** An article with how many people read or saved it in the window. */
-export interface TrendingArticle {
-  readonly article: ArticleSummary;
+/** A source with its trending count: people, or seconds for `read_time`. */
+export interface TrendingSource {
+  readonly id: number;
+  readonly url: string;
+  readonly title: string | null;
+  readonly site_url: string | null;
+  readonly followers: number;
   readonly count: number;
 }
 
@@ -2140,36 +2208,214 @@ export class Repository {
   }
 
   /**
-   * The articles from sources the person follows that most people read (or
-   * saved) since `since`, most first, then newest. Only the counts leave the
-   * database, never who read or saved. Asks for one more than `limit`, so the
-   * caller can tell whether another page follows.
+   * A trending list of the articles from sources the person follows, as
+   * NewsBlur serves its well read, long, good and most-saved lists: each
+   * story is scored by `order` from the reads and saves since `since`, a
+   * story counts only once {@link MIN_PEOPLE} people are behind it, the
+   * ranked list is spread out by feed, site, publisher and topic, and it is
+   * served from the top (or the end with `sort=oldest`). Only counts leave
+   * here, never who. Returns the page after `after`, and one more when
+   * another page follows.
    */
   async trendingArticles(
     userId: number,
-    { order, since, after, limit }: TrendingQuery,
+    { order, since, after, unread, sort, limit }: TrendingQuery,
   ): Promise<TrendingArticle[]> {
-    const acts = order === 'reads' ? reads : saves;
-    const count = sql<number>`count(*)`;
+    const text = sql`trim(coalesce(${articles.body_text}, ''))`;
+    const words = sql<number>`(case when ${text} = '' then 0 else length(${text}) - length(replace(${text}, ' ', '')) + 1 end)`;
+    const savers = sql<number>`(select count(*) from ${saves} where ${saves.article_id} = ${articles.id} and ${saves.created_at} >= ${since})`;
+    const followers = sql<number>`(select count(*) from ${subscriptions} where ${subscriptions.source_id} = ${articles.source_id})`;
+    const acts = order === 'saves' ? saves : reads;
     const rows = await this.#db
-      .select({ article: summaryColumns, count })
+      .select({
+        article: summaryColumns,
+        words,
+        savers,
+        followers,
+        seconds:
+          order === 'saves'
+            ? sql<string>`''`
+            : sql<string>`group_concat(${reads.seconds})`,
+        site: sources.site_url,
+        feed: sources.url,
+        publisher: sources.title,
+      })
       .from(acts)
       .innerJoin(articles, eq(acts.article_id, articles.id))
+      .innerJoin(sources, eq(sources.id, articles.source_id))
       .where(
         and(
           sql`${acts.created_at} >= ${since}`,
           inArray(articles.source_id, this.#followed(userId)),
+          unread
+            ? notInArray(
+                articles.id,
+                this.#db
+                  .select({ id: reads.article_id })
+                  .from(reads)
+                  .where(eq(reads.user_id, userId)),
+              )
+            : undefined,
         ),
       )
-      .groupBy(articles.id)
-      .having(
-        after
-          ? sql`${count} < ${after.count} OR (${count} = ${after.count} AND ${articles.id} < ${after.id})`
-          : undefined,
+      .groupBy(articles.id);
+    const byId = new Map(rows.map((r) => [r.article.id, r]));
+    const ranked = rows
+      .flatMap((r) => {
+        const seconds = r.seconds
+          ? String(r.seconds).split(',').map(Number)
+          : [];
+        const scored = rank(order, {
+          id: r.article.id,
+          seconds,
+          savers: Number(r.savers),
+          words: Number(r.words),
+        });
+        return scored ? [scored] : [];
+      })
+      .toSorted(byRank)
+      .slice(0, LIST_SIZE[order]);
+    const candidates = ranked.map((scored) => {
+      const r = byId.get(scored.id)!;
+      return {
+        ...scored,
+        source: r.article.source_id,
+        domain: domainOf(r.site || r.feed),
+        publisher: titleKey(r.publisher ?? ''),
+        topic: topicOf(r.article.title ?? ''),
+        cluster: r.article.cluster_id,
+        title: titleKey(r.article.title ?? ''),
+        followers: Number(r.followers),
+      };
+    });
+    const served = diversify(
+      candidates,
+      order === 'good_reads' ? SMALL_FEED_SLOTS : 0,
+    );
+    if (sort === 'oldest') served.reverse();
+    let start = 0;
+    if (after) {
+      const at = served.findIndex((c) => c.id === after.id);
+      start = (at >= 0 ? at : after.position) + 1;
+    }
+    return served.slice(start, start + limit + 1).map((c, i) => ({
+      article: byId.get(c.id)!.article,
+      count: c.count,
+      position: start + i,
+    }));
+  }
+
+  /**
+   * The sources most read (or most newly followed) since `since`, across
+   * everyone, most first, as NewsBlur's trending feeds. Reads rank by
+   * distinct readers or seconds spent; follows by new followers, each counted
+   * less the older it is, needing a weighted {@link MIN_FOLLOW_SCORE}. It
+   * reaches past what the caller follows, so only sources at least
+   * {@link MIN_PEOPLE} people follow and rank by show (a feed address one
+   * person uses may be private to them), stale sources stay out, and only
+   * counts leave here. Asks for one more than `limit`.
+   */
+  async trendingSources({
+    order,
+    since,
+    freshSince,
+    days,
+    now,
+    after,
+    limit,
+  }: SourceTrendingQuery): Promise<TrendingSource[]> {
+    const followers = sql<number>`(select count(*) from ${subscriptions} where ${subscriptions.source_id} = ${sources.id})`;
+    const fresh = sql`exists (select 1 from ${articles} where ${articles.source_id} = ${sources.id} and ${articles.edition} >= ${freshSince})`;
+    const details = {
+      id: sources.id,
+      url: sources.url,
+      title: sources.title,
+      site_url: sources.site_url,
+      followers,
+    };
+    const scored: { source: Omit<TrendingSource, 'count'>; count: number }[] =
+      [];
+    if (order === 'follows') {
+      const rows = await this.#db
+        .select({ ...details, at: subscriptions.created_at })
+        .from(subscriptions)
+        .innerJoin(sources, eq(sources.id, subscriptions.source_id))
+        .where(and(sql`${subscriptions.created_at} >= ${since}`, fresh));
+      const nowMs = Date.parse(`${now.replace(' ', 'T')}Z`);
+      const bySource = new Map<number, (typeof scored)[number]>();
+      for (const { at, ...source } of rows) {
+        const ago = Math.floor(
+          (nowMs - Date.parse(`${(at ?? now).replace(' ', 'T')}Z`)) /
+            86_400_000,
+        );
+        const entry = bySource.get(source.id) ?? { source, count: 0 };
+        entry.count += decayWeight(days, Math.max(0, ago));
+        bySource.set(source.id, entry);
+      }
+      for (const entry of bySource.values()) {
+        const count = Math.round(entry.count * 100) / 100;
+        if (count >= MIN_FOLLOW_SCORE) scored.push({ ...entry, count });
+      }
+    } else {
+      const timed = sql`${reads.seconds} >= ${MIN_READ_SECONDS}`;
+      const rows = await this.#db
+        .select({
+          ...details,
+          people:
+            order === 'read_time'
+              ? sql<number>`count(distinct case when ${timed} then ${reads.user_id} end)`
+              : sql<number>`count(distinct ${reads.user_id})`,
+          score:
+            order === 'read_time'
+              ? sql<number>`sum(case when ${timed} then min(${reads.seconds}, ${MAX_READ_SECONDS}) else 0 end)`
+              : sql<number>`count(distinct ${reads.user_id})`,
+        })
+        .from(reads)
+        .innerJoin(articles, eq(articles.id, reads.article_id))
+        .innerJoin(sources, eq(sources.id, articles.source_id))
+        .where(and(sql`${reads.created_at} >= ${since}`, fresh))
+        .groupBy(sources.id);
+      for (const { people, score, ...source } of rows) {
+        if (Number(people) >= MIN_PEOPLE) {
+          scored.push({ source, count: Number(score) });
+        }
+      }
+    }
+    return scored
+      .filter(({ source }) => Number(source.followers) >= MIN_PEOPLE)
+      .filter(
+        ({ source, count }) =>
+          !after ||
+          count < after.count ||
+          (count === after.count && source.id < after.id),
       )
-      .orderBy(desc(count), desc(articles.id))
-      .limit(limit + 1);
-    return rows.map((r) => ({ article: r.article, count: Number(r.count) }));
+      .toSorted((a, b) => b.count - a.count || b.source.id - a.source.id)
+      .slice(0, limit + 1)
+      .map(({ source, count }) => ({
+        ...source,
+        followers: Number(source.followers),
+        count,
+      }));
+  }
+
+  /**
+   * Note how long the person spent on a story they read: the longest time
+   * recorded wins, capped at {@link MAX_READ_SECONDS}. Undefined when they
+   * have no read of it, else the seconds now stored.
+   */
+  async recordReadTime(
+    userId: number,
+    articleId: number,
+    seconds: number,
+  ): Promise<number | undefined> {
+    const [row] = await this.#db
+      .update(reads)
+      .set({
+        seconds: sql`max(${reads.seconds}, ${Math.min(seconds, MAX_READ_SECONDS)})`,
+      })
+      .where(and(eq(reads.user_id, userId), eq(reads.article_id, articleId)))
+      .returning({ seconds: reads.seconds });
+    return row?.seconds;
   }
 
   /** The titles of these articles, by id; ids with no article are left out. */

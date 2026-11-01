@@ -3,7 +3,12 @@ collection:
     operationId: searchArticles
     tags: [articles]
     summary: Search the archive of articles from the feeds the person follows, or list the most read or saved.
-    description: Rate limited by the `RL_API` binding. Every edition is searched, newest article first (oldest first with `order=oldest`). Without `q` every article is listed. With `order=reads` or `order=saves` the articles are ranked by how many people, across everyone, read or saved each within the `window`, most first; only the counts are shown, never who, and `q` is refused.
+    description: >-
+      Rate limited by the `RL_API` binding. Every edition is searched, newest article first (oldest first with `order=oldest`). Without `q` every article is listed.
+      With a trending `order` the list is NewsBlur's: `reads` (well read) ranks by distinct readers then seconds spent, `read_time` by seconds spent in reads of three seconds or more, `long_reads` by the second-deepest read of a story of 600 words or more read through by two or more, `good_reads` by stories someone saved first and then the second-deepest read of 30 seconds or more on a story of 250 words or more (or four such readers), and `saves` by distinct savers.
+      A story counts only once two or more people are behind it, so a count never points at one reader; only counts are shown, never who.
+      The ranked list then shows each story once (by cluster and title), takes one story per feed, site and publisher and at most three of a topic in each block of twelve, and keeps any source to a tenth of the list.
+      `q` and `feed_id` are refused with a trending order; the cursor is a place in the list.
     parameters:
       - name: q
         in: query
@@ -13,24 +18,38 @@ collection:
           maxLength: 200
       - name: feed_id
         in: query
-        description: Only articles from this one feed, newest first. A feed the person does not follow lists nothing. Not with `order=reads` or `order=saves`.
+        description: Only articles from this one feed, newest first. A feed the person does not follow lists nothing. Not with a trending order.
         schema:
           type: string
           pattern: '^[1-9][0-9]*$'
       - name: order
         in: query
-        description: Newest or oldest first, or ranked by reads or saves.
+        description: Newest or oldest first, or one of the trending rankings.
         schema:
           type: string
-          enum: [newest, oldest, reads, saves]
+          enum:
+            [newest, oldest, reads, read_time, long_reads, good_reads, saves]
           default: newest
       - name: window
         in: query
-        description: How far back reads or saves count. Only with `order=reads` or `order=saves`.
+        description: How far back reads or saves count. Only with a trending order.
         schema:
           type: string
           enum: [day, week, month]
           default: week
+      - name: read
+        in: query
+        description: '`false` leaves out the stories the person has read. Only with a trending order.'
+        schema:
+          type: string
+          enum: ['false']
+      - name: sort
+        in: query
+        description: '`oldest` serves a trending list from its end. Only with a trending order.'
+        schema:
+          type: string
+          enum: [newest, oldest]
+          default: newest
       - name: cursor
         in: query
         description: The opaque cursor from a previous page's `next`.

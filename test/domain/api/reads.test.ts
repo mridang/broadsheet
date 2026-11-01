@@ -1,6 +1,10 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { MAX_BULK_READS, parseBulkReads } from '@/domain/api/reads';
+import {
+  MAX_BULK_READS,
+  parseBulkReads,
+  parseReadTime,
+} from '@/domain/api/reads';
 
 describe('parseBulkReads', () => {
   it('reads string ids', () => {
@@ -27,6 +31,31 @@ describe('parseBulkReads', () => {
     expect(parseBulkReads({ article_ids: ids })).toEqual({
       ok: false,
       error: `article_ids may hold at most ${MAX_BULK_READS} ids.`,
+    });
+  });
+});
+
+describe('parseReadTime', () => {
+  it('takes whole seconds, counting more than twenty minutes as twenty', () => {
+    expect(parseReadTime({ seconds: 45 })).toEqual({ ok: true, seconds: 45 });
+    expect(parseReadTime({ seconds: 5000 })).toEqual({
+      ok: true,
+      seconds: 1200,
+    });
+  });
+
+  it.each([
+    [{}, 'seconds: must be a whole number from 0.'],
+    [{ seconds: 1.5 }, 'seconds: must be a whole number from 0.'],
+    [{ seconds: '4' }, 'seconds: must be a whole number from 0.'],
+  ])('refuses %j', (body, error) => {
+    expect(parseReadTime(body)).toEqual({ ok: false, errors: [error] });
+  });
+
+  it('refuses members a read does not have', () => {
+    expect(parseReadTime({ seconds: 4, user_id: 1 })).toEqual({
+      ok: false,
+      errors: ['user_id: not a member of a read.'],
     });
   });
 });

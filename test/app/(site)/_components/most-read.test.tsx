@@ -16,8 +16,8 @@ describe('MostRead', () => {
     const out = html(
       <MostRead
         stories={[
-          { article: article(1, 'Big'), count: 3 },
-          { article: article(2, null), count: 1 },
+          { article: article(1, 'Big'), count: 3, position: 0 },
+          { article: article(2, null), count: 1, position: 1 },
         ]}
       />,
     );

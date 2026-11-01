@@ -22,11 +22,12 @@ beforeEach(async () => {
   restore = installCloudflareContext(made.d1, { SESSION_SECRET });
   made.raw
     .prepare(
-      'INSERT INTO users (id, google_sub, email, session_epoch) VALUES (7, ?, ?, 0)',
+      'INSERT INTO users (id, google_sub, email, session_epoch) VALUES (7, ?, ?, 0), (8, ?, ?, 0)',
     )
-    .run('g7', 'a@b.com');
+    .run('g7', 'a@b.com', 'g8', 'b@b.com');
   const repo = new Repository(databaseFrom(made.d1));
   const { source_id } = (await repo.addFeed(7, 'https://a.test/f'))!;
+  await repo.addFeed(8, 'https://a.test/f');
   await repo.writeEdition(
     source_id,
     '2026-10-01',
@@ -92,23 +93,26 @@ describe('GET /api/articles', () => {
 });
 
 describe('GET /api/articles?order=reads', () => {
-  it('ranks by reads with counts only, paging with a cursor', async () => {
+  /** Note `id` as read by person `uid`. */
+  const readAs = async (uid: number, id: number) =>
+    READ(
+      new Request(`https://app.test/api/users/self/reads/${id}`, {
+        method: 'POST',
+        headers: {
+          cookie: `${SESSION_COOKIE}=${await tokenFor({ id: uid }, { ep: 0 })}`,
+        },
+      }),
+      { params: Promise.resolve({ article_id: String(id) }) },
+    );
+
+  it('ranks by distinct readers with counts only, paging with a cursor', async () => {
     const first = (await (await get('?limit=3')).json()) as {
       items: { id: string }[];
     };
     const ids = first.items.map((a) => Number(a.id));
     for (const id of ids.slice(0, 2)) {
-      expect(
-        (
-          await READ(
-            new Request(`https://app.test/api/users/self/reads/${id}`, {
-              method: 'POST',
-              headers: auth,
-            }),
-            { params: Promise.resolve({ article_id: String(id) }) },
-          )
-        ).status,
-      ).toBeLessThan(300);
+      await readAs(7, id);
+      await readAs(8, id);
     }
     const res = await get('?order=reads&window=day&limit=1');
     expect(res.status).toBe(200);
@@ -117,12 +121,32 @@ describe('GET /api/articles?order=reads', () => {
     };
     expect(page.items).toHaveLength(1);
     expect(Object.keys(page.items[0]!)).not.toContain('user_id');
-    expect(page.items[0]).toMatchObject({ read_count: 1 });
+    expect(page.items[0]).toMatchObject({ read_count: 2 });
     const next = (await (
       await GET(new Request(page.next!, { headers: auth }))
     ).json()) as Page;
     expect(next.items).toHaveLength(1);
     expect(next).not.toHaveProperty('next');
+  });
+
+  it('never lists a story only one person read', async () => {
+    const first = (await (await get('?limit=1')).json()) as {
+      items: { id: string }[];
+    };
+    await readAs(8, Number(first.items[0]!.id));
+    const page = (await (await get('?order=reads')).json()) as Page;
+    expect(page.items).toEqual([]);
+  });
+
+  it('leaves out what the caller read with read=false', async () => {
+    const first = (await (await get('?limit=1')).json()) as {
+      items: { id: string }[];
+    };
+    const id = Number(first.items[0]!.id);
+    await readAs(7, id);
+    await readAs(8, id);
+    const page = (await (await get('?order=reads&read=false')).json()) as Page;
+    expect(page.items).toEqual([]);
   });
 
   it('answers 400 for an order it does not know', async () => {

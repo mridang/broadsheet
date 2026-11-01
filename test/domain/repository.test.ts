@@ -1231,7 +1231,7 @@ describe('custom editions', () => {
 });
 
 describe('trendingArticles', () => {
-  const story = (n: number) => ({
+  const story = (n: number, words = 1) => ({
     url: `https://t/${n}`,
     title: `T${n}`,
     source: '',
@@ -1240,93 +1240,337 @@ describe('trendingArticles', () => {
     image: '',
     published_at: '',
     points: 0,
+    body_text: Array.from({ length: words }, () => 'word').join(' '),
   });
 
-  /** Two readers following one feed with three stories; returns the ids. */
-  async function seed(): Promise<{ a: number; b: number; ids: number[] }> {
+  /**
+   * Four readers following one feed with three stories (the third 700 words
+   * long); returns their ids and the story ids, oldest first.
+   */
+  async function seed(): Promise<{ people: number[]; ids: number[] }> {
     const repo = new Repository(db);
-    const a = (await upsertUser(db, { sub: 'a', email: 'a@b.c' })).id;
-    const b = (await upsertUser(db, { sub: 'b', email: 'b@b.c' })).id;
-    const feed = await addFeed(db, a, 'https://t/rss');
-    await addFeed(db, b, 'https://t/rss');
-    await repo.writeEdition(
-      feed!.source_id,
-      '2026-11-01',
-      [1, 2, 3].map(story),
+    const people: number[] = [];
+    for (const name of ['a', 'b', 'c', 'd']) {
+      const id = (await upsertUser(db, { sub: name, email: `${name}@b.c` })).id;
+      await addFeed(db, id, 'https://t/rss');
+      people.push(id);
+    }
+    const feed = await new Repository(db).getFeedByUrl(
+      people[0]!,
+      'https://t/rss',
     );
+    await repo.writeEdition(feed!.source_id, '2026-11-01', [
+      story(1),
+      story(2, 300),
+      story(3, 700),
+    ]);
     const ids = (await repo.sourceArticles(feed!.source_id, '2026-11-01'))
       .map((x) => x.id)
       .toSorted((x, y) => x - y);
-    return { a, b, ids };
+    return { people, ids };
   }
 
-  it('ranks by how many people read each story, then newest', async () => {
+  const EVER = '2000-01-01 00:00:00';
+
+  /** `person` read `article` for `seconds`. */
+  async function read(person: number, article: number, seconds = 0) {
     const repo = new Repository(db);
-    const { a, b, ids } = await seed();
-    await repo.markRead(a, ids[0]!);
-    await repo.markRead(b, ids[0]!);
-    await repo.markRead(a, ids[1]!);
-    await repo.markRead(b, ids[2]!);
-    const rows = await repo.trendingArticles(a, {
-      order: 'reads',
-      since: '2000-01-01 00:00:00',
-      limit: 10,
-    });
-    expect(rows.map((r) => [r.article.id, r.count])).toEqual([
-      [ids[0], 2],
-      [ids[2], 1],
-      [ids[1], 1],
+    await repo.markRead(person, article);
+    if (seconds) await repo.recordReadTime(person, article, seconds);
+  }
+
+  const rank = async (
+    person: number,
+    query: Partial<Parameters<Repository['trendingArticles']>[1]>,
+  ) =>
+    (
+      await new Repository(db).trendingArticles(person, {
+        order: 'reads',
+        since: EVER,
+        limit: 10,
+        ...query,
+      })
+    ).map((r) => [r.article.id, r.count]);
+
+  it('ranks by distinct readers, leaving out a story only one person read', async () => {
+    const { people, ids } = await seed();
+    const [a, b, c] = people as [number, number, number];
+    await read(a, ids[0]!);
+    await read(b, ids[0]!);
+    await read(c, ids[0]!);
+    await read(a, ids[1]!);
+    await read(b, ids[1]!);
+    await read(c, ids[2]!);
+    expect(await rank(a, {})).toEqual([
+      [ids[0], 3],
+      [ids[1], 2],
     ]);
   });
 
-  it('pages after a count and id', async () => {
+  it('pages after a place in the list, and serves it from the end', async () => {
+    const { people, ids } = await seed();
+    const [a, b] = people as [number, number];
+    for (const id of ids) {
+      await read(a, id);
+      await read(b, id);
+    }
     const repo = new Repository(db);
-    const { a, b, ids } = await seed();
-    await repo.markRead(a, ids[0]!);
-    await repo.markRead(b, ids[0]!);
-    await repo.markRead(a, ids[1]!);
-    await repo.markRead(b, ids[2]!);
-    const rows = await repo.trendingArticles(a, {
-      order: 'reads',
-      since: '2000-01-01 00:00:00',
-      after: { count: 1, id: ids[2]! },
-      limit: 10,
-    });
-    expect(rows.map((r) => r.article.id)).toEqual([ids[1]]);
+    const page = (query: object) =>
+      repo.trendingArticles(a, {
+        order: 'reads',
+        since: EVER,
+        limit: 1,
+        ...query,
+      });
+    const first = await page({});
+    expect(first.map((r) => [r.article.id, r.position])).toEqual([
+      [ids[2], 0],
+      [ids[1], 1],
+    ]);
+    expect(
+      (await page({ after: { position: 0, id: ids[2]! } })).map(
+        (r) => r.article.id,
+      ),
+    ).toEqual([ids[1], ids[0]]);
+    expect((await page({ sort: 'oldest' })).map((r) => r.article.id)).toEqual([
+      ids[0],
+      ids[1],
+    ]);
   });
 
-  it('ranks saves, and counts nothing before the window', async () => {
+  it('leaves out what the person read when asked for unread', async () => {
+    const { people, ids } = await seed();
+    const [a, b, c] = people as [number, number, number];
+    await read(b, ids[0]!);
+    await read(c, ids[0]!);
+    await read(b, ids[1]!);
+    await read(c, ids[1]!);
+    await read(a, ids[1]!);
+    expect(await rank(a, { unread: true })).toEqual([[ids[0], 2]]);
+  });
+
+  it('ranks by seconds spent, counting only reads of 3 seconds or more', async () => {
+    const { people, ids } = await seed();
+    const [a, b, c] = people as [number, number, number];
+    await read(a, ids[0]!, 100);
+    await read(b, ids[0]!, 2);
+    await read(a, ids[1]!, 10);
+    await read(b, ids[1]!, 5000);
+    expect(await rank(a, { order: 'read_time' })).toEqual([[ids[1], 1210]]);
+    await read(c, ids[0]!, 3);
+    expect(await rank(a, { order: 'read_time' })).toEqual([
+      [ids[1], 1210],
+      [ids[0], 103],
+    ]);
+  });
+
+  it('ranks long reads by readers who read a long story through', async () => {
+    const { people, ids } = await seed();
+    const [a, b, c] = people as [number, number, number];
+    // 700 words need 45 seconds; the 300-word story is too short.
+    await read(a, ids[2]!, 45);
+    await read(b, ids[2]!, 60);
+    await read(c, ids[2]!, 44);
+    await read(a, ids[1]!, 600);
+    await read(b, ids[1]!, 600);
+    expect(await rank(a, { order: 'long_reads' })).toEqual([[ids[2], 2]]);
+  });
+
+  it('ranks good reads: deep readers and a save, or four deep readers', async () => {
     const repo = new Repository(db);
-    const { a, ids } = await seed();
+    const { people, ids } = await seed();
+    const [a, b, c, d] = people as [number, number, number, number];
+    await read(a, ids[1]!, 30);
+    await read(b, ids[1]!, 30);
+    expect(await rank(a, { order: 'good_reads' })).toEqual([]);
+    await repo.saveArticle(c, ids[1]!, []);
+    expect(await rank(a, { order: 'good_reads' })).toEqual([[ids[1], 2]]);
+    for (const p of [a, b, c, d]) await read(p, ids[2]!, 40);
+    await read(a, ids[0]!, 600);
+    await read(b, ids[0]!, 600);
+    await repo.saveArticle(c, ids[0]!, []);
+    // A saved story leads; the one-word story is too short to count.
+    expect(await rank(a, { order: 'good_reads' })).toEqual([
+      [ids[1], 2],
+      [ids[2], 4],
+    ]);
+  });
+
+  it('ranks saves by distinct savers, and counts nothing before the window', async () => {
+    const repo = new Repository(db);
+    const { people, ids } = await seed();
+    const [a, b] = people as [number, number];
     await repo.saveArticle(a, ids[1]!, []);
+    expect(await rank(a, { order: 'saves' })).toEqual([]);
+    await repo.saveArticle(b, ids[1]!, []);
+    expect(await rank(a, { order: 'saves' })).toEqual([[ids[1], 2]]);
     expect(
-      await repo.trendingArticles(a, {
-        order: 'saves',
-        since: '2000-01-01 00:00:00',
-        limit: 10,
-      }),
-    ).toMatchObject([{ article: { id: ids[1] }, count: 1 }]);
-    expect(
-      await repo.trendingArticles(a, {
-        order: 'saves',
-        since: '2999-01-01 00:00:00',
-        limit: 10,
-      }),
+      await rank(a, { order: 'saves', since: '2999-01-01 00:00:00' }),
     ).toEqual([]);
   });
 
   it('leaves out stories from sources the person does not follow', async () => {
+    const { people, ids } = await seed();
+    const [a, b] = people as [number, number];
+    await read(a, ids[0]!);
+    await read(b, ids[0]!);
+    const stranger = (await upsertUser(db, { sub: 'x', email: 'x@b.c' })).id;
+    expect(await rank(stranger, {})).toEqual([]);
+  });
+});
+
+describe('recordReadTime', () => {
+  it('keeps the longest time, capped at twenty minutes', async () => {
     const repo = new Repository(db);
-    const { a, ids } = await seed();
-    await repo.markRead(a, ids[0]!);
-    const c = (await upsertUser(db, { sub: 'c', email: 'c@b.c' })).id;
+    const user = (await upsertUser(db, { sub: 'r', email: 'r@b.c' })).id;
+    const feed = (await addFeed(db, user, 'https://t/rss'))!;
+    await repo.writeEdition(feed.source_id, '2026-11-01', [
+      {
+        url: 'https://t/1',
+        title: 'T',
+        source: '',
+        favicon: '',
+        summary: '',
+        image: '',
+        published_at: '',
+        points: 0,
+      },
+    ]);
+    const [article] = await repo.sourceArticles(feed.source_id, '2026-11-01');
+    expect(await repo.recordReadTime(user, article!.id, 30)).toBeUndefined();
+    await repo.markRead(user, article!.id);
+    expect(await repo.recordReadTime(user, article!.id, 30)).toBe(30);
+    expect(await repo.recordReadTime(user, article!.id, 10)).toBe(30);
+    expect(await repo.recordReadTime(user, article!.id, 99_999)).toBe(1200);
+  });
+});
+
+describe('trendingSources', () => {
+  /** Sources a, b, c followed by these many people, each with a story. */
+  async function seed(): Promise<{
+    people: number[];
+    sources: number[];
+    stories: number[];
+  }> {
+    const repo = new Repository(db);
+    const people: number[] = [];
+    for (const name of ['a', 'b', 'c']) {
+      people.push(
+        (await upsertUser(db, { sub: name, email: `${name}@b.c` })).id,
+      );
+    }
+    const sources: number[] = [];
+    const stories: number[] = [];
+    for (const [n, followers] of [
+      [1, 3],
+      [2, 3],
+      [3, 1],
+    ] as const) {
+      let source = 0;
+      for (const p of people.slice(0, followers)) {
+        source = (await addFeed(db, p, `https://s${n}/rss`))!.source_id;
+      }
+      await repo.writeEdition(source, '2026-11-01', [
+        {
+          url: `https://s${n}/1`,
+          title: `S${n}`,
+          source: '',
+          favicon: '',
+          summary: '',
+          image: '',
+          published_at: '',
+          points: 0,
+        },
+      ]);
+      sources.push(source);
+      stories.push((await repo.sourceArticles(source, '2026-11-01'))[0]!.id);
+    }
+    return { people, sources, stories };
+  }
+
+  const query = {
+    since: '2000-01-01 00:00:00',
+    freshSince: '2026-01-01',
+    days: 30,
+    now: new Date().toISOString().slice(0, 19).replace('T', ' '),
+    limit: 10,
+  };
+
+  it('ranks sources by distinct readers across everyone', async () => {
+    const repo = new Repository(db);
+    const { people, sources, stories } = await seed();
+    const [a, b, c] = people as [number, number, number];
+    for (const p of [a, b, c]) await repo.markRead(p, stories[1]!);
+    for (const p of [a, b]) await repo.markRead(p, stories[0]!);
     expect(
-      await repo.trendingArticles(c, {
+      (await repo.trendingSources({ ...query, order: 'reads' })).map((s) => [
+        s.id,
+        s.count,
+        s.followers,
+      ]),
+    ).toEqual([
+      [sources[1], 3, 3],
+      [sources[0], 2, 3],
+    ]);
+  });
+
+  it('leaves out a source one person follows or reads, and stale ones', async () => {
+    const repo = new Repository(db);
+    const { people, stories } = await seed();
+    await repo.markRead(people[0]!, stories[2]!);
+    await repo.markRead(people[0]!, stories[0]!);
+    expect(await repo.trendingSources({ ...query, order: 'reads' })).toEqual(
+      [],
+    );
+    for (const p of people) await repo.markRead(p, stories[1]!);
+    expect(
+      await repo.trendingSources({
+        ...query,
         order: 'reads',
-        since: '2000-01-01 00:00:00',
-        limit: 10,
+        freshSince: '2027-01-01',
       }),
     ).toEqual([]);
+  });
+
+  it('ranks by seconds read, and pages on', async () => {
+    const repo = new Repository(db);
+    const { people, sources, stories } = await seed();
+    for (const p of people) {
+      await repo.markRead(p, stories[0]!);
+      await repo.recordReadTime(p, stories[0]!, 50);
+    }
+    for (const p of people.slice(0, 2)) {
+      await repo.markRead(p, stories[1]!);
+      await repo.recordReadTime(p, stories[1]!, 10);
+    }
+    const ranked = await repo.trendingSources({ ...query, order: 'read_time' });
+    expect(ranked.map((s) => [s.id, s.count])).toEqual([
+      [sources[0], 150],
+      [sources[1], 20],
+    ]);
+    expect(
+      (
+        await repo.trendingSources({
+          ...query,
+          order: 'read_time',
+          after: { count: 150, id: sources[0]! },
+        })
+      ).map((s) => s.id),
+    ).toEqual([sources[1]]);
+  });
+
+  it('ranks new followers, counting older ones less, from a score of four', async () => {
+    const repo = new Repository(db);
+    const { people, sources } = await seed();
+    const ranked = () => repo.trendingSources({ ...query, order: 'follows' });
+    // Three people followed today: a score of 3, under the threshold.
+    expect(await ranked()).toEqual([]);
+    const late = (await upsertUser(db, { sub: 'd', email: 'd@b.c' })).id;
+    await addFeed(db, late, 'https://s1/rss');
+    expect((await ranked()).map((s) => [s.id, s.count])).toEqual([
+      [sources[0], 4],
+    ]);
+    expect(people).toHaveLength(3);
   });
 });
 

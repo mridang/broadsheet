@@ -13,6 +13,8 @@ import { buttonClass } from '@/components/ui/button';
 import { fieldClass } from '@/components/ui/field';
 import { EmptyState } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
+import { SaveSearchButton } from '@/app/(site)/search/_components/save-search-button';
+import { SavedSearches } from '@/app/(site)/search/_components/saved-searches';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,11 +32,12 @@ export const metadata: Metadata = {
 export default async function SearchPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; cursor?: string }>;
+  searchParams: Promise<{ q?: string; cursor?: string; feed_id?: string }>;
 }): Promise<ReactElement> {
-  const { q = '', cursor } = await searchParams;
+  const { q = '', cursor, feed_id: feedId } = await searchParams;
   const params = new URLSearchParams({ q: String(q) });
   if (cursor) params.set('cursor', String(cursor));
+  if (feedId) params.set('feed_id', String(feedId));
   const input = parseArticleQuery(params);
   const query = input.ok ? input.query : { q: '', limit: 20 };
   const user = await getCurrentUser();
@@ -42,11 +45,15 @@ export default async function SearchPage({
   const rows = query.q
     ? await new Repository(getDatabase()).searchArticles(ownerId, query)
     : [];
+  const saved = user
+    ? await new Repository(getDatabase()).listSearches(user.id)
+    : [];
   const items = rows.slice(0, query.limit);
   const last = rows.length > query.limit ? items.at(-1) : undefined;
   const older = last
     ? `/search?${new URLSearchParams({
         q: query.q ?? '',
+        ...(query.feed !== undefined ? { feed_id: String(query.feed) } : {}),
         cursor: encodeCursor({ key: String(last.id), id: String(last.id) }),
       })}`
     : undefined;
@@ -82,6 +89,13 @@ export default async function SearchPage({
           Search
         </button>
       </form>
+      <SavedSearches searches={saved} />
+      {user && input.ok && query.q ? (
+        <SaveSearchButton
+          query={query.q}
+          {...(query.feed !== undefined ? { feedId: String(query.feed) } : {})}
+        />
+      ) : null}
       {!input.ok ? (
         <p className="mt-6 text-sm text-muted">
           That search could not be read.

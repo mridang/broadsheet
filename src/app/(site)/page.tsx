@@ -21,6 +21,8 @@ import { ReadTracker } from '@/app/(site)/_components/read-tracker';
 import { EditionBar } from '@/app/(site)/_components/edition-bar';
 import { EditionSwitcher } from '@/app/(site)/_components/edition-switcher';
 import { MostRead } from '@/app/(site)/_components/most-read';
+import { Rivers } from '@/app/(site)/_components/rivers';
+import { frontPageRivers } from '@/domain/rivers';
 import { KeyboardShortcuts } from '@/app/(site)/_components/keyboard-shortcuts';
 import { TopicPicker } from '@/app/(site)/_components/topic-picker';
 import { TOPICS } from '@/domain/topics';
@@ -99,6 +101,9 @@ export default async function Home({
     ? await editionIssueFor(repo, paper, selected)
     : await issueFor(repo, ownerId, selected, user?.id);
   const personal = user ? await loadPersonal(repo, user.id) : undefined;
+  const rivers = user
+    ? await frontPageRivers(getDatabase(), user.id)
+    : undefined;
   const mostRead = (
     await repo.trendingArticles(ownerId, {
       order: 'reads',
@@ -124,7 +129,14 @@ export default async function Home({
           />
         ) : null
       }
-      side={mostRead.length ? <MostRead stories={mostRead} /> : undefined}
+      side={
+        mostRead.length || rivers ? (
+          <>
+            {mostRead.length ? <MostRead stories={mostRead} /> : null}
+            {rivers ? <Rivers {...rivers} /> : null}
+          </>
+        ) : undefined
+      }
     >
       <KeyboardShortcuts />
       {user ? <ReadTracker /> : null}

@@ -6,12 +6,14 @@
  */
 
 import { parseFeedId } from '@/domain/api/feed-resource';
-import type {
-  Article,
-  ArticleQuery,
-  ArticleSummary,
-  TrendingArticle,
-  TrendingQuery,
+import {
+  TRENDING_ORDERS,
+  type Article,
+  type ArticleQuery,
+  type ArticleSummary,
+  type TrendingArticle,
+  type TrendingOrder,
+  type TrendingQuery,
 } from '@/domain/repository';
 import { decodeCursor, MAX_LIMIT, DEFAULT_LIMIT } from '@/lib/core/api';
 
@@ -38,6 +40,7 @@ export interface ArticleResource {
 export interface TrendingArticleResource extends ArticleResource {
   readonly read_count?: number;
   readonly save_count?: number;
+  readonly read_seconds?: number;
 }
 
 /** One article on its own, with the readable text of its page. */
@@ -72,6 +75,15 @@ export function articleResource(
   };
 }
 
+/** The member each trending order puts its count in. */
+const COUNT_MEMBER = {
+  reads: 'read_count',
+  long_reads: 'read_count',
+  good_reads: 'read_count',
+  saves: 'save_count',
+  read_time: 'read_seconds',
+} as const;
+
 /** The API's view of a trending article, with its count for `order`. */
 export function trendingArticleResource(
   { article, count }: Readonly<TrendingArticle>,
@@ -79,7 +91,7 @@ export function trendingArticleResource(
 ): TrendingArticleResource {
   return {
     ...articleResource(article),
-    ...(order === 'reads' ? { read_count: count } : { save_count: count }),
+    [COUNT_MEMBER[order]]: count,
   };
 }
 
@@ -102,8 +114,18 @@ export const WINDOWS = { day: 1, week: 7, month: 30 } as const;
 /** A trending window the API accepts. */
 export type TrendingWindow = keyof typeof WINDOWS;
 
-/** What `order` may be: newest or oldest first, or most read or saved. */
-const ORDERS = new Set(['newest', 'oldest', 'reads', 'saves']);
+/** The trending orders, for checking one. */
+const TRENDING: ReadonlySet<string> = new Set(TRENDING_ORDERS);
+
+/** What `order` may be: newest or oldest first, or a trending ranking. */
+const ORDERS: ReadonlySet<string> = new Set([
+  'newest',
+  'oldest',
+  ...TRENDING_ORDERS,
+]);
+
+/** The orders, for messages. */
+const ORDER_LIST = [...ORDERS].join(', ');
 
 /** The parameters `GET /api/articles` takes. */
 const PARAMETERS = new Set([
@@ -113,6 +135,8 @@ const PARAMETERS = new Set([
   'limit',
   'order',
   'window',
+  'read',
+  'sort',
 ]);
 
 /**
@@ -139,8 +163,10 @@ export function sqliteSince(now: Date, days: number): string {
  * Check the query of `GET /api/articles`: `q` at most
  * {@link MAX_QUERY_LENGTH} characters, `cursor` one this API issued, `limit` a
  * whole number from 1 to the page maximum, `order` `newest` (the default),
- * `oldest`, `reads` or `saves`, and `window` (`day`, `week` or `month`, a week by
- * default) only with a ranked order, which takes no `q`. Other parameters are
+ * `oldest` or a trending order, and `window` (`day`, `week` or `month`, a
+ * week by default), `read=false` (leave out stories the person read) and
+ * `sort` (`newest`, the default, or `oldest`) only with a trending order,
+ * which takes no `q` or `feed_id`. Other parameters are
  * refused.
  */
 export function parseArticleQuery(
@@ -154,25 +180,36 @@ export function parseArticleQuery(
     }
   }
   const order = params.get('order') ?? 'newest';
-  if (!ORDERS.has(order))
-    errors.push('order: must be newest, oldest, reads or saves.');
-  const ranked = order === 'reads' || order === 'saves';
+  if (!ORDERS.has(order)) errors.push(`order: must be one of ${ORDER_LIST}.`);
+  const ranked = TRENDING.has(order);
   const window = params.get('window');
   if (window !== null) {
-    if (!ranked) errors.push('window: only with order reads or saves.');
+    if (!ranked) errors.push('window: only with a trending order.');
     else if (!Object.hasOwn(WINDOWS, window)) {
       errors.push('window: must be day, week or month.');
     }
   }
   const q = (params.get('q') ?? '').trim();
   if (q.length > MAX_QUERY_LENGTH) errors.push('q: too long.');
-  if (q && ranked) errors.push('q: not with order reads or saves.');
+  if (q && ranked) errors.push('q: not with a trending order.');
+  const read = params.get('read');
+  if (read !== null) {
+    if (!ranked) errors.push('read: only with a trending order.');
+    else if (read !== 'false') errors.push('read: must be false.');
+  }
+  const sort = params.get('sort');
+  if (sort !== null) {
+    if (!ranked) errors.push('sort: only with a trending order.');
+    else if (sort !== 'newest' && sort !== 'oldest') {
+      errors.push('sort: must be newest or oldest.');
+    }
+  }
   const rawFeed = params.get('feed_id');
   const feed = rawFeed === null ? undefined : parseFeedId(rawFeed);
   if (rawFeed !== null && feed === undefined) {
     errors.push('feed_id: not a feed id.');
   } else if (feed !== undefined && ranked) {
-    errors.push('feed_id: not with order reads or saves.');
+    errors.push('feed_id: not with a trending order.');
   }
   let before: number | undefined;
   let after: TrendingQuery['after'];
@@ -180,10 +217,13 @@ export function parseArticleQuery(
   if (cursor !== null) {
     const position = decodeCursor(cursor);
     before = parseFeedId(position?.id ?? '');
-    const count = Number(position?.key);
-    if (before === undefined || (ranked && !Number.isInteger(count))) {
+    const place = Number(position?.key);
+    if (
+      before === undefined ||
+      (ranked && (!Number.isInteger(place) || place < 0))
+    ) {
       errors.push('cursor: not a cursor of this list.');
-    } else if (ranked) after = { count, id: before };
+    } else if (ranked) after = { position: place, id: before };
   }
   let limit = DEFAULT_LIMIT;
   const rawLimit = params.get('limit');
@@ -211,9 +251,11 @@ export function parseArticleQuery(
     ok: true,
     query: { q, limit },
     trending: {
-      order,
+      order: order as TrendingOrder,
       since: sqliteSince(now, days),
       ...(after ? { after } : {}),
+      ...(read === 'false' ? { unread: true } : {}),
+      ...(sort === 'oldest' ? { sort: 'oldest' as const } : {}),
       limit,
     },
   };

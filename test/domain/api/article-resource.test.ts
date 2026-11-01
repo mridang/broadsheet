@@ -82,7 +82,7 @@ describe('parseArticleQuery', () => {
 
   it.each([
     ['feed_id=x', 'feed_id: not a feed id.'],
-    ['feed_id=7&order=reads', 'feed_id: not with order reads or saves.'],
+    ['feed_id=7&order=reads', 'feed_id: not with a trending order.'],
   ])('refuses %s', (query, error) => {
     expect(parse(query)).toMatchObject({ ok: false, errors: [error] });
   });
@@ -140,17 +140,42 @@ describe('parseArticleQuery ranked', () => {
     });
   });
 
-  it('reads the count and id from a ranked cursor', () => {
+  it.each(['read_time', 'long_reads', 'good_reads'])(
+    'ranks by %s too',
+    (order) => {
+      const input = parse(`order=${order}`);
+      expect(input.ok && input.trending?.order).toBe(order);
+    },
+  );
+
+  it('leaves out what the reader read with read=false', () => {
+    const input = parse('order=good_reads&read=false');
+    expect(input.ok && input.trending?.unread).toBe(true);
+  });
+
+  it('reads the place and id from a ranked cursor', () => {
     const cursor = encodeCursor({ key: '3', id: '12' });
     const input = parse(`order=reads&cursor=${cursor}`);
-    expect(input.ok && input.trending?.after).toEqual({ count: 3, id: 12 });
+    expect(input.ok && input.trending?.after).toEqual({ position: 3, id: 12 });
+  });
+
+  it('serves the list from its end with sort=oldest', () => {
+    const input = parse('order=reads&sort=oldest');
+    expect(input.ok && input.trending?.sort).toBe('oldest');
   });
 
   it.each([
-    ['order=popular', 'order: must be newest, oldest, reads or saves.'],
+    [
+      'order=popular',
+      'order: must be one of newest, oldest, reads, saves, read_time, long_reads, good_reads.',
+    ],
     ['order=reads&window=year', 'window: must be day, week or month.'],
-    ['window=day', 'window: only with order reads or saves.'],
-    ['order=saves&q=rust', 'q: not with order reads or saves.'],
+    ['read=false', 'read: only with a trending order.'],
+    ['order=reads&read=true', 'read: must be false.'],
+    ['sort=oldest', 'sort: only with a trending order.'],
+    ['order=reads&sort=random', 'sort: must be newest or oldest.'],
+    ['window=day', 'window: only with a trending order.'],
+    ['order=saves&q=rust', 'q: not with a trending order.'],
     [
       `order=reads&cursor=${encodeCursor({ key: 'x', id: '3' })}`,
       'cursor: not a cursor of this list.',
@@ -171,16 +196,28 @@ describe('sqliteSince', () => {
 describe('trendingArticleResource', () => {
   it('shows how many read it, and nobody who did', () => {
     const resource = trendingArticleResource(
-      { article: stored, count: 4 },
+      { article: stored, count: 4, position: 0 },
       'reads',
     );
     expect(resource).toMatchObject({ id: '9', read_count: 4 });
     expect(resource).not.toHaveProperty('save_count');
   });
 
+  it('shows the seconds spent for the read_time order', () => {
+    expect(
+      trendingArticleResource(
+        { article: stored, count: 90, position: 0 },
+        'read_time',
+      ),
+    ).toMatchObject({ read_seconds: 90 });
+  });
+
   it('shows how many saved it for the saves order', () => {
     expect(
-      trendingArticleResource({ article: stored, count: 2 }, 'saves'),
+      trendingArticleResource(
+        { article: stored, count: 2, position: 0 },
+        'saves',
+      ),
     ).toMatchObject({ save_count: 2 });
   });
 });

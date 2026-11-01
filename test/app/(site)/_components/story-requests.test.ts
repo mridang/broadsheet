@@ -4,6 +4,7 @@ import {
   markManyRead,
   markRead,
   markUnread,
+  recordReadTime,
 } from '@/app/(site)/_components/story-requests';
 
 const real = globalThis.fetch;
@@ -64,5 +65,18 @@ describe('markManyRead', () => {
     const fetch = spy();
     markManyRead([]);
     expect(fetch).not.toHaveBeenCalled();
+  });
+});
+
+describe('recordReadTime', () => {
+  it('patches the read with the seconds, surviving the page unloading', () => {
+    const fetch = spy();
+    recordReadTime(4, 32);
+    expect(fetch).toHaveBeenCalledWith('/api/users/self/reads/4', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{"seconds":32}',
+      keepalive: true,
+    });
   });
 });

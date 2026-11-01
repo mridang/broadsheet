@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import type { ReactElement } from 'react';
 
 import { AskBox } from '@/app/(site)/article/[id]/_components/ask-box';
+import { ReadTimer } from '@/app/(site)/article/[id]/_components/read-timer';
 import { ensurePublicUser } from '@/domain/account';
 import { parseFeedId } from '@/domain/api/feed-resource';
 import { getDatabase } from '@/domain/db/database';
@@ -131,6 +132,7 @@ export default async function ArticlePage({
           </ul>
         </section>
       ) : null}
+      {user ? <ReadTimer id={article.id} /> : null}
     </article>
   );
 }

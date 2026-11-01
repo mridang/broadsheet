@@ -19,12 +19,17 @@ import { ImportFeedsForm } from '@/app/(site)/feeds/_components/import-feeds-for
 import { RefreshFeedsButton } from '@/app/(site)/feeds/_components/refresh-feeds-button';
 import { RemoveFeedButton } from '@/app/(site)/feeds/_components/remove-feed-button';
 import { SuggestedFeeds } from '@/app/(site)/feeds/_components/suggested-feeds';
+import { TrendingFeeds } from '@/app/(site)/feeds/_components/trending-feeds';
+import { parseSourceQuery } from '@/domain/api/source-resource';
 import { RemoveSectionButton } from '@/app/(site)/feeds/_components/remove-section-button';
 
 export const dynamic = 'force-dynamic';
 
 /** The tab title of the feed manager. */
 export const metadata: Metadata = { title: 'Your feeds' };
+
+/** How many trending feeds the manager lists. */
+const TRENDING_FEEDS = 5;
 
 export default async function FeedsPage({
   searchParams,
@@ -44,6 +49,21 @@ export default async function FeedsPage({
     repo.listSections(user.id),
     repo.suggestSources(user.id),
   ]);
+  const followed = new Set(feeds.map((f) => f.url));
+  const trendingQuery = parseSourceQuery(
+    new URLSearchParams({ order: 'reads' }),
+  );
+  const trending = trendingQuery.ok
+    ? (
+        await repo.trendingSources({
+          ...trendingQuery.query,
+          limit: TRENDING_FEEDS + feeds.length,
+        })
+      )
+        .filter((s) => !followed.has(s.url))
+        .slice(0, TRENDING_FEEDS)
+        .map((s) => ({ url: s.url, title: s.title, readers: s.count }))
+    : [];
   const stats = new Map(
     await Promise.all(
       feeds.map(
@@ -111,6 +131,7 @@ export default async function FeedsPage({
         </EmptyState>
       )}
       <SuggestedFeeds feeds={suggestions} />
+      <TrendingFeeds feeds={trending} />
       <PageSection
         id="sections"
         title="Sections"

@@ -65,3 +65,17 @@ export function markManyRead(articleIds: readonly number[]): void {
     keepalive: true,
   }).catch(() => undefined);
 }
+
+/**
+ * Note how long the reader spent on a story they read (`PATCH
+ * /api/users/self/reads/:article_id`). Fire-and-forget, like
+ * {@link markRead}, and sent even as the page unloads.
+ */
+export function recordReadTime(articleId: number, seconds: number): void {
+  void fetch(`/api/users/self/reads/${articleId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ seconds }),
+    keepalive: true,
+  }).catch(() => undefined);
+}

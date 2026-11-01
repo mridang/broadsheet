@@ -77,7 +77,7 @@ async function trendingPage(
   return {
     items: items.map((row) => trendingArticleResource(row, trending.order)),
     ...(rows.length > trending.limit && last
-      ? { next: { key: String(last.count), id: String(last.article.id) } }
+      ? { next: { key: String(last.position), id: String(last.article.id) } }
       : {}),
   };
 }

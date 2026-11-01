@@ -1,0 +1,44 @@
+collection:
+  get:
+    operationId: listTrendingSources
+    tags: [sources]
+    summary: List the feeds trending across the app.
+    description: Rate limited by the `RL_API` binding. Ranks sources across everyone, not only the ones the person follows, by distinct readers (`reads`), seconds spent (`read_time`) or new followers weighted by how recently they followed (`follows`, from a score of four) within the `window`, most first. Sources with no story in a year are left out.
+    parameters:
+      - name: order
+        in: query
+        required: true
+        schema:
+          type: string
+          enum: [reads, read_time, follows]
+      - name: window
+        in: query
+        schema:
+          type: string
+          enum: [day, week, month]
+          default: week
+      - name: cursor
+        in: query
+        description: The opaque cursor from a previous page's `next`.
+        schema:
+          type: string
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+    responses:
+      '200':
+        description: One page of sources.
+        content:
+          application/json:
+            schema:
+              $ref: '../components/source.yaml#/SourcePage'
+      '400':
+        $ref: '../components/common.yaml#/responses/BadRequest'
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'

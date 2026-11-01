@@ -36,6 +36,7 @@ import { rank, verdict } from '@/domain/render/tiers';
 import {
   Repository,
   sectionPath,
+  TRENDING_ORDERS,
   type ArticleSummary,
   type Section,
 } from '@/domain/repository';
@@ -1064,16 +1065,22 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
     name: 'get_trending',
     title: 'Get trending stories',
     description:
-      'The stories from the feeds the person follows that readers opened or saved most lately (only counts, never who).',
+      "NewsBlur's trending lists of the stories from the feeds the person follows: well read, read time, long reads, good reads or most saved (only counts, never who; a story needs two people behind it).",
     input: z.object({
       order: z
-        .enum(['reads', 'saves'])
+        .enum(TRENDING_ORDERS)
         .default('reads')
-        .describe('Rank by reads or by saves.'),
+        .describe(
+          'reads (well read), read_time, long_reads, good_reads or saves.',
+        ),
       window: z
         .enum(['day', 'week', 'month'])
         .default('week')
         .describe('How far back to count.'),
+      unread: z
+        .boolean()
+        .default(false)
+        .describe('Leave out the stories the person has read.'),
       limit: z
         .number()
         .int()
@@ -1083,10 +1090,11 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
         .describe(`How many to return, 1 to ${MAX_SEARCH}.`),
     }),
     readOnly: true,
-    run: async ({ order, window, limit }, { uid, db }) => {
+    run: async ({ order, window, unread, limit }, { uid, db }) => {
       const rows = await new Repository(db).trendingArticles(uid, {
         order,
         since: sqliteSince(new Date(), WINDOWS[window]),
+        ...(unread ? { unread } : {}),
         limit,
       });
       return {

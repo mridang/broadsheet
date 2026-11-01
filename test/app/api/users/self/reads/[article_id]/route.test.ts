@@ -13,7 +13,7 @@ import {
   tokenFor,
 } from '../../../../../../domain/auth/auth-test-kit';
 
-const { POST, DELETE } =
+const { POST, PATCH, DELETE } =
   await import('@/app/api/users/self/reads/[article_id]/route');
 
 let restore: () => void;
@@ -163,5 +163,53 @@ describe('POST /api/users/self/reads/:article_id with copies', () => {
     expect([...(await repo.readState(7)).ids].toSorted()).toEqual(
       [story, copy].toSorted(),
     );
+  });
+});
+
+const time = (id: string | number, body: string) =>
+  PATCH(
+    new Request(`https://app.test/api/users/self/reads/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...auth },
+      body,
+    }),
+    { params: Promise.resolve({ article_id: String(id) }) },
+  );
+
+describe('PATCH /api/users/self/reads/:article_id', () => {
+  it('answers 200 with the longest time spent', async () => {
+    await read(story);
+    expect((await time(story, '{"seconds":40}')).status).toBe(200);
+    const res = await time(story, '{"seconds":12}');
+    expect(await res.json()).toEqual({
+      article_id: String(story),
+      seconds: 40,
+    });
+  });
+
+  it('answers 404 for a story the person has not read', async () => {
+    const res = await time(story, '{"seconds":40}');
+    expect(res.status).toBe(404);
+    expect(res.headers.get('content-type')).toBe('application/problem+json');
+  });
+
+  it('answers 404 for another person’s read', async () => {
+    await read(story);
+    auth = await cookieFor(8);
+    expect((await time(story, '{"seconds":40}')).status).toBe(404);
+  });
+
+  it('answers 400 naming a bad time', async () => {
+    await read(story);
+    const res = await time(story, '{"seconds":-1}');
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { errors: string[] }).errors).toEqual([
+      'seconds: must be a whole number from 0.',
+    ]);
+  });
+
+  it('answers 401 when nobody is signed in', async () => {
+    auth = {};
+    expect((await time(story, '{"seconds":40}')).status).toBe(401);
   });
 });

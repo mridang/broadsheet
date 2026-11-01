@@ -22,6 +22,7 @@ import {
 } from '@/lib/core/api';
 import { Repository } from '@/domain/repository';
 import { getDatabase } from '@/domain/db/database';
+import { MAX_READ_SECONDS } from '@/domain/trending';
 
 /** The signed-in caller's id and the request, for a read endpoint. */
 interface UidContext {
@@ -49,6 +50,36 @@ export async function readCopies(
 /** A read as the API shows it. */
 interface ReadResource {
   readonly article_id: string;
+  readonly seconds?: number;
+}
+
+/** A checked read-time body, or what was wrong with it. */
+export type ReadTimeInput =
+  | { readonly ok: true; readonly seconds: number }
+  | { readonly ok: false; readonly errors: readonly string[] };
+
+/**
+ * Check a read-time body: `seconds` a whole number from 0, the time the
+ * person spent on the story (more than {@link MAX_READ_SECONDS} counts as
+ * that). Other members are refused.
+ */
+export function parseReadTime(
+  body: Readonly<Record<string, unknown>>,
+): ReadTimeInput {
+  const errors = Object.keys(body)
+    .filter((key) => key !== 'seconds')
+    .map((key) => `${key}: not a member of a read.`);
+  const { seconds } = body;
+  if (
+    typeof seconds !== 'number' ||
+    !Number.isInteger(seconds) ||
+    seconds < 0
+  ) {
+    errors.push('seconds: must be a whole number from 0.');
+  }
+  return errors.length
+    ? { ok: false, errors }
+    : { ok: true, seconds: Math.min(seconds as number, MAX_READ_SECONDS) };
 }
 
 /**
@@ -56,10 +87,15 @@ interface ReadResource {
  * its `Location` the first time, 200 after that, 404 when there is no such
  * article.
  *
+ * `PATCH /api/users/self/reads/:article_id` {seconds}: note how long the
+ * person spent on it; the longest time recorded stays. 200 with the read,
+ * 400 for a bad body, 404 when they have no read of it, 415 for a non-JSON
+ * body.
+ *
  * `DELETE /api/users/self/reads/:article_id`: mark it unread again. 204, or
  * 404 when it was not read.
  *
- * Both answer 401/403 when not signed in or cross-site. With the person's
+ * All answer 401/403 when not signed in or cross-site. With the person's
  * `cluster_mark_read` preference on, a story's other copies (from sources
  * they follow) are noted as read with it.
  */
@@ -90,6 +126,37 @@ export function createReadItem(
         const at = `/api/users/self/reads/${result.id}`;
         return result.first ? created(body, at) : ok(body, { location: at });
       },
+    })
+    .on<number, ReadResource | undefined>({
+      method: 'PATCH',
+      decode: async (request) => {
+        const body = await readJsonObject(
+          request,
+          'The read must be a JSON object.',
+        );
+        if (!body.ok) throw body.response;
+        const input = parseReadTime(body.value);
+        if (!input.ok) {
+          throw problems.badRequest('The read is not valid.', input.errors);
+        }
+        return input.seconds;
+      },
+      handle: async (seconds, { request, uid }) => {
+        const id = parseFeedId(idOf(request));
+        if (id === undefined) return undefined;
+        const stored = await new Repository(getDatabase()).recordReadTime(
+          uid,
+          id,
+          seconds,
+        );
+        return stored === undefined
+          ? undefined
+          : { article_id: String(id), seconds: stored };
+      },
+      encode: (read) =>
+        read
+          ? ok(read, { headers: { 'Cache-Control': 'no-store' } })
+          : problems.notFound('read'),
     })
     .on<null, boolean>({
       method: 'DELETE',
