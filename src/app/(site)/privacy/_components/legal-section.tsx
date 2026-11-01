@@ -3,6 +3,7 @@ import type { ReactElement, ReactNode } from 'react';
 
 import { BRAND_NAME } from '@/app/_brand';
 import { Eyebrow, Heading } from '@/components/ui/layout';
+import { formatDay } from '@/lib/intl';
 
 /** How a link inside a legal page looks: underlined, in the accent colour. */
 const LINK =
@@ -10,12 +11,7 @@ const LINK =
 
 /** A day as people write it, from an ISO date: "1 November 2026". */
 export function longDate(isoDay: string): string {
-  return new Date(`${isoDay}T00:00:00Z`).toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    timeZone: 'UTC',
-  });
+  return formatDay(isoDay);
 }
 
 /**

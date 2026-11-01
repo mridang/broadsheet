@@ -143,7 +143,7 @@ function feedPage(
       'cursor: not valid.',
     ]);
   }
-  const sorted = [...feeds].sort((a, b) => a.id - b.id);
+  const sorted = feeds.toSorted((a, b) => a.id - b.id);
   const slice = sliceAfter(
     sorted,
     (f) => ({ key: String(f.id), id: String(f.id) }),

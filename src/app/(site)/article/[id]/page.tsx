@@ -20,6 +20,7 @@ import { hasChanges } from '@/domain/render/changes';
 import { TextLink } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icons';
 import { SectionHeader } from '@/components/ui/page-header';
+import { formatDay } from '@/lib/intl';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,14 +33,7 @@ export const metadata: Metadata = {
 /** The day a story was published, or else scraped, written out in full. */
 function dateline(published: string | null, edition: string | null): string {
   const ms = Date.parse(published || edition || '');
-  return Number.isNaN(ms)
-    ? ''
-    : new Date(ms).toLocaleDateString('en-GB', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-        timeZone: 'UTC',
-      });
+  return Number.isNaN(ms) ? '' : formatDay(ms);
 }
 
 /**

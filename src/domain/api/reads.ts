@@ -334,7 +334,7 @@ export function createReadsCollection(
       const sourceIds = chosen.length
         ? chosen
             .map((list) => new Set(list.map((f) => f!.source_id)))
-            .reduce((a, b) => new Set([...a].filter((id) => b.has(id))))
+            .reduce((a, b) => a.intersection(b))
         : undefined;
       const done = await repo.markAllRead(uid, {
         ...(sourceIds ? { sourceIds: [...sourceIds] } : {}),

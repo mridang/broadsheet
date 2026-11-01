@@ -1,18 +1,24 @@
 import { describe, expect, it } from '@jest/globals';
 
 import {
+  characterCount,
   compareText,
   countOf,
   foldText,
+  formatDay,
+  formatDuration,
   formatGigabytes,
   formatHour,
   formatPercent,
   formatQuantityNumber,
   formatRating,
   formatSize,
+  formatTimestamp,
   listAnd,
+  languageName,
   listOr,
   relativeTime,
+  truncate,
 } from '@/lib/intl';
 
 describe('compareText', () => {
@@ -145,5 +151,53 @@ describe('formatHour', () => {
     expect(formatHour(0)).toBe('00:00');
     expect(formatHour(7)).toBe('07:00');
     expect(formatHour(23)).toBe('23:00');
+  });
+});
+
+describe('formatDay', () => {
+  it('writes a day in full, day before month', () => {
+    expect(formatDay('2026-11-01')).toBe('1 November 2026');
+  });
+
+  it('reads the same in every time zone', () => {
+    expect(formatDay('2026-11-01T23:30:00Z')).toBe('1 November 2026');
+  });
+});
+
+describe('formatTimestamp', () => {
+  it('writes a short date and time in UTC', () => {
+    expect(formatTimestamp('2026-11-01T10:05:00Z')).toBe('1 Nov 2026, 10:05');
+  });
+});
+
+describe('formatDuration', () => {
+  it('writes the parts in prose', () => {
+    expect(formatDuration({ hours: 1, minutes: 30 })).toBe('1h 30m');
+    expect(formatDuration({ minutes: 45 })).toBe('45m');
+  });
+});
+
+describe('languageName', () => {
+  it('names a language from its code', () => {
+    expect(languageName('ja')).toBe('Japanese');
+  });
+
+  it('gives back a code that is not a language', () => {
+    expect(languageName('?')).toBe('?');
+  });
+});
+
+describe('truncate', () => {
+  it('leaves short text alone', () => {
+    expect(truncate('short text', 20)).toBe('short text');
+  });
+
+  it('ends on a whole word and adds an ellipsis', () => {
+    expect(truncate('the quick brown fox', 12)).toBe('the quick…');
+  });
+
+  it('never cuts an emoji in half', () => {
+    expect(truncate('ab 👨‍👩‍👧👨‍👩‍👧 cd', 4)).toMatch(/^ab( 👨‍👩‍👧)?…$/);
+    expect(characterCount('👨‍👩‍👧')).toBe(1);
   });
 });

@@ -11,7 +11,7 @@
  */
 import type { Article } from '@/domain/repository';
 import { regexProblem } from '@/domain/rules';
-import { relativeTime } from '@/lib/intl';
+import { relativeTime, truncate } from '@/lib/intl';
 
 export type Tier = 'lead' | 'feature' | 'standard' | 'brief';
 
@@ -281,7 +281,7 @@ export function assignTiers(arts: Article[]): Tier[] {
 /** Copyfit: trim to the budget at a word boundary, then append an ellipsis. */
 export function excerpt(s: string | null, n: number): string {
   const t = (s ?? '').trim();
-  return t.length > n ? t.slice(0, n).replace(/\s+\S*$/, '') + '…' : t;
+  return truncate(t, n);
 }
 
 export function ago(iso: string | null): string {

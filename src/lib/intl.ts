@@ -14,7 +14,7 @@
  */
 
 /** The locale used for all formatting. */
-export const LOCALE = 'en';
+const LOCALE = 'en';
 
 const collator = new Intl.Collator(LOCALE, {
   // "Apple" = "apple" = "Äpple" for ordering purposes; ties fall to the caller.
@@ -194,4 +194,92 @@ const hours = new Intl.DateTimeFormat(LOCALE, {
 /** An hour of the day (0 to 23) as a 24-hour clock time: `formatHour(7)` is "07:00". */
 export function formatHour(hour: number): string {
   return hours.format(Date.UTC(1970, 0, 1, hour));
+}
+
+/**
+ * The locale for dates and times: English with the day before the month ("1
+ * November 2026"), the order the interface already uses. It is separate from
+ * {@link LOCALE} only for that reason.
+ */
+const DATE_LOCALE = 'en-GB';
+
+const day = new Intl.DateTimeFormat(DATE_LOCALE, {
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric',
+  timeZone: 'UTC',
+});
+
+const timestamp = new Intl.DateTimeFormat(DATE_LOCALE, {
+  dateStyle: 'medium',
+  timeStyle: 'short',
+  timeZone: 'UTC',
+});
+
+/**
+ * A day written out in full, in UTC so it reads the same in every time zone:
+ * `formatDay('2026-11-01')` is "1 November 2026". Takes an ISO date, an ISO
+ * timestamp, a number of milliseconds or a `Date`.
+ */
+export function formatDay(when: Date | string | number): string {
+  const date =
+    typeof when === 'string' && when.length === 10 ? `${when}T00:00:00Z` : when;
+  return day.format(new Date(date));
+}
+
+/** A moment as a short date and time in UTC: "1 Nov 2026, 10:00". */
+export function formatTimestamp(when: Date | string | number): string {
+  return timestamp.format(new Date(when));
+}
+
+const durations = new Intl.DurationFormat(LOCALE, { style: 'narrow' });
+
+/** A length of time in prose, from its parts: `formatDuration({ hours: 1, minutes: 30 })` is "1h 30m". */
+export function formatDuration(
+  parts: Partial<Record<Intl.DurationFormatUnit, number>>,
+): string {
+  return durations.format(parts);
+}
+
+const languages = new Intl.DisplayNames(LOCALE, { type: 'language' });
+
+/**
+ * The name of a language from its code: `languageName('ja')` is "Japanese". A
+ * code that is not a language tag (such as "?") comes back unchanged.
+ */
+export function languageName(code: string): string {
+  try {
+    return languages.of(code) ?? code;
+  } catch {
+    return code;
+  }
+}
+
+const words = new Intl.Segmenter(LOCALE, { granularity: 'word' });
+const graphemes = new Intl.Segmenter(LOCALE, { granularity: 'grapheme' });
+
+/** How many characters a person sees in `text`: "👨‍👩‍👧" is one, where `length` says eight. */
+export function characterCount(text: string): number {
+  return [...graphemes.segment(text)].length;
+}
+
+/**
+ * Cut `text` to at most `limit` visible characters, ending on a whole word, and
+ * add an ellipsis if anything was left off. Counts what a person sees, so an
+ * emoji or an accented letter is never cut in half.
+ */
+export function truncate(text: string, limit: number): string {
+  if (characterCount(text) <= limit) {
+    return text;
+  }
+  let kept = '';
+  let used = 0;
+  for (const { segment } of words.segment(text)) {
+    used += characterCount(segment);
+    if (used > limit) {
+      break;
+    }
+    kept += segment;
+  }
+  return `${kept.trimEnd()}…`;
 }

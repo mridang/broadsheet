@@ -7,6 +7,7 @@
  */
 
 import type { Category } from '@/domain/briefing';
+import { countOf } from '@/lib/intl';
 
 /** The heading of each fixed section, as the briefing prints it. */
 const HEADINGS: Readonly<Record<string, string>> = {
@@ -69,7 +70,7 @@ export function writtenWith({
 }): string {
   return [
     model ? `Written by ${model.replace(/^@cf\//, '')}` : null,
-    tokens != null ? `${tokens.toLocaleString('en')} tokens` : null,
+    tokens != null ? countOf(tokens, 'token') : null,
     seconds != null ? `${Math.round(seconds * 10) / 10}s` : null,
   ]
     .filter(Boolean)

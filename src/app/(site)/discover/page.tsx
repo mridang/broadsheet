@@ -27,6 +27,7 @@ import { ButtonLink } from '@/components/ui/button';
 import { CHIP } from '@/components/ui/badge';
 import { EmptyState, ErrorText } from '@/components/ui/notice';
 import { PageHeader, PageSection } from '@/components/ui/page-header';
+import { countOf } from '@/lib/intl';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,7 +55,7 @@ function kindOf(raw: string | undefined): TrendingKind {
 
 /** "1 follower", "3 followers". */
 function count(n: number, noun: string): string {
-  return `${n.toLocaleString('en')} ${noun}${n === 1 ? '' : 's'}`;
+  return countOf(n, noun);
 }
 
 /** A served picture for a remote one, through the image proxy. */

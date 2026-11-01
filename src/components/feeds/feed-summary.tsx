@@ -13,17 +13,12 @@ import type { Feed } from '@/domain/repository';
 import { imageSigner } from '@/lib/cloudflare/images/server';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/components/ui/cn';
+import { formatTimestamp } from '@/lib/intl';
 
 /** A stored timestamp as a short date and time, or the text unchanged. */
 function when(stored: string): string {
   const date = new Date(stored.includes('T') ? stored : `${stored}Z`);
-  return Number.isNaN(date.getTime())
-    ? stored
-    : date.toLocaleString('en-GB', {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-        timeZone: 'UTC',
-      }) + ' UTC';
+  return Number.isNaN(date.getTime()) ? stored : `${formatTimestamp(date)} UTC`;
 }
 
 /** A feed's icon, signed for the image proxy, or a blank tile without one. */
