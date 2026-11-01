@@ -162,7 +162,7 @@ async function enrich(items: ScrapedItem[]): Promise<void> {
       const page = await get(it.url, 12000);
       if (!page) return;
       const img = ogImage(page, it.url);
-      if (img) it.image = img;
+      if (img && !it.image) it.image = img;
       if (!it.summary) {
         const desc = pageDescription(page);
         if (desc) it.summary = desc;
