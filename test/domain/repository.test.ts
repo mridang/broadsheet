@@ -1828,3 +1828,97 @@ describe('sectionNames', () => {
     ).toEqual(['Tech', 'AI']);
   });
 });
+
+describe('archive helpers', () => {
+  /** Person 1 follows a feed with two stories in today's edition. */
+  async function seeded() {
+    await upsertUser(db, { sub: 'g1', email: 'a@b.com' });
+    const repo = new Repository(db);
+    const feed = (await repo.addFeed(1, 'https://a.test/f'))!;
+    const today = new Date().toISOString().slice(0, 10);
+    const story = (url: string, title: string): ScrapedItem => ({
+      url,
+      title,
+      source: 'a.test',
+      image: '',
+      favicon: '',
+      summary: '',
+      published_at: '',
+      points: 0,
+    });
+    await repo.writeEdition(feed.source_id, today, [
+      story('https://a.test/1', 'One'),
+      story('https://www.a.test/2', 'Two'),
+    ]);
+    const ids = (await repo.searchArticles(1, { limit: 5 })).map((a) => a.id);
+    return { repo, feed, ids, today };
+  }
+
+  it('annotates a save, and only a save', async () => {
+    const { repo, ids } = await seeded();
+    await repo.saveArticle(1, ids[0]!, []);
+    expect([
+      await repo.annotateSave(1, ids[0]!, { notes: 'n', highlights: ['h'] }),
+      await repo.annotateSave(1, ids[1]!, { notes: 'n' }),
+    ]).toEqual([
+      expect.objectContaining({ notes: 'n', highlights: ['h'] }),
+      undefined,
+    ]);
+  });
+
+  it('counts stories per month and unread stories per feed', async () => {
+    const { repo, feed, ids } = await seeded();
+    await repo.markRead(1, ids[0]!);
+    expect([
+      (await repo.storiesPerMonth(1)).get(feed.id),
+      (await repo.unreadCounts(1)).get(feed.id),
+    ]).toEqual([2, 1]);
+  });
+
+  it('sums up the archive', async () => {
+    const { repo, feed, today } = await seeded();
+    expect(await repo.archiveStats(1)).toEqual({
+      articles: 2,
+      editions: 1,
+      oldest_edition: today,
+      newest_edition: today,
+      saved: 0,
+      read: 0,
+      feeds: [{ feed_id: feed.id, title: 'https://a.test/f', articles: 2 }],
+    });
+  });
+
+  it('searches by site, including the sites under it', async () => {
+    const { repo } = await seeded();
+    const titles = async (domain: string) =>
+      (await repo.searchArticles(1, { domain, limit: 5 })).map((a) => a.title);
+    expect([await titles('a.test'), await titles('b.test')]).toEqual([
+      ['Two', 'One'],
+      [],
+    ]);
+  });
+
+  it('lists oldest first, continuing after an id', async () => {
+    const { repo, ids } = await seeded();
+    const oldest = await repo.searchArticles(1, { oldest: true, limit: 5 });
+    const after = await repo.searchArticles(1, {
+      oldest: true,
+      before: oldest[0]!.id,
+      limit: 5,
+    });
+    expect([oldest.map((a) => a.id), after.length]).toEqual([
+      [...ids].reverse(),
+      1,
+    ]);
+  });
+
+  it('narrows to feeds and editions, only the caller’s feeds', async () => {
+    const { repo, feed, today } = await seeded();
+    expect([
+      (await repo.searchArticles(1, { feeds: [feed.id], limit: 5 })).length,
+      (await repo.searchArticles(2, { feeds: [feed.id], limit: 5 })).length,
+      (await repo.searchArticles(1, { to: '2000-01-01', limit: 5 })).length,
+      (await repo.searchArticles(1, { from: today, limit: 5 })).length,
+    ]).toEqual([2, 0, 0, 2]);
+  });
+});

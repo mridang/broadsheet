@@ -22,6 +22,8 @@ export interface SaveResource {
   readonly source?: string;
   readonly tags: readonly string[];
   readonly saved_at?: string;
+  readonly notes?: string;
+  readonly highlights?: readonly string[];
 }
 
 /** The API's view of a saved story. */
@@ -35,6 +37,8 @@ export function saveResource(story: Readonly<SavedStory>): SaveResource {
     ...(article.source ? { source: article.source } : {}),
     tags: story.tags,
     ...(saved ? { saved_at: saved } : {}),
+    ...(story.notes ? { notes: story.notes } : {}),
+    ...(story.highlights?.length ? { highlights: story.highlights } : {}),
   };
 }
 

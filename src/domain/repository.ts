@@ -175,9 +175,33 @@ export interface ArticleQuery {
   readonly before?: number;
   /** Only articles from this feed (the person's subscription id). */
   readonly feed?: number;
-  /** Oldest first instead of newest first; `before` then means after. */
+  /** Only articles from any of these feeds (subscription ids). */
+  readonly feeds?: readonly number[];
+  /** Only articles whose address is on this host or one under it. */
+  readonly domain?: string;
+  /** Only articles from editions on or after this date (YYYY-MM-DD). */
+  readonly from?: string;
+  /** Only articles from editions on or before this date (YYYY-MM-DD). */
+  readonly to?: string;
+  /** Oldest first, with `before` then meaning "after this id". */
   readonly oldest?: boolean;
   readonly limit: number;
+}
+
+/** How much of a person's archive there is. */
+export interface ArchiveStats {
+  readonly articles: number;
+  readonly editions: number;
+  readonly oldest_edition: string | null;
+  readonly newest_edition: string | null;
+  readonly saved: number;
+  readonly read: number;
+  /** Articles per feed, by subscription id, most first. */
+  readonly feeds: readonly {
+    readonly feed_id: number;
+    readonly title: string;
+    readonly articles: number;
+  }[];
 }
 
 /**
@@ -236,6 +260,10 @@ export interface SavedStory {
   readonly article: ArticleSummary;
   readonly tags: readonly string[];
   readonly saved_at: string | null;
+  /** The person's note on it, or null. */
+  readonly notes?: string | null;
+  /** Passages they marked. */
+  readonly highlights?: readonly string[];
 }
 /** The stories a person has opened, by article id and by address. */
 export interface ReadState {
@@ -1160,8 +1188,22 @@ export class Repository {
    */
   searchArticles(
     userId: number,
-    { q = '', before, feed, oldest = false, limit }: ArticleQuery,
+    {
+      q = '',
+      before,
+      feed,
+      feeds,
+      domain,
+      from,
+      to,
+      oldest,
+      limit,
+    }: ArticleQuery,
   ): Promise<ArticleSummary[]> {
+    const host = domain
+      ?.trim()
+      .toLowerCase()
+      .replace(/^\.+|\.+$/g, '');
     const match = ftsQuery(q);
     const newest = this.#db
       .select({ id: sql<number>`max(${articles.id})` })
@@ -1177,7 +1219,9 @@ export class Repository {
             ? sql`${articles.id} IN (SELECT rowid FROM articles_fts WHERE articles_fts MATCH ${match})`
             : undefined,
           before !== undefined
-            ? (oldest ? gt : lt)(articles.id, before)
+            ? oldest
+              ? gt(articles.id, before)
+              : lt(articles.id, before)
             : undefined,
           feed !== undefined
             ? eq(
@@ -1193,6 +1237,29 @@ export class Repository {
                   ),
               )
             : undefined,
+          feeds !== undefined
+            ? inArray(
+                articles.source_id,
+                this.#db
+                  .select({ id: subscriptions.source_id })
+                  .from(subscriptions)
+                  .where(
+                    and(
+                      inArray(subscriptions.id, [...feeds]),
+                      eq(subscriptions.user_id, userId),
+                    ),
+                  ),
+              )
+            : undefined,
+          host
+            ? or(
+                sql`lower(${articles.url}) like ${`%://${host}/%`}`,
+                sql`lower(${articles.url}) like ${`%://${host}`}`,
+                sql`lower(${articles.url}) like ${`%.${host}/%`}`,
+              )
+            : undefined,
+          from !== undefined ? sql`${articles.edition} >= ${from}` : undefined,
+          to !== undefined ? sql`${articles.edition} <= ${to}` : undefined,
           inArray(articles.id, newest),
         ),
       )
@@ -1427,6 +1494,8 @@ export class Repository {
         article: summaryColumns,
         tags: saves.tags,
         saved_at: saves.created_at,
+        notes: saves.notes,
+        highlights: saves.highlights,
       })
       .from(saves)
       .innerJoin(articles, eq(saves.article_id, articles.id));
@@ -1436,12 +1505,42 @@ export class Repository {
     article: ArticleSummary;
     tags: string;
     saved_at: string | null;
+    notes: string | null;
+    highlights: string;
   }): SavedStory {
     return {
       article: row.article,
       tags: tagsOf(row.tags),
       saved_at: row.saved_at,
+      notes: row.notes,
+      highlights: tagsOf(row.highlights),
     };
+  }
+
+  /**
+   * Set the note and highlights on a story the person saved (undefined keeps
+   * what is there, null clears the note). Undefined when it is not saved.
+   */
+  async annotateSave(
+    userId: number,
+    articleId: number,
+    notes: {
+      readonly notes?: string | null;
+      readonly highlights?: readonly string[];
+    },
+  ): Promise<SavedStory | undefined> {
+    const set: Partial<typeof saves.$inferInsert> = {};
+    if (notes.notes !== undefined) set.notes = notes.notes;
+    if (notes.highlights !== undefined) {
+      set.highlights = JSON.stringify(notes.highlights);
+    }
+    if (Object.keys(set).length) {
+      await this.#db
+        .update(saves)
+        .set(set)
+        .where(and(eq(saves.user_id, userId), eq(saves.article_id, articleId)));
+    }
+    return this.getSave(userId, articleId);
   }
 
   /**
@@ -1496,6 +1595,99 @@ export class Repository {
     return {
       ids: new Set(rows.map((r) => r.id)),
       urls: new Set(rows.map((r) => r.url)),
+    };
+  }
+
+  /**
+   * How many stories each followed source published in the editions of the
+   * last 30 days, by subscription id (sources with none count 0).
+   */
+  async storiesPerMonth(userId: number): Promise<Map<number, number>> {
+    const rows = await this.#db
+      .select({
+        feed_id: subscriptions.id,
+        count: sql<number>`count(${articles.id})`,
+      })
+      .from(subscriptions)
+      .leftJoin(
+        articles,
+        and(
+          eq(articles.source_id, subscriptions.source_id),
+          sql`${articles.edition} >= date('now', '-30 days')`,
+        ),
+      )
+      .where(eq(subscriptions.user_id, userId))
+      .groupBy(subscriptions.id);
+    return new Map(rows.map((r) => [r.feed_id, Number(r.count)]));
+  }
+
+  /**
+   * How many stories of each followed feed the person has not opened, by
+   * subscription id, counting each story once however many editions carry it.
+   */
+  async unreadCounts(userId: number): Promise<Map<number, number>> {
+    const rows = await this.#db
+      .select({
+        feed_id: subscriptions.id,
+        count: sql<number>`count(distinct ${articles.url})`,
+      })
+      .from(subscriptions)
+      .innerJoin(articles, eq(articles.source_id, subscriptions.source_id))
+      .where(
+        and(
+          eq(subscriptions.user_id, userId),
+          sql`not exists (select 1 from reads r join articles a on a.id = r.article_id where r.user_id = ${userId} and a.url = ${articles.url})`,
+        ),
+      )
+      .groupBy(subscriptions.id);
+    return new Map(rows.map((r) => [r.feed_id, Number(r.count)]));
+  }
+
+  /** How much of the person's archive there is, overall and per feed. */
+  async archiveStats(userId: number): Promise<ArchiveStats> {
+    const [feeds, perFeed, [totals], [saved], [read]] = await Promise.all([
+      this.listFeeds(userId),
+      this.#db
+        .select({
+          source_id: articles.source_id,
+          count: sql<number>`count(*)`,
+        })
+        .from(articles)
+        .where(inArray(articles.source_id, this.#followed(userId)))
+        .groupBy(articles.source_id),
+      this.#db
+        .select({
+          articles: sql<number>`count(*)`,
+          editions: sql<number>`count(distinct ${articles.edition})`,
+          oldest: sql<string | null>`min(${articles.edition})`,
+          newest: sql<string | null>`max(${articles.edition})`,
+        })
+        .from(articles)
+        .where(inArray(articles.source_id, this.#followed(userId))),
+      this.#db
+        .select({ count: sql<number>`count(*)` })
+        .from(saves)
+        .where(eq(saves.user_id, userId)),
+      this.#db
+        .select({ count: sql<number>`count(*)` })
+        .from(reads)
+        .where(eq(reads.user_id, userId)),
+    ]);
+    const counts = new Map(perFeed.map((r) => [r.source_id, Number(r.count)]));
+    return {
+      articles: Number(totals?.articles ?? 0),
+      editions: Number(totals?.editions ?? 0),
+      oldest_edition: totals?.oldest ?? null,
+      newest_edition: totals?.newest ?? null,
+      saved: Number(saved?.count ?? 0),
+      read: Number(read?.count ?? 0),
+      feeds: feeds
+        .map((f) => ({
+          feed_id: f.id,
+          title: f.title ?? f.url,
+          articles: counts.get(f.source_id) ?? 0,
+        }))
+        .sort((a, b) => b.articles - a.articles || a.feed_id - b.feed_id),
     };
   }
 

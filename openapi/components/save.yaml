@@ -18,6 +18,14 @@ Save:
     saved_at:
       type: string
       format: date-time
+    notes:
+      type: string
+      description: The person's own note on the story, set through the MCP server.
+    highlights:
+      type: array
+      description: Passages the person marked, set through the MCP server.
+      items:
+        type: string
 SaveInput:
   type: object
   additionalProperties: false

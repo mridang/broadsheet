@@ -32,8 +32,13 @@ import {
   parseSectionInput,
 } from '@/domain/api/section-resource';
 import type { Database } from '@/domain/db/database';
-import { rank } from '@/domain/render/tiers';
-import { Repository, sectionPath } from '@/domain/repository';
+import { rank, verdict } from '@/domain/render/tiers';
+import {
+  Repository,
+  sectionPath,
+  type ArticleSummary,
+  type Section,
+} from '@/domain/repository';
 import { refreshSource, todayEdition } from '@/domain/scraping/index';
 import { messageResource } from '@/domain/api/conversation-resource';
 import { issueResource } from '@/domain/api/issue-resource';
@@ -47,6 +52,16 @@ import {
   type AnswerModel,
 } from '@/domain/assistant';
 import { issueFor, isIssueDate } from '@/domain/issues';
+import {
+  NOTIFICATION_CHANNELS,
+  NOTIFICATION_FILTERS,
+  NotificationRepository,
+} from '@/domain/notifications';
+import {
+  notificationResource,
+  parseNotificationInput,
+} from '@/domain/api/notification-resource';
+import { ShareRepository, type SharedStory } from '@/domain/shares';
 import { TOPICS } from '@/domain/topics';
 import { tool, ToolFailure, type McpTool } from '@/lib/mcp';
 
@@ -90,6 +105,134 @@ function checked<T>(
 /** The most stories `search_articles` returns at once. */
 const MAX_SEARCH = 50;
 
+/** A calendar day written YYYY-MM-DD. */
+const isoDate = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .refine(isIssueDate, 'not a calendar date');
+
+/** How many rows one search fetches while filtering. */
+const BATCH = 100;
+
+/** The most batches one search reads while filtering. */
+const MAX_BATCHES = 10;
+
+/**
+ * Page through `fetch` (which returns one more row than asked for) until
+ * `limit` rows pass `keep` or the rows run out. `next` is the id to continue
+ * from when more may follow.
+ */
+export async function collect<T extends { readonly id: number }>(
+  fetch: (before: number | undefined, limit: number) => Promise<T[]>,
+  keep: (row: T) => boolean,
+  limit: number,
+  start?: number,
+): Promise<{ readonly items: T[]; readonly next?: number }> {
+  const items: T[] = [];
+  let before = start;
+  for (let batch = 0; batch < MAX_BATCHES; batch++) {
+    const rows = await fetch(before, BATCH);
+    const page = rows.slice(0, BATCH);
+    for (const row of page) {
+      if (keep(row)) items.push(row);
+      before = row.id;
+      if (items.length === limit) {
+        const more = row !== page.at(-1) || rows.length > BATCH;
+        return more ? { items, next: row.id } : { items };
+      }
+    }
+    if (rows.length <= BATCH) return { items };
+  }
+  return before !== undefined ? { items, next: before } : { items };
+}
+
+/** A section and every section nested under it, by id. */
+function sectionTree(sections: readonly Section[], root: number): Set<number> {
+  const tree = new Set([root]);
+  for (let grew = true; grew;) {
+    grew = false;
+    for (const s of sections) {
+      if (s.parent_id !== null && tree.has(s.parent_id) && !tree.has(s.id)) {
+        tree.add(s.id);
+        grew = true;
+      }
+    }
+  }
+  return tree;
+}
+
+/**
+ * The subscription ids a story listing is narrowed to (a feed, several, a
+ * section), or undefined for every feed. Each named feed and section must be
+ * the caller's.
+ */
+async function feedScope(
+  repo: Repository,
+  uid: number,
+  scope: {
+    readonly feed_id?: number;
+    readonly feed_ids?: readonly number[];
+    readonly section_id?: number;
+  },
+): Promise<number[] | undefined> {
+  if (
+    scope.feed_id === undefined &&
+    scope.feed_ids === undefined &&
+    scope.section_id === undefined
+  ) {
+    return undefined;
+  }
+  const [feeds, sections] = await Promise.all([
+    repo.listFeeds(uid),
+    repo.listSections(uid),
+  ]);
+  const mine = new Set(feeds.map((f) => f.id));
+  const named = [
+    ...(scope.feed_id !== undefined ? [scope.feed_id] : []),
+    ...(scope.feed_ids ?? []),
+  ];
+  if (named.some((f) => !mine.has(f))) {
+    throw new ToolFailure('There is no such feed.');
+  }
+  let ids = named.length ? named : [...mine];
+  if (scope.section_id !== undefined) {
+    if (!sections.some((s) => s.id === scope.section_id)) {
+      throw new ToolFailure('There is no such section.');
+    }
+    const tree = sectionTree(sections, scope.section_id);
+    const inTree = new Set(
+      feeds
+        .filter((f) => f.section_id !== null && tree.has(f.section_id))
+        .map((f) => f.id),
+    );
+    ids = ids.filter((f) => inTree.has(f));
+  }
+  return ids;
+}
+
+/** A shared story as the tools show it: never the sharer's email. */
+function shareResource(share: SharedStory): Record<string, unknown> {
+  return {
+    share_id: String(share.id),
+    article: articleResource(share.article),
+    ...(share.comments ? { comments: share.comments } : {}),
+    ...(share.shared_at ? { shared_at: share.shared_at } : {}),
+    sharer: {
+      id: String(share.sharer.id),
+      ...(share.sharer.name ? { name: share.sharer.name } : {}),
+    },
+  };
+}
+
+/** The classifier kinds `train_classifier` takes lists of. */
+const TRAINABLE = ['title', 'author', 'tag', 'text'] as const;
+
+/** The longest note or highlight on a save. */
+const MAX_NOTE = 5000;
+
+/** The most highlights on one save. */
+const MAX_HIGHLIGHTS = 50;
+
 /** The most stories `mark_read` marks at once. */
 const MAX_MARK = 500;
 
@@ -108,25 +251,53 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
     name: 'list_feeds',
     title: 'List feeds and sections',
     description:
-      'List the feeds the person follows and the sections they are filed under.',
-    input: z.object({}),
+      'List the feeds the person follows and the sections (nested folders) they are filed under, each section with its feed ids. With include_counts, each feed also carries its unread stories and stories in the last 30 days.',
+    input: z.object({
+      include_counts: z
+        .boolean()
+        .default(false)
+        .describe(
+          'Add unread and monthly story counts to each feed and section.',
+        ),
+    }),
     readOnly: true,
-    run: async (_args, { uid, db }) => {
+    run: async ({ include_counts }, { uid, db }) => {
       const repo = new Repository(db);
-      const [feeds, sections] = await Promise.all([
+      const [feeds, sections, unread, monthly] = await Promise.all([
         repo.listFeeds(uid),
         repo.listSections(uid),
+        include_counts ? repo.unreadCounts(uid) : undefined,
+        include_counts ? repo.storiesPerMonth(uid) : undefined,
       ]);
       // The full header of every feed is long; get_feed has it for one.
       return {
-        feeds: feeds.map((feed) => {
-          return Object.fromEntries(
+        feeds: feeds.map((feed) => ({
+          ...Object.fromEntries(
             Object.entries(feedResource(feed)).filter(
               ([key]) => key !== 'metadata',
             ),
-          );
+          ),
+          ...(unread
+            ? {
+                unread: unread.get(feed.id) ?? 0,
+                stories_per_month: monthly?.get(feed.id) ?? 0,
+              }
+            : {}),
+        })),
+        sections: sections.map((section) => {
+          const ids = feeds
+            .filter((f) => f.section_id === section.id)
+            .map((f) => f.id);
+          return {
+            ...sectionResource(section),
+            feed_ids: ids.map(String),
+            ...(unread
+              ? {
+                  unread: ids.reduce((n, f) => n + (unread.get(f) ?? 0), 0),
+                }
+              : {}),
+          };
         }),
-        sections: sections.map(sectionResource),
       };
     },
   }),
@@ -260,12 +431,13 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
     name: 'search_articles',
     title: 'Search articles',
     description:
-      'Search every edition of the feeds the person follows, newest first. Every word must appear in the title, summary or text.',
+      'List or search every edition of the feeds the person follows, newest first by default. With a query, every word must appear in the title, summary or text. Narrow by feeds, section, site, dates and read state; disliked stories are left out unless include_hidden is set.',
     input: z.object({
       query: z
         .string()
         .max(MAX_QUERY_LENGTH)
-        .describe('The words to look for. Leave blank to list the newest.'),
+        .default('')
+        .describe('The words to look for. Leave blank to list stories.'),
       limit: z
         .number()
         .int()
@@ -279,42 +451,86 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
         .positive()
         .optional()
         .describe(
-          'Continue after this article id (the next_before of the last call).',
+          'Continue from this article id (the next_before of the last call).',
         ),
       feed_id: id('feed')
         .optional()
         .describe('Only articles from this followed feed.'),
+      feed_ids: z
+        .array(z.number().int().positive())
+        .min(1)
+        .max(100)
+        .optional()
+        .describe('Only articles from any of these followed feeds.'),
+      section_id: id('section')
+        .optional()
+        .describe(
+          'Only articles from feeds in this section or its subsections.',
+        ),
+      domain: z
+        .string()
+        .max(253)
+        .regex(/^[a-z0-9.-]+$/i)
+        .optional()
+        .describe('Only articles from this website, e.g. example.com.'),
+      date_from: isoDate
+        .optional()
+        .describe(
+          'Only articles from editions on or after this day (YYYY-MM-DD).',
+        ),
+      date_to: isoDate
+        .optional()
+        .describe(
+          'Only articles from editions on or before this day (YYYY-MM-DD).',
+        ),
       read_filter: z
         .enum(['all', 'unread', 'read'])
         .default('all')
         .describe(
           'Only stories the person has not opened, or only ones they have.',
         ),
+      include_hidden: z
+        .boolean()
+        .default(false)
+        .describe('Include stories the person trained the paper to dislike.'),
+      order: z
+        .enum(['newest', 'oldest'])
+        .default('newest')
+        .describe('Newest or oldest first.'),
     }),
     readOnly: true,
-    run: async (
-      { query, limit, before, feed_id, read_filter },
-      { uid, db },
-    ) => {
+    run: async (args, { uid, db }) => {
       const repo = new Repository(db);
-      const rows = await repo.searchArticles(uid, {
-        q: query,
-        limit,
-        ...(before !== undefined ? { before } : {}),
-        ...(feed_id !== undefined ? { feed: feed_id } : {}),
-      });
-      const items = rows.slice(0, limit);
-      // Filtered within the page, so a page may hold fewer than `limit`.
-      const read =
-        read_filter === 'all' ? undefined : (await repo.readState(uid)).ids;
-      const shown = read
-        ? items.filter((a) => read.has(a.id) === (read_filter === 'read'))
-        : items;
+      const feeds = await feedScope(repo, uid, args);
+      if (feeds?.length === 0) return { articles: [] };
+      const [read, training] = await Promise.all([
+        args.read_filter === 'all' ? undefined : repo.readState(uid),
+        args.include_hidden ? [] : repo.listClassifiers(uid),
+      ]);
+      const keep = (a: ArticleSummary): boolean =>
+        (!read ||
+          (read.ids.has(a.id) || read.urls.has(a.url)) ===
+            (args.read_filter === 'read')) &&
+        verdict(a, training) >= 0;
+      const { items, next } = await collect(
+        (before, limit) =>
+          repo.searchArticles(uid, {
+            q: args.query,
+            limit,
+            oldest: args.order === 'oldest',
+            ...(before !== undefined ? { before } : {}),
+            ...(feeds ? { feeds } : {}),
+            ...(args.domain ? { domain: args.domain } : {}),
+            ...(args.date_from ? { from: args.date_from } : {}),
+            ...(args.date_to ? { to: args.date_to } : {}),
+          }),
+        keep,
+        args.limit,
+        args.before,
+      );
       return {
-        articles: shown.map(articleResource),
-        ...(rows.length > limit && items.length
-          ? { next_before: items[items.length - 1]!.id }
-          : {}),
+        articles: items.map(articleResource),
+        ...(next !== undefined ? { next_before: next } : {}),
       };
     },
   }),
@@ -334,24 +550,42 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
     name: 'save_article',
     title: 'Save an article',
     description:
-      'Keep an article on the saved list with optional tags. Saving it again replaces its tags.',
+      'Keep an article on the saved list with optional tags, a note and highlighted passages. Saving it again replaces the tags; notes and highlights are replaced only when sent.',
     input: z.object({
       article_id: id('article'),
       tags: z
         .array(z.string())
         .optional()
         .describe("The person's own labels for it."),
+      notes: z
+        .string()
+        .max(MAX_NOTE)
+        .nullable()
+        .optional()
+        .describe('A note on the story; null clears it.'),
+      highlights: z
+        .array(z.string().trim().min(1).max(MAX_NOTE))
+        .max(MAX_HIGHLIGHTS)
+        .optional()
+        .describe('Passages of the story to mark.'),
     }),
     readOnly: false,
-    run: async ({ article_id, tags }, { uid, db }) => {
-      const input = checked(parseSaveInput(tags ? { tags } : {}));
-      const saved = await new Repository(db).saveArticle(
-        uid,
-        article_id,
-        input.tags,
+    run: async ({ article_id, tags, notes, highlights }, { uid, db }) => {
+      const repo = new Repository(db);
+      const before = await repo.getSave(uid, article_id);
+      const input = checked(
+        parseSaveInput(tags ? { tags } : { tags: before?.tags ?? [] }),
       );
+      const saved = await repo.saveArticle(uid, article_id, input.tags);
       if (!saved) throw new ToolFailure('There is no such article.');
-      return { save: saveResource(saved.story), created: saved.created };
+      const story =
+        notes !== undefined || highlights !== undefined
+          ? await repo.annotateSave(uid, article_id, {
+              ...(notes !== undefined ? { notes: notes?.trim() || null } : {}),
+              ...(highlights !== undefined ? { highlights } : {}),
+            })
+          : saved.story;
+      return { save: saveResource(story!), created: saved.created };
     },
   }),
   tool({
@@ -371,14 +605,98 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
     name: 'list_classifiers',
     title: 'List training',
     description:
-      'List the likes and dislikes the person trained the paper with.',
-    input: z.object({}),
-    readOnly: true,
-    run: async (_args, { uid, db }) => ({
-      classifiers: (await new Repository(db).listClassifiers(uid)).map(
-        classifierResource,
-      ),
+      'List the likes and dislikes the person trained the paper with, or only those that apply to one feed (its own feed classifier and any naming its source).',
+    input: z.object({
+      feed_id: id('feed')
+        .optional()
+        .describe('Only the training that applies to this feed.'),
     }),
+    readOnly: true,
+    run: async ({ feed_id }, { uid, db }) => {
+      const repo = new Repository(db);
+      const all = await repo.listClassifiers(uid);
+      if (feed_id === undefined) {
+        return { classifiers: all.map(classifierResource) };
+      }
+      const feed = await repo.getFeed(uid, feed_id);
+      if (!feed) throw new ToolFailure('There is no such feed.');
+      const title = (feed.title ?? '').toLowerCase();
+      return {
+        classifiers: all
+          .filter(
+            (c) =>
+              (c.kind === 'feed' && c.value === String(feed.source_id)) ||
+              (c.kind === 'source' && c.value.toLowerCase() === title),
+          )
+          .map(classifierResource),
+      };
+    },
+  }),
+  tool({
+    name: 'train_classifier',
+    title: 'Train on a feed',
+    description:
+      'Train many classifiers at once for one feed: titles, authors, tags and text phrases to like, dislike or super-dislike (a super-dislike hides a story even when something else likes it), and the whole feed itself.',
+    input: z.object({
+      feed_id: id('feed'),
+      ...Object.fromEntries(
+        TRAINABLE.flatMap((kind) =>
+          (['like', 'dislike', 'super_dislike'] as const).map((score) => [
+            `${score}_${kind}`,
+            z
+              .array(z.string())
+              .max(20)
+              .optional()
+              .describe(
+                `${kind === 'text' ? 'Phrases in the text' : `${kind[0]!.toUpperCase()}${kind.slice(1)}s`} to ${score.replace('_', '-')}.`,
+              ),
+          ]),
+        ),
+      ),
+      like_feed: z
+        .boolean()
+        .optional()
+        .describe('Like every story of the feed.'),
+      dislike_feed: z
+        .boolean()
+        .optional()
+        .describe('Dislike every story of the feed.'),
+    }),
+    readOnly: false,
+    run: async (args, { uid, db }) => {
+      const input = args as Record<string, unknown> & { feed_id: number };
+      const repo = new Repository(db);
+      const feed = await repo.getFeed(uid, input.feed_id);
+      if (!feed) throw new ToolFailure('There is no such feed.');
+      if (input['like_feed'] && input['dislike_feed']) {
+        throw new ToolFailure('Like or dislike the feed, not both.');
+      }
+      const wanted = [
+        ...TRAINABLE.flatMap((kind) =>
+          (['like', 'dislike', 'super_dislike'] as const).flatMap((score) =>
+            ((input[`${score}_${kind}`] as string[] | undefined) ?? []).map(
+              (value) => ({ kind, value, score }),
+            ),
+          ),
+        ),
+        ...(input['like_feed'] || input['dislike_feed']
+          ? [
+              {
+                kind: 'feed',
+                value: String(feed.source_id),
+                score: input['like_feed'] ? 'like' : 'dislike',
+              },
+            ]
+          : []),
+      ];
+      if (!wanted.length) throw new ToolFailure('Send something to train.');
+      const inputs = wanted.map((w) => checked(parseClassifierInput(w)).input);
+      const trained = [];
+      for (const one of inputs) {
+        trained.push((await repo.addClassifier(uid, one)).classifier);
+      }
+      return { classifiers: trained.map(classifierResource) };
+    },
   }),
   tool({
     name: 'add_classifier',
@@ -449,7 +767,7 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
     name: 'organize_feed',
     title: 'Organize a feed',
     description:
-      'Rename a feed, mute or unmute it (a muted feed stays followed but leaves the paper), or file it under a section.',
+      'Rename a feed, mute or unmute it (a muted feed stays followed but leaves the paper), mute it until a time, move it within its section, or file it under a section.',
     input: z.object({
       feed_id: id('feed'),
       title: z
@@ -461,6 +779,18 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
         .boolean()
         .optional()
         .describe('Whether to keep it out of the paper.'),
+      muted_until: z
+        .string()
+        .nullable()
+        .optional()
+        .describe(
+          'With muted, when the mute runs out (an RFC 3339 time); null mutes for good.',
+        ),
+      position: z
+        .number()
+        .int()
+        .optional()
+        .describe('Where it goes among the feeds of its section, from 0.'),
       section_id: id('section')
         .nullable()
         .optional()
@@ -470,7 +800,7 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
     run: async ({ feed_id, section_id, ...rest }, { uid, db }) => {
       const { changes } = checked(
         parseFeedChanges({
-          ...rest,
+          ...dropUndefined(rest),
           ...(section_id === undefined
             ? {}
             : { section_id: section_id === null ? null : String(section_id) }),
@@ -493,22 +823,44 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
   tool({
     name: 'add_section',
     title: 'Add a section',
-    description: 'Add a heading to group feeds under on the front page.',
+    description:
+      'Add a heading to group feeds under on the front page, nested under another section when given one.',
     input: z.object({
       name: z.string().describe('The heading.'),
       position: z
         .number()
         .int()
         .optional()
-        .describe('Where it goes among the sections, from 0.'),
+        .describe('Where it goes among its sibling sections, from 0.'),
+      parent_id: id('parent section')
+        .optional()
+        .describe('Nest it under this section.'),
     }),
     readOnly: false,
-    run: async (args, { uid, db }) => {
-      const { changes } = checked(parseSectionInput(dropUndefined(args), true));
-      const section = await new Repository(db).addSection(
+    run: async ({ parent_id, ...rest }, { uid, db }) => {
+      const { changes } = checked(
+        parseSectionInput(
+          {
+            ...dropUndefined(rest),
+            ...(parent_id !== undefined
+              ? { parent_id: String(parent_id) }
+              : {}),
+          },
+          true,
+        ),
+      );
+      const repo = new Repository(db);
+      if (
+        typeof changes.parent_id === 'number' &&
+        !(await repo.canNestUnder(uid, undefined, changes.parent_id))
+      ) {
+        throw new ToolFailure('There is no such parent section.');
+      }
+      const section = await repo.addSection(
         uid,
         changes.name!,
         changes.position,
+        changes.parent_id ?? null,
       );
       return { section: sectionResource(section) };
     },
@@ -516,7 +868,8 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
   tool({
     name: 'update_section',
     title: 'Rename or move a section',
-    description: 'Rename a section or change where it goes.',
+    description:
+      'Rename a section, change where it goes, or nest it under another section (null for the top level).',
     input: z.object({
       section_id: id('section'),
       name: z.string().optional().describe('The new heading.'),
@@ -524,18 +877,40 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
         .number()
         .int()
         .optional()
-        .describe('Where it goes among the sections, from 0.'),
+        .describe('Where it goes among its sibling sections, from 0.'),
+      parent_id: id('parent section')
+        .nullable()
+        .optional()
+        .describe(
+          'Nest it under this section; null moves it to the top level.',
+        ),
     }),
     readOnly: false,
-    run: async ({ section_id, ...rest }, { uid, db }) => {
+    run: async ({ section_id, parent_id, ...rest }, { uid, db }) => {
       const { changes } = checked(
-        parseSectionInput(dropUndefined(rest), false),
+        parseSectionInput(
+          {
+            ...dropUndefined(rest),
+            ...(parent_id === undefined
+              ? {}
+              : { parent_id: parent_id === null ? null : String(parent_id) }),
+          },
+          false,
+        ),
       );
-      const section = await new Repository(db).updateSection(
-        uid,
-        section_id,
-        changes,
-      );
+      const repo = new Repository(db);
+      if (!(await repo.getSection(uid, section_id))) {
+        throw new ToolFailure('There is no such section.');
+      }
+      if (
+        typeof changes.parent_id === 'number' &&
+        !(await repo.canNestUnder(uid, section_id, changes.parent_id))
+      ) {
+        throw new ToolFailure(
+          'The parent must be another of your sections, not one inside this one.',
+        );
+      }
+      const section = await repo.updateSection(uid, section_id, changes);
       if (!section) throw new ToolFailure('There is no such section.');
       return { section: sectionResource(section) };
     },
@@ -558,7 +933,7 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
     name: 'mark_read',
     title: 'Mark stories read',
     description:
-      'Mark stories as read, by id or every story of one feed. Read stories leave later editions.',
+      'Mark stories as read: by id, every story of one feed or section, or every story older than some days. Read stories leave later editions.',
     input: z.object({
       article_ids: z
         .array(z.number().int().positive())
@@ -568,23 +943,58 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
       feed_id: id('feed')
         .optional()
         .describe(`Mark the newest ${MAX_MARK} stories of this feed.`),
+      section_id: id('section')
+        .optional()
+        .describe(
+          `Mark the newest ${MAX_MARK} stories of the feeds in this section.`,
+        ),
+      older_than_days: z
+        .number()
+        .int()
+        .min(0)
+        .max(3650)
+        .optional()
+        .describe(
+          'Only stories from editions at least this many days old (alone, from every feed).',
+        ),
     }),
     readOnly: false,
-    run: async ({ article_ids, feed_id }, { uid, db }) => {
-      if (!article_ids?.length && feed_id === undefined) {
-        throw new ToolFailure('Send article_ids or feed_id.');
+    run: async (
+      { article_ids, feed_id, section_id, older_than_days },
+      { uid, db },
+    ) => {
+      if (
+        !article_ids?.length &&
+        feed_id === undefined &&
+        section_id === undefined &&
+        older_than_days === undefined
+      ) {
+        throw new ToolFailure(
+          'Send article_ids, feed_id, section_id or older_than_days.',
+        );
       }
       const repo = new Repository(db);
-      if (feed_id !== undefined && !(await repo.getFeed(uid, feed_id))) {
-        throw new ToolFailure('There is no such feed.');
-      }
-      const fromFeed =
-        feed_id === undefined
+      const feeds = await feedScope(repo, uid, {
+        ...(feed_id !== undefined ? { feed_id } : {}),
+        ...(section_id !== undefined ? { section_id } : {}),
+      });
+      const to =
+        older_than_days === undefined
+          ? undefined
+          : new Date(Date.now() - older_than_days * 86_400_000)
+              .toISOString()
+              .slice(0, 10);
+      const sweep =
+        (feeds === undefined && to === undefined) || feeds?.length === 0
           ? []
           : (
-              await repo.searchArticles(uid, { feed: feed_id, limit: MAX_MARK })
+              await repo.searchArticles(uid, {
+                limit: MAX_MARK,
+                ...(feeds ? { feeds } : {}),
+                ...(to ? { to } : {}),
+              })
             ).map((a) => a.id);
-      const ids = [...new Set([...(article_ids ?? []), ...fromFeed])].slice(
+      const ids = [...new Set([...(article_ids ?? []), ...sweep])].slice(
         0,
         MAX_MARK,
       );
@@ -594,6 +1004,19 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
         already_read: outcomes.filter((o) => o === false).length,
         not_found: outcomes.filter((o) => o === undefined).length,
       };
+    },
+  }),
+  tool({
+    name: 'mark_unread',
+    title: 'Mark a story unread',
+    description: 'Mark a story the person opened as not read again.',
+    input: z.object({ article_id: id('article') }),
+    readOnly: false,
+    run: async ({ article_id }, { uid, db }) => {
+      if (!(await new Repository(db).markUnread(uid, article_id))) {
+        throw new ToolFailure('That story is not marked read.');
+      }
+      return { unread: true };
     },
   }),
   tool({
@@ -748,6 +1171,261 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
       return {
         conversation_id: String(conversation.id),
         message: messageResource(reply, titles),
+      };
+    },
+  }),
+
+  tool({
+    name: 'share_story',
+    title: 'Share a story',
+    description:
+      'Share a story from the feeds the person follows, with an optional comment. Shares are public: anyone can list them with the sharer’s name. Sharing again replaces the comment.',
+    input: z.object({
+      article_id: id('article'),
+      comments: z
+        .string()
+        .max(MAX_NOTE)
+        .optional()
+        .describe('What the person says about it.'),
+    }),
+    readOnly: false,
+    run: async ({ article_id, comments }, { uid, db }) => {
+      if (!(await new Repository(db).getArticle(uid, article_id))) {
+        throw new ToolFailure('There is no such article.');
+      }
+      const { story, created } = await new ShareRepository(db).share(
+        uid,
+        article_id,
+        comments?.trim() || null,
+      );
+      return { share: shareResource(story), created };
+    },
+  }),
+  tool({
+    name: 'unshare_story',
+    title: 'Unshare a story',
+    description: 'Stop sharing a story.',
+    input: z.object({ article_id: id('article') }),
+    readOnly: false,
+    run: async ({ article_id }, { uid, db }) => {
+      if (!(await new ShareRepository(db).unshare(uid, article_id))) {
+        throw new ToolFailure('That story is not shared.');
+      }
+      return { removed: true };
+    },
+  }),
+  tool({
+    name: 'get_shared_stories',
+    title: 'Get shared stories',
+    description:
+      'Stories people shared, newest first: everyone’s (the global feed), or only those of the people named, optionally only ones the caller has or has not read.',
+    input: z.object({
+      sharer_ids: z
+        .array(z.number().int().positive())
+        .min(1)
+        .max(100)
+        .optional()
+        .describe(
+          'Only these people’s shares (sharer ids from earlier results).',
+        ),
+      read_filter: z
+        .enum(['all', 'unread', 'read'])
+        .default('all')
+        .describe(
+          'Only stories the caller has not opened, or only ones they have.',
+        ),
+      limit: z
+        .number()
+        .int()
+        .min(1)
+        .max(MAX_SEARCH)
+        .default(20)
+        .describe(`How many to return, 1 to ${MAX_SEARCH}.`),
+      before: z
+        .number()
+        .int()
+        .positive()
+        .optional()
+        .describe(
+          'Continue from this share id (the next_before of the last call).',
+        ),
+    }),
+    readOnly: true,
+    run: async ({ sharer_ids, read_filter, limit, before }, { uid, db }) => {
+      const read =
+        read_filter === 'all'
+          ? undefined
+          : await new Repository(db).readState(uid);
+      const shares = new ShareRepository(db);
+      const { items, next } = await collect(
+        (after, batch) =>
+          shares.list({
+            limit: batch,
+            ...(sharer_ids ? { userIds: sharer_ids } : {}),
+            ...(after !== undefined ? { before: after } : {}),
+          }),
+        (s) =>
+          !read ||
+          (read.ids.has(s.article.id) || read.urls.has(s.article.url)) ===
+            (read_filter === 'read'),
+        limit,
+        before,
+      );
+      return {
+        shares: items.map(shareResource),
+        ...(next !== undefined ? { next_before: next } : {}),
+      };
+    },
+  }),
+  tool({
+    name: 'get_infrequent_stories',
+    title: 'Get stories from quiet feeds',
+    description:
+      'Stories from the feeds that publish least: those with at most stories_per_month stories in the last 30 days, newest first, so they are not drowned out.',
+    input: z.object({
+      stories_per_month: z
+        .number()
+        .int()
+        .min(1)
+        .max(1000)
+        .default(30)
+        .describe(
+          'The most stories a month a feed may publish to count as quiet.',
+        ),
+      read_filter: z
+        .enum(['all', 'unread', 'read'])
+        .default('unread')
+        .describe(
+          'Only stories the person has not opened, or only ones they have.',
+        ),
+      include_hidden: z
+        .boolean()
+        .default(false)
+        .describe('Include stories the person trained the paper to dislike.'),
+      order: z
+        .enum(['newest', 'oldest'])
+        .default('newest')
+        .describe('Newest or oldest first.'),
+      limit: z
+        .number()
+        .int()
+        .min(1)
+        .max(MAX_SEARCH)
+        .default(20)
+        .describe(`How many to return, 1 to ${MAX_SEARCH}.`),
+      before: z
+        .number()
+        .int()
+        .positive()
+        .optional()
+        .describe(
+          'Continue from this article id (the next_before of the last call).',
+        ),
+    }),
+    readOnly: true,
+    run: async (args, { uid, db }) => {
+      const repo = new Repository(db);
+      const monthly = await repo.storiesPerMonth(uid);
+      const quiet = [...monthly]
+        .filter(([, n]) => n <= args.stories_per_month)
+        .map(([f]) => f);
+      if (!quiet.length) return { feed_ids: [], articles: [] };
+      const [read, training] = await Promise.all([
+        args.read_filter === 'all' ? undefined : repo.readState(uid),
+        args.include_hidden ? [] : repo.listClassifiers(uid),
+      ]);
+      const { items, next } = await collect(
+        (before, limit) =>
+          repo.searchArticles(uid, {
+            feeds: quiet,
+            limit,
+            oldest: args.order === 'oldest',
+            ...(before !== undefined ? { before } : {}),
+          }),
+        (a) =>
+          (!read ||
+            (read.ids.has(a.id) || read.urls.has(a.url)) ===
+              (args.read_filter === 'read')) &&
+          verdict(a, training) >= 0,
+        args.limit,
+        args.before,
+      );
+      return {
+        feed_ids: quiet.map(String),
+        articles: items.map(articleResource),
+        ...(next !== undefined ? { next_before: next } : {}),
+      };
+    },
+  }),
+  tool({
+    name: 'get_archive_stats',
+    title: 'Get archive statistics',
+    description:
+      'How much of the person’s archive there is: stories, editions and their range, saved and read counts, and stories per feed.',
+    input: z.object({}),
+    readOnly: true,
+    run: async (_args, { uid, db }) => {
+      const stats = await new Repository(db).archiveStats(uid);
+      return {
+        ...stats,
+        feeds: stats.feeds.map((f) => ({ ...f, feed_id: String(f.feed_id) })),
+      };
+    },
+  }),
+  tool({
+    name: 'manage_notifications',
+    title: 'Manage notifications',
+    description:
+      'List, set or remove the notifications for new stories in a feed. Channels are web (push), email and webhook; the filter is unread (any story not disliked) or focus (only liked ones).',
+    input: z.object({
+      action: z
+        .enum(['list', 'set', 'remove'])
+        .describe(
+          'List every feed’s notifications, set one feed’s, or remove them.',
+        ),
+      feed_id: id('feed').optional().describe('The feed, for set and remove.'),
+      channels: z
+        .array(z.enum(NOTIFICATION_CHANNELS))
+        .min(1)
+        .optional()
+        .describe('For set: where to send them.'),
+      filter: z
+        .enum(NOTIFICATION_FILTERS)
+        .default('unread')
+        .describe('For set: which new stories to send.'),
+    }),
+    readOnly: false,
+    run: async ({ action, feed_id, channels, filter }, { uid, db }) => {
+      const notifications = new NotificationRepository(db);
+      if (action === 'list') {
+        return {
+          notifications: (await notifications.feedNotifications(uid)).map(
+            (n) => ({
+              ...notificationResource(n.feed_id, n),
+              feed_title: n.feed_title,
+            }),
+          ),
+        };
+      }
+      if (feed_id === undefined) throw new ToolFailure('Send feed_id.');
+      if (action === 'remove') {
+        if (!(await notifications.removeFeedNotification(uid, feed_id))) {
+          throw new ToolFailure('That feed has no notifications.');
+        }
+        return { removed: true };
+      }
+      const setting = checked(
+        parseNotificationInput({ filter, channels: channels ?? [] }),
+      ).value;
+      const result = await notifications.setFeedNotification(
+        uid,
+        feed_id,
+        setting,
+      );
+      if (!result) throw new ToolFailure('There is no such feed.');
+      return {
+        notification: notificationResource(feed_id, setting),
+        created: result.created,
       };
     },
   }),

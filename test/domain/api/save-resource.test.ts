@@ -76,3 +76,30 @@ describe('parseSaveInput', () => {
     });
   });
 });
+
+describe('saveResource with notes', () => {
+  it('shows the note and highlights only when there are some', () => {
+    const article = { id: 1, url: 'https://a.test/1' } as Parameters<
+      typeof saveResource
+    >[0]['article'];
+    expect([
+      saveResource({
+        article,
+        tags: [],
+        saved_at: null,
+        notes: 'n',
+        highlights: ['h'],
+      }),
+      saveResource({ article, tags: [], saved_at: null, notes: null }),
+    ]).toEqual([
+      {
+        article_id: '1',
+        url: 'https://a.test/1',
+        tags: [],
+        notes: 'n',
+        highlights: ['h'],
+      },
+      { article_id: '1', url: 'https://a.test/1', tags: [] },
+    ]);
+  });
+});

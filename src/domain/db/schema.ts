@@ -204,6 +204,8 @@ export const saves = sqliteTable(
     article_id: integer('article_id').notNull(),
     tags: text('tags').notNull().default('[]'),
     created_at: text('created_at').default(sql`(datetime('now'))`),
+    notes: text('notes'),
+    highlights: text('highlights').notNull().default('[]'),
   },
   (table) => [
     primaryKey({ columns: [table.user_id, table.article_id] }),
@@ -540,3 +542,22 @@ export const preferences = sqliteTable('preferences', {
     .default('unread'),
   updated_at: text('updated_at').default(sql`(datetime('now'))`),
 });
+
+/**
+ * A story a person shared, with an optional comment. Shares are public:
+ * listed with the sharer's name, never their email.
+ */
+export const shares = sqliteTable(
+  'shares',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    user_id: integer('user_id').notNull(),
+    article_id: integer('article_id').notNull(),
+    comments: text('comments'),
+    created_at: text('created_at').default(sql`(datetime('now'))`),
+  },
+  (table) => [
+    unique().on(table.user_id, table.article_id),
+    index('idx_shares_created').on(table.created_at),
+  ],
+);
