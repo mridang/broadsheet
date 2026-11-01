@@ -326,7 +326,17 @@ describe('sourceActivity', () => {
       storiesLastMonth: 1,
       subscribers: 2,
       monthsSinceLastStory: 0,
+      notified: false,
     });
+  });
+
+  it('says when anyone is notified of the source’s stories', async () => {
+    const repo = new Repository(db);
+    const feed = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await db.run(
+      sql`INSERT INTO feed_notifications (user_id, subscription_id) VALUES (1, ${feed.id})`,
+    );
+    expect((await repo.sourceActivity(feed.source_id)).notified).toBe(true);
   });
 
   it('treats a source with no stories as quiet for a year', async () => {
@@ -370,6 +380,23 @@ describe('allSources', () => {
 });
 
 describe('writeEdition, sourceArticles and listEditions', () => {
+  it('keeps the stories a write without pruning does not list', async () => {
+    const repo = new Repository(db);
+    const { source_id } = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await repo.writeEdition(source_id, '2026-10-20', [
+      story({ url: 'https://x/1' }),
+    ]);
+    await repo.writeEdition(
+      source_id,
+      '2026-10-20',
+      [story({ url: 'https://x/2' })],
+      false,
+    );
+    expect(
+      (await repo.sourceArticles(source_id, '2026-10-20')).map((a) => a.url),
+    ).toEqual(expect.arrayContaining(['https://x/1', 'https://x/2']));
+  });
+
   it('stores a source’s stories once and shows them to every follower', async () => {
     const repo = new Repository(db);
     const { source_id } = (await addFeed(db, 1, 'https://a.test/f'))!;

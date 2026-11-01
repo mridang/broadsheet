@@ -61,6 +61,13 @@ export const sources = sqliteTable('sources', {
   last_modified: text('last_modified'),
   /** When the source may be fetched again; it backs off while failing. */
   next_fetch_at: text('next_fetch_at'),
+  /** The WebSub hub the feed is subscribed at, for the topic it names. */
+  websub_hub: text('websub_hub'),
+  websub_topic: text('websub_topic'),
+  /** The secret the hub signs its pushes with. */
+  websub_secret: text('websub_secret'),
+  /** When the hub's lease runs out; null until the hub verifies it. */
+  websub_expires_at: text('websub_expires_at'),
   created_at: text('created_at').default(sql`(datetime('now'))`),
 });
 

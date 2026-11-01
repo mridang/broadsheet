@@ -119,6 +119,8 @@ paths:
     $ref: './paths/push.yaml#/configuration'
   /api/sources:
     $ref: './paths/sources.yaml#/collection'
+  /api/sources/{id}/pushes:
+    $ref: './paths/sources.yaml#/pushes'
   /api/sections:
     $ref: './paths/sections.yaml#/collection'
   /api/sections/{id}:

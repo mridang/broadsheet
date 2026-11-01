@@ -114,6 +114,18 @@ describe('fetchIntervalMinutes', () => {
   ])('schedules %j in %i minutes', (activity, minutes) => {
     expect(fetchIntervalMinutes(activity)).toBe(minutes);
   });
+
+  it.each([
+    [{ storiesLastMonth: 0, subscribers: 1, monthsSinceLastStory: 3 }, 30],
+    [{ storiesLastMonth: 60, subscribers: 12, monthsSinceLastStory: 0 }, 6],
+  ])(
+    'fetches %j at least every 30 minutes when notified',
+    (activity, minutes) => {
+      expect(fetchIntervalMinutes({ ...activity, notified: true })).toBe(
+        minutes,
+      );
+    },
+  );
 });
 
 describe('withJitter', () => {

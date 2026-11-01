@@ -52,6 +52,7 @@ import {
   subscription_sections,
   subscriptions,
   users,
+  feed_notifications,
 } from '@/domain/db/schema';
 import { alias } from 'drizzle-orm/sqlite-core';
 import {
@@ -1152,6 +1153,13 @@ export class Repository {
       .where(eq(sources.id, sourceId));
   }
 
+  /** A source by its id. */
+  sourceById(sourceId: number): Promise<Source | undefined> {
+    return this.#db.query.sources.findFirst({
+      where: eq(sources.id, sourceId),
+    });
+  }
+
   /**
    * The sources somebody follows that are due a fetch: never scheduled, or
    * due before the next five-minute run would see them.
@@ -1230,10 +1238,19 @@ export class Repository {
       .select({ n: sql<number>`count(*)` })
       .from(subscriptions)
       .where(eq(subscriptions.source_id, sourceId));
+    const [notifying] = await this.#db
+      .select({ n: sql<number>`count(*)` })
+      .from(feed_notifications)
+      .innerJoin(
+        subscriptions,
+        eq(subscriptions.id, feed_notifications.subscription_id),
+      )
+      .where(eq(subscriptions.source_id, sourceId));
     const days = row?.newest == null ? Infinity : row.now - row.newest;
     return {
       storiesLastMonth: row?.recent ?? 0,
       subscribers: followers?.n ?? 0,
+      notified: (notifying?.n ?? 0) > 0,
       monthsSinceLastStory: Number.isFinite(days) ? Math.floor(days / 30) : 12,
     };
   }
@@ -1390,12 +1407,14 @@ export class Repository {
    * someone saved or read excepted). A same-day re-run is idempotent and keeps each story's
    * id, so links to it and state about it survive; text a re-run could not
    * fetch again is kept. Past editions are never touched — history is kept
-   * indefinitely.
+   * indefinitely. With `prune` off (a WebSub push, which may carry only the
+   * new stories) nothing already stored is dropped.
    */
   async writeEdition(
     sourceId: number,
     edition: string,
     items: ScrapedItem[],
+    prune = true,
   ): Promise<void> {
     // The addresses go in as one JSON parameter: D1 binds at most 100.
     const listed = JSON.stringify(items.map((a) => a.url));
@@ -1467,7 +1486,10 @@ export class Repository {
             ),
           ),
       );
-    await this.#db.batch([stale, ...renames, ...upserts]);
+    const writes = [...renames, ...upserts];
+    const [first, ...rest] = writes;
+    if (prune) await this.#db.batch([stale, ...writes]);
+    else if (first) await this.#db.batch([first, ...rest]);
   }
 
   sourceArticles(sourceId: number, edition: string) {

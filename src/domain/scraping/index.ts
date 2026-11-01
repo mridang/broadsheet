@@ -9,7 +9,7 @@
  */
 import type { Database } from '@/domain/db/database';
 import { Repository, type Source } from '@/domain/repository';
-import { logInfo, logWarn } from '@/utils/logging';
+import { errorMessage, logInfo, logWarn } from '@/utils/logging';
 import {
   articleText,
   distinctStories,
@@ -17,6 +17,9 @@ import {
   feedCandidates,
   fetchIntervalMinutes,
   isFeed,
+  NOTIFIED_INTERVAL_MINUTES,
+  signatureMatches,
+  webSubLinks,
   maxAgeMinutes,
   retryAfterMinutes,
   withJitter,
@@ -28,7 +31,7 @@ import {
   parseFeed,
   siteName,
 } from '@/lib/scraping';
-import type { FeedDetails, ScrapedItem } from '@/lib/scraping';
+import type { FeedDetails, ScrapedItem, WebSubLinks } from '@/lib/scraping';
 import {
   firstWorkingIcon,
   iconCandidates,
@@ -37,6 +40,7 @@ import {
   pageIcons,
   type IconFetcher,
 } from '@/domain/scraping/icons';
+import { needsSubscription, subscribeToHub } from '@/domain/websub';
 
 export type { ScrapedItem } from '@/lib/scraping';
 
@@ -197,6 +201,8 @@ export interface FeedAnswer {
   readonly movedTo?: string;
   /** Minutes a 200's `Cache-Control: max-age` asks to keep it. */
   readonly maxAge?: number;
+  /** The answer's `Link` header, where a WebSub hub may be named. */
+  readonly link?: string | null;
 }
 
 /**
@@ -258,6 +264,7 @@ async function fetchOnce(
         r.status === 200
           ? maxAgeMinutes(r.headers.get('cache-control'))
           : undefined,
+      link: r.headers.get('link'),
     };
   }
   throw new Error('The feed redirects too many times.');
@@ -308,9 +315,7 @@ export async function scrapeSource(
   const id = answer.movedTo
     ? await repo.moveSource(source.id, answer.movedTo)
     : source.id;
-  const nextFetch = async (maxAge?: number) =>
-    maxAge ??
-    withJitter(fetchIntervalMinutes(await repo.sourceActivity(id)), random());
+  const nextFetch = () => nextFetchMinutes(repo, id, random);
   if (answer.status === 304) {
     await repo.recordFetch(id, { nextFetch: await nextFetch(), ...took() });
     return { articles: 0 };
@@ -349,6 +354,50 @@ export async function scrapeSource(
     return { articles: 0, failed: error };
   }
   const url = answer.movedTo ?? source.url;
+  const articles = await ingest(db, env, id, url, xml, edition);
+  await keepPushing(db, id, webSubLinks(xml, answer.link ?? null, url));
+  await repo.recordFetch(id, {
+    etag: answer.etag?.slice(0, 255) ?? null,
+    lastModified: answer.lastModified,
+    ...took(),
+    nextFetch: await nextFetchMinutes(repo, id, random, answer.maxAge),
+  });
+  return { articles };
+}
+
+/**
+ * Minutes until a source is fetched again: what its `max-age` asked, else its
+ * schedule with jitter, and never more than {@link NOTIFIED_INTERVAL_MINUTES}
+ * while anyone is notified of its stories.
+ */
+async function nextFetchMinutes(
+  repo: Repository,
+  id: number,
+  random: () => number,
+  maxAge?: number,
+): Promise<number> {
+  const activity = await repo.sourceActivity(id);
+  const minutes =
+    maxAge ?? withJitter(fetchIntervalMinutes(activity), random());
+  return activity.notified
+    ? Math.min(minutes, NOTIFIED_INTERVAL_MINUTES)
+    : minutes;
+}
+
+/**
+ * Write a feed's stories to the source's edition, with its details and icon:
+ * what a fetch and a push both do with a feed's body. The stories written.
+ */
+async function ingest(
+  db: Database,
+  env: CloudflareEnv,
+  id: number,
+  url: string,
+  xml: string,
+  edition: string,
+  prune = true,
+): Promise<number> {
+  const repo = new Repository(db);
   const items = distinctStories(parseFeed(xml, url).items);
   const details = feedDetails(xml, url);
   await repo.recordDetails(
@@ -358,14 +407,73 @@ export async function scrapeSource(
   );
   await enrich(items);
   await resolveNames(env, items);
-  await repo.writeEdition(id, edition, items);
-  await repo.recordFetch(id, {
-    etag: answer.etag?.slice(0, 255) ?? null,
-    lastModified: answer.lastModified,
-    ...took(),
-    nextFetch: await nextFetch(answer.maxAge),
+  await repo.writeEdition(id, edition, items, prune);
+  return items.length;
+}
+
+/**
+ * Subscribe a source at the WebSub hub its feed names when it is not yet, or
+ * renew the lease before it runs out. A hub that cannot be reached leaves the
+ * source to its schedule.
+ */
+async function keepPushing(
+  db: Database,
+  id: number,
+  links: WebSubLinks,
+): Promise<void> {
+  const source = await new Repository(db).sourceById(id);
+  if (!source || !links.hub || !links.self) return;
+  if (!needsSubscription(source, links)) return;
+  try {
+    const accepted = await subscribeToHub(db, id, {
+      hub: links.hub,
+      self: links.self,
+    });
+    logInfo({ event: 'websub.subscribed', source: id, accepted });
+  } catch (error) {
+    logWarn({
+      event: 'websub.failed',
+      source: id,
+      error: errorMessage(error),
+    });
+  }
+}
+
+/** How a hub's push was taken. */
+export type PushResult = 'unknown' | 'unsigned' | 'accepted';
+
+/**
+ * Take content a WebSub hub pushed for a source as a fresh fetch of it: when
+ * the source has a subscription and the body's signature matches its secret,
+ * its stories are added to today's edition (nothing already there is dropped,
+ * since a push may carry only the new ones) and the fetch is recorded, which
+ * reschedules it. `unknown` when the source has no subscription, `unsigned`
+ * when the signature does not match (the push is ignored, as WebSub asks).
+ */
+export async function acceptPush(
+  db: Database,
+  env: CloudflareEnv,
+  sourceId: number,
+  body: Uint8Array<ArrayBuffer>,
+  signature: string | null,
+  edition: string = todayEdition(),
+  random: () => number = Math.random,
+): Promise<PushResult> {
+  const repo = new Repository(db);
+  const source = await repo.sourceById(sourceId);
+  if (!source?.websub_secret) return 'unknown';
+  if (!(await signatureMatches(source.websub_secret, body, signature))) {
+    return 'unsigned';
+  }
+  const started = Date.now();
+  const xml = new TextDecoder().decode(body);
+  if (!isFeed(xml)) return 'accepted';
+  await ingest(db, env, sourceId, source.url, xml, edition, false);
+  await repo.recordFetch(sourceId, {
+    durationMs: Date.now() - started,
+    nextFetch: await nextFetchMinutes(repo, sourceId, random),
   });
-  return { articles: items.length };
+  return 'accepted';
 }
 
 /**

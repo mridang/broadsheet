@@ -59,3 +59,76 @@ collection:
         $ref: '../components/common.yaml#/responses/Unauthorized'
       '429':
         $ref: '../components/common.yaml#/responses/TooManyRequests'
+
+pushes:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      description: The source's id.
+      schema:
+        type: integer
+        minimum: 1
+  get:
+    operationId: verifySourcePush
+    tags: [sources]
+    summary: Verify a WebSub subscription of the source.
+    description: The WebSub hub's verification of intent. Echoes `hub.challenge` as plain text when the source wants what the hub says (a subscription to the topic it asked for, whose `hub.lease_seconds` is then kept, or an unsubscription from a topic it no longer follows). A `denied` notice forgets the subscription. No authentication.
+    security: []
+    parameters:
+      - name: hub.mode
+        in: query
+        required: true
+        schema:
+          type: string
+          enum: [subscribe, unsubscribe, denied]
+      - name: hub.topic
+        in: query
+        required: true
+        schema:
+          type: string
+      - name: hub.challenge
+        in: query
+        schema:
+          type: string
+      - name: hub.lease_seconds
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+    responses:
+      '200':
+        description: The challenge, echoed.
+        content:
+          text/plain:
+            schema:
+              type: string
+      '404':
+        description: The source does not want this subscription.
+  post:
+    operationId: pushSource
+    tags: [sources]
+    summary: Push new content of the source.
+    description: The WebSub hub's content distribution. The body is the feed (or its new entries), signed with `X-Hub-Signature` (`sha1=`, `sha256=`, `sha384=` or `sha512=` and the hex HMAC of the body under the subscription's secret). A signed push is taken as a fresh fetch of the source and adds its stories to today's edition; an unsigned or wrongly signed one is acknowledged and ignored. No authentication beyond the signature.
+    security: []
+    parameters:
+      - name: X-Hub-Signature
+        in: header
+        schema:
+          type: string
+    requestBody:
+      required: true
+      content:
+        application/atom+xml:
+          schema:
+            type: string
+        application/rss+xml:
+          schema:
+            type: string
+    responses:
+      '202':
+        description: The push is taken (or ignored, when its signature does not match).
+      '404':
+        description: The source has no WebSub subscription.
+      '413':
+        description: The push is larger than 4 MiB.

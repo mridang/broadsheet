@@ -9,14 +9,20 @@ import {
 
 import { databaseFrom, type Database } from '@/domain/db/database';
 import { Repository } from '@/domain/repository';
+import { createHmac } from 'node:crypto';
+
+import { sql } from 'drizzle-orm';
+
 import {
   FETCH_FAILED,
+  acceptPush,
   discoverFeed,
   fetchFeed,
   refreshSource,
   scrapeSource,
   withText,
 } from '@/domain/scraping/index';
+import { verifyIntent } from '@/domain/websub';
 import { APP_MIGRATIONS } from '../../lib/core/db/migrations';
 import { sqliteD1 } from '../../lib/core/db/sqlite-d1';
 
@@ -367,6 +373,132 @@ describe('scrapeSource fetching', () => {
     expect(
       await scrapeSource(db, env, { id: sourceId, url: 'https://a.test/f' }),
     ).toEqual({ articles: 1 });
+  });
+});
+
+const HUB_FEED = `<rss><channel><title>A</title>
+  <atom:link rel="hub" href="https://hub.test/"/>
+  <item><title>Story</title><link>https://a.test/story</link></item>
+</channel></rss>`;
+
+/** Answer the feed with a hub and accept every subscription. */
+function serveHub(): void {
+  serve({
+    'https://a.test/f': HUB_FEED,
+    'https://a.test/story': PAGE,
+    'https://hub.test/': () => new Response(null, { status: 202 }),
+  });
+}
+
+const hubCalls = () =>
+  requests.filter((r) => r.url === 'https://hub.test/').length;
+
+describe('WebSub', () => {
+  it('subscribes a feed at the hub it names', async () => {
+    serveHub();
+    await scrapeSource(db, env, { id: sourceId, url: 'https://a.test/f' });
+    expect(hubCalls()).toBe(1);
+    expect(await source()).toMatchObject({
+      websub_hub: 'https://hub.test/',
+      websub_topic: 'https://a.test/f',
+    });
+  });
+
+  it('does not ask again while the lease has days to run', async () => {
+    serveHub();
+    await scrapeSource(db, env, { id: sourceId, url: 'https://a.test/f' });
+    await verifyIntent(
+      db,
+      sourceId,
+      new URLSearchParams({
+        'hub.mode': 'subscribe',
+        'hub.topic': 'https://a.test/f',
+        'hub.challenge': 'c',
+      }),
+    );
+    await scrapeSource(db, env, { id: sourceId, url: 'https://a.test/f' });
+    expect(hubCalls()).toBe(1);
+  });
+
+  it('still stores the feed when the hub cannot be reached', async () => {
+    serve({ 'https://a.test/f': HUB_FEED, 'https://a.test/story': PAGE });
+    expect(
+      await scrapeSource(db, env, { id: sourceId, url: 'https://a.test/f' }),
+    ).toEqual({ articles: 1 });
+  });
+
+  const PUSHED = `<rss><channel><title>A</title>
+    <item><title>New</title><link>https://a.test/new</link></item>
+  </channel></rss>`;
+  const signed = async (body: string) => {
+    const secret = (await source()).websub_secret!;
+    return `sha1=${createHmac('sha1', secret).update(body).digest('hex')}`;
+  };
+
+  it('adds a signed push to the edition as a fetch, keeping what was there', async () => {
+    serveHub();
+    await scrapeSource(
+      db,
+      env,
+      { id: sourceId, url: 'https://a.test/f' },
+      '2026-11-01',
+    );
+    const body = new TextEncoder().encode(PUSHED);
+    expect(
+      await acceptPush(
+        db,
+        env,
+        sourceId,
+        body,
+        await signed(PUSHED),
+        '2026-11-01',
+      ),
+    ).toBe('accepted');
+    const urls = (
+      await new Repository(db).sourceArticles(sourceId, '2026-11-01')
+    ).map((a) => a.url);
+    expect(urls.toSorted()).toEqual([
+      'https://a.test/new',
+      'https://a.test/story',
+    ]);
+  });
+
+  it('ignores a push whose signature does not match', async () => {
+    serveHub();
+    await scrapeSource(
+      db,
+      env,
+      { id: sourceId, url: 'https://a.test/f' },
+      '2026-11-01',
+    );
+    const body = new TextEncoder().encode(PUSHED);
+    expect(
+      await acceptPush(db, env, sourceId, body, 'sha1=00', '2026-11-01'),
+    ).toBe('unsigned');
+    expect(
+      await new Repository(db).sourceArticles(sourceId, '2026-11-01'),
+    ).toHaveLength(1);
+  });
+
+  it('refuses a push for a source with no subscription', async () => {
+    expect(await acceptPush(db, env, sourceId, new Uint8Array(), null)).toBe(
+      'unknown',
+    );
+  });
+});
+
+describe('notified feeds', () => {
+  it('are due again within 30 minutes', async () => {
+    const feed = (await new Repository(db).listFeeds(1))[0]!;
+    await db.run(
+      sql`INSERT INTO feed_notifications (user_id, subscription_id) VALUES (1, ${feed.id})`,
+    );
+    serve({ 'https://a.test/f': FEED, 'https://a.test/story': PAGE });
+    await scrapeSource(db, env, { id: sourceId, url: 'https://a.test/f' });
+    const next = Date.parse(
+      `${(await source()).next_fetch_at!.replace(' ', 'T')}Z`,
+    );
+    expect(next - Date.now()).toBeLessThanOrEqual(30 * 60 * 1000);
   });
 });
 

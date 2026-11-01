@@ -86,18 +86,26 @@ export interface FeedActivity {
   readonly subscribers: number;
   /** Whole months since its last story; 0 when it published this month. */
   readonly monthsSinceLastStory: number;
+  /** Whether anyone is notified of its new stories. */
+  readonly notified?: boolean;
 }
+
+/** Longest a feed somebody is notified about goes unfetched (NewsBlur's cap). */
+export const NOTIFIED_INTERVAL_MINUTES = 30;
 
 /**
  * Minutes until a feed is fetched again, from how often it publishes and how
  * many follow it (NewsBlur's `get_next_scheduled_update`): from 6 minutes for
  * a busy, widely followed feed to a day or more for a quiet one, no more than
- * 4 hours while anyone follows it and 2 days otherwise. Never less than 1.
+ * 4 hours while anyone follows it and 2 days otherwise, and no more than
+ * {@link NOTIFIED_INTERVAL_MINUTES} while anyone is notified of it. Never less
+ * than 1.
  */
 export function fetchIntervalMinutes({
   storiesLastMonth,
   subscribers,
   monthsSinceLastStory,
+  notified = false,
 }: FeedActivity): number {
   const perDay = storiesLastMonth / 30;
   let minutes: number;
@@ -111,6 +119,7 @@ export function fetchIntervalMinutes({
       Math.max(1, monthsSinceLastStory);
   }
   minutes = Math.min(minutes, subscribers >= 1 ? 240 : 2880);
+  if (notified) minutes = Math.min(minutes, NOTIFIED_INTERVAL_MINUTES);
   return Math.max(1, Math.round(minutes));
 }
 
