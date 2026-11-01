@@ -365,11 +365,23 @@ export function itemAuthor(block: string): string {
   const atom = block.match(
     /<author[^>]*>[\s\S]*?<name[^>]*>([\s\S]*?)<\/name>/i,
   );
-  const raw = atom?.[1]
-    ? decode(atom[1])
-    : tag(block, 'dc:creator') || tag(block, 'author');
-  const bracketed = raw.match(/^\S+@\S+\s*\((.+)\)$/);
-  return (bracketed?.[1] ?? raw).trim().slice(0, MAX_AUTHOR);
+  const named = (raw: string): string =>
+    (raw.match(/^\S+@\S+\s*\((.+)\)$/)?.[1] ?? raw).trim();
+  const many = (name: string): string[] =>
+    [
+      ...block.matchAll(
+        new RegExp(`<${name}[^>]*>([\\s\\S]*?)</${name}>`, 'gi'),
+      ),
+    ]
+      .map((m) => named(decode(m[1] ?? '')))
+      .filter(Boolean);
+  const creators = many('dc:creator');
+  const names = atom?.[1]
+    ? [decode(atom[1])]
+    : creators.length
+      ? creators
+      : many('author');
+  return [...new Set(names)].join(', ').slice(0, MAX_AUTHOR);
 }
 
 /** An item's categories: RSS `<category>` text and Atom `term`s, deduplicated. */
@@ -385,6 +397,51 @@ export function itemTags(block: string): string[] {
     .map((t) => t.slice(0, MAX_TAG))
     .filter(Boolean);
   return [...new Set(found)].slice(0, MAX_TAGS);
+}
+
+/** The attribute `name` of a tag's opening text, entity-decoded. */
+function attr(opening: string, name: string): string {
+  const m = opening.match(
+    new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`, 'i'),
+  );
+  return xmlText(m?.[1] ?? m?.[2] ?? '').trim();
+}
+
+/** Whether a tag's `type`/`medium` says it is a picture, or says nothing. */
+const isPicture = (opening: string): boolean => {
+  const type = attr(opening, 'type').toLowerCase();
+  const medium = attr(opening, 'medium').toLowerCase();
+  return type ? type.startsWith('image/') : !medium || medium === 'image';
+};
+
+/**
+ * An item's picture as NewsBlur finds it: an image `<enclosure>`, else
+ * `<media:content>`, else `<media:thumbnail>`, else the first `<img>` of its
+ * content. Made absolute against `base`; blank when there is none.
+ */
+export function itemImage(block: string, base: string): string {
+  const urls = (name: string, pictures: boolean): string[] =>
+    [...block.matchAll(new RegExp(`<${name}\\b([^>]*)>`, 'gi'))]
+      .map((m) => m[1] ?? '')
+      .filter((o) => !pictures || isPicture(o))
+      .map((o) => attr(o, 'url'));
+  const content = `${block}${xmlText(block)}`.replace(
+    /<!\[CDATA\[([\s\S]*?)\]\]>/g,
+    '$1',
+  );
+  const found = [
+    ...urls('enclosure', true),
+    ...urls('media:content', true),
+    ...urls('media:thumbnail', false),
+    ...[...content.matchAll(/<img\b[^>]*?\bsrc\s*=\s*["']([^"']+)["']/gi)].map(
+      (m) => xmlText(m[1] ?? '').trim(),
+    ),
+  ];
+  for (const href of found) {
+    const url = absolute(href, base);
+    if (/^https?:/i.test(url)) return url;
+  }
+  return '';
 }
 
 /** Minimal RSS 2.0 + Atom parser. */
@@ -430,7 +487,7 @@ export function parseFeed(
       published_at: date && !isNaN(date.getTime()) ? date.toISOString() : '',
       source: domainClean(hostOf(link)),
       favicon: faviconFor(link),
-      image: '',
+      image: itemImage(b, link.trim()),
       points,
       author: itemAuthor(b),
       tags: itemTags(b),

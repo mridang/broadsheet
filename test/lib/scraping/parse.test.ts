@@ -5,6 +5,7 @@ import {
   domainClean,
   feedDetails,
   feedHeader,
+  itemImage,
   isBoilerplate,
   pageDescription,
   itemAuthor,
@@ -350,5 +351,55 @@ describe('parseFeed authors and tags', () => {
       'https://a.test/feed',
     );
     expect(items[0]).toMatchObject({ author: 'Ada', tags: ['Rust'] });
+  });
+});
+
+describe('itemImage', () => {
+  const base = 'https://blog.example.com/post';
+
+  it.each([
+    [
+      '<enclosure url="https://x.test/e.png" type="image/png" length="0"/><media:content url="https://x.test/m.png"/>',
+      'https://x.test/e.png',
+    ],
+    [
+      '<enclosure url="https://x.test/a.mp3" type="audio/mpeg"/><media:content url="https://x.test/m.png" medium="image"/>',
+      'https://x.test/m.png',
+    ],
+    [
+      '<media:thumbnail url="https://x.test/t.jpg" width="1"/>',
+      'https://x.test/t.jpg',
+    ],
+    [
+      '<enclosure url="/media/e.png" type="image/png"/>',
+      'https://blog.example.com/media/e.png',
+    ],
+    [
+      '<content:encoded><![CDATA[<p><img src="https://x.test/c.png?a=1&amp;b=2"></p>]]></content:encoded>',
+      'https://x.test/c.png?a=1&b=2',
+    ],
+    [
+      '<description>&lt;img src=&quot;https://x.test/d.png&quot;&gt;</description>',
+      'https://x.test/d.png',
+    ],
+    ['<title>No picture</title>', ''],
+  ])('reads %s', (block, image) => {
+    expect(itemImage(block, base)).toBe(image);
+  });
+
+  it('gives each parsed item its picture', () => {
+    const { items } = parseFeed(
+      '<rss><channel><title>F</title><item><title>T</title><link>https://a.test/1</link><enclosure url="https://a.test/i.png" type="image/png" length="0"/></item></channel></rss>',
+      'https://a.test/feed',
+    );
+    expect(items[0]?.image).toBe('https://a.test/i.png');
+  });
+});
+
+describe('itemAuthor with several authors', () => {
+  it('joins every dc:creator', () => {
+    expect(
+      itemAuthor('<dc:creator>Ada</dc:creator><dc:creator>Grace</dc:creator>'),
+    ).toBe('Ada, Grace');
   });
 });
