@@ -1178,6 +1178,22 @@ export class Repository {
     return added.length > 0;
   }
 
+  /**
+   * Note many stories as read at once (marking a whole edition, or the stories
+   * above or below one). Ids that are not articles in the person's feeds are
+   * left out; the rest come back, read now or already.
+   */
+  async markManyRead(
+    userId: number,
+    articleIds: readonly number[],
+  ): Promise<number[]> {
+    const done: number[] = [];
+    for (const id of new Set(articleIds)) {
+      if ((await this.markRead(userId, id)) !== undefined) done.push(id);
+    }
+    return done;
+  }
+
   /** Forget that the person opened a story. True when they had. */
   async markUnread(userId: number, articleId: number): Promise<boolean> {
     const removed = await this.#db

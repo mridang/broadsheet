@@ -1,3 +1,44 @@
+collection:
+  post:
+    operationId: markManyRead
+    tags: [reads]
+    summary: Note many stories as read at once.
+    description: Rate limited by the `RL_API` binding. Marks a whole edition, or the stories above or below one, read. Ids that are not stories in the person's feeds are left out of the answer.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [article_ids]
+            properties:
+              article_ids:
+                type: array
+                minItems: 1
+                maxItems: 500
+                items:
+                  type: string
+    responses:
+      '200':
+        description: The stories now read.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/Read'
+      '400':
+        $ref: '../components/common.yaml#/responses/BadRequest'
+      '401':
+        $ref: '../components/common.yaml#/responses/Unauthorized'
+      '403':
+        $ref: '../components/common.yaml#/responses/Forbidden'
+      '429':
+        $ref: '../components/common.yaml#/responses/TooManyRequests'
 item:
   parameters:
     - $ref: '../components/common.yaml#/parameters/ArticleId'

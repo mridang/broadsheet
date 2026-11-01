@@ -648,6 +648,13 @@ describe('reads', () => {
     expect(await new Repository(db).markRead(1, 999)).toBeUndefined();
   });
 
+  it('marks many stories read, leaving out ones that are not articles', async () => {
+    const repo = new Repository(db);
+    const { id } = await oneStory();
+    expect(await repo.markManyRead(1, [id, id, 999])).toEqual([id]);
+    expect([...(await repo.readState(1)).ids]).toEqual([id]);
+  });
+
   it('marks a read story unread again, only for that person', async () => {
     const repo = new Repository(db);
     const { id } = await oneStory();
