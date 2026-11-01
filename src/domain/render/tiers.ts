@@ -11,6 +11,7 @@
  */
 import type { Article } from '@/domain/repository';
 import { regexProblem } from '@/domain/rules';
+import { relativeTime } from '@/lib/intl';
 
 export type Tier = 'lead' | 'feature' | 'standard' | 'brief';
 
@@ -284,12 +285,8 @@ export function excerpt(s: string | null, n: number): string {
 }
 
 export function ago(iso: string | null): string {
-  if (!iso) return '';
-  const h = (Date.now() - new Date(iso).getTime()) / 36e5;
-  if (isNaN(h)) return '';
-  if (h < 1) return 'just now';
-  if (h < 24) return `${Math.round(h)}h ago`;
-  return `${Math.round(h / 24)}d ago`;
+  if (!iso || Number.isNaN(Date.parse(iso))) return '';
+  return relativeTime(iso);
 }
 
 export const hostOf = (u: string): string => {

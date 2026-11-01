@@ -2,6 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 
 import type { Article } from '@/domain/repository';
 import {
+  ago,
   assignTiers,
   coverageBoost,
   excerpt,
@@ -400,5 +401,17 @@ describe('verdict with regular expressions and AI prompts', () => {
         { kind: 'title', value: 'rust', score: 1 },
       ]),
     ).toBe(1);
+  });
+});
+
+describe('ago', () => {
+  it('says how long ago in words', () => {
+    const threeHoursAgo = new Date(Date.now() - 3 * 3600_000).toISOString();
+    expect(ago(threeHoursAgo)).toBe('3 hours ago');
+  });
+
+  it('is empty for a missing or unparseable date', () => {
+    expect(ago(null)).toBe('');
+    expect(ago('not a date')).toBe('');
   });
 });
