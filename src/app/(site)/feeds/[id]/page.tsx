@@ -43,6 +43,7 @@ export default async function FeedPage({
   const before = parseFeedId((await searchParams).before ?? '');
   const rows = await repo.searchArticles(user.id, {
     feed: id,
+    byDate: true,
     ...(before !== undefined ? { before } : {}),
     limit: PAGE_SIZE,
   });

@@ -213,6 +213,8 @@ export interface ArticleQuery {
   readonly to?: string;
   /** Oldest first, with `before` then meaning "after this id". */
   readonly oldest?: boolean;
+  /** Order by when each story was published rather than when it was stored. */
+  readonly byDate?: boolean;
   readonly limit: number;
 }
 
@@ -1536,7 +1538,7 @@ export class Repository {
 
   /**
    * Articles from the sources a person follows, from every edition, newest
-   * first. With `q`, only those whose title, summary or body text holds every
+   * first (by storage order, or by publish date with `byDate`). With `q`, only those whose title, summary or body text holds every
    * word, and with `feed`, only those from that one feed. A story a feed keeps
    * publishing is stored again in each day's edition, so only its newest copy
    * is listed. Asks for one more than `limit`, so the caller can tell whether
@@ -1553,6 +1555,7 @@ export class Repository {
       from,
       to,
       oldest,
+      byDate,
       limit,
     }: ArticleQuery,
   ): Promise<ArticleSummary[]> {
@@ -1561,6 +1564,15 @@ export class Repository {
       .toLowerCase()
       .replace(/^\.+|\.+$/g, '');
     const match = ftsQuery(q);
+    const published = sql`julianday(coalesce(nullif(${articles.published_at}, ''), ${articles.fetched_at}))`;
+    const cursor =
+      before === undefined
+        ? undefined
+        : byDate
+          ? sql`(${published}, ${articles.id}) ${oldest ? sql`>` : sql`<`} (select julianday(coalesce(nullif(c.published_at, ''), c.fetched_at)), c.id from articles as c where c.id = ${before})`
+          : oldest
+            ? gt(articles.id, before)
+            : lt(articles.id, before);
     const newest = this.#db
       .select({ id: sql<number>`max(${articles.id})` })
       .from(articles)
@@ -1574,11 +1586,7 @@ export class Repository {
           match
             ? sql`${articles.id} IN (SELECT rowid FROM articles_fts WHERE articles_fts MATCH ${match})`
             : undefined,
-          before !== undefined
-            ? oldest
-              ? gt(articles.id, before)
-              : lt(articles.id, before)
-            : undefined,
+          cursor,
           feed !== undefined
             ? eq(
                 articles.source_id,
@@ -1619,7 +1627,13 @@ export class Repository {
           inArray(articles.id, newest),
         ),
       )
-      .orderBy(oldest ? asc(articles.id) : desc(articles.id))
+      .orderBy(
+        ...(byDate
+          ? oldest
+            ? [asc(published), asc(articles.id)]
+            : [desc(published), desc(articles.id)]
+          : [oldest ? asc(articles.id) : desc(articles.id)]),
+      )
       .limit(limit + 1);
   }
 

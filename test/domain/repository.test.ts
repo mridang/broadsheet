@@ -508,6 +508,37 @@ describe('searchArticles and getArticle', () => {
     ]);
   });
 
+  it('list one feed by publish date, paging with the last id shown', async () => {
+    const repo = new Repository(db);
+    const a = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await repo.writeEdition(a.source_id, '2026-10-01', [
+      story({ url: 'https://x/new', published_at: '2026-10-20T17:53:06.000Z' }),
+      story({ url: 'https://x/old', published_at: '2025-08-01T10:00:00.000Z' }),
+      story({ url: 'https://x/mid', published_at: '2026-04-21T18:24:17.000Z' }),
+      story({ url: 'https://x/none' }),
+    ]);
+    const urls = (rows: { url: string }[]) => rows.map((r) => r.url);
+    const first = await repo.searchArticles(1, {
+      feed: a.id,
+      byDate: true,
+      limit: 2,
+    });
+    expect(urls(first)).toEqual([
+      'https://x/none',
+      'https://x/new',
+      'https://x/mid',
+    ]);
+    const next = await repo.searchArticles(1, {
+      feed: a.id,
+      byDate: true,
+      before: first[1]!.id,
+      limit: 2,
+    });
+    expect(urls(next)).toEqual(['https://x/mid', 'https://x/old']);
+    const stored = await repo.searchArticles(1, { feed: a.id, limit: 10 });
+    expect(urls(stored)[0]).toBe('https://x/none');
+  });
+
   it('list nothing for a feed someone else follows', async () => {
     const repo = new Repository(db);
     const a = (await addFeed(db, 1, 'https://a.test/f'))!;
