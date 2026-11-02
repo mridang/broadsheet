@@ -6,7 +6,7 @@ import { FeedMetadata } from '@/components/feeds/feed-metadata';
 import { FeedSummary } from '@/components/feeds/feed-summary';
 import { feedResource, parseFeedId } from '@/domain/api/feed-resource';
 import { getDatabase } from '@/domain/db/database';
-import { hostOf } from '@/domain/render/tiers';
+import { ago, hostOf } from '@/domain/render/tiers';
 import { Repository } from '@/domain/repository';
 import { getCurrentUser } from '@/lib/core/auth';
 import { StoryRow, ROW_LINK } from '@/components/stories/story-row';
@@ -63,10 +63,7 @@ export default async function FeedPage({
                 story={{
                   href: `/article/${s.id}`,
                   title: s.title || hostOf(s.url),
-                  meta: [
-                    s.source,
-                    s.published_at ? s.published_at.slice(0, 10) : null,
-                  ],
+                  meta: [s.source, ago(s.published_at)],
                   excerpt: s.summary ? s.summary.slice(0, 280) : null,
                   image: s.image,
                 }}

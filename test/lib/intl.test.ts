@@ -14,6 +14,7 @@ import {
   formatRating,
   formatSize,
   formatTimestamp,
+  storedDate,
   listAnd,
   languageName,
   listOr,
@@ -167,6 +168,21 @@ describe('formatDay', () => {
 describe('formatTimestamp', () => {
   it('writes a short date and time in UTC', () => {
     expect(formatTimestamp('2026-11-01T10:05:00Z')).toBe('1 Nov 2026, 10:05');
+  });
+});
+
+describe('storedDate', () => {
+  it('reads ISO and SQLite timestamps as the same UTC moment', () => {
+    expect(storedDate('2026-11-02T08:07:00Z')?.toISOString()).toBe(
+      '2026-11-02T08:07:00.000Z',
+    );
+    expect(storedDate('2026-11-02 08:07:00')?.toISOString()).toBe(
+      '2026-11-02T08:07:00.000Z',
+    );
+  });
+
+  it('is undefined for text that is not a date', () => {
+    expect(storedDate('soon')).toBeUndefined();
   });
 });
 

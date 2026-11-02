@@ -3,7 +3,7 @@ import type { ReactElement } from 'react';
 import { RetryFeedButton } from '@/app/(site)/feeds/_components/retry-feed-button';
 import type { ClassifierCounts } from '@/domain/classifier-counts';
 import type { FeedStatistics } from '@/domain/repository';
-import { countOf } from '@/lib/intl';
+import { countOf, formatTimestamp, storedDate } from '@/lib/intl';
 
 /** Failures in a row from which a feed counts as broken. */
 export const BROKEN_AFTER = 3;
@@ -27,6 +27,9 @@ export function FeedHealth({
   readonly counts?: ClassifierCounts | undefined;
 }): ReactElement | null {
   if (!statistics) return null;
+  const fetched = statistics.last_fetched_at
+    ? storedDate(statistics.last_fetched_at)
+    : undefined;
   const stories = statistics.stories_per_day.reduce((n, d) => n + d.count, 0);
   return (
     <div className="text-xs text-subtle">
@@ -37,8 +40,8 @@ export function FeedHealth({
           <RetryFeedButton id={id} />{' '}
         </strong>
       ) : null}
-      {statistics.last_fetched_at
-        ? `Last fetched ${statistics.last_fetched_at} UTC`
+      {fetched
+        ? `Last fetched ${formatTimestamp(fetched)} UTC`
         : 'Not fetched yet'}
       {` · ${countOf(stories, 'story', 'stories')} in the last 7 editions`}
       {` · ${statistics.average_stories_per_month} a month`}

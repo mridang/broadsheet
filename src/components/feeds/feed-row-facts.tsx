@@ -2,7 +2,7 @@ import type { ReactElement } from 'react';
 
 import { formatName, updateFrequency } from '@/domain/render/feed-details';
 import type { Feed } from '@/domain/repository';
-import { relativeTime } from '@/lib/intl';
+import { relativeTime, storedDate } from '@/lib/intl';
 import { Badge } from '@/components/ui/badge';
 import { Icon, type IconName } from '@/components/ui/icons';
 
@@ -23,12 +23,6 @@ export function FeedFormatBadge({
       {formatName(format)}
     </Badge>
   );
-}
-
-/** A stored timestamp (ISO, or SQLite's UTC `YYYY-MM-DD HH:MM:SS`) as a date. */
-function storedDate(stored: string): Date | undefined {
-  const date = new Date(stored.includes('T') ? stored : `${stored}Z`);
-  return Number.isNaN(date.getTime()) ? undefined : date;
 }
 
 /** "updated 3 hours ago", the exact moment in its `title` and `dateTime`. */

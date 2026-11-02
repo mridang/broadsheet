@@ -7,6 +7,7 @@ import { parseFeedId } from '@/domain/api/feed-resource';
 import { Repository } from '@/domain/repository';
 import { ShareRepository } from '@/domain/shares';
 import { ago, hostOf } from '@/domain/render/tiers';
+import { storedDate } from '@/lib/intl';
 import { ShareButton } from '@/app/(site)/_components/share-button';
 import { StoryRow } from '@/components/stories/story-row';
 import { EmptyState } from '@/components/ui/notice';
@@ -91,7 +92,7 @@ export default async function SharedPage({
                 title: s.article.title || s.article.url,
                 meta: [
                   s.article.source || hostOf(s.article.url),
-                  s.shared_at ? ago(s.shared_at.replace(' ', 'T') + 'Z') : '',
+                  ago(storedDate(s.shared_at ?? '')?.toISOString() ?? null),
                 ],
                 excerpt: s.article.summary,
                 image: s.article.image,

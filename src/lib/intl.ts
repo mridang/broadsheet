@@ -227,6 +227,17 @@ export function formatDay(when: Date | string | number): string {
   return day.format(new Date(date));
 }
 
+/**
+ * A stored timestamp as a date: ISO, or SQLite's `datetime('now')` (UTC as
+ * `YYYY-MM-DD HH:MM:SS`, with no zone). Undefined when it is not a date.
+ */
+export function storedDate(stored: string): Date | undefined {
+  const date = new Date(
+    stored.includes('T') ? stored : `${stored.replace(' ', 'T')}Z`,
+  );
+  return Number.isNaN(date.getTime()) ? undefined : date;
+}
+
 /** A moment as a short date and time in UTC: "1 Nov 2026, 10:00". */
 export function formatTimestamp(when: Date | string | number): string {
   return timestamp.format(new Date(when));

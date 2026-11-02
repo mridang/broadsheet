@@ -4,7 +4,7 @@ import type { ReactElement } from 'react';
 import { ensurePublicUser } from '@/domain/account';
 import { parseArticleQuery } from '@/domain/api/article-resource';
 import { getDatabase } from '@/domain/db/database';
-import { hostOf } from '@/domain/render/tiers';
+import { ago, hostOf } from '@/domain/render/tiers';
 import { Repository } from '@/domain/repository';
 import { getCurrentUser } from '@/lib/core/auth';
 import { encodeCursor } from '@/lib/core/api';
@@ -103,7 +103,10 @@ export default async function SearchPage({
               story={{
                 href: `/article/${a.id}`,
                 title: a.title ?? '',
-                meta: [a.source || hostOf(a.url), a.edition],
+                meta: [
+                  a.source || hostOf(a.url),
+                  ago(a.published_at || a.edition),
+                ],
                 excerpt: a.summary,
                 image: a.image,
               }}
