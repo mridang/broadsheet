@@ -36,7 +36,7 @@ describe('isBroken', () => {
 describe('FeedHealth', () => {
   it('shows the last fetch and recent stories', () => {
     const out = html(<FeedHealth id={4} statistics={stats()} />);
-    expect(out).toContain('Last fetched 2026-10-20 06:00:00 UTC');
+    expect(out).toContain('Last fetched 20 Oct 2026, 06:00 UTC');
     expect(out).toContain('1 story in the last 7 editions');
     expect(out).not.toContain('Broken');
     expect(out).not.toContain('Retry now');
