@@ -19,6 +19,16 @@ describe('decodeEntities', () => {
     );
   });
 
+  it('decodes the symbol references', () => {
+    expect(
+      decodeEntities(
+        '&copy; &reg; &trade; &euro; &rarr; &times; &laquo;&raquo; &bull; &middot; &deg;',
+      ),
+    ).toBe(
+      '\u00a9 \u00ae \u2122 \u20ac \u2192 \u00d7 \u00ab\u00bb \u2022 \u00b7 \u00b0',
+    );
+  });
+
   it('leaves unknown and out-of-range references as written', () => {
     expect(decodeEntities('&bogus; &#0; &#1114112; &#xFFFFFFF;')).toBe(
       '&bogus; &#0; &#1114112; &#xFFFFFFF;',
