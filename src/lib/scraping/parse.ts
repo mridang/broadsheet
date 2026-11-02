@@ -5,21 +5,15 @@
  * meta scraping (og:image, descriptions, site name), and clean
  * source-name resolution. All regex + string work — no DOM, no deps.
  */
+import { decodeEntities } from '@/utils/html-entities';
+
 import type { ScrapedItem } from './types';
 
 /** Most items kept from one fetch of a feed: enough for a full archive, not a runaway one. */
 const MAX_PER_FEED = 100;
 
 export const decode = (s = ''): string =>
-  s
-    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#0?39;|&apos;/g, "'")
-    .replace(/&#x27;/gi, "'")
-    .replace(/&nbsp;/g, ' ')
+  decodeEntities(s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1'))
     .replace(/<[^>]+>/g, '')
     .replace(/\s+/g, ' ')
     .trim();
@@ -503,16 +497,6 @@ const MAX_BODY = 60_000;
 const NOT_STORY =
   /<(script|style|noscript|svg|template|nav|header|footer|aside|form|iframe|button)\b[\s\S]*?<\/\1>/gi;
 
-/** Decode numeric character references (`&#8217;`, `&#x2019;`). */
-const numericEntities = (s: string): string =>
-  s.replace(/&#(x[0-9a-f]+|\d+);/gi, (whole, code: string) => {
-    const n =
-      code[0] === 'x' || code[0] === 'X'
-        ? parseInt(code.slice(1), 16)
-        : Number(code);
-    return n > 0 && n <= 0x10ffff ? String.fromCodePoint(n) : whole;
-  });
-
 /** The permalink glyph many sites put at either end of a heading (`#`, `¶`, `§`). */
 const PERMALINK = /^[#¶§]+\s*|\s*[#¶§]+$/g;
 
@@ -541,7 +525,7 @@ export function articleText(html: string): string {
     /<(p|h[2-4]|li|blockquote)\b[^>]*>([\s\S]*?)<\/\1>/gi,
   )) {
     const heading = /^h/i.test(m[1] ?? '');
-    const raw = decode(numericEntities(m[2] ?? ''));
+    const raw = decode(m[2] ?? '');
     const text = heading ? raw.replace(PERMALINK, '').trim() : raw;
     if (heading ? text : text.split(' ').length >= 4) blocks.push(text);
   }

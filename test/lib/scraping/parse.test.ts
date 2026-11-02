@@ -78,6 +78,18 @@ describe('parseFeed', () => {
     expect(items[0]?.source).toBe('Example');
   });
 
+  it('decodes numeric references in titles, plain and in CDATA', () => {
+    const feed = `<rss><channel><title>F</title>
+      <item><title>Progress on TypeScript 7 &#8211; December 2025</title><link>https://x/a</link></item>
+      <item><title><![CDATA[It&#8217;s &#x2013; here]]></title><link>https://x/b</link></item>
+    </channel></rss>`;
+    const { items } = parseFeed(feed, 'https://x/feed');
+    expect(items[0]?.title).toBe(
+      'Progress on TypeScript 7 \u2013 December 2025',
+    );
+    expect(items[1]?.title).toBe('It\u2019s \u2013 here');
+  });
+
   it('keeps the feed’s own id for each story', () => {
     const feed = `<rss><channel><title>F</title>
       <item><title>A</title><link>https://x/a</link><guid isPermaLink="false">tag:x,1</guid></item>
