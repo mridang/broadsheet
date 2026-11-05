@@ -7,7 +7,7 @@
  * caps (stories emailed to the person, and stories they emailed to others).
  */
 
-import { and, desc, eq, gt, notInArray, sql } from 'drizzle-orm';
+import { and, desc, eq, gt, sql } from 'drizzle-orm';
 
 import { type Database } from '@/domain/db/database';
 import {
@@ -257,6 +257,15 @@ export class NotificationRepository {
   }
 
   /**
+   * The article is none the person was told about. Probed for each candidate
+   * through the key (user_id, article_id); `NOT IN (select ...)` listed every
+   * delivery they ever had before comparing the first story.
+   */
+  #notDelivered(userId: number) {
+    return sql`not exists (select 1 from ${notification_deliveries} as told where told.user_id = ${userId} and told.article_id = ${articles.id})`;
+  }
+
+  /**
    * The stories of a source's edition the person has not been told about,
    * newest first.
    */
@@ -278,13 +287,7 @@ export class NotificationRepository {
         and(
           eq(articles.source_id, sourceId),
           eq(articles.edition, edition),
-          notInArray(
-            articles.id,
-            this.#db
-              .select({ id: notification_deliveries.article_id })
-              .from(notification_deliveries)
-              .where(eq(notification_deliveries.user_id, userId)),
-          ),
+          this.#notDelivered(userId),
         ),
       )
       .orderBy(desc(articles.published_at), desc(articles.id));
@@ -324,7 +327,10 @@ export class NotificationRepository {
       .where(
         and(
           eq(notification_deliveries.user_id, userId),
-          eq(notification_deliveries.emailed, 1),
+          // The literal `emailed = 1` is what lets the partial index
+          // idx_notification_deliveries_emailed answer with the last day's
+          // emails only; a bound 1 would not match it.
+          sql`${notification_deliveries.emailed} = 1`,
           gt(
             notification_deliveries.created_at,
             sql`datetime('now', '-1 day')`,
@@ -469,13 +475,7 @@ export class NotificationRepository {
           eq(subscriptions.user_id, userId),
           eq(subscriptions.muted, 0),
           eq(articles.edition, edition),
-          notInArray(
-            articles.id,
-            this.#db
-              .select({ id: notification_deliveries.article_id })
-              .from(notification_deliveries)
-              .where(eq(notification_deliveries.user_id, userId)),
-          ),
+          this.#notDelivered(userId),
         ),
       )
       .orderBy(desc(articles.published_at), desc(articles.id));

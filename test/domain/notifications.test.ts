@@ -5,6 +5,7 @@ import { NotificationRepository } from '@/domain/notifications';
 import { Repository } from '@/domain/repository';
 import type { ScrapedItem } from '@/lib/scraping';
 import { APP_MIGRATIONS } from '../lib/core/db/migrations';
+import { expectIndexed, recordedDatabase } from '../lib/core/db/plan';
 import { sqliteD1 } from '../lib/core/db/sqlite-d1';
 
 let db: Database;
@@ -244,5 +245,51 @@ describe('noteSeen and lastSeen', () => {
     await repo.noteSeen(1, '2026-10-01');
     await repo.noteSeen(1, '2026-10-02');
     expect(await repo.lastSeen(1)).toBe('2026-10-02');
+  });
+});
+
+describe('the plans of the notification queries', () => {
+  it('counts the last day’s emails through the partial index of emailed deliveries', async () => {
+    const recorded = recordedDatabase();
+    await new NotificationRepository(recorded.db).emailsToday(1);
+    expectIndexed(recorded.planOf('"notification_deliveries"'), [
+      'idx_notification_deliveries_emailed',
+    ]);
+  });
+
+  it('counts the last day’s story emails through the user and time index', async () => {
+    const recorded = recordedDatabase();
+    await new NotificationRepository(recorded.db).storyEmailsToday(1);
+    expectIndexed(recorded.planOf('"story_emails"'), ['idx_story_emails_user']);
+  });
+
+  it.each([
+    [
+      'undeliveredStories',
+      (repo: NotificationRepository) =>
+        repo.undeliveredStories(1, 1, '2026-10-02'),
+    ],
+    [
+      'undeliveredFollowedStories',
+      (repo: NotificationRepository) =>
+        repo.undeliveredFollowedStories(1, '2026-10-02'),
+    ],
+  ])(
+    'probes the deliveries of one story at a time in %s, not the whole list',
+    async (_name, run) => {
+      const recorded = recordedDatabase();
+      await run(new NotificationRepository(recorded.db));
+      const plan = recorded.planOf('"articles"');
+      expect(plan).toContain('sqlite_autoindex_notification_deliveries_1');
+      expect(plan).toContain('CORRELATED SCALAR SUBQUERY');
+      expect(plan).not.toMatch(/LIST SUBQUERY/);
+    },
+  );
+
+  it('does not count a delivery that was claimed but never emailed', async () => {
+    await repo.claimDelivery(1, 10);
+    expect(await repo.emailsToday(1)).toBe(0);
+    await repo.markEmailed(1, 10);
+    expect(await repo.emailsToday(1)).toBe(1);
   });
 });

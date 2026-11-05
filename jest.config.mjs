@@ -26,6 +26,7 @@ export default {
     '/frontend/',
     '/dist/',
     '<rootDir>/packages/',
+    '/.claude/',
   ],
   resetModules: false,
   globalSetup: './test/setup.ts',

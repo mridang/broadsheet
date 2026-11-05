@@ -19,6 +19,7 @@ import {
   sqliteTable,
   text,
   unique,
+  uniqueIndex,
 } from 'drizzle-orm/sqlite-core';
 
 /**
@@ -39,37 +40,55 @@ export const users = sqliteTable('users', {
  * A feed address, shared by everyone who follows it so it is fetched once.
  * `fail_count` counts the fetches that failed in a row.
  */
-export const sources = sqliteTable('sources', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  url: text('url').notNull().unique(),
-  title: text('title'),
-  icon: text('icon'),
-  last_fetched_at: text('last_fetched_at'),
-  last_error: text('last_error'),
-  fail_count: integer('fail_count').notNull().default(0),
-  /** What the feed says about itself, read from its header on every fetch. */
-  format: text('format'),
-  site_url: text('site_url'),
-  description: text('description'),
-  language: text('language'),
-  feed_updated_at: text('feed_updated_at'),
-  update_minutes: integer('update_minutes'),
-  /** Every header element, as JSON (`FeedElement[]`). */
-  header: text('header'),
-  /** The validators of the last answer, sent back for a conditional GET. */
-  etag: text('etag'),
-  last_modified: text('last_modified'),
-  /** When the source may be fetched again; it backs off while failing. */
-  next_fetch_at: text('next_fetch_at'),
-  /** The WebSub hub the feed is subscribed at, for the topic it names. */
-  websub_hub: text('websub_hub'),
-  websub_topic: text('websub_topic'),
-  /** The secret the hub signs its pushes with. */
-  websub_secret: text('websub_secret'),
-  /** When the hub's lease runs out; null until the hub verifies it. */
-  websub_expires_at: text('websub_expires_at'),
-  created_at: text('created_at').default(sql`(datetime('now'))`),
-});
+export const sources = sqliteTable(
+  'sources',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    url: text('url').notNull().unique(),
+    title: text('title'),
+    icon: text('icon'),
+    last_fetched_at: text('last_fetched_at'),
+    last_error: text('last_error'),
+    fail_count: integer('fail_count').notNull().default(0),
+    /** What the feed says about itself, read from its header on every fetch. */
+    format: text('format'),
+    site_url: text('site_url'),
+    description: text('description'),
+    language: text('language'),
+    feed_updated_at: text('feed_updated_at'),
+    update_minutes: integer('update_minutes'),
+    /** Every header element, as JSON (`FeedElement[]`). */
+    header: text('header'),
+    /** The validators of the last answer, sent back for a conditional GET. */
+    etag: text('etag'),
+    last_modified: text('last_modified'),
+    /** When the source may be fetched again; it backs off while failing. */
+    next_fetch_at: text('next_fetch_at'),
+    /** The WebSub hub the feed is subscribed at, for the topic it names. */
+    websub_hub: text('websub_hub'),
+    websub_topic: text('websub_topic'),
+    /** The secret the hub signs its pushes with. */
+    websub_secret: text('websub_secret'),
+    /** When the hub's lease runs out; null until the hub verifies it. */
+    websub_expires_at: text('websub_expires_at'),
+    /**
+     * How many subscriptions follow it. Kept by triggers on `subscriptions`
+     * (migration 0035), so no query counts them.
+     */
+    follower_count: integer('follower_count').notNull().default(0),
+    /**
+     * How many distinct story addresses it has kept, however many editions
+     * carry each. Kept by triggers on `articles` (migration 0035).
+     */
+    story_count: integer('story_count').notNull().default(0),
+    created_at: text('created_at').default(sql`(datetime('now'))`),
+  },
+  (table) => [
+    index('idx_sources_next_fetch').on(table.next_fetch_at),
+    // Descending in the migration, which Drizzle cannot say; the order is the database's.
+    index('idx_sources_followers').on(table.follower_count, table.id),
+  ],
+);
 
 /**
  * A heading a person groups their feeds under on the front page. A section
@@ -117,7 +136,8 @@ export const subscriptions = sqliteTable(
   (table) => [
     unique().on(table.user_id, table.source_id),
     index('idx_subscriptions_user').on(table.user_id),
-    index('idx_subscriptions_source').on(table.source_id),
+    index('idx_subscriptions_source').on(table.source_id, table.created_at),
+    index('idx_subscriptions_created').on(table.created_at, table.source_id),
   ],
 );
 
@@ -182,6 +202,11 @@ export const articles = sqliteTable(
     index('idx_articles_source_edition').on(table.source_id, table.edition),
     index('idx_articles_edition').on(table.edition),
     index('idx_articles_cluster').on(table.cluster_id),
+    index('idx_articles_source_published').on(
+      table.source_id,
+      sql`julianday(coalesce(nullif(published_at, ''), fetched_at))`,
+      table.url,
+    ),
   ],
 );
 
@@ -243,15 +268,20 @@ export const reads = sqliteTable(
   (table) => [
     primaryKey({ columns: [table.user_id, table.article_id] }),
     index('idx_reads_created').on(table.created_at),
+    index('idx_reads_article').on(table.article_id),
   ],
 );
 
 /** One story as several sources covered it in one edition (migration 0008). */
-export const clusters = sqliteTable('clusters', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  edition: text('edition').notNull(),
-  created_at: text('created_at').default(sql`(datetime('now'))`),
-});
+export const clusters = sqliteTable(
+  'clusters',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    edition: text('edition').notNull(),
+    created_at: text('created_at').default(sql`(datetime('now'))`),
+  },
+  (table) => [index('idx_clusters_edition').on(table.edition)],
+);
 
 /**
  * The paper a person was given on `date`: `layout` is the laid-out front page
@@ -503,7 +533,10 @@ export const feed_notifications = sqliteTable(
     channels: text('channels').notNull().default('[]'),
     created_at: text('created_at').default(sql`(datetime('now'))`),
   },
-  (table) => [primaryKey({ columns: [table.user_id, table.subscription_id] })],
+  (table) => [
+    primaryKey({ columns: [table.user_id, table.subscription_id] }),
+    index('idx_feed_notifications_subscription').on(table.subscription_id),
+  ],
 );
 
 /** A story a person was told about; `emailed` (0/1) counts toward the daily email cap. */
@@ -515,7 +548,12 @@ export const notification_deliveries = sqliteTable(
     emailed: integer('emailed').notNull().default(0),
     created_at: text('created_at').default(sql`(datetime('now'))`),
   },
-  (table) => [primaryKey({ columns: [table.user_id, table.article_id] })],
+  (table) => [
+    primaryKey({ columns: [table.user_id, table.article_id] }),
+    index('idx_notification_deliveries_emailed')
+      .on(table.user_id, table.created_at)
+      .where(sql`emailed = 1`),
+  ],
 );
 
 /** A story a person emailed to others, counted for their daily quota. */
@@ -538,13 +576,23 @@ export const story_emails = sqliteTable(
  * (`feed_id`, a subscription id). Unique per (user, query, feed) through an
  * expression index in migration 0016.
  */
-export const savedSearches = sqliteTable('saved_searches', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  user_id: integer('user_id').notNull(),
-  query: text('query').notNull(),
-  feed_id: integer('feed_id'),
-  created_at: text('created_at').default(sql`(datetime('now'))`),
-});
+export const savedSearches = sqliteTable(
+  'saved_searches',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    user_id: integer('user_id').notNull(),
+    query: text('query').notNull(),
+    feed_id: integer('feed_id'),
+    created_at: text('created_at').default(sql`(datetime('now'))`),
+  },
+  (table) => [
+    uniqueIndex('idx_saved_searches_unique').on(
+      table.user_id,
+      table.query,
+      sql`ifnull(feed_id, 0)`,
+    ),
+  ],
+);
 
 /** One fetch of a source: when, whether it worked and why not. */
 export const fetchHistory = sqliteTable(

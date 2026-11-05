@@ -13,6 +13,7 @@ import {
   asc,
   desc,
   eq,
+  exists,
   getTableColumns,
   gt,
   gte,
@@ -24,6 +25,7 @@ import {
   notInArray,
   or,
   sql,
+  type SQL,
 } from 'drizzle-orm';
 
 import { type Database } from '@/domain/db/database';
@@ -83,6 +85,11 @@ import { compareText } from '@/lib/intl';
 export type User = typeof users.$inferSelect;
 /** A feed address, fetched once for everyone who follows it. */
 export type Source = typeof sources.$inferSelect;
+/** A due source, with only the columns a fetch reads (see `Repository.dueSources`). */
+export type DueSource = Pick<
+  Source,
+  'id' | 'url' | 'etag' | 'last_modified' | 'last_fetched_at'
+>;
 /** A heading a person groups their feeds under. */
 export type Section = typeof sections.$inferSelect;
 /**
@@ -1143,8 +1150,10 @@ export class Repository {
       message: error ?? null,
       duration_ms: durationMs ?? null,
     });
+    // Keep the newest FETCH_HISTORY_LIMIT rows: find the id of the oldest one
+    // kept (one index position) and delete the rows older than it by range.
     await this.#db.run(
-      sql`DELETE FROM fetch_history WHERE source_id = ${sourceId} AND id NOT IN (SELECT id FROM fetch_history WHERE source_id = ${sourceId} ORDER BY id DESC LIMIT ${FETCH_HISTORY_LIMIT})`,
+      sql`DELETE FROM fetch_history WHERE source_id = ${sourceId} AND id < (SELECT id FROM fetch_history WHERE source_id = ${sourceId} ORDER BY id DESC LIMIT 1 OFFSET ${FETCH_HISTORY_LIMIT - 1})`,
     );
   }
 
@@ -1165,15 +1174,36 @@ export class Repository {
 
   /**
    * The sources somebody follows that are due a fetch: never scheduled, or
-   * due before the next five-minute run would see them.
+   * due before the next five-minute run would see them. Filtered in SQL on
+   * `next_fetch_at` (indexed by migration 0034), so a run reads only the due
+   * sources, and only the columns the fetch needs. The cutoff is a SQLite
+   * datetime text, the same form `next_fetch_at` is stored in.
    */
-  async dueSources(): Promise<Source[]> {
-    return (await this.allSources()).filter(
-      (s) =>
-        !s.next_fetch_at ||
-        Date.parse(`${s.next_fetch_at.replace(' ', 'T')}Z`) <=
-          Date.now() + DUE_SLACK_MS,
-    );
+  async dueSources(): Promise<DueSource[]> {
+    const cutoff = new Date(Date.now() + DUE_SLACK_MS)
+      .toISOString()
+      .slice(0, 19)
+      .replace('T', ' ');
+    return this.#db
+      .select({
+        id: sources.id,
+        url: sources.url,
+        etag: sources.etag,
+        last_modified: sources.last_modified,
+        last_fetched_at: sources.last_fetched_at,
+      })
+      .from(sources)
+      .where(
+        and(
+          or(isNull(sources.next_fetch_at), lte(sources.next_fetch_at, cutoff)),
+          exists(
+            this.#db
+              .select({ one: sql`1` })
+              .from(subscriptions)
+              .where(eq(subscriptions.source_id, sources.id)),
+          ),
+        ),
+      );
   }
 
   /**
@@ -1228,32 +1258,48 @@ export class Repository {
    * since its newest story.
    */
   async sourceActivity(sourceId: number): Promise<FeedActivity> {
-    const published = sql`coalesce(nullif(${articles.published_at}, ''), ${articles.fetched_at})`;
-    const [row] = await this.#db
+    // Both reads run on idx_articles_source_published (migration 0035), keyed
+    // by the same expression: the count reads only the last 30 days of this
+    // source's entries, the newest story is the last entry. They read every
+    // article of the source (twice over) before. A rolling window cannot be a
+    // stored counter, as it changes with time alone.
+    const published = sql`julianday(coalesce(nullif(${articles.published_at}, ''), ${articles.fetched_at}))`;
+    const [recent] = await this.#db
+      .select({ n: sql<number>`count(distinct ${articles.url})` })
+      .from(articles)
+      .where(
+        and(
+          eq(articles.source_id, sourceId),
+          sql`${published} >= julianday('now', '-30 days')`,
+        ),
+      );
+    const [latest] = await this.#db
       .select({
-        recent: sql<number>`count(distinct case when julianday(${published}) >= julianday('now', '-30 days') then ${articles.url} end)`,
-        newest: sql<number | null>`max(julianday(${published}))`,
+        newest: sql<number | null>`${published}`,
         now: sql<number>`julianday('now')`,
       })
       .from(articles)
-      .where(eq(articles.source_id, sourceId));
-    const [followers] = await this.#db
-      .select({ n: sql<number>`count(*)` })
-      .from(subscriptions)
-      .where(eq(subscriptions.source_id, sourceId));
-    const [notifying] = await this.#db
-      .select({ n: sql<number>`count(*)` })
+      .where(eq(articles.source_id, sourceId))
+      .orderBy(desc(published))
+      .limit(1);
+    const [source] = await this.#db
+      .select({ followers: sources.follower_count })
+      .from(sources)
+      .where(eq(sources.id, sourceId));
+    const notifying = await this.#db
+      .select({ one: sql`1` })
       .from(feed_notifications)
       .innerJoin(
         subscriptions,
         eq(subscriptions.id, feed_notifications.subscription_id),
       )
-      .where(eq(subscriptions.source_id, sourceId));
-    const days = row?.newest == null ? Infinity : row.now - row.newest;
+      .where(eq(subscriptions.source_id, sourceId))
+      .limit(1);
+    const days = latest?.newest == null ? Infinity : latest.now - latest.newest;
     return {
-      storiesLastMonth: row?.recent ?? 0,
-      subscribers: followers?.n ?? 0,
-      notified: (notifying?.n ?? 0) > 0,
+      storiesLastMonth: recent?.n ?? 0,
+      subscribers: source?.followers ?? 0,
+      notified: notifying.length > 0,
       monthsSinceLastStory: Number.isFinite(days) ? Math.floor(days / 30) : 12,
     };
   }
@@ -1431,14 +1477,11 @@ export class Repository {
         sql`${articles.url} NOT IN (SELECT value FROM json_each(${listed}))`,
         // A story still listed by its id is renamed below, not dropped.
         sql`ifnull(${articles.guid}, '') NOT IN (SELECT value FROM json_each(${guids}))`,
-        notInArray(
-          articles.id,
-          this.#db.select({ id: saves.article_id }).from(saves),
-        ),
-        notInArray(
-          articles.id,
-          this.#db.select({ id: reads.article_id }).from(reads),
-        ),
+        // Probed per candidate through idx_saves_article and idx_reads_article;
+        // `NOT IN (select ... from reads)` built the list of every read by
+        // everyone before it could compare the first row.
+        sql`not exists (select 1 from ${saves} where ${saves.article_id} = ${articles.id})`,
+        sql`not exists (select 1 from ${reads} where ${reads.article_id} = ${articles.id})`,
       ),
     );
     // One INSERT per row: a single multi-row insert blows past D1's ~100
@@ -1472,9 +1515,13 @@ export class Repository {
         });
     });
     // A story the feed still lists by its id under a new address keeps its row.
-    const renames = items
-      .filter((a) => a.guid)
-      .map((a) =>
+    // One read of the edition's rows decides which items need the update, so
+    // an edition is read once and not once per item (the update has no index
+    // on the id to search). A fetch that races this one may see the rows a
+    // moment later than this read; the worst case is a rename left for the
+    // next fetch.
+    const renames = (await this.#renamedStories(sourceId, edition, items)).map(
+      (a) =>
         this.#db
           .update(articles)
           .set({ url: a.url })
@@ -1488,11 +1535,57 @@ export class Repository {
               sql`not exists (select 1 from articles as taken where taken.source_id = ${sourceId} and taken.edition = ${edition} and taken.url = ${a.url})`,
             ),
           ),
-      );
+    );
     const writes = [...renames, ...upserts];
     const [first, ...rest] = writes;
     if (prune) await this.#db.batch([stale, ...writes]);
     else if (first) await this.#db.batch([first, ...rest]);
+  }
+
+  /**
+   * The listed stories that must be renamed in an edition: those whose id
+   * (`guid`) a stored row has under another address that no row has yet. It
+   * follows the renames in order, as running them one after another would.
+   */
+  async #renamedStories(
+    sourceId: number,
+    edition: string,
+    items: readonly ScrapedItem[],
+  ): Promise<ScrapedItem[]> {
+    const listed = items.filter((a) => a.guid);
+    if (!listed.length) return [];
+    const stored = await this.#db
+      .select({ url: articles.url, guid: articles.guid })
+      .from(articles)
+      .where(
+        and(eq(articles.source_id, sourceId), eq(articles.edition, edition)),
+      );
+    const addresses = new Set(stored.map((r) => r.url));
+    const byGuid = new Map<string, Set<string>>();
+    for (const r of stored) {
+      if (r.guid)
+        byGuid.set(r.guid, (byGuid.get(r.guid) ?? new Set()).add(r.url));
+    }
+    const renamed: ScrapedItem[] = [];
+    for (const a of listed) {
+      const held = byGuid.get(a.guid!);
+      if (
+        !held ||
+        addresses.has(a.url) ||
+        ![...held].some((u) => u !== a.url)
+      ) {
+        continue;
+      }
+      renamed.push(a);
+      for (const old of held) {
+        if (old === a.url) continue;
+        addresses.delete(old);
+        held.delete(old);
+      }
+      addresses.add(a.url);
+      held.add(a.url);
+    }
+    return renamed;
   }
 
   sourceArticles(sourceId: number, edition: string) {
@@ -2000,6 +2093,16 @@ export class Repository {
   }
 
   /**
+   * The article's address is none the person has opened, under any source.
+   * The addresses they opened are listed once (one pass over their reads),
+   * not searched again for every article: a `not exists` that joined reads to
+   * articles per article read all of the person's reads for each one.
+   */
+  #notRead(userId: number) {
+    return sql`${articles.url} not in (select a.url from reads r join articles a on a.id = r.article_id where r.user_id = ${userId})`;
+  }
+
+  /**
    * How many stories of each followed feed the person has not opened, by
    * subscription id, counting each story once however many editions carry it.
    */
@@ -2011,12 +2114,7 @@ export class Repository {
       })
       .from(subscriptions)
       .innerJoin(articles, eq(articles.source_id, subscriptions.source_id))
-      .where(
-        and(
-          eq(subscriptions.user_id, userId),
-          sql`not exists (select 1 from reads r join articles a on a.id = r.article_id where r.user_id = ${userId} and a.url = ${articles.url})`,
-        ),
-      )
+      .where(and(eq(subscriptions.user_id, userId), this.#notRead(userId)))
       .groupBy(subscriptions.id);
     return new Map(rows.map((r) => [r.feed_id, Number(r.count)]));
   }
@@ -2033,12 +2131,7 @@ export class Repository {
     const rows = await this.#db
       .select()
       .from(articles)
-      .where(
-        and(
-          eq(articles.source_id, sourceId),
-          sql`not exists (select 1 from reads r join articles a on a.id = r.article_id where r.user_id = ${userId} and a.url = ${articles.url})`,
-        ),
-      )
+      .where(and(eq(articles.source_id, sourceId), this.#notRead(userId)))
       .orderBy(desc(articles.id))
       .limit(limit);
     const seen = new Set<string>();
@@ -2047,25 +2140,19 @@ export class Repository {
 
   /** How much of the person's archive there is, overall and per feed. */
   async archiveStats(userId: number): Promise<ArchiveStats> {
-    const [feeds, perFeed, [totals], [saved], [read]] = await Promise.all([
+    // One pass over the index entries (source, edition) serves the counts per
+    // feed and the totals; they were two passes over the same entries.
+    const [feeds, days, [saved], [read]] = await Promise.all([
       this.listFeeds(userId),
       this.#db
         .select({
           source_id: articles.source_id,
+          edition: articles.edition,
           count: sql<number>`count(*)`,
         })
         .from(articles)
         .where(inArray(articles.source_id, this.#followed(userId)))
-        .groupBy(articles.source_id),
-      this.#db
-        .select({
-          articles: sql<number>`count(*)`,
-          editions: sql<number>`count(distinct ${articles.edition})`,
-          oldest: sql<string | null>`min(${articles.edition})`,
-          newest: sql<string | null>`max(${articles.edition})`,
-        })
-        .from(articles)
-        .where(inArray(articles.source_id, this.#followed(userId))),
+        .groupBy(articles.source_id, articles.edition),
       this.#db
         .select({ count: sql<number>`count(*)` })
         .from(saves)
@@ -2075,12 +2162,21 @@ export class Repository {
         .from(reads)
         .where(eq(reads.user_id, userId)),
     ]);
-    const counts = new Map(perFeed.map((r) => [r.source_id, Number(r.count)]));
+    const counts = new Map<number, number>();
+    const editions = new Set<string>();
+    let total = 0;
+    for (const day of days) {
+      const n = Number(day.count);
+      total += n;
+      counts.set(day.source_id, (counts.get(day.source_id) ?? 0) + n);
+      if (day.edition !== null) editions.add(day.edition);
+    }
+    const ordered = [...editions].toSorted();
     return {
-      articles: Number(totals?.articles ?? 0),
-      editions: Number(totals?.editions ?? 0),
-      oldest_edition: totals?.oldest ?? null,
-      newest_edition: totals?.newest ?? null,
+      articles: total,
+      editions: editions.size,
+      oldest_edition: ordered[0] ?? null,
+      newest_edition: ordered.at(-1) ?? null,
       saved: Number(saved?.count ?? 0),
       read: Number(read?.count ?? 0),
       feeds: feeds
@@ -2108,73 +2204,69 @@ export class Repository {
       where: eq(sources.id, feed.source_id),
     });
     if (!source) return undefined;
-    const rows = await this.#db
-      .select({ date: articles.edition, count: sql<number>`count(*)` })
-      .from(articles)
-      .where(
-        and(
-          eq(articles.source_id, source.id),
-          sql`${articles.edition} is not null`,
-        ),
-      )
-      .groupBy(articles.edition)
-      .orderBy(desc(articles.edition))
-      .limit(days);
-    const where = (extra?: ReturnType<typeof sql>) =>
-      and(eq(articles.source_id, source.id), extra);
-    const bucket = async (
-      expression: ReturnType<typeof sql>,
-      extra: ReturnType<typeof sql>,
-    ): Promise<Map<string, number>> => {
-      const found = await this.#db
-        .select({
-          key: sql<string | null>`${expression}`,
-          count: sql<number>`count(*)`,
-        })
-        .from(articles)
-        .where(where(extra))
-        .groupBy(expression);
-      return new Map(
-        found.flatMap((r) =>
-          r.key === null ? [] : [[r.key, Number(r.count)] as const],
-        ),
-      );
-    };
-    const months = (
-      await this.#db
-        .select({
-          month: sql<string>`substr(${articles.edition}, 1, 7)`,
-          count: sql<number>`count(*)`,
-        })
-        .from(articles)
-        .where(where(sql`${articles.edition} is not null`))
-        .groupBy(sql`substr(${articles.edition}, 1, 7)`)
-        .orderBy(desc(sql`substr(${articles.edition}, 1, 7)`))
-        .limit(12)
-    ).map((r) => ({ month: r.month, count: Number(r.count) }));
-    const weekdays = await bucket(
-      sql`strftime('%w', ${articles.edition})`,
-      sql`${articles.edition} is not null`,
-    );
-    const hours = await bucket(
-      sql`strftime('%H', ${articles.published_at})`,
-      sql`${articles.published_at} is not null`,
-    );
-    const [totals] = await this.#db
+    // Two passes over the source's articles do what six did. The first, over
+    // the index entries (source, edition), gives the stories of every edition
+    // and the days, months, weekdays and totals are summed from them; the
+    // second, over the rows, buckets them by hour and counts the archived ones.
+    const perEdition = await this.#db
       .select({
-        total: sql<number>`count(*)`,
-        recent: sql<number>`coalesce(sum(${articles.edition} >= date('now', '-30 day')), 0)`,
+        edition: articles.edition,
+        cutoff: sql<string>`date('now', '-30 day')`,
+        count: sql<number>`count(*)`,
+      })
+      .from(articles)
+      .where(eq(articles.source_id, source.id))
+      .groupBy(articles.edition);
+    const dated = perEdition
+      .flatMap((r) =>
+        r.edition === null ? [] : [{ date: r.edition, count: Number(r.count) }],
+      )
+      .toSorted((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+    const rows = dated.slice(0, days);
+    const byMonth = new Map<string, number>();
+    const weekdays = new Map<string, number>();
+    for (const { date, count } of dated) {
+      const month = date.slice(0, 7);
+      byMonth.set(month, (byMonth.get(month) ?? 0) + count);
+      const weekday = new Date(`${date}T00:00:00Z`).getUTCDay();
+      if (!Number.isNaN(weekday)) {
+        const key = String(weekday);
+        weekdays.set(key, (weekdays.get(key) ?? 0) + count);
+      }
+    }
+    const months = [...byMonth]
+      .map(([month, count]) => ({ month, count }))
+      .slice(0, 12);
+    const byHour = await this.#db
+      .select({
+        key: sql<string | null>`strftime('%H', ${articles.published_at})`,
+        count: sql<number>`count(*)`,
         archived: sql<number>`coalesce(sum(${articles.body_text} is not null), 0)`,
       })
       .from(articles)
-      .where(where());
+      .where(eq(articles.source_id, source.id))
+      .groupBy(sql`strftime('%H', ${articles.published_at})`);
+    const hours = new Map(
+      byHour.flatMap((r) =>
+        r.key === null ? [] : [[r.key, Number(r.count)] as const],
+      ),
+    );
+    const totals = {
+      total: perEdition.reduce((n, r) => n + Number(r.count), 0),
+      recent: perEdition.reduce(
+        (n, r) =>
+          r.edition !== null && r.edition >= r.cutoff ? n + Number(r.count) : n,
+        0,
+      ),
+      archived: byHour.reduce((n, r) => n + Number(r.archived), 0),
+    };
+    // All followers are the source's counter; only the unmuted need counting.
     const [followers] = await this.#db
-      .select({
-        all: sql<number>`count(*)`,
-        active: sql<number>`coalesce(sum(${subscriptions.muted} = 0), 0)`,
-      })
+      .select({ active: sql<number>`count(*)` })
       .from(subscriptions)
-      .where(eq(subscriptions.source_id, source.id));
+      .where(
+        and(eq(subscriptions.source_id, source.id), eq(subscriptions.muted, 0)),
+      );
     const history = await this.#db
       .select()
       .from(fetchHistory)
@@ -2186,10 +2278,10 @@ export class Repository {
       last_error: source.last_error,
       fail_count: source.fail_count,
       update_minutes: source.update_minutes,
-      subscribers: Number(followers?.all ?? 0),
+      subscribers: source.follower_count,
       active_subscribers: Number(followers?.active ?? 0),
-      story_count: Number(totals?.total ?? 0),
-      stories_last_month: Number(totals?.recent ?? 0),
+      story_count: totals.total,
+      stories_last_month: totals.recent,
       stories_per_day: rows.map((r) => ({
         date: r.date ?? '',
         count: Number(r.count),
@@ -2209,25 +2301,25 @@ export class Repository {
         duration_ms: h.duration_ms,
       })),
       next_fetch_at: source.next_fetch_at,
-      archive_count: Number(totals?.archived ?? 0),
+      archive_count: totals.archived,
     };
   }
 
   /**
    * How many stories each of a person's feeds has kept, by feed id. A story
    * stored again in later editions counts once; a feed with none is absent.
+   * Read from the source's `story_count`, which triggers on `articles` keep
+   * (migration 0035); it counted every article of every followed source.
    */
   async storyCounts(userId: number): Promise<Map<number, number>> {
     const rows = await this.#db
-      .select({
-        id: subscriptions.id,
-        count: sql<number>`count(distinct ${articles.url})`,
-      })
+      .select({ id: subscriptions.id, count: sources.story_count })
       .from(subscriptions)
-      .innerJoin(articles, eq(articles.source_id, subscriptions.source_id))
-      .where(eq(subscriptions.user_id, userId))
-      .groupBy(subscriptions.id);
-    return new Map(rows.map((r) => [r.id, Number(r.count)]));
+      .innerJoin(sources, eq(sources.id, subscriptions.source_id))
+      .where(
+        and(eq(subscriptions.user_id, userId), gt(sources.story_count, 0)),
+      );
+    return new Map(rows.map((r) => [r.id, r.count]));
   }
 
   /** Every article of one edition, from every source, for clustering. */
@@ -2572,7 +2664,9 @@ export class Repository {
     const text = sql`trim(coalesce(${articles.body_text}, ''))`;
     const words = sql<number>`(case when ${text} = '' then 0 else length(${text}) - length(replace(${text}, ' ', '')) + 1 end)`;
     const savers = sql<number>`(select count(*) from ${saves} where ${saves.article_id} = ${articles.id} and ${saves.created_at} >= ${since})`;
-    const followers = sql<number>`(select count(*) from ${subscriptions} where ${subscriptions.source_id} = ${articles.source_id})`;
+    // The source's own counter: a count of its subscriptions per article read
+    // every follower once for each story.
+    const followers = sql<number>`${sources.follower_count}`;
     const acts = order === 'saves' ? saves : reads;
     const rows = await this.#db
       .select({
@@ -2596,13 +2690,7 @@ export class Repository {
           sql`${acts.created_at} >= ${since}`,
           inArray(articles.source_id, this.#followed(userId)),
           unread
-            ? notInArray(
-                articles.id,
-                this.#db
-                  .select({ id: reads.article_id })
-                  .from(reads)
-                  .where(eq(reads.user_id, userId)),
-              )
+            ? sql`not exists (select 1 from ${reads} as mine where mine.user_id = ${userId} and mine.article_id = ${articles.id})`
             : undefined,
         ),
       )
@@ -2672,7 +2760,7 @@ export class Repository {
     after,
     limit,
   }: SourceTrendingQuery): Promise<TrendingSource[]> {
-    const followers = sql<number>`(select count(*) from ${subscriptions} where ${subscriptions.source_id} = ${sources.id})`;
+    const followers = sql<number>`${sources.follower_count}`;
     const fresh = sql`exists (select 1 from ${articles} where ${articles.source_id} = ${sources.id} and ${articles.edition} >= ${freshSince})`;
     const details = {
       id: sources.id,
@@ -3933,38 +4021,37 @@ export class Repository {
     return out;
   }
 
-  /** How many people follow each source, as a subquery. */
-  #followerCounts() {
-    return this.#db
-      .select({
-        source_id: subscriptions.source_id,
-        followers: sql<number>`count(*)`.as('followers'),
-      })
-      .from(subscriptions)
-      .groupBy(subscriptions.source_id)
-      .as('counts');
-  }
-
-  /** Sources ranked one way, with whether `userId` follows each. */
+  /**
+   * Sources ranked one way, with whether `userId` follows each. Only sources
+   * somebody follows rank; their followers are the source's own counter, so
+   * the most followed come straight off `idx_sources_followers` (a `score`
+   * of null ranks by followers alone). `join` adds a
+   * subquery of per-source figures a score needs, computed over the window
+   * and not once per source.
+   */
   async #ranked(
     userId: number,
-    score: ReturnType<typeof sql<number>>,
+    score: ReturnType<typeof sql<number>> | null,
     where: ReturnType<typeof and>,
     limit: number,
+    join?: { readonly table: SQL; readonly on: SQL },
   ): Promise<RankedSource[]> {
-    const counts = this.#followerCounts();
     const followed = new Set((await this.#followed(userId)).map((r) => r.id));
-    const rows = await this.#db
+    const base = this.#db
       .select({
         id: sources.id,
         url: sources.url,
         title: sources.title,
-        followers: counts.followers,
+        followers: sources.follower_count,
       })
-      .from(sources)
-      .innerJoin(counts, eq(counts.source_id, sources.id))
-      .where(where)
-      .orderBy(desc(score), desc(counts.followers), asc(sources.id))
+      .from(sources);
+    const rows = await (join ? base.innerJoin(join.table, join.on) : base)
+      .where(and(gt(sources.follower_count, 0), where))
+      .orderBy(
+        ...(score ? [desc(score)] : []),
+        desc(sources.follower_count),
+        asc(sources.id),
+      )
       .limit(limit);
     return rows.map((r) => ({
       ...r,
@@ -3978,6 +4065,9 @@ export class Repository {
    * `popular` has the most followers; `rising` gained the most followers for
    * its size; `hidden` gems are small (at most 50 followers) but most read and
    * saved per follower; `new` arrivals were first followed in the window.
+   * The window's follows, reads and saves are found by their time (indexes
+   * idx_subscriptions_created, idx_reads_created, idx_saves_created) and
+   * grouped by source once, instead of counting each source's own rows.
    */
   async trendingSites(
     userId: number,
@@ -3986,42 +4076,47 @@ export class Repository {
     limit: number,
   ): Promise<RankedSource[]> {
     const since = sql`datetime('now', ${`-${days} days`})`;
-    const counts = this.#followerCounts();
-    const recentFollows = sql<number>`(SELECT count(*) FROM subscriptions s2 WHERE s2.source_id = ${sources.id} AND s2.created_at >= ${since})`;
-    const engagement = sql<number>`(
-      (SELECT count(*) FROM reads r JOIN articles a ON a.id = r.article_id
-        WHERE a.source_id = ${sources.id} AND r.created_at >= ${since})
-      + (SELECT count(*) FROM saves v JOIN articles a ON a.id = v.article_id
-        WHERE a.source_id = ${sources.id} AND v.created_at >= ${since})
-    )`;
+    const followers = sql<number>`${sources.follower_count}`;
     switch (kind) {
       case 'popular':
+        return this.#ranked(userId, null, and(), limit);
+      case 'rising':
+        // `group by +source_id` keeps the planner on the time index: grouped
+        // by the bare column it scanned idx_subscriptions_source to avoid a sort.
         return this.#ranked(
           userId,
-          sql<number>`${counts.followers}`,
+          sql<number>`recent.n * 1.0 / ${followers}`,
           and(),
           limit,
-        );
-      case 'rising':
-        return this.#ranked(
-          userId,
-          sql<number>`${recentFollows} * 1.0 / ${counts.followers}`,
-          and(sql`${recentFollows} > 0`),
-          limit,
+          {
+            table: sql`(select source_id, count(*) as n from ${subscriptions} where created_at >= ${since} group by +source_id) as recent`,
+            on: sql`recent.source_id = ${sources.id}`,
+          },
         );
       case 'hidden':
         return this.#ranked(
           userId,
-          sql<number>`${engagement} * 1.0 / ${counts.followers}`,
-          and(sql`${counts.followers} <= 50`, sql`${engagement} > 0`),
+          sql<number>`engaged.n * 1.0 / ${followers}`,
+          and(sql`${followers} <= 50`),
           limit,
+          {
+            table: sql`(select source_id, sum(n) as n from (
+              select a.source_id as source_id, count(*) as n from ${reads} r join ${articles} a on a.id = r.article_id
+                where r.created_at >= ${since} group by a.source_id
+              union all
+              select a.source_id as source_id, count(*) as n from ${saves} v join ${articles} a on a.id = v.article_id
+                where v.created_at >= ${since} group by a.source_id
+            ) group by source_id) as engaged`,
+            on: sql`engaged.source_id = ${sources.id}`,
+          },
         );
       case 'new':
         return this.#ranked(
           userId,
-          sql<number>`${counts.followers}`,
+          null,
           and(
-            sql`(SELECT min(s3.created_at) FROM subscriptions s3 WHERE s3.source_id = ${sources.id}) >= ${since}`,
+            sql`${sources.id} in (select source_id from ${subscriptions} where created_at >= ${since})`,
+            sql`not exists (select 1 from ${subscriptions} s3 where s3.source_id = ${sources.id} and s3.created_at < ${since})`,
           ),
           limit,
         );
@@ -4040,7 +4135,7 @@ export class Repository {
     const like = `%${q.replace(/[%_\\]/g, (c) => `\\${c}`)}%`;
     return this.#ranked(
       userId,
-      sql<number>`${this.#followerCounts().followers}`,
+      null,
       and(
         or(
           sql`${sources.title} LIKE ${like} ESCAPE '\\'`,

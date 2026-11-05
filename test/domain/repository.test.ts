@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from '@jest/globals';
 import { sql } from 'drizzle-orm';
+import type { DatabaseSync } from 'node:sqlite';
 
 import { ShareRepository } from '@/domain/shares';
 import { databaseFrom, type Database } from '@/domain/db/database';
@@ -24,6 +25,7 @@ import {
 } from '@/domain/repository';
 import type { ScrapedItem } from '@/lib/scraping';
 import { APP_MIGRATIONS } from '../lib/core/db/migrations';
+import { expectIndexed, recordedDatabase } from '../lib/core/db/plan';
 import { sqliteD1 } from '../lib/core/db/sqlite-d1';
 
 // Thin adapters over the Repository handle, so each case reads as a one-liner.
@@ -277,7 +279,41 @@ describe('dueSources', () => {
     await repo.recordFetch(source_id, 'down');
     expect(await repo.dueSources()).toEqual([]);
   });
+
+  it('leaves out a source nobody follows', async () => {
+    await db.run(sql`INSERT INTO sources (url) VALUES ('https://lone.test/f')`);
+    expect(await new Repository(db).dueSources()).toEqual([]);
+  });
+
+  it('reads the due sources through the next_fetch_at index, not a scan', async () => {
+    const { d1, raw } = sqliteD1(...APP_MIGRATIONS);
+    const statements: string[] = [];
+    const recording = {
+      ...d1,
+      prepare: (text: string) => {
+        statements.push(text);
+        return d1.prepare(text);
+      },
+    } as unknown as D1Database;
+    await new Repository(databaseFrom(recording)).dueSources();
+    const plan = planOf(
+      raw,
+      statements.find((s) => s.includes('"sources"'))!,
+    );
+    expect(plan).toContain('idx_sources_next_fetch');
+    expect(plan).not.toMatch(/SCAN sources/);
+    expect(plan).not.toMatch(/TEMP B-TREE/);
+  });
 });
+
+/** The query plan SQLite chooses for one statement against the migrated schema. */
+function planOf(raw: DatabaseSync, text: string): string {
+  return raw
+    .prepare(`EXPLAIN QUERY PLAN ${text}`)
+    .all()
+    .map((row) => String(row['detail']))
+    .join('\n');
+}
 
 describe('moveSource', () => {
   it('moves a source to its new address and forgets its validators', async () => {
@@ -310,6 +346,25 @@ describe('moveSource', () => {
 });
 
 describe('sourceActivity', () => {
+  it('finds the notifying feeds of a source through the subscription index, not a scan', async () => {
+    const { d1, raw } = sqliteD1(...APP_MIGRATIONS);
+    const statements: string[] = [];
+    const recording = {
+      ...d1,
+      prepare: (text: string) => {
+        statements.push(text);
+        return d1.prepare(text);
+      },
+    } as unknown as D1Database;
+    await new Repository(databaseFrom(recording)).sourceActivity(1);
+    const plan = planOf(
+      raw,
+      statements.find((s) => s.includes('"feed_notifications"'))!,
+    );
+    expect(plan).toContain('idx_feed_notifications_subscription');
+    expect(plan).not.toMatch(/SCAN feed_notifications/);
+  });
+
   it('counts the last month’s distinct stories and the followers', async () => {
     const repo = new Repository(db);
     const { source_id } = (await addFeed(db, 1, 'https://a.test/f'))!;
@@ -3038,5 +3093,241 @@ describe('feed recommendations', () => {
       (await repo.listRecommendations('approved')).map((r) => r.id),
     ).toEqual([a.id]);
     expect(await repo.decideRecommendation(999, 'approved')).toBeUndefined();
+  });
+});
+
+describe('the plans of the statistics, trending and write queries', () => {
+  it('drops the stale stories of an edition by probing reads and saves per story', async () => {
+    const recorded = recordedDatabase();
+    const repo = new Repository(recorded.db);
+    await repo.writeEdition(1, '2026-10-20', [story({ url: 'https://x/1' })]);
+    const plan = recorded.planOf('delete from "articles"');
+    expectIndexed(
+      plan,
+      ['idx_articles_source_edition', 'idx_reads_article', 'idx_saves_article'],
+      { scans: ['json_each'] },
+    );
+  });
+
+  it('keeps a story that someone read or saved when the feed stops listing it', async () => {
+    const repo = new Repository(db);
+    const { source_id } = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await repo.writeEdition(source_id, '2026-10-20', [
+      story({ url: 'https://x/read' }),
+      story({ url: 'https://x/saved' }),
+      story({ url: 'https://x/other' }),
+    ]);
+    await addFeed(db, 2, 'https://a.test/f');
+    await addFeed(db, 3, 'https://a.test/f');
+    const stored = await repo.sourceArticles(source_id, '2026-10-20');
+    const [read, saved] = ['https://x/read', 'https://x/saved'].map((url) =>
+      stored.find((a) => a.url === url)!,
+    );
+    await repo.markRead(2, read!.id);
+    await repo.saveArticle(3, saved!.id, []);
+    await repo.writeEdition(source_id, '2026-10-20', []);
+    expect(
+      (await repo.sourceArticles(source_id, '2026-10-20'))
+        .map((a) => a.url)
+        .toSorted(),
+    ).toEqual(['https://x/read', 'https://x/saved']);
+  });
+
+  it('sends no rename for stories whose address did not change, and one when it did', async () => {
+    const recorded = recordedDatabase();
+    const repo = new Repository(recorded.db);
+    const { source_id } = (await new Repository(recorded.db).addFeed(
+      1,
+      'https://a.test/f',
+    ))!;
+    const items = [
+      story({ url: 'https://x/1', guid: 'g1' }),
+      story({ url: 'https://x/2', guid: 'g2' }),
+    ];
+    await repo.writeEdition(source_id, '2026-10-20', items);
+    await repo.writeEdition(source_id, '2026-10-20', items);
+    expect(recorded.sent('update "articles" set "url"')).toHaveLength(0);
+    await repo.writeEdition(source_id, '2026-10-20', [
+      story({ url: 'https://x/1-new', guid: 'g1' }),
+      items[1]!,
+    ]);
+    expect(recorded.sent('update "articles" set "url"')).toHaveLength(1);
+    expect(
+      (await repo.sourceArticles(source_id, '2026-10-20'))
+        .map((a) => a.url)
+        .toSorted(),
+    ).toEqual(['https://x/1-new', 'https://x/2']);
+  });
+
+  it('follows renames in order, as running them one by one would', async () => {
+    const repo = new Repository(db);
+    const { source_id } = (await addFeed(db, 1, 'https://a.test/f'))!;
+    await repo.writeEdition(source_id, '2026-10-20', [
+      story({ url: 'https://x/1', guid: 'g1' }),
+      story({ url: 'https://x/2', guid: 'g2' }),
+    ]);
+    const before = (
+      await repo.sourceArticles(source_id, '2026-10-20')
+    ).toSorted((a, b) => a.id - b.id);
+    await repo.writeEdition(
+      source_id,
+      '2026-10-20',
+      [
+        story({ url: 'https://x/3', guid: 'g1' }),
+        story({ url: 'https://x/1', guid: 'g2' }),
+      ],
+      false,
+    );
+    const after = (await repo.sourceArticles(source_id, '2026-10-20')).toSorted(
+      (a, b) => a.id - b.id,
+    );
+    expect(after.map((a) => [a.id, a.url])).toEqual([
+      [before[0]!.id, 'https://x/3'],
+      [before[1]!.id, 'https://x/1'],
+    ]);
+  });
+
+  it('reads the unread counts with the person’s read addresses listed once', async () => {
+    const recorded = recordedDatabase();
+    await new Repository(recorded.db).unreadCounts(1);
+    const plan = recorded.planOf('count(distinct "articles"."url")');
+    expect(plan).toContain('LIST SUBQUERY');
+    expect(plan).not.toContain('CORRELATED');
+  });
+
+  it('counts a story read under another source as read, and each address once', async () => {
+    const repo = new Repository(db);
+    const a = (await addFeed(db, 1, 'https://a.test/f'))!;
+    const b = (await addFeed(db, 1, 'https://b.test/f'))!;
+    await repo.writeEdition(a.source_id, '2026-10-20', [
+      story({ url: 'https://x/1' }),
+      story({ url: 'https://x/2' }),
+    ]);
+    await repo.writeEdition(a.source_id, '2026-10-21', [
+      story({ url: 'https://x/1' }),
+      story({ url: 'https://x/2' }),
+    ]);
+    await repo.writeEdition(b.source_id, '2026-10-20', [
+      story({ url: 'https://x/1' }),
+    ]);
+    const [copy] = await repo.sourceArticles(b.source_id, '2026-10-20');
+    await repo.markRead(1, copy!.id);
+    expect(await repo.unreadCounts(1)).toEqual(new Map([[a.id, 1]]));
+    expect(
+      (await repo.unreadSourceArticles(1, a.source_id)).map((x) => x.url),
+    ).toEqual(['https://x/2']);
+  });
+
+  it('counts the stories of each feed from the source’s counter, once per address', async () => {
+    const recorded = recordedDatabase();
+    const repo = new Repository(recorded.db);
+    const feed = (await repo.addFeed(1, 'https://a.test/f'))!;
+    await repo.addFeed(1, 'https://empty.test/f');
+    for (const edition of ['2026-10-20', '2026-10-21']) {
+      await repo.writeEdition(feed.source_id, edition, [
+        story({ url: 'https://x/1' }),
+        story({ url: 'https://x/2' }),
+      ]);
+    }
+    expect(await repo.storyCounts(1)).toEqual(new Map([[feed.id, 2]]));
+    expect(recorded.sent('from "subscriptions" inner join')).not.toHaveLength(
+      0,
+    );
+    expect(recorded.planOf('"story_count"')).not.toContain('articles');
+  });
+
+  it('reads the archive of a person in one pass over the articles', async () => {
+    const recorded = recordedDatabase();
+    await new Repository(recorded.db).archiveStats(1);
+    const passes = recorded.sent('from "articles"');
+    expect(passes).toHaveLength(1);
+    expectIndexed(recorded.planOf('from "articles"'), [
+      'idx_articles_source_edition',
+    ]);
+  });
+
+  it('reads the statistics of a feed in two passes over its articles', async () => {
+    const recorded = recordedDatabase();
+    const repo = new Repository(recorded.db);
+    const feed = (await repo.addFeed(1, 'https://a.test/f'))!;
+    await repo.feedStatistics(1, feed.id);
+    expect(recorded.sent('from "articles"')).toHaveLength(2);
+    expectIndexed(recorded.planOf('group by "articles"."edition"'), [
+      'idx_articles_source_edition',
+    ]);
+  });
+
+  it.each([
+    ['popular', 'idx_sources_followers', []],
+    ['rising', 'idx_subscriptions_created', []],
+    ['hidden', 'idx_reads_created', ['idx_saves_created']],
+    ['new', 'idx_subscriptions_created', ['idx_subscriptions_source']],
+  ] as const)(
+    'finds the %s sites through the index of what it ranks, not a scan of every source',
+    async (kind, index, more) => {
+      const recorded = recordedDatabase();
+      await new Repository(recorded.db).trendingSites(1, kind, 30, 10);
+      const plan = recorded.planOf('from "sources"');
+      // The windows are small derived tables; what must not be scanned is
+      // sources, subscriptions, reads or saves.
+      expectIndexed(plan, [index, ...more], {
+        sorts: kind !== 'popular',
+        scans: ['recent', 'engaged', 'subquery'],
+      });
+    },
+  );
+
+  it('finds the sources most followed lately through the follow time index', async () => {
+    const recorded = recordedDatabase();
+    await new Repository(recorded.db).trendingSources({
+      order: 'follows',
+      since: '2026-10-01 00:00:00',
+      freshSince: '2026-10-01',
+      days: 30,
+      now: '2026-11-01 00:00:00',
+      limit: 10,
+    });
+    expectIndexed(recorded.planOf('from "subscriptions"'), [
+      'idx_subscriptions_created',
+    ]);
+  });
+
+  it('reads only the last month of a source’s articles for its activity', async () => {
+    const recorded = recordedDatabase();
+    await new Repository(recorded.db).sourceActivity(1);
+    expectIndexed(
+      recorded.planOf('count(distinct'),
+      ['idx_articles_source_published'],
+      { sorts: true },
+    );
+    expectIndexed(recorded.planOf('order by julianday'), [
+      'idx_articles_source_published',
+    ]);
+  });
+
+  it('counts a feed’s followers and notifying feeds without reading them', async () => {
+    const recorded = recordedDatabase();
+    await new Repository(recorded.db).sourceActivity(1);
+    expect(recorded.sent('count(*)')).toHaveLength(0);
+  });
+
+  it('clears and expires clusters by their edition, not by reading them all', async () => {
+    const recorded = recordedDatabase();
+    const repo = new Repository(recorded.db);
+    await repo.writeWindowClusters('2026-10-01', '2026-10-02', []);
+    await repo.expireClusters('2026-10-01');
+    expectIndexed(recorded.planOf('delete from "clusters" where ("clusters"'), [
+      'idx_clusters_edition',
+    ]);
+    expectIndexed(recorded.planOf('delete from "clusters" where "clusters"'), [
+      'idx_clusters_edition',
+    ]);
+    expectIndexed(
+      recorded.planOf(
+        'update "articles" set "cluster_id" = ? where "articles"."cluster_id" in',
+      ),
+      ['idx_clusters_edition'],
+      { scans: ['articles'] },
+    );
   });
 });

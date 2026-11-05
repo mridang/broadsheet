@@ -24,6 +24,16 @@ function indexesOf(raw: DatabaseSync, table: string): readonly string[] {
     .map((row) => String(row['name']));
 }
 
+/** The key columns of an index as SQLite reports them (an expression shows as such). */
+function keyColumns(raw: DatabaseSync, index: string): readonly string[] {
+  return raw
+    .prepare(`PRAGMA index_info(${index})`)
+    .all()
+    .map((row) =>
+      row['name'] === null ? '<expression>' : String(row['name']),
+    );
+}
+
 /** The drizzle tables of the schema file, by their SQL name. */
 const tables = new Map(
   Object.values(schema)
@@ -52,6 +62,29 @@ describe('the schema file and the migrations', () => {
       const present = indexesOf(raw, name);
       config.indexes.forEach((index) =>
         expect(present).toContain(index.config.name),
+      );
+    },
+  );
+
+  it.each([...tables.keys()])(
+    'declares every index the migrations create on %s, on the same columns',
+    (name) => {
+      const declared = new Map(
+        getTableConfig(tables.get(name)!).indexes.map((index) => [
+          index.config.name,
+          index.config.columns.map((column) =>
+            'name' in column ? column.name : '<expression>',
+          ),
+        ]),
+      );
+      const created = raw
+        .prepare(`PRAGMA index_list(${name})`)
+        .all()
+        .filter((row) => row['origin'] === 'c')
+        .map((row) => String(row['name']));
+      expect(created.toSorted()).toEqual([...declared.keys()].toSorted());
+      created.forEach((index) =>
+        expect(keyColumns(raw, index)).toEqual(declared.get(index)),
       );
     },
   );
