@@ -31,6 +31,18 @@ describe('parsePlayerInput', () => {
     expect(out.ok && out.value.current).toBeNull();
   });
 
+  it('refuses a player that leaves current out', () => {
+    const without = {
+      rate: body.rate,
+      queue: body.queue,
+      history: body.history,
+    };
+    const out = parsePlayerInput(without);
+    expect(out.ok ? [] : out.errors).toEqual([
+      'current: required, an object or null.',
+    ]);
+  });
+
   it.each([
     [{ rate: 0.1 }, 'rate: must be a number from 0.5 to 3.'],
     [{ rate: '1' }, 'rate: must be a number from 0.5 to 3.'],

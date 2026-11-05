@@ -67,6 +67,12 @@ describe('needsSubscription', () => {
   });
 });
 
+describe('callbackUrl', () => {
+  it('is the webhook of the source, outside /api', () => {
+    expect(new URL(callbackUrl(42)).pathname).toBe('/webhooks/sources/42');
+  });
+});
+
 describe('subscribeToHub', () => {
   it('asks the hub for the topic with the callback and a secret it keeps', async () => {
     const fetch = jest

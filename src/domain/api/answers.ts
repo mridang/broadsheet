@@ -115,11 +115,6 @@ async function readAnswerRequest(request: Request): Promise<AnswerRequest> {
   return input.value;
 }
 
-/** Whether the caller asked for the answer as a stream of server-sent events. */
-export function wantsStream(request: Request): boolean {
-  return (request.headers.get('accept') ?? '').includes('text/event-stream');
-}
-
 /** One server-sent event. */
 export function sseEvent(event: string, data: unknown): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
@@ -170,15 +165,11 @@ function streamed(
   });
 }
 
-/** A checked question, and whether to stream its answer. */
-interface AnswerCall extends AnswerRequest {
-  readonly stream: boolean;
-}
-
 /**
  * `POST /api/articles/:id/answers` {question_id | question, history?, model?,
- * thinking?}: 200 with the answer, or with `Accept: text/event-stream` the
- * answer as server-sent events. A preset question with no history is answered
+ * thinking?}: 200 with the answer. The same question is also answered as
+ * server-sent events by `POST /events/articles/:id/answers`, which is not REST
+ * and so lives outside `/api` (see {@link answersStream}). A preset question with no history is answered
  * once per model and then served from the cache (`cached`, not counted
  * against the budget). 400 for a bad question, 415 for a body that is not
  * JSON, 404 when the article is not from a source the person follows, 429
@@ -187,18 +178,16 @@ interface AnswerCall extends AnswerRequest {
  */
 export function createAnswersCollection(
   resolver: CurrentUserResolver = requestCookieResolver,
+  stream = false,
 ): ApiController<UidContext> {
   return new ApiController<UidContext>({
     context: async (request) => ({
       request,
       uid: await liveUid(request, resolver),
     }),
-  }).on<AnswerCall, AnswerResource | Response>({
+  }).on<AnswerRequest, AnswerResource | Response>({
     method: 'POST',
-    decode: async (request) => ({
-      ...(await readAnswerRequest(request)),
-      stream: wantsStream(request),
-    }),
+    decode: readAnswerRequest,
     handle: async (call, { request, uid }) => {
       const { question, history } = call;
       const repo = new Repository(getDatabase());
@@ -232,7 +221,7 @@ export function createAnswersCollection(
       if (cached !== undefined) {
         await repo.recordUsage(uid, 'answer', true);
         const resource = await answered(cached, true);
-        return call.stream
+        return stream
           ? streamed(
               (async function* () {
                 yield cached;
@@ -249,7 +238,7 @@ export function createAnswersCollection(
         if (key) await repo.storeAnswer(uid, article.id, key, answer);
         return answered(answer, false);
       };
-      if (call.stream) {
+      if (stream) {
         return streamed(
           streamAnswer(answerModel(), prompt, modelFor(call)),
           keep,
@@ -275,3 +264,13 @@ export function createAnswersCollection(
 
 /** The answers controller bound to the production resolver. */
 export const answersCollection = createAnswersCollection();
+
+/**
+ * The same question, answered as server-sent events. A stream is not a REST
+ * resource, so this is mounted at `/events/articles/{id}/answers`, not under
+ * `/api`. Its errors are still problems, thrown before the stream starts.
+ */
+export const answersStream = createAnswersCollection(
+  requestCookieResolver,
+  true,
+);

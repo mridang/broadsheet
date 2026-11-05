@@ -4,11 +4,9 @@
  * The briefing API as controllers over the `core/api` framework: listing the
  * signed-in person's briefings, reading one, and asking for one now (for the
  * slot of their day they are in), all from their default edition (`self`).
- * Operators named in `ADMIN_EMAILS` may list everyone's.
  */
 
 import {
-  briefingAuditResource,
   briefingResource,
   parseBriefingQuery,
   type BriefingQuery,
@@ -93,7 +91,7 @@ interface BriefingPage {
 /** Ask the repository for one more than a page, to know if more follow. */
 async function pageOf(
   repo: Repository,
-  userId: number | undefined,
+  userId: number,
   query: BriefingQuery,
 ): Promise<{ items: StoredBriefing[]; last?: StoredBriefing }> {
   const rows = await repo.listBriefings(userId, query.limit + 1, query.before);
@@ -206,67 +204,3 @@ export function createBriefingItem(
 
 /** The briefing-item controller bound to the production resolver. */
 export const briefingItem = createBriefingItem();
-
-/** The operators' addresses, from the comma-separated `ADMIN_EMAILS`. */
-function operators(list: string | undefined): Set<string> {
-  return new Set(
-    (list ?? '')
-      .split(',')
-      .map((e) => e.trim().toLowerCase())
-      .filter(Boolean),
-  );
-}
-
-/** Briefings with the email of whose each is. */
-interface AuditPage {
-  readonly items: readonly { b: StoredBriefing; email?: string }[];
-  readonly last?: StoredBriefing;
-}
-
-/**
- * `GET /api/briefings?cursor=&limit=`: everyone's briefings, newest first,
- * for an operator (a signed-in person whose email is in `ADMIN_EMAILS`).
- * 200 with `{self, next?, items}`, 400 for a bad parameter, 401 when not
- * signed in, 403 for anyone else.
- */
-export function createBriefingAudit(
-  resolver: CurrentUserResolver = requestCookieResolver,
-  admins: () => string | undefined = () =>
-    (getEnv() as { ADMIN_EMAILS?: string }).ADMIN_EMAILS,
-): ApiController<UidContext> {
-  return new ApiController<UidContext>({
-    context: async (request) => ({
-      request,
-      uid: await liveUid(request, resolver),
-    }),
-  }).on<BriefingQuery, AuditPage>({
-    method: 'GET',
-    decode: decodeQuery,
-    handle: async (query, { uid }) => {
-      const repo = new Repository(getDatabase());
-      const me = await repo.getUser(uid);
-      if (!me || !operators(admins()).has(me.email.toLowerCase())) {
-        throw problems.forbidden('Only an operator may list every briefing.');
-      }
-      const { items, last } = await pageOf(repo, undefined, query);
-      const emails = new Map<number, string>();
-      for (const id of new Set(items.map((b) => b.user_id))) {
-        const user = await repo.getUser(id);
-        if (user) emails.set(id, user.email);
-      }
-      return {
-        items: items.map((b) => ({ b, email: emails.get(b.user_id) })),
-        last,
-      };
-    },
-    encode: ({ items, last }) =>
-      page(
-        items.map(({ b, email }) => briefingAuditResource(b, email)),
-        after(last),
-        { 'Cache-Control': 'private, no-cache' },
-      ),
-  });
-}
-
-/** The operator's briefing list bound to production. */
-export const briefingAudit = createBriefingAudit();

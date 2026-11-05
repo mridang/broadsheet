@@ -72,7 +72,9 @@ export function parsePlayerInput(
   }
   let current: PlayerState['current'] = null;
   const raw = body['current'];
-  if (raw !== null && raw !== undefined) {
+  if (raw === undefined) {
+    errors.push('current: required, an object or null.');
+  } else if (raw !== null) {
     const c = raw as Record<string, unknown>;
     const id =
       typeof c['article_id'] === 'string'

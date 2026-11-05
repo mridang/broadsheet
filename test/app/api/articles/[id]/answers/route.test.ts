@@ -116,46 +116,11 @@ describe('POST /api/articles/:id/answers', () => {
     expect(run).toHaveBeenCalledTimes(2);
   });
 
-  it('streams the answer as server-sent events when asked', async () => {
-    run.mockResolvedValue(
-      new ReadableStream({
-        start(controller) {
-          controller.enqueue(
-            new TextEncoder().encode(
-              'data: {"response":"It is "}\n\ndata: {"response":"rust."}\n\ndata: [DONE]\n\n',
-            ),
-          );
-          controller.close();
-        },
-      }),
-    );
+  it('answers JSON even when server-sent events are asked for', async () => {
     const res = await ask(story, '{"question_id":"bullets"}', {
       Accept: 'text/event-stream',
     });
-    expect(res.headers.get('content-type')).toContain('text/event-stream');
-    const text = await res.text();
-    expect(text).toContain('event: chunk\ndata: {"text":"It is "}');
-    expect(text).toContain('event: complete');
-    expect(text).toContain('"answer":"It is rust."');
-    expect(await new Repository(db).cachedAnswer(7, story, 'bullets')).toBe(
-      'It is rust.',
-    );
-  });
-
-  it('streams a cached answer too', async () => {
-    await ask(story, '{"question_id":"bullets"}');
-    const res = await ask(story, '{"question_id":"bullets"}', {
-      Accept: 'text/event-stream',
-    });
-    expect(await res.text()).toContain('"cached":true');
-  });
-
-  it('ends a stream with an error event when the model fails', async () => {
-    run.mockRejectedValue(new Error('down'));
-    const res = await ask(story, '{"question":"Q"}', {
-      Accept: 'text/event-stream',
-    });
-    expect(await res.text()).toContain('event: error');
+    expect(res.headers.get('content-type')).toContain('application/json');
   });
 
   it('answers a preset by id, naming it', async () => {

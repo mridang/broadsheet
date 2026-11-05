@@ -12,13 +12,13 @@ import {
 import { databaseFrom } from '@/domain/db/database';
 import { Repository } from '@/domain/repository';
 import { subscribeToHub } from '@/domain/websub';
-import { APP_MIGRATIONS } from '../../../../../lib/core/db/migrations';
+import { APP_MIGRATIONS } from '../../../../lib/core/db/migrations';
 import {
   installCloudflareContext,
   sqliteD1,
-} from '../../../../../lib/core/db/sqlite-d1';
+} from '../../../../lib/core/db/sqlite-d1';
 
-const { GET, POST } = await import('@/app/api/sources/[id]/pushes/route');
+const { GET, POST } = await import('@/app/webhooks/sources/[id]/route');
 
 const TOPIC = 'https://a.test/f';
 const FEED = '<rss><channel><title>A</title></channel></rss>';
@@ -31,7 +31,7 @@ const context = (id: string | number) => ({
   params: Promise.resolve({ id: String(id) }),
 });
 const url = (id: string | number, query = '') =>
-  `https://broadsheet.test/api/sources/${id}/pushes${query}`;
+  `https://broadsheet.test/webhooks/sources/${id}${query}`;
 
 beforeEach(async () => {
   const made = sqliteD1(...APP_MIGRATIONS);
@@ -51,7 +51,7 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
-describe('GET /api/sources/{id}/pushes', () => {
+describe('GET /webhooks/sources/{id}', () => {
   it('echoes the challenge of the subscription it asked for', async () => {
     const query = `?hub.mode=subscribe&hub.topic=${encodeURIComponent(TOPIC)}&hub.challenge=xyz&hub.lease_seconds=60`;
     const response = await GET(
@@ -78,7 +78,7 @@ describe('GET /api/sources/{id}/pushes', () => {
   });
 });
 
-describe('POST /api/sources/{id}/pushes', () => {
+describe('POST /webhooks/sources/{id}', () => {
   const push = async (id: number | string, signature?: string) =>
     POST(
       new Request(url(id), {

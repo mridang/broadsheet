@@ -45,16 +45,17 @@ describe('EDGE_LIMITS', () => {
     expect(classOf(pathname)).toBe(expected);
   });
 
-  it.each(['/api/articles/4/answers', '/api/conversations/2/messages'])(
-    'puts a POST to %s in ai',
-    (pathname) => {
-      expect(
-        EDGE_LIMITS.classify(
-          new Request(`https://app.test${pathname}`, { method: 'POST' }),
-        ),
-      ).toBe('ai');
-    },
-  );
+  it.each([
+    '/api/articles/4/answers',
+    '/events/articles/4/answers',
+    '/api/conversations/2/messages',
+  ])('puts a POST to %s in ai', (pathname) => {
+    expect(
+      EDGE_LIMITS.classify(
+        new Request(`https://app.test${pathname}`, { method: 'POST' }),
+      ),
+    ).toBe('ai');
+  });
 
   it.each(['/api/conversations/2', '/api/conversations/2/messages'])(
     'puts a GET of %s in api',

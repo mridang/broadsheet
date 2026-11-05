@@ -45,18 +45,6 @@ export interface BriefingResource {
   readonly created_at?: string;
 }
 
-/** A briefing in the operator's list: whose, and how much it covers. */
-export interface BriefingAuditResource {
-  readonly id: string;
-  readonly user_id: string;
-  readonly email?: string;
-  readonly title: string;
-  readonly status: 'complete' | 'failed';
-  readonly summary?: string;
-  readonly story_count: number;
-  readonly created_at?: string;
-}
-
 /** A stored SQLite time as RFC 3339, or undefined when it does not parse. */
 function timestamp(stored: string | null): string | undefined {
   if (!stored) return undefined;
@@ -110,24 +98,6 @@ export function briefingResource(
     ...(b.model ? { model: b.model } : {}),
     ...(b.tokens !== null ? { tokens: b.tokens } : {}),
     ...(b.seconds !== null ? { seconds: b.seconds } : {}),
-    ...(created ? { created_at: created } : {}),
-  };
-}
-
-/** The operator's view of a briefing. */
-export function briefingAuditResource(
-  b: Readonly<StoredBriefing>,
-  email?: string,
-): BriefingAuditResource {
-  const created = timestamp(b.created_at);
-  return {
-    id: String(b.id),
-    user_id: String(b.user_id),
-    ...(email ? { email } : {}),
-    title: b.title,
-    status: b.status === 'complete' ? 'complete' : 'failed',
-    ...(b.summary ? { summary: b.summary } : {}),
-    story_count: parseBriefedStories(b.stories).length,
     ...(created ? { created_at: created } : {}),
   };
 }

@@ -1,9 +1,10 @@
 /**
  * The WebSub callback of a source, where its hub verifies a subscription and
- * pushes new content.
+ * pushes new content. It is a webhook for a hub to call, not part of the REST
+ * contract, so it lives outside `/api` and answers plain text.
  *
- *   GET  /api/sources/{id}/pushes?hub.mode&hub.topic&hub.challenge → 200 the challenge, 404 when the source does not want it
- *   POST /api/sources/{id}/pushes (the feed, X-Hub-Signature)       → 202, 404 for a source with no subscription
+ *   GET  /webhooks/sources/{id}?hub.mode&hub.topic&hub.challenge → 200 the challenge, 404 when the source does not want it
+ *   POST /webhooks/sources/{id} (the feed, X-Hub-Signature)       → 202, 404 for a source with no subscription
  *
  * The behaviour lives in `domain/websub` and `domain/scraping`.
  */

@@ -40,6 +40,7 @@ const CLASSES: Readonly<Record<OwnClass, ClassSpec>> = {
 /** The requests that ask Workers AI a question. */
 const AI_PATHS = [
   /^\/api\/articles\/[^/]+\/answers$/,
+  /^\/events\/articles\/[^/]+\/answers$/,
   /^\/api\/conversations\/[^/]+\/messages$/,
   /^\/api\/transcriptions$/,
 ];

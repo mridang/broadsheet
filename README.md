@@ -28,6 +28,8 @@ Broadsheet: a personalised daily newspaper that turns web feeds into a print-sty
 | `/api/sessions`                 | `DELETE` signs out everywhere (ends every session of the signed-in person)                       |
 | `/api/feeds`, `/api/feeds/{id}` | `POST` follows a feed (201 + `Location`), `DELETE` unfollows one (signed in)                     |
 | `/api/feeds/refreshes`          | `POST` re-fetches the signed-in user's feeds and answers how many were refreshed                 |
+| `/webhooks/sources/{id}`        | A WebSub hub verifies a subscription (`GET`) and pushes new content (`POST`); signed, plain text |
+| `/events/articles/{id}/answers` | `POST` answers a question about an article as server-sent events (signed in)                     |
 | `/mcp`                          | MCP server for assistants: feeds, sections, paper, briefing, search, reads, saves, training, ask |
 | `/oauth/*`                      | OAuth 2.1 for `/mcp`: register, authorize (Google sign-in, then approve), token, revoke          |
 | `/.well-known/oauth-*`          | Discovery documents that point an assistant at the OAuth endpoints                               |
@@ -35,7 +37,23 @@ Broadsheet: a personalised daily newspaper that turns web feeds into a print-sty
 | `/img`                          | Image proxy: scales and caches remote pictures (`?url=&w=&sig=`), signed addresses only          |
 | `/csp/reports`                  | Receives Content Security Policy violation reports                                               |
 
+The REST API under `/api` is described by `openapi.json` at the root of the repository. Everything that is not REST (sign-in, OAuth, MCP, webhooks, events, the image proxy, feeds out, health) sits outside `/api` and is not in it. `/api/sources/{id}/pushes` is the old WebSub callback, kept only for hubs that subscribed before it moved to `/webhooks/sources/{id}`.
+
 The security headers and the nonce-based Content Security Policy are added by the Worker itself (`src/lib/http`), not by Next.js.
+
+## Testing the API with Schemathesis
+
+`openapi.json` is the whole contract, and `test/openapi.test.ts` fails when it and the controllers drift apart. To fuzz a running instance (local, or deployed) as an ordinary signed-in person:
+
+1. Sign in with Google in a browser, then copy the value of the `broadsheet_session` cookie from the browser's developer tools into an environment variable of your shell, for example `BROADSHEET_SESSION`. Do not paste it anywhere else.
+2. Run it against the spec:
+
+```sh
+schemathesis run openapi.json --url http://localhost:3737 \
+  --header "Cookie: broadsheet_session=$BROADSHEET_SESSION"
+```
+
+The cookie is the only credential the API accepts, and any signed-in person can call every operation with it. Two operations also need the curator capability (`PATCH /api/feeds/recommendations/{id}` and listing `pending` or `declined` recommendations): the operator grants it to the test account by adding its email to the `CURATOR_EMAILS` variable, and without it they answer the documented `403`. Schemathesis sends no `Origin` or `Sec-Fetch-Site` header, so the cross-site check lets its writes through. Every write acts on the test account's own data, so use an account made for the purpose.
 
 ## Local development
 

@@ -1,7 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 
 import {
-  briefingAuditResource,
   briefingResource,
   parseBriefingQuery,
 } from '@/domain/api/briefing-resource';
@@ -80,21 +79,6 @@ describe('briefingResource', () => {
     });
     expect(out).not.toHaveProperty('summary');
     expect(out).not.toHaveProperty('tokens');
-  });
-});
-
-describe('briefingAuditResource', () => {
-  it('shows whose briefing it is and how much it covers', () => {
-    expect(briefingAuditResource(stored, 'a@b.c')).toEqual({
-      id: '4',
-      user_id: '7',
-      email: 'a@b.c',
-      title: stored.title,
-      status: 'complete',
-      summary: 'Note.',
-      story_count: 2,
-      created_at: '2026-11-01T08:25:00.000Z',
-    });
   });
 });
 

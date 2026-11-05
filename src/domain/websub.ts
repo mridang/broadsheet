@@ -2,7 +2,7 @@
  * @packageDocumentation
  *
  * WebSub (PubSubHubbub), as NewsBlur's push feeds: a feed that names a hub is
- * subscribed to there, with a callback at `/api/sources/{id}/pushes` and a
+ * subscribed to there, with a callback at `/webhooks/sources/{id}` and a
  * secret of its own, renewed before the hub's lease runs out; the hub's
  * verification of the intent is answered here. The pushes themselves are
  * taken as fetches in `domain/scraping`.
@@ -21,7 +21,7 @@ const RENEW_BEFORE_MS = 24 * 60 * 60 * 1000;
 
 /** Where a hub pushes a source's new content. */
 export const callbackUrl = (sourceId: number): string =>
-  `${SITE_URL}/api/sources/${sourceId}/pushes`;
+  `${SITE_URL}/webhooks/sources/${sourceId}`;
 
 /** A SQLite UTC datetime as a time. */
 const timeOf = (at: string): number => Date.parse(`${at.replace(' ', 'T')}Z`);
