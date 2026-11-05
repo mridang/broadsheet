@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 
 import { ensurePublicUser } from '@/domain/account';
 import { getCurrentUser } from '@/lib/core/auth';
+import { jsonLdText, landingJsonLd } from '@/lib/core/seo';
 import { getDatabase } from '@/domain/db/database';
 import { Repository } from '@/domain/repository';
 import { todayEdition } from '@/domain/scraping/index';
@@ -114,40 +115,46 @@ export default async function Home({
   ).slice(0, MOST_READ);
 
   return (
-    <FrontPage
-      title={paper?.name ?? (user ? 'Your paper' : 'Today’s paper')}
-      description={
-        user
-          ? 'Personalised from your feeds, laid out every morning.'
-          : 'The Hacker News edition, laid out every morning.'
-      }
-      bar={<EditionBar selected={selected} editions={editions} />}
-      switcher={
-        user ? (
-          <EditionSwitcher
-            editions={papers.map((p) => ({ id: p.id, name: p.name }))}
-            selected={paper?.id}
-          />
-        ) : null
-      }
-      side={
-        mostRead.length || rivers ? (
-          <>
-            {mostRead.length ? <MostRead stories={mostRead} /> : null}
-            {rivers ? <Rivers {...rivers} /> : null}
-          </>
-        ) : undefined
-      }
-    >
-      <KeyboardShortcuts />
-      {personal?.markReadOnOpen ? <ReadTracker /> : null}
-      {personal?.markReadOnScroll ? <ScrollReader /> : null}
-      <Paper
-        layout={issue.layout}
-        articles={await issueArticles(repo, issue.layout)}
-        briefing={issue.briefing}
-        personal={personal}
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLdText(landingJsonLd()) }}
       />
-    </FrontPage>
+      <FrontPage
+        title={paper?.name ?? (user ? 'Your paper' : 'Today’s paper')}
+        description={
+          user
+            ? 'Personalised from your feeds, laid out every morning.'
+            : 'The Hacker News edition, laid out every morning.'
+        }
+        bar={<EditionBar selected={selected} editions={editions} />}
+        switcher={
+          user ? (
+            <EditionSwitcher
+              editions={papers.map((p) => ({ id: p.id, name: p.name }))}
+              selected={paper?.id}
+            />
+          ) : null
+        }
+        side={
+          mostRead.length || rivers ? (
+            <>
+              {mostRead.length ? <MostRead stories={mostRead} /> : null}
+              {rivers ? <Rivers {...rivers} /> : null}
+            </>
+          ) : undefined
+        }
+      >
+        <KeyboardShortcuts />
+        {personal?.markReadOnOpen ? <ReadTracker /> : null}
+        {personal?.markReadOnScroll ? <ScrollReader /> : null}
+        <Paper
+          layout={issue.layout}
+          articles={await issueArticles(repo, issue.layout)}
+          briefing={issue.briefing}
+          personal={personal}
+        />
+      </FrontPage>
+    </>
   );
 }

@@ -57,7 +57,7 @@ export const COLOR_SCHEME = 'light dark';
  * Whether pages may be indexed unless they say otherwise. Only the front page
  * (the public Hacker News edition) and the privacy policy and terms are; the
  * sign-in and feed pages are not.
- * robots.txt and an `X-Robots-Tag` header (see `lib/http/headers.ts`) say the
+ * robots.txt and an `X-Robots-Tag` header (see `lib/core/http/headers.ts`) say the
  * same thing.
  */
 export const INDEX_BY_DEFAULT = false;

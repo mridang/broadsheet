@@ -49,7 +49,7 @@ jobs:
         run: npx wrangler d1 migrations apply DB --local
 
       - name: Run Cypress Tests
-        uses: cypress-io/github-action@v6
+        uses: cypress-io/github-action@v7
         with:
           browser: chrome
           build: npx opennextjs-cloudflare build

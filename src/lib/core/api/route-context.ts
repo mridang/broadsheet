@@ -5,7 +5,7 @@
  * segment: the segment values, as a promise (they are read with `await`).
  */
 
-/** For paths ending in `[id]`, such as `/api/recipes/:id`. */
+/** For paths ending in `[id]`, such as `/api/feeds/:id`. */
 export interface IdContext {
   readonly params: Promise<{ readonly id: string }>;
 }

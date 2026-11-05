@@ -50,7 +50,7 @@
   "bugs": "https://github.com/mridang/broadsheet/issues",
   "dependencies": {
     "@opennextjs/cloudflare": "^1.20.12",
-    "drizzle-orm": "^0.45.2",
+    "drizzle-orm": "^0.45.4",
     "next": "16.4.2",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",

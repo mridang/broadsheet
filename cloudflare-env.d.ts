@@ -12,6 +12,8 @@ interface CloudflareEnv extends Cloudflare.Env {
   /** Secret that signs the session cookie. Required: with none, signing in is refused. */
   SESSION_SECRET: string;
   VAPID_PRIVATE_KEY: string;
+  /** Bearer token for the operator endpoints; where unset they are open (local development). */
+  CRON_SECRET?: string;
   /**
    * Cloudflare Email Sending, for emailing a story. Optional: until the domain
    * is onboarded and the `send_email` binding is added, the API answers 503

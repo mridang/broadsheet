@@ -13,8 +13,7 @@ import { problem, problems } from './problem';
 
 /**
  * The largest JSON body a route accepts unless it asks for more. Generous for
- * anything the app sends (the largest field, a recipe's Cooklang, is capped at
- * 200,000 characters) and small enough that a hostile upload costs next to
+ * anything the app sends and small enough that a hostile upload costs next to
  * nothing.
  */
 const DEFAULT_MAX_BODY_BYTES = 256 * 1024;

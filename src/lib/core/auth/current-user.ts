@@ -36,7 +36,7 @@ export async function getCurrentUser(): Promise<User | null> {
 /**
  * The signed session claims straight from the cookie, with **no database
  * read**. The cookie is HMAC-signed, so a valid one can be trusted for identity;
- * callers that only scope queries by user id (like the recipe page) can skip
+ * callers that only scope queries by user id (like a page) can skip
  * the `users` lookup entirely and save a network round trip to D1. Any extra
  * claims an app adds are only hints: check the database before relying on them.
  * Null when there is no cookie, it does not verify, or there is no secret to
