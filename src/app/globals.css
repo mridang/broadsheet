@@ -163,7 +163,7 @@ body {
     }
   }
 
-  /* Paragraphs and list items (recipe steps, notes, descriptions): keep the
+  /* Paragraphs and list items (article text, notes, descriptions): keep the
    * last line from being a single orphaned word. Chrome and Safari do this;
    * Firefox ignores it and wraps as it always has. */
   @supports (text-wrap: pretty) {

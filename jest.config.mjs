@@ -25,7 +25,7 @@ export default {
     '/node_modules/',
     '/frontend/',
     '/dist/',
-    '/packages/',
+    '<rootDir>/packages/',
   ],
   resetModules: false,
   globalSetup: './test/setup.ts',

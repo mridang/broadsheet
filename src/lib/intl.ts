@@ -3,7 +3,7 @@
  *
  * Locale-aware text helpers built on the standard `Intl` APIs, so ordering,
  * counts, dates and lists are right for real-world text ("Éclair" sorts with E,
- * "1 recipe" vs "2 recipes", "3 days ago") instead of relying on code-unit
+ * "1 item" vs "2 items", "3 days ago") instead of relying on code-unit
  * comparisons and hand-rolled plural checks.
  *
  * Everything here uses one fixed locale, English. The interface text around
@@ -19,7 +19,7 @@ const LOCALE = 'en';
 const collator = new Intl.Collator(LOCALE, {
   // "Apple" = "apple" = "Äpple" for ordering purposes; ties fall to the caller.
   sensitivity: 'base',
-  // "Recipe 2" before "Recipe 10".
+  // "Item 2" before "Item 10".
   numeric: true,
 });
 
@@ -48,8 +48,8 @@ const plurals = new Intl.PluralRules(LOCALE);
 const counts = new Intl.NumberFormat(LOCALE);
 
 /**
- * A count with its noun in the right plural form: `countOf(1, 'recipe')` is
- * "1 recipe", `countOf(2, 'recipe')` is "2 recipes". Pass `many` for nouns that
+ * A count with its noun in the right plural form: `countOf(1, 'item')` is
+ * "1 item", `countOf(2, 'item')` is "2 items". Pass `many` for nouns that
  * don't just add an "s".
  */
 export function countOf(n: number, one: string, many = `${one}s`): string {

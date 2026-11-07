@@ -1,9 +1,9 @@
 /**
  * @packageDocumentation
  *
- * Fetching things from other people's websites, safely. Recipe import fetches
- * the pages people paste links to, and the cover proxy fetches the photos those
- * recipes point at. The address always comes from outside, so both go through
+ * Fetching things from other people's websites, safely. Feed discovery fetches
+ * the pages people paste links to, and the image proxy fetches the photos those
+ * articles point at. The address always comes from outside, so both go through
  * this one module, which makes three promises:
  *
  * - it only talks to public web addresses ({@link isPublicWebUrl}), and
