@@ -18,6 +18,7 @@ jobs:
   deploy-app:
     environment:
       name: production
+      url: https://broadsheet.apps.mrida.ng
     runs-on: ubuntu-latest
 
     steps:
