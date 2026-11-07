@@ -253,10 +253,22 @@ describe('SECURITY_HEADERS', () => {
     expect(SECURITY_HEADERS['Origin-Agent-Cluster']).toBe('?1');
   });
 
-  it('names no permissions feature that browsers have removed', () => {
-    expect(SECURITY_HEADERS['Permissions-Policy']).not.toContain(
-      'interest-cohort',
+  it("switches off every feature of OWASP's list except the two the app uses", () => {
+    const policy = SECURITY_HEADERS['Permissions-Policy'] ?? '';
+    const features = new Map(
+      policy.split(', ').map((part) => part.split('=') as [string, string]),
     );
+    expect(features.size).toBe(29);
+    expect(features.get('camera')).toBe('()');
+    expect(features.get('clipboard-write')).toBe('()');
+    expect(features.get('interest-cohort')).toBe('()');
+    expect(features.get('microphone')).toBe('(self)');
+    expect(features.get('fullscreen')).toBe('(self)');
+  });
+
+  it('turns off DNS prefetching and cross-domain policy files', () => {
+    expect(SECURITY_HEADERS['X-DNS-Prefetch-Control']).toBe('off');
+    expect(SECURITY_HEADERS['X-Permitted-Cross-Domain-Policies']).toBe('none');
   });
 });
 
