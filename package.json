@@ -98,6 +98,9 @@
     },
     "@typescript-eslint/typescript-estree": {
       "minimatch": "^11.0.5"
+    },
+    "test-exclude": {
+      "glob": "^7.2.3"
     }
   }
 }
