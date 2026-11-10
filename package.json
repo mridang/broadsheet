@@ -82,7 +82,22 @@
   },
   "overrides": {
     "@node-minify/core": {
-      "glob": "^10.5.0"
+      "glob": "^14.0.4"
+    },
+    "@opennextjs/cloudflare": {
+      "glob": "^14.0.4"
+    },
+    "@jest/reporters": {
+      "glob": "^14.0.4"
+    },
+    "jest-config": {
+      "glob": "^14.0.4"
+    },
+    "jest-runtime": {
+      "glob": "^14.0.4"
+    },
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "^11.0.5"
     }
   }
 }
