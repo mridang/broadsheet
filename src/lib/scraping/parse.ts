@@ -359,7 +359,7 @@ export function itemAuthor(block: string): string {
     block,
   );
   const named = (raw: string): string =>
-    // eslint-disable-next-line sonarjs/super-linear-regex -- one anchored match per author string; a linear rewrite would keep different bracketed names
+    // eslint-disable-next-line sonarjs/super-linear-regex -- tried: the overlap between the \S runs and the parenthesis makes the chosen group depend on regex backtracking order, so no string-method rewrite keeps the same capture for every input
     (/^\S+@\S+\s*\((.+)\)$/.exec(raw)?.[1] ?? raw).trim();
   const many = (name: string): string[] =>
     [

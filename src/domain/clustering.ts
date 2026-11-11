@@ -192,7 +192,7 @@ async function storedVectors(
   const found = new Map<number, number[]>();
   for (const part of batches(ids, LOOKUP_BATCH)) {
     // Vectorize's getByIds, not Testing Library's sync query of that name.
-    // eslint-disable-next-line testing-library/no-await-sync-queries -- Vectorize's getByIds is async, not a Testing Library query
+    // eslint-disable-next-line testing-library/no-await-sync-queries -- Vectorize's getByIds is an async API of the index binding (name not ours to change); the preset applies this Testing Library rule to non-test source, which is a false positive
     for (const v of await index.getByIds(part.map(String))) {
       found.set(Number(v.id), [...v.values]);
     }
