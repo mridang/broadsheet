@@ -82,9 +82,9 @@ export default async function BriefingsPage({
                   <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-muted">
                     {opening}
                   </p>
-                ) : (failed && b.error ? (
+                ) : failed && b.error ? (
                   <p className="mt-1 text-sm text-muted">{b.error}</p>
-                ) : null)}
+                ) : null}
               </li>
             );
           })}

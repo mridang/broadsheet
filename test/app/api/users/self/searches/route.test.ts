@@ -112,10 +112,11 @@ describe('GET /api/users/self/searches', () => {
     ).json()) as {
       items: { query: string }[];
     };
-    expect([...page.items, ...rest.items].map((s) => s.query).sort()).toEqual([
-      'one',
-      'two',
-    ]);
+    expect(
+      [...page.items, ...rest.items]
+        .map((s) => s.query)
+        .sort((a, b) => a.localeCompare(b)),
+    ).toEqual(['one', 'two']);
   });
 
   it('refuses a bad cursor', async () => {

@@ -1,7 +1,7 @@
 /**
  * A person's saves, a section or their edition as Atom, for feed readers.
  *
- *   GET /feed.xml?token= → 200 application/atom+xml.
+ * GET /feed.xml?token= → 200 application/atom+xml.
  *
  * A protocol endpoint outside `/api`; the behaviour lives in `serveFeed`.
  */

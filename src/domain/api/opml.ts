@@ -53,7 +53,7 @@ function unescapeXml(text: string): string {
           name[1] === 'x' || name[1] === 'X'
             ? Number.parseInt(name.slice(2), 16)
             : Number.parseInt(name.slice(1), 10);
-        return code > 0 && code <= 0x10_FF_FF
+        return code > 0 && code <= 0x10_ff_ff
           ? String.fromCodePoint(code)
           : whole;
       }

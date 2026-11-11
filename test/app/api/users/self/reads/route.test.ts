@@ -116,9 +116,9 @@ describe('POST /api/users/self/reads with copies', () => {
     await repo.writeClusters('2026-10-20', [[story, copy]]);
     await repo.updatePreferences(7, { cluster_mark_read: true });
     await readMany({ article_ids: [String(story)] });
-    expect([...(await repo.readState(7)).ids].toSorted()).toEqual(
-      [story, copy].toSorted(),
-    );
+    expect(
+      [...(await repo.readState(7)).ids].toSorted((a, b) => a - b),
+    ).toEqual([story, copy].toSorted((a, b) => a - b));
   });
 });
 

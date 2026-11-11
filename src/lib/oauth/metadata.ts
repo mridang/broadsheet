@@ -4,7 +4,7 @@
  * The documents that let an assistant discover how to sign in, and the
  * `WWW-Authenticate` challenge that points it at them:
  *
- *  - protected resource metadata (RFC 9728): "this MCP server's authorization
+ * - protected resource metadata (RFC 9728): "this MCP server's authorization
  *    server is over here";
  *  - authorization server metadata (RFC 8414): the endpoints and what they
  *    support.

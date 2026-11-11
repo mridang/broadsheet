@@ -110,12 +110,12 @@ export function fetchIntervalMinutes({
   const perDay = storiesLastMonth / 30;
   let minutes: number;
   if (perDay >= 1) {
-    minutes = subscribers >= 10 ? 6 : (subscribers > 1 ? 15 : 45);
+    minutes = subscribers >= 10 ? 6 : subscribers > 1 ? 15 : 45;
   } else if (perDay > 0) {
     minutes = subscribers > 1 ? 60 - perDay * 60 : 360 - perDay * 360;
   } else {
     minutes =
-      (subscribers > 1 ? 360 : (subscribers === 1 ? 720 : 1440)) *
+      (subscribers > 1 ? 360 : subscribers === 1 ? 720 : 1440) *
       Math.max(1, monthsSinceLastStory);
   }
   minutes = Math.min(minutes, subscribers >= 1 ? 240 : 2880);

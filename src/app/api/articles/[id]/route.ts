@@ -1,7 +1,7 @@
 /**
  * One article from the feeds the signed-in person follows, with its text.
  *
- *   GET /api/articles/:id → 200.
+ * GET /api/articles/:id → 200.
  *
  * The behaviour lives in the `articleItem` controller; this file only mounts
  * it.

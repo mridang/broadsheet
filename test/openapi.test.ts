@@ -235,7 +235,9 @@ beforeAll(async () => {
   const listed = routeFiles(API).map((file) =>
     relative(API, file).replace(/\.ts$/, ''),
   );
-  expect(listed.filter((rel) => !(rel in ROUTES)).sort()).toEqual([]);
+  expect(
+    listed.filter((rel) => !(rel in ROUTES)).sort((a, b) => a.localeCompare(b)),
+  ).toEqual([]);
   for (const rel of listed) {
     const path = `/api/${rel}`
       .replace(/\/?route$/, '')
@@ -440,9 +442,15 @@ describe('openapi.json', () => {
 
   it('has an operation for every route under /api, and a route for every operation', () => {
     const routes = [...handlers.keys()].filter((key) => !ALIASES.has(key));
-    expect(routes.filter((key) => !operations.has(key)).sort()).toEqual([]);
     expect(
-      [...operations.keys()].filter((key) => !handlers.has(key)).sort(),
+      routes
+        .filter((key) => !operations.has(key))
+        .sort((a, b) => a.localeCompare(b)),
+    ).toEqual([]);
+    expect(
+      [...operations.keys()]
+        .filter((key) => !handlers.has(key))
+        .sort((a, b) => a.localeCompare(b)),
     ).toEqual([]);
   });
 
@@ -1298,7 +1306,9 @@ describe('the controllers agree with openapi.json', () => {
 
   it('has a valid request for every operation', () => {
     expect(
-      [...operations.keys()].filter((key) => !(key in VALID)).sort(),
+      [...operations.keys()]
+        .filter((key) => !(key in VALID))
+        .sort((a, b) => a.localeCompare(b)),
     ).toEqual([]);
     expect(Object.keys(VALID).filter((key) => !operations.has(key))).toEqual(
       [],

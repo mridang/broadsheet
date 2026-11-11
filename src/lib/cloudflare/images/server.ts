@@ -15,10 +15,33 @@
 
 import { serveImage, type ImageServiceDeps } from './service';
 
-export * from './signer';
-export * from './proxy';
-export * from './service';
-export * from './runtime';
+export { ImageSigner } from './signer';
+export {
+  fetchImage,
+  type ImageFetch,
+  type ImageResult,
+  type ImagesLike,
+  isImagesBinding,
+  MAX_IMAGE_BYTES,
+} from './proxy';
+export {
+  BROWSER_SECONDS,
+  EDGE_SECONDS,
+  type ImageAccess,
+  type ImageCache,
+  imageCacheKey,
+  imageHeaders,
+  type ImageServiceDeps,
+  refuse,
+  serveImage,
+  unavailable,
+} from './service';
+export {
+  imageCache,
+  imagesBinding,
+  imageSigner,
+  runInBackground,
+} from './runtime';
 
 /**
  * Serves `/img` requests: a thin handle over {@link serveImage} built with the

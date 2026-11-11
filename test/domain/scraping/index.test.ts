@@ -457,7 +457,7 @@ describe('WebSub', () => {
     const urls = (
       await new Repository(db).sourceArticles(sourceId, '2026-11-01')
     ).map((a) => a.url);
-    expect(urls.toSorted()).toEqual([
+    expect(urls.toSorted((a, b) => a.localeCompare(b))).toEqual([
       'https://a.test/new',
       'https://a.test/story',
     ]);

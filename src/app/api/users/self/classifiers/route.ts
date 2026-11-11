@@ -1,7 +1,7 @@
 /**
  * The signed-in person's classifiers, which train the paper.
  *
- *   GET  /api/users/self/classifiers?limit&cursor   → 200 page
+ * GET  /api/users/self/classifiers?limit&cursor   → 200 page
  *   POST /api/users/self/classifiers {kind, value, score} → 201 + Location.
  *
  * The behaviour lives in the `classifiersCollection` controller; this file

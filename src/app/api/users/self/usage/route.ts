@@ -1,7 +1,7 @@
 /**
  * Today's Ask AI and assistant budgets.
  *
- *   GET /api/users/self/usage → 200.
+ * GET /api/users/self/usage → 200.
  *
  * The behaviour lives in the `usageItem` controller; this file only mounts it.
  */

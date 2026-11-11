@@ -1,7 +1,7 @@
 /**
  * Many stories read at once.
  *
- *   POST /api/users/self/reads {article_ids?, feed_ids?, section_id?,
+ * POST /api/users/self/reads {article_ids?, feed_ids?, section_id?,
  *        edition?, before?, after?} → 200 { items }.
  *
  * The behaviour lives in the `readsCollection` controller; this file only

@@ -1,7 +1,7 @@
 /**
  * The signed-in person's briefings.
  *
- *   GET  /api/editions/self/briefings → 200
+ * GET  /api/editions/self/briefings → 200
  *   POST /api/editions/self/briefings → 201.
  *
  * The behaviour lives in the `briefingsCollection` controller; this file only

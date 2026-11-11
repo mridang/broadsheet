@@ -3,7 +3,7 @@
  * sent through the sign-in flow the discovery documents describe, and then
  * call it with `Authorization: Bearer <access token>`.
  *
- *   POST /mcp → JSON-RPC 2.0, one message per request.
+ * POST /mcp → JSON-RPC 2.0, one message per request.
  *
  * The behaviour lives in `respondToMcp`; this file only supplies the real
  * token check and this site's origin.

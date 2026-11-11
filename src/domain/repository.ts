@@ -2174,7 +2174,7 @@ export class Repository {
       counts.set(day.source_id, (counts.get(day.source_id) ?? 0) + n);
       if (day.edition !== null) editions.add(day.edition);
     }
-    const ordered = [...editions].toSorted();
+    const ordered = [...editions].toSorted((a, b) => a.localeCompare(b));
     return {
       articles: total,
       editions: editions.size,

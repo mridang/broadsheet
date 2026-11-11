@@ -73,7 +73,7 @@ export function VoiceButton({
         aria-pressed={recording}
         onClick={toggle}
       >
-        {recording ? 'Stop' : (busy ? 'Listening…' : 'Speak')}
+        {recording ? 'Stop' : busy ? 'Listening…' : 'Speak'}
       </button>
       {error ? <ErrorText>{error}</ErrorText> : null}
     </>

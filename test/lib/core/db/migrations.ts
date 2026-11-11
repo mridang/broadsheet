@@ -9,4 +9,4 @@ export const APP_MIGRATIONS: readonly string[] = readdirSync(
   path.join(process.cwd(), 'migrations'),
 )
   .filter((file) => file.endsWith('.sql'))
-  .toSorted();
+  .toSorted((a, b) => a.localeCompare(b));

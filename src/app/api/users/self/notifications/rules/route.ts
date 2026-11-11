@@ -1,7 +1,7 @@
 /**
  * The signed-in person's notification rules.
  *
- *   POST /api/users/self/notifications/rules {kind, value, …, channels} → 201 + Location.
+ * POST /api/users/self/notifications/rules {kind, value, …, channels} → 201 + Location.
  *
  * The behaviour lives in the `notificationRules` controller; this file only
  * mounts it.

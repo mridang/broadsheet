@@ -251,11 +251,13 @@ describe('wrangler.jsonc', () => {
   };
 
   it('declares a binding for every class and for the overall bucket, and no others', () => {
-    const declared = parsed.ratelimits.map((r) => r.name).toSorted();
+    const declared = parsed.ratelimits
+      .map((r) => r.name)
+      .toSorted((a, b) => a.localeCompare(b));
     const expected = [
       ...Object.values(EDGE_LIMITS.classes).map((c) => c.binding),
       OVERALL_BINDING,
-    ].toSorted();
+    ].toSorted((a, b) => a.localeCompare(b));
     expect(declared).toEqual(expected);
   });
 

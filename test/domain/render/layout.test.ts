@@ -75,7 +75,7 @@ describe('collapseClusters', () => {
     });
     const c = article({ id: 3, source_id: 3, source: 'C', cluster_id: 9 });
     const out = collapseClusters([a, b, c]);
-    expect([...out.dropped].toSorted()).toEqual([1, 3]);
+    expect([...out.dropped].toSorted((a, b) => a - b)).toEqual([1, 3]);
     expect(out.also.get(2)).toEqual(['A', 'C']);
     expect(out.coverage.get(9)).toBe(3);
   });

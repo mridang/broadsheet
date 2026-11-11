@@ -259,7 +259,7 @@ export default async function DiscoverPage({
         {found.failed ? <ErrorText>{found.failed}</ErrorText> : null}
         {found.feeds.length > 0 ? (
           <DiscoverList feeds={found.feeds} />
-        ) : (found.failed ? null : (
+        ) : found.failed ? null : (
           <EmptyState
             icon="compass"
             title={
@@ -268,7 +268,7 @@ export default async function DiscoverPage({
                 : 'Nothing to show here yet.'
             }
           />
-        ))}
+        )}
       </PageSection>
     </div>
   );

@@ -1,7 +1,7 @@
 /**
  * The Google News topics a feed can follow.
  *
- *   GET /api/news/topics → 200 page.
+ * GET /api/news/topics → 200 page.
  *
  * The behaviour lives in the `newsTopics` controller; this file only mounts it.
  */

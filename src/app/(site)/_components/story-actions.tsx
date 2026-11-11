@@ -63,9 +63,9 @@ export function StoryActions({
         aria-label={`${
           score === 'like'
             ? 'More'
-            : (score === 'dislike'
+            : score === 'dislike'
               ? 'Less'
-              : 'Never anything')
+              : 'Never anything'
         } like ${target.label}`}
         onClick={() =>
           void train.run(
@@ -74,7 +74,7 @@ export function StoryActions({
           )
         }
       >
-        {score === 'like' ? '👍' : (score === 'dislike' ? '👎' : '🚫')}
+        {score === 'like' ? '👍' : score === 'dislike' ? '👎' : '🚫'}
       </button>
     ));
 

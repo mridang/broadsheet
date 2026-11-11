@@ -169,9 +169,9 @@ describe('POST /api/users/self/reads/:article_id with copies', () => {
     const repo = new Repository(db);
     await repo.updatePreferences(7, { cluster_mark_read: true });
     await read(story);
-    expect([...(await repo.readState(7)).ids].toSorted()).toEqual(
-      [story, copy].toSorted(),
-    );
+    expect(
+      [...(await repo.readState(7)).ids].toSorted((a, b) => a - b),
+    ).toEqual([story, copy].toSorted((a, b) => a - b));
   });
 });
 

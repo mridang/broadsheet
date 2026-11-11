@@ -70,9 +70,9 @@ export function classifierResource(
     score:
       classifier.score > 0
         ? 'like'
-        : (classifier.score <= -2
+        : classifier.score <= -2
           ? 'super_dislike'
-          : 'dislike'),
+          : 'dislike',
     ...(classifier.scope_feed_id === null
       ? {}
       : { feed_id: String(classifier.scope_feed_id) }),

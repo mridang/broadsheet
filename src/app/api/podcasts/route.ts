@@ -1,7 +1,7 @@
 /**
  * Podcasts found by iTunes Search, with their feeds.
  *
- *   GET /api/podcasts?q&limit → 200 page.
+ * GET /api/podcasts?q&limit → 200 page.
  *
  * The behaviour lives in the `podcastsCollection` controller; this file only mounts it.
  */

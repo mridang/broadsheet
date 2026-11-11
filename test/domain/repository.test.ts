@@ -482,10 +482,11 @@ describe('writeEdition, sourceArticles and listEditions', () => {
       story({ url: 'https://x/2' }),
     ]);
     const rows = await repo.sourceArticles(source_id, '2026-10-20');
-    expect(rows.map((r) => r.comments_url).sort()).toEqual([
-      'https://hn/item?id=1',
-      null,
-    ]);
+    expect(
+      rows
+        .map((r) => r.comments_url)
+        .sort((a, b) => String(a).localeCompare(String(b))),
+    ).toEqual(['https://hn/item?id=1', null]);
   });
 });
 
@@ -1936,7 +1937,7 @@ describe('treeOrder', () => {
     expect(
       treeOrder([section(1, 'A', 2), section(2, 'B', 1)])
         .map((s) => s.id)
-        .toSorted(),
+        .toSorted((a, b) => a - b),
     ).toEqual([1, 2]);
   });
 });
@@ -1949,7 +1950,9 @@ describe('sectionAndDescendants', () => {
       section(3, 'C', 2),
       section(4, 'D', null),
     ];
-    expect([...sectionAndDescendants(all, 1)].toSorted()).toEqual([1, 2, 3]);
+    expect(
+      [...sectionAndDescendants(all, 1)].toSorted((a, b) => a - b),
+    ).toEqual([1, 2, 3]);
   });
 });
 
@@ -3129,7 +3132,7 @@ describe('the plans of the statistics, trending and write queries', () => {
     expect(
       (await repo.sourceArticles(source_id, '2026-10-20'))
         .map((a) => a.url)
-        .toSorted(),
+        .toSorted((a, b) => a.localeCompare(b)),
     ).toEqual(['https://x/read', 'https://x/saved']);
   });
 
@@ -3155,7 +3158,7 @@ describe('the plans of the statistics, trending and write queries', () => {
     expect(
       (await repo.sourceArticles(source_id, '2026-10-20'))
         .map((a) => a.url)
-        .toSorted(),
+        .toSorted((a, b) => a.localeCompare(b)),
     ).toEqual(['https://x/1-new', 'https://x/2']);
   });
 

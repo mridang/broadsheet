@@ -1054,7 +1054,9 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
       ]);
       return {
         saves: shown.slice(0, MAX_SEARCH).map(saveResource),
-        tags: [...new Set((all ?? shown).flatMap((s) => s.tags))].sort(),
+        tags: [...new Set((all ?? shown).flatMap((s) => s.tags))].sort((a, b) =>
+          a.localeCompare(b),
+        ),
       };
     },
   }),

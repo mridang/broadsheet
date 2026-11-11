@@ -1,7 +1,7 @@
 /**
  * A curator's decision on a recommended feed.
  *
- *   PATCH /api/feeds/recommendations/:id {status} → 200.
+ * PATCH /api/feeds/recommendations/:id {status} → 200.
  *
  * The behaviour lives in the `recommendationItem` controller; this file only mounts it.
  */

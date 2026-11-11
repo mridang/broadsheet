@@ -1,7 +1,7 @@
 /**
  * Dynamic Client Registration (RFC 7591) for public clients.
  *
- *   POST /oauth/register {client_name, redirect_uris} → 201 {client_id, …}.
+ * POST /oauth/register {client_name, redirect_uris} → 201 {client_id, …}.
  */
 
 import { D1OAuthStore } from '@/domain/db/oauth';

@@ -5,7 +5,7 @@
  * type-checked, because the app it forwards to is generated at build time) so
  * that it can be checked and tested:
  *
- *  1. a caller over a rate limit is refused at once (`edge-limits.ts`), before
+ * 1. a caller over a rate limit is refused at once (`edge-limits.ts`), before
  *     anything is looked up, so a page that is cached still counts;
  *  2. a kept page may come from the edge copy (`edge-cache.ts`), with a fresh
  *     Content Security Policy nonce of its own;

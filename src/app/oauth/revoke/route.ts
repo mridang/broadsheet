@@ -2,7 +2,7 @@
  * Token revocation (RFC 7009): revoking either token ends the grant behind
  * it, so the assistant is disconnected.
  *
- *   POST /oauth/revoke token=…&client_id=… (application/x-www-form-urlencoded).
+ * POST /oauth/revoke token=…&client_id=… (application/x-www-form-urlencoded).
  */
 
 import { D1OAuthStore } from '@/domain/db/oauth';

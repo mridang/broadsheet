@@ -5,7 +5,7 @@
  * The recipient subscription gives us a P-256 public key (`p256dh`) and
  * a 16-byte auth secret. We:
  *
- *   1. Generate a fresh server P-256 keypair for this single message.
+ * 1. Generate a fresh server P-256 keypair for this single message.
  *   2. ECDH(server-private, sub-public) → 32-byte shared secret.
  *   3. HKDF-Extract(sub-auth, ECDH) → PRK_key.
  *   4. HKDF-Expand a 16-byte content-encryption key + 12-byte nonce.

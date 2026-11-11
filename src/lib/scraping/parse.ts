@@ -167,7 +167,7 @@ function xmlText(raw: string): string {
       const n = /^x/i.test(code)
         ? Number.parseInt(code.slice(1), 16)
         : Number(code);
-      return n > 0 && n <= 0x10_FF_FF ? String.fromCodePoint(n) : whole;
+      return n > 0 && n <= 0x10_ff_ff ? String.fromCodePoint(n) : whole;
     })
     .replaceAll('&lt;', '<')
     .replaceAll('&gt;', '>')
@@ -374,9 +374,9 @@ export function itemAuthor(block: string): string {
   const creators = many('dc:creator');
   const names = atom?.[1]
     ? [decode(atom[1])]
-    : (creators.length > 0
+    : creators.length > 0
       ? creators
-      : many('author'));
+      : many('author');
   return [...new Set(names)].join(', ').slice(0, MAX_AUTHOR);
 }
 

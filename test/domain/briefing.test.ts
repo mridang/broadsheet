@@ -148,7 +148,7 @@ describe('selectStories', () => {
       [...five, ...[6, 7, 8].map((id) => candidate({ id, liked: true }))],
       { ...prefs, briefing_read_filter: 'focus' },
     );
-    expect(ids(picks).toSorted()).toEqual([6, 7, 8]);
+    expect(ids(picks).toSorted((a, b) => a - b)).toEqual([6, 7, 8]);
   });
 
   it(`writes nothing for fewer than ${MIN_BRIEFED} stories`, () => {
@@ -462,7 +462,7 @@ describe('selectStories with the reader’s settings', () => {
       ],
       { ...prefs, briefing_read_filter: 'focus' },
     );
-    expect(ids(picks).toSorted()).toEqual([7, 8, 9]);
+    expect(ids(picks).toSorted((a, b) => a - b)).toEqual([7, 8, 9]);
   });
 
   it('covers read stories when the reader includes them', () => {

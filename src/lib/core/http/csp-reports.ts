@@ -154,9 +154,9 @@ export function summariseReports(body: unknown): readonly ReportSummary[] {
           ? [[short(entry['type'], 40), entry['body']]]
           : [],
       )
-    : (isRecord(body) && isRecord(body['csp-report'])
+    : isRecord(body) && isRecord(body['csp-report'])
       ? [['csp-violation', body['csp-report']]]
-      : []);
+      : [];
   return entries
     .slice(0, MAX_REPORTS_PER_REQUEST)
     .filter(([, report]) => !fromExtension(report))

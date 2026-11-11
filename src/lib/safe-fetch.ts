@@ -6,7 +6,7 @@
  * recipes point at. The address always comes from outside, so both go through
  * this one module, which makes three promises:
  *
- *   - it only talks to public web addresses ({@link isPublicWebUrl}), and
+ * - it only talks to public web addresses ({@link isPublicWebUrl}), and
  *     checks again at every redirect, so a public site cannot bounce us to a
  *     port, an IP address or an internal name;
  *   - it never holds more than the caller's byte limit, however the other side

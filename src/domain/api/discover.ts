@@ -4,7 +4,7 @@
  * Discovering feeds, after NewsBlur's discover and recommendations:
  *
  * - `GET /api/feeds/trending?kind&days&limit`: popular, rising, hidden-gem
- *   and new sources.
+ * and new sources.
  * - `GET /api/sources?q&limit` (see `api/sources`): search the sources
  *   anyone follows (the feed autocomplete).
  * - `GET /api/podcasts?q&limit`: podcasts by iTunes Search, with their feeds.
