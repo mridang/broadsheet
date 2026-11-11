@@ -57,11 +57,12 @@ export function webSpeech(host: SpeechHost): ReadAloud | null {
       const utterance = new Utterance(text.slice(start));
       utterance.rate = rate;
       if (onProgress) {
-        utterance.onboundary = (event) => onProgress(start + event.charIndex);
+        utterance.addEventListener('boundary', (event) =>
+          onProgress(start + event.charIndex),
+        );
       }
-      utterance.onend = () => finish(utterance, true);
-      // eslint-disable-next-line unicorn/prefer-add-event-listener -- the speech fake and the sibling handlers assign on* properties
-      utterance.onerror = () => finish(utterance);
+      utterance.addEventListener('end', () => finish(utterance, true));
+      utterance.addEventListener('error', () => finish(utterance));
       active = { utterance, onEnd };
       synth.speak(utterance);
     },

@@ -3,11 +3,22 @@ import { describe, expect, it, jest } from '@jest/globals';
 import { spokenText, webSpeech } from '@/app/(site)/_components/read-aloud';
 
 class FakeUtterance {
-  onend: (() => void) | null = null;
-  onerror: (() => void) | null = null;
-  onboundary: ((event: { charIndex: number }) => void) | null = null;
+  private readonly listeners = new Map<
+    string,
+    ((event: { charIndex: number }) => void)[]
+  >();
   rate = 1;
   constructor(readonly text: string) {}
+  addEventListener(
+    type: string,
+    listener: (event: { charIndex: number }) => void,
+  ): void {
+    this.listeners.set(type, [...(this.listeners.get(type) ?? []), listener]);
+  }
+  fire(type: string, charIndex = 0): void {
+    for (const listener of this.listeners.get(type) ?? [])
+      listener({ charIndex });
+  }
 }
 
 function host() {
@@ -45,7 +56,7 @@ describe('webSpeech', () => {
     const { host: h, spoken } = host();
     const onEnd = jest.fn();
     webSpeech(h)?.play('Hello', onEnd);
-    spoken[0]?.onend?.();
+    spoken[0]?.fire('end');
     expect(onEnd).toHaveBeenCalledTimes(1);
   });
 
@@ -57,7 +68,7 @@ describe('webSpeech', () => {
     reader?.stop();
     reader?.play('One', onEnd);
     onEnd.mockClear();
-    spoken[0]?.onerror?.();
+    spoken[0]?.fire('error');
     expect(onEnd).not.toHaveBeenCalled();
   });
 
@@ -75,9 +86,9 @@ describe('webSpeech', () => {
     const reader = webSpeech(h);
     const ends: boolean[] = [];
     reader?.play('One', (done) => ends.push(done));
-    spoken[0]?.onend?.();
+    spoken[0]?.fire('end');
     reader?.play('Two', (done) => ends.push(done));
-    spoken[1]?.onerror?.();
+    spoken[1]?.fire('error');
     reader?.play('Three', (done) => ends.push(done));
     reader?.stop();
     expect(ends).toEqual([true, false, false]);
@@ -103,7 +114,7 @@ describe('webSpeech', () => {
       from: 6,
       onProgress: (at) => seen.push(at),
     });
-    spoken[0]?.onboundary?.({ charIndex: 2 });
+    spoken[0]?.fire('boundary', 2);
     expect(seen).toEqual([8]);
   });
 
