@@ -21,6 +21,13 @@ export default {
     'json',
     'node',
   ],
+  /**
+   * Worktrees live under `.claude/` inside the checkout, so they fall inside
+   * `rootDir` and are crawled like any other source, which runs every suite
+   * again per worktree. This has to be a module path, not a test path:
+   * ignoring the tests still indexes the modules.
+   */
+  modulePathIgnorePatterns: ['<rootDir>/.claude/'],
   testPathIgnorePatterns: [
     '/node_modules/',
     '/frontend/',
