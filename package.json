@@ -59,9 +59,9 @@
   "devDependencies": {
     "@emnapi/core": "^1.11.3",
     "@emnapi/runtime": "^1.11.3",
-    "@eslint/compat": "^2.1.0",
+    "@eslint/compat": "^2.1.1",
     "@jest/globals": "^30.0.3",
-    "@mridang/eslint-defaults": "^1.7.0",
+    "@mridang/eslint-defaults": "file:../../../../../../../../private/tmp/claude-501/-Users-mridang-Code-mridang-eslint-defaults--claude-worktrees-jolly-nobel-b54514/5d85ee26-5030-436a-b806-a5058404a92f/scratchpad/pack/mridang-eslint-defaults-2.0.1.tgz",
     "@tailwindcss/postcss": "^4",
     "@tsconfig/node24": "^24.0.5",
     "@types/jest": "^30.0.0",
@@ -69,15 +69,15 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "cypress": "^16.2.0",
-    "eslint": "^9.39.4",
+    "eslint": "^9.39.5",
     "eslint-plugin-drizzle": "^0.2.3",
     "jest": "^30.0.3",
     "jest-junit": "^17.0.0",
     "knip": "^6.17.1",
-    "prettier": "^3.8.3",
+    "prettier": "^3.9.10",
     "tailwindcss": "^4",
     "ts-jest": "^29.4.0",
-    "typescript": "^6.0.3",
+    "typescript": "~6.0.3",
     "wrangler": "^4.151.1"
   },
   "overrides": {
@@ -101,6 +101,7 @@
     },
     "test-exclude": {
       "glob": "^7.2.3"
-    }
+    },
+    "@eslint/core": "1.2.1"
   }
 }
