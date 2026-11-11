@@ -83,7 +83,7 @@ export async function composeLayout(
     ]),
   );
   const feeds = all.filter(
-    (f) => !f.muted && (!picked.size || filedIn(f, picked)),
+    (f) => !f.muted && (picked.size === 0 || filedIn(f, picked)),
   );
   const desks = await Promise.all(
     feeds.map(async (feed) => {
@@ -97,15 +97,17 @@ export async function composeLayout(
         days === undefined
           ? undefined
           : new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
+      const stories = await repo.sourceArticles(feed.source_id, date);
       return {
         feed,
-        articles: (await repo.sourceArticles(feed.source_id, date))
-          .filter(
-            (a) =>
-              (!reads || reads.ids.has(a.id) || !reads.urls.has(a.url)) &&
-              (!oldest || !a.edition || a.edition >= oldest) &&
-              (!pick?.keep || pick.keep(a.id)),
-          )
+        articles: stories
+          .filter((a) => {
+            const unread =
+              !reads || reads.ids.has(a.id) || !reads.urls.has(a.url);
+            const inWindow =
+              !oldest || !a.edition || a.edition.localeCompare(oldest) >= 0;
+            return unread && inWindow && (!pick?.keep || pick.keep(a.id));
+          })
           // The reader's AI prompts this story matched, for `verdict`.
           .map((a) => {
             const ids = prompted.get(a.id);
@@ -137,7 +139,7 @@ export async function composeLayout(
     articles.flatMap((a) => (a.cluster_id === null ? [] : [a.cluster_id])),
   );
   const outside =
-    prefs.story_clustering && clusterIds.length
+    prefs.story_clustering && clusterIds.length > 0
       ? await repo.clusterMembers(readerId ?? ownerId, clusterIds)
       : [];
   return layOut(
@@ -159,14 +161,14 @@ export async function issueArticles(
 
 /** The day before a YYYY-MM-DD date. */
 export function dayBefore(date: string): string {
-  return new Date(Date.parse(`${date}T00:00:00Z`) - 86400000)
+  return new Date(Date.parse(`${date}T00:00:00Z`) - 86_400_000)
     .toISOString()
     .slice(0, 10);
 }
 
 /** Thirty days before a YYYY-MM-DD date. */
 const monthBefore = (date: string): string =>
-  new Date(Date.parse(`${date}T00:00:00Z`) - 30 * 86400000)
+  new Date(Date.parse(`${date}T00:00:00Z`) - 30 * 86_400_000)
     .toISOString()
     .slice(0, 10);
 
@@ -210,8 +212,9 @@ async function briefedUrls(
   stored: string | null | undefined,
 ): Promise<Set<string>> {
   const ids = parseBriefedStories(stored ?? null).map((s) => s.id);
-  if (!ids.length) return new Set();
-  return new Set((await repo.articlesByIds(ids)).map((a) => a.url));
+  if (ids.length === 0) return new Set();
+  const articles = await repo.articlesByIds(ids);
+  return new Set(articles.map((a) => a.url));
 }
 
 /**
@@ -269,21 +272,23 @@ export async function publishIssue(
   const repo = new Repository(db);
   await scorePrompts(env, repo, userId, date);
   const layout = await composeLayout(repo, userId, date, userId);
+  const prefs = await repo.getPreferences(userId);
+  const priorIssue = await repo.getIssue(userId, dayBefore(date));
   const { briefing, briefed, stories } = await briefingFor(
     repo,
     env,
     userId,
     layout,
     date,
-    await repo.getPreferences(userId),
-    (await repo.getIssue(userId, dayBefore(date)))?.briefing_stories,
+    prefs,
+    priorIssue?.briefing_stories,
   );
   await repo.saveIssue(
     userId,
     date,
     JSON.stringify(layout),
     briefing,
-    briefed.length ? JSON.stringify(briefed) : null,
+    briefed.length > 0 ? JSON.stringify(briefed) : null,
   );
   return stories;
 }
@@ -306,7 +311,7 @@ export async function editionPick(
   const filters = sets.filter((set): set is Set<number> => set !== undefined);
   return {
     sectionIds: edition.section_ids,
-    ...(filters.length
+    ...(filters.length > 0
       ? { keep: (id: number) => filters.every((set) => set.has(id)) }
       : {}),
   };
@@ -331,21 +336,23 @@ export async function publishEditionIssue(
     edition.user_id,
     await editionPick(repo, edition, date),
   );
+  const prefs = await repo.getPreferences(edition.user_id);
+  const priorIssue = await repo.getEditionIssue(edition.id, dayBefore(date));
   const { briefing, briefed, stories } = await briefingFor(
     repo,
     env,
     edition.user_id,
     layout,
     date,
-    await repo.getPreferences(edition.user_id),
-    (await repo.getEditionIssue(edition.id, dayBefore(date)))?.briefing_stories,
+    prefs,
+    priorIssue?.briefing_stories,
   );
   await repo.saveEditionIssue(
     edition.id,
     date,
     JSON.stringify(layout),
     briefing,
-    briefed.length ? JSON.stringify(briefed) : null,
+    briefed.length > 0 ? JSON.stringify(briefed) : null,
   );
   return stories;
 }

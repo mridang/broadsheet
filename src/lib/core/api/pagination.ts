@@ -54,6 +54,7 @@ export function decodeCursor(cursor: string): CursorPosition | undefined {
 }
 
 /** The validated `limit` query parameter, or the 400 to send for a bad one. */
+// eslint-disable-next-line sonarjs/function-return-type -- parseLimit's public contract is number | Response (callers and tests branch on it); splitting it changes the exported signature
 export function parseLimit(
   raw: string | null,
   fallback: number = DEFAULT_LIMIT,
@@ -103,17 +104,17 @@ export function sliceAfter<T>(
 function bytesToBase64Url(bytes: Uint8Array): string {
   let binary = '';
   for (const byte of bytes) {
-    binary += String.fromCharCode(byte);
+    binary += String.fromCodePoint(byte);
   }
   return btoa(binary)
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
+    .replaceAll('+', '-')
+    .replaceAll('/', '_')
+    .replace(/={1,2}$/, '');
 }
 
 /** Decode base64url bytes, the inverse of {@link bytesToBase64Url}. */
 function base64UrlToBytes(text: string): Uint8Array {
-  const base64 = text.replace(/-/g, '+').replace(/_/g, '/');
+  const base64 = text.replaceAll('-', '+').replaceAll('_', '/');
   const binary = atob(base64);
-  return Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  return Uint8Array.from(binary, (char) => char.codePointAt(0) ?? 0);
 }

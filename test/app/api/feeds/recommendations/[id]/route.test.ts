@@ -83,22 +83,26 @@ describe('PATCH /api/feeds/recommendations/:id', () => {
       description: 'd',
     });
     auth = await cookieFor(8);
-    expect((await decide(r.id, '{"status":"approved"}')).status).toBe(403);
+    const res = await decide(r.id, '{"status":"approved"}');
+    expect(res.status).toBe(403);
   });
 
   it.each(['{"status":"pending"}', '{"status":"approved","x":1}'])(
     'answers 400 for %s',
     async (body) => {
-      expect((await decide(1, body)).status).toBe(400);
+      const res = await decide(1, body);
+      expect(res.status).toBe(400);
     },
   );
 
   it.each(['999', 'abc'])('answers 404 for recommendation %j', async (id) => {
-    expect((await decide(id, '{"status":"declined"}')).status).toBe(404);
+    const res = await decide(id, '{"status":"declined"}');
+    expect(res.status).toBe(404);
   });
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await decide(1, '{"status":"declined"}')).status).toBe(401);
+    const res = await decide(1, '{"status":"declined"}');
+    expect(res.status).toBe(401);
   });
 });

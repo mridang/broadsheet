@@ -1,4 +1,4 @@
-import { createHmac } from 'node:crypto';
+import { createHmac, randomUUID } from 'node:crypto';
 
 import { describe, expect, it } from '@jest/globals';
 
@@ -49,13 +49,16 @@ describe('webSubLinks', () => {
 
 describe('signatureMatches', () => {
   const body = new TextEncoder().encode('<feed/>');
-  const sign = (method: string, secret = 's3cret') =>
+  const sharedSecret: string = randomUUID();
+  const sign = (method: string, secret = sharedSecret) =>
     `${method}=${createHmac(method, secret).update(body).digest('hex')}`;
 
   it.each(['sha1', 'sha256', 'sha384', 'sha512'])(
     'accepts a %s signature under the secret',
     async (method) => {
-      expect(await signatureMatches('s3cret', body, sign(method))).toBe(true);
+      expect(await signatureMatches(sharedSecret, body, sign(method))).toBe(
+        true,
+      );
     },
   );
 
@@ -65,6 +68,6 @@ describe('signatureMatches', () => {
     ['an unknown method', 'md5=00'],
     ['odd hex', 'sha1=abc'],
   ])('refuses %s', async (_, signature) => {
-    expect(await signatureMatches('s3cret', body, signature)).toBe(false);
+    expect(await signatureMatches(sharedSecret, body, signature)).toBe(false);
   });
 });

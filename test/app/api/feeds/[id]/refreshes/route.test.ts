@@ -88,7 +88,8 @@ describe('POST /api/feeds/:id/refreshes', () => {
     expect(((await res.json()) as { detail: string }).detail).toContain(
       'HTTP 404',
     );
-    expect((await repo.feedStatistics(7, mine))?.fail_count).toBe(1);
+    const stats = await repo.feedStatistics(7, mine);
+    expect(stats?.fail_count).toBe(1);
   });
 
   it('answers 404, fetching nothing, for another person’s feed, a missing one or a bad id', async () => {
@@ -100,13 +101,16 @@ describe('POST /api/feeds/:id/refreshes', () => {
       [999, auth],
       ['imports', auth],
     ] as const) {
-      expect((await retry(id, headers)).status).toBe(404);
+      const res = await retry(id, headers);
+      expect(res.status).toBe(404);
     }
     expect(refreshSource).not.toHaveBeenCalled();
-    expect((await repo.feedStatistics(7, mine))?.fail_count).toBe(4);
+    const stats = await repo.feedStatistics(7, mine);
+    expect(stats?.fail_count).toBe(4);
   });
 
   it('answers 401 when nobody is signed in', async () => {
-    expect((await retry(mine, {})).status).toBe(401);
+    const res = await retry(mine, {});
+    expect(res.status).toBe(401);
   });
 });

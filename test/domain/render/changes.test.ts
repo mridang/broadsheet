@@ -53,3 +53,29 @@ describe('storyChanges', () => {
     ]);
   });
 });
+
+describe('plainText tag stripping', () => {
+  const TAG = new RegExp(['<[^>]', '*>'].join(''), 'g');
+
+  it.each([
+    'a <> b',
+    'a <b>c</b> d',
+    'a < b <i>c</i>',
+    '<<a>b',
+    'x<y',
+    'x>y<z>',
+    '<>',
+    '',
+  ])('strips tags in %j as the original pattern did', (text) => {
+    const expected = text.replaceAll(TAG, '').replaceAll(/\s+/g, ' ').trim();
+    expect(plainText(text)).toBe(expected);
+  });
+
+  it('stays fast on a long run of "<" with no closing bracket', () => {
+    const started = Date.now();
+    expect(plainText(`a ${'<'.repeat(100_000)}`)).toBe(
+      `a ${'<'.repeat(100_000)}`,
+    );
+    expect(Date.now() - started).toBeLessThan(2000);
+  });
+});

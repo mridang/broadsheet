@@ -10,6 +10,7 @@ import {
   EDGE_CACHED_PAGES,
   EDGE_TTL_SECONDS,
 } from '@/lib/core/http';
+import ips from '../../../fixtures/ips.json';
 
 /** The pages these tests let the edge keep a copy of. */
 const pages: ReadonlySet<string> = new Set(['/', '/privacy']);
@@ -38,11 +39,7 @@ describe('isEdgeCacheable', () => {
 
   it('keeps a page for everyone in an app that has no sign-in', () => {
     expect(
-      isEdgeCacheable(
-        get('/', { cookie: 'app_session=abc' }),
-        pages,
-        undefined,
-      ),
+      isEdgeCacheable(get('/', { cookie: 'app_session=abc' }), pages),
     ).toBe(true);
   });
 
@@ -144,7 +141,7 @@ describe('isEdgeCacheable - the query string', () => {
   });
 
   it('never keeps a page for a caller on a loopback address, whatever address it was reached on', () => {
-    for (const ip of ['::1', '127.0.0.1', '::ffff:127.0.0.1']) {
+    for (const ip of [ips.loopbackV6, ips.loopbackV4, ips.loopbackMapped]) {
       expect(
         isEdgeCacheable(
           get('/?alpha=1', { 'cf-connecting-ip': ip }),
@@ -227,9 +224,8 @@ describe('the app’s own settings', () => {
     expect(page).toBeDefined();
     expect(isEdgeCacheable(get(`${page}?zz-unknown=1`))).toBe(false);
     const [name] = [...CACHED_QUERY_PARAMS];
-    expect(isEdgeCacheable(get(`${page}${name ? `?${name}=1` : ''}`))).toBe(
-      true,
-    );
+    const query = name ? `?${name}=1` : '';
+    expect(isEdgeCacheable(get(`${page}${query}`))).toBe(true);
     if (name === undefined) {
       expect(isEdgeCacheable(get(`${page}?x=1`))).toBe(false);
     }

@@ -118,10 +118,10 @@ export function parseRiverList(
   }
   const list = items.map((item, i) => checkRiver(item, `items[${i}].`, errors));
   const places = new Set(list.map((r) => r && `${r.side}:${r.position}`));
-  if (!errors.length && places.size < list.length) {
+  if (errors.length === 0 && places.size < list.length) {
     errors.push('items: two rivers at the same side and position.');
   }
-  return errors.length
+  return errors.length > 0
     ? { ok: false, errors }
     : { ok: true, value: list as RiverInput[] };
 }

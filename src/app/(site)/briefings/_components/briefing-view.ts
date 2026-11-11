@@ -70,8 +70,8 @@ export function writtenWith({
 }): string {
   return [
     model ? `Written by ${model.replace(/^@cf\//, '')}` : null,
-    tokens != null ? countOf(tokens, 'token') : null,
-    seconds != null ? `${Math.round(seconds * 10) / 10}s` : null,
+    tokens == null ? null : countOf(tokens, 'token'),
+    seconds == null ? null : `${Math.round(seconds * 10) / 10}s`,
   ]
     .filter(Boolean)
     .join(' · ');

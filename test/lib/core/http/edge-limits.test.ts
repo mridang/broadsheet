@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { describe, expect, it, jest } from '@jest/globals';
@@ -16,6 +16,7 @@ import {
   type RateLimitBinding,
 } from '@/lib/core/http';
 import { DISCOVERY_PATHS, EDGE_LIMITS, STATIC_PREFIXES } from '@/lib/core/http';
+import ips from '../../../fixtures/ips.json';
 
 /** A static file under the app's own first static prefix. */
 const staticFile = `${STATIC_PREFIXES[0] ?? '/'}static/x.js`;
@@ -114,10 +115,10 @@ describe('counterKey', () => {
     expect(
       await counterKey(
         'token',
-        new Headers({ 'cf-connecting-ip': '2001:db8:1:2::9' }),
+        new Headers({ 'cf-connecting-ip': ips.anonymousCaller }),
         undefined,
       ),
-    ).toBe('a:2001:db8:1:2::/64');
+    ).toBe(ips.anonymousKey);
   });
 });
 
@@ -168,9 +169,8 @@ describe('edgeLimitRefusal', () => {
     const from = (ip: string) => get('/', { 'cf-connecting-ip': ip });
     expect(await edgeLimitRefusal(from('203.0.113.1'), env, limits)).toBeNull();
     expect(await edgeLimitRefusal(from('203.0.113.2'), env, limits)).toBeNull();
-    expect(
-      (await edgeLimitRefusal(from('203.0.113.1'), env, limits))?.status,
-    ).toBe(429);
+    const refused = await edgeLimitRefusal(from('203.0.113.1'), env, limits);
+    expect(refused?.status).toBe(429);
   });
 
   it('counts a person in their class and again in the overall bucket for their address', async () => {
@@ -196,7 +196,8 @@ describe('edgeLimitRefusal', () => {
         'cf-connecting-ip': '203.0.113.7',
       });
     expect(await edgeLimitRefusal(forged(1), env, limits)).toBeNull();
-    expect((await edgeLimitRefusal(forged(2), env, limits))?.status).toBe(429);
+    const refused = await edgeLimitRefusal(forged(2), env, limits);
+    expect(refused?.status).toBe(429);
   });
 });
 
@@ -208,7 +209,7 @@ describe('tooManyRequests', () => {
     expect(await response.json()).toMatchObject({
       jsonrpc: '2.0',
       id: null,
-      error: { code: -32603, data: { retryAfterSeconds: 60 } },
+      error: { code: -32_603, data: { retryAfterSeconds: 60 } },
     });
   });
 
@@ -238,11 +239,14 @@ describe('tooManyRequests', () => {
   });
 });
 
+const wranglerText = await readFile(
+  path.join(process.cwd(), 'wrangler.jsonc'),
+  'utf8',
+);
+
 describe('wrangler.jsonc', () => {
-  const parsed = ts.parseConfigFileTextToJson(
-    'wrangler.jsonc',
-    readFileSync(path.join(process.cwd(), 'wrangler.jsonc'), 'utf8'),
-  ).config as {
+  const parsed = ts.parseConfigFileTextToJson('wrangler.jsonc', wranglerText)
+    .config as {
     ratelimits: {
       name: string;
       namespace_id: string;
@@ -251,11 +255,13 @@ describe('wrangler.jsonc', () => {
   };
 
   it('declares a binding for every class and for the overall bucket, and no others', () => {
-    const declared = parsed.ratelimits.map((r) => r.name).toSorted();
+    const declared = parsed.ratelimits
+      .map((r) => r.name)
+      .toSorted((a, b) => a.localeCompare(b));
     const expected = [
       ...Object.values(EDGE_LIMITS.classes).map((c) => c.binding),
       OVERALL_BINDING,
-    ].toSorted();
+    ].toSorted((a, b) => a.localeCompare(b));
     expect(declared).toEqual(expected);
   });
 

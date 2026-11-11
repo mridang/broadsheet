@@ -65,7 +65,8 @@ describe('GET /api/users/self/player', () => {
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await call('GET')).status).toBe(401);
+    const res = await call('GET');
+    expect(res.status).toBe(401);
   });
 });
 
@@ -74,29 +75,33 @@ describe('PUT /api/users/self/player', () => {
     const res = await call('PUT', state);
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual(state);
-    expect(await (await call('GET')).json()).toEqual(state);
+    const reread = await call('GET');
+    expect(await reread.json()).toEqual(state);
   });
 
   it('answers 400 for a rate out of range', async () => {
-    expect((await call('PUT', { ...state, rate: 9 })).status).toBe(400);
+    const res = await call('PUT', { ...state, rate: 9 });
+    expect(res.status).toBe(400);
   });
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await call('PUT', state)).status).toBe(401);
+    const res = await call('PUT', state);
+    expect(res.status).toBe(401);
   });
 });
 
 describe('DELETE /api/users/self/player', () => {
   it('answers 204 and forgets the player', async () => {
     await call('PUT', state);
-    expect((await call('DELETE')).status).toBe(204);
-    expect(
-      ((await (await call('GET')).json()) as { queue: string[] }).queue,
-    ).toEqual([]);
+    const removed = await call('DELETE');
+    expect(removed.status).toBe(204);
+    const player = await call('GET');
+    expect(((await player.json()) as { queue: string[] }).queue).toEqual([]);
   });
 
   it('answers 404 when there was no player', async () => {
-    expect((await call('DELETE')).status).toBe(404);
+    const res = await call('DELETE');
+    expect(res.status).toBe(404);
   });
 });

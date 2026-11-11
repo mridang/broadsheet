@@ -56,7 +56,7 @@ export function AppSidebar({
           ))}
         </ul>
       </nav>
-      {user && feeds.length ? <FeedRail feeds={feeds} /> : null}
+      {user && feeds.length > 0 ? <FeedRail feeds={feeds} /> : null}
       <InstallButton />
     </div>
   );

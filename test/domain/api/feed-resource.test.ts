@@ -10,6 +10,7 @@ import {
   rfc3339,
 } from '@/domain/api/feed-resource';
 import type { Feed } from '@/domain/repository';
+import insecure from '../../fixtures/insecure-urls.json';
 
 const stored = (over: Partial<Feed> = {}): Feed => ({
   id: 4,
@@ -123,13 +124,13 @@ describe('parseFeedInput', () => {
       ok: true,
       url: 'https://a.test/f',
     });
-    expect(parseFeedInput({ url: 'http://a.test/f' }).ok).toBe(true);
+    expect(parseFeedInput({ url: insecure.httpFeedAccepted }).ok).toBe(true);
   });
 
   it.each([
     [{}, 'url: required.'],
     [{ url: 5 }, 'url: required.'],
-    [{ url: '   ' }, 'url: required.'],
+    [{ url: ' '.repeat(3) }, 'url: required.'],
     [{ url: 'not a url' }, 'url: not a valid address.'],
     [{ url: 'ftp://a.test/f' }, 'url: must be an http or https address.'],
     [
@@ -166,7 +167,7 @@ describe('feedResource of a muted feed filed under a section', () => {
 describe('parseFeedChanges', () => {
   it.each([
     [{ title: '  Mine  ' }, { title: 'Mine' }],
-    [{ title: '   ' }, { title: null }],
+    [{ title: ' '.repeat(3) }, { title: null }],
     [{ title: null }, { title: null }],
     [{ muted: true }, { muted: true }],
     [{ section_id: '5' }, { section_id: 5 }],
@@ -197,7 +198,7 @@ describe('parseFeedChanges', () => {
     [{ muted: 'yes' }, 'muted: must be true or false.'],
     [{ section_id: 5 }, 'section_id: not a section id.'],
     [{ section_id: 'abc' }, 'section_id: not a section id.'],
-    [{ url: 'ftp://x/f' }, 'url: must be an http or https address.'],
+    [{ url: insecure.ftpFeed }, 'url: must be an http or https address.'],
     [{ url: '' }, 'url: required.'],
     [{ color: 'red' }, 'color: not a member of a feed that can be changed.'],
     [

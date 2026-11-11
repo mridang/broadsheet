@@ -5,6 +5,7 @@ import { FeedImportRuns } from '@/domain/feed-import-runs';
 import { Repository } from '@/domain/repository';
 import { APP_MIGRATIONS } from '../lib/core/db/migrations';
 import { sqliteD1 } from '../lib/core/db/sqlite-d1';
+
 import type { DatabaseSync } from 'node:sqlite';
 
 let runs: FeedImportRuns;
@@ -22,7 +23,7 @@ beforeEach(() => {
 describe('FeedImportRuns', () => {
   it('starts an import running with nothing done', async () => {
     const run = await runs.start(7, 120);
-    expect(await runs.find(7, run.id)).toEqual({
+    expect(await runs.get(7, run.id)).toEqual({
       id: run.id,
       status: 'running',
       total: 120,
@@ -36,7 +37,7 @@ describe('FeedImportRuns', () => {
 
   it('keeps an import from anyone else', async () => {
     const run = await runs.start(7, 1);
-    expect(await runs.find(8, run.id)).toBeUndefined();
+    expect(await runs.get(8, run.id)).toBeUndefined();
   });
 
   it('adds what each chunk did to the import', async () => {
@@ -51,7 +52,7 @@ describe('FeedImportRuns', () => {
       { url: 'https://a.test/2' },
     ]);
     expect(fetched.map((f) => f.url)).toEqual(['https://a.test/1']);
-    expect(await runs.find(7, run.id)).toMatchObject({
+    expect(await runs.get(7, run.id)).toMatchObject({
       status: 'running',
       processed: 4,
       added: 2,
@@ -69,7 +70,8 @@ describe('FeedImportRuns', () => {
   it('marks an import finished', async () => {
     const run = await runs.start(7, 1);
     await runs.finish(run.id, 'failed');
-    expect((await runs.find(7, run.id))?.status).toBe('failed');
+    const found = await runs.get(7, run.id);
+    expect(found?.status).toBe('failed');
   });
 
   it('purges only the imports that finished before the cut-off', async () => {
@@ -83,8 +85,8 @@ describe('FeedImportRuns', () => {
       .prepare('UPDATE feed_imports SET finished_at = ? WHERE id = ?')
       .run('2026-10-30 00:00:00', recent.id);
     expect(await runs.purgeFinished(new Date('2026-10-25T00:00:00Z'))).toBe(1);
-    expect(await runs.find(7, old.id)).toBeUndefined();
-    expect(await runs.find(7, recent.id)).toBeDefined();
-    expect(await runs.find(7, running.id)).toBeDefined();
+    expect(await runs.get(7, old.id)).toBeUndefined();
+    expect(await runs.get(7, recent.id)).toBeDefined();
+    expect(await runs.get(7, running.id)).toBeDefined();
   });
 });

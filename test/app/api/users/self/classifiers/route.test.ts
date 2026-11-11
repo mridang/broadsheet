@@ -105,46 +105,49 @@ describe('POST /api/users/self/classifiers', () => {
   });
 
   it('answers 415 for a body that is not JSON', async () => {
-    expect((await post('x', { 'Content-Type': 'text/plain' })).status).toBe(
-      415,
-    );
+    const res = await post('x', { 'Content-Type': 'text/plain' });
+    expect(res.status).toBe(415);
   });
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await post(liked)).status).toBe(401);
+    const res = await post(liked);
+    expect(res.status).toBe(401);
   });
 });
 
 describe('GET /api/users/self/classifiers', () => {
   it('answers 200 with the person’s classifiers as a page', async () => {
     await post(liked);
-    const body = (await (await list()).json()) as { items: unknown[] };
+    const res = await list();
+    const body = (await res.json()) as { items: unknown[] };
     expect(body.items).toHaveLength(1);
   });
 
   it('hands out a next link when more follow', async () => {
     await post(liked);
     await post(JSON.stringify({ kind: 'title', value: 'y', score: 'like' }));
-    const body = (await (await list('?limit=1')).json()) as { next?: string };
+    const res = await list('?limit=1');
+    const body = (await res.json()) as { next?: string };
     expect(body.next).toContain('cursor=');
   });
 
   it('shows nobody else’s classifiers', async () => {
     await post(liked);
     auth = await cookieFor(8);
-    expect(
-      ((await (await list()).json()) as { items: unknown[] }).items,
-    ).toEqual([]);
+    const res = await list();
+    expect(((await res.json()) as { items: unknown[] }).items).toEqual([]);
   });
 
   it('answers 400 for a cursor it did not issue', async () => {
-    expect((await list('?cursor=nope')).status).toBe(400);
+    const res = await list('?cursor=nope');
+    expect(res.status).toBe(400);
   });
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await list()).status).toBe(401);
+    const res = await list();
+    expect(res.status).toBe(401);
   });
 });
 

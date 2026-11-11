@@ -78,6 +78,8 @@ export function parseIcon(raw: unknown, field: string): IconInput {
     errors.push(
       `${field}.data: a data:image/png;base64 URL of at most ${MAX_UPLOAD_LENGTH} characters.`,
     );
+  } else {
+    // A preset, emoji or upload that passes every check above needs no error.
   }
   if (
     color !== undefined &&
@@ -94,7 +96,7 @@ export function parseIcon(raw: unknown, field: string): IconInput {
       `${field}.set: only for a preset icon, one of ${ICON_SETS.join(', ')}.`,
     );
   }
-  if (errors.length) return { ok: false, errors };
+  if (errors.length > 0) return { ok: false, errors };
   return {
     ok: true,
     icon: {

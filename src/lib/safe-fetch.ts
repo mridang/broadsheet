@@ -6,7 +6,7 @@
  * recipes point at. The address always comes from outside, so both go through
  * this one module, which makes three promises:
  *
- *   - it only talks to public web addresses ({@link isPublicWebUrl}), and
+ * - it only talks to public web addresses ({@link isPublicWebUrl}), and
  *     checks again at every redirect, so a public site cannot bounce us to a
  *     port, an IP address or an internal name;
  *   - it never holds more than the caller's byte limit, however the other side
@@ -76,7 +76,7 @@ export type EdgeCacheHint = {
 
 /** Request options plus Cloudflare's `cf` extension, which other runtimes ignore. */
 export type SafeRequestInit = RequestInit & {
-  readonly cf?: EdgeCacheHint | undefined;
+  readonly cf?: EdgeCacheHint;
 };
 
 /** The fetch function, narrowed to what this module needs, so tests can fake it. */
@@ -96,6 +96,7 @@ export interface CappedFetchOptions {
   readonly timeoutMs: number;
   /** The `Accept` header to send. */
   readonly accept: string;
+
   /**
    * Whether a response with this media type (lowercase, parameters removed, an
    * empty string when the site did not say) is wanted. Anything else is refused
@@ -104,6 +105,7 @@ export interface CappedFetchOptions {
   readonly acceptsType: (mediaType: string) => boolean;
   /** How many redirects to follow (default 3). */
   readonly maxRedirects?: number;
+
   /**
    * What to do with a body longer than `maxBytes`: refuse it (the default), or
    * keep its first `maxBytes` bytes. Truncating suits a page whose useful part

@@ -62,52 +62,52 @@ describe('GET /api/feeds/:id/similar', () => {
     await repo.addFeed(8, 'https://shared.test/f');
     for (let i = 0; i < 6; i++)
       await repo.addFeed(8, `https://extra${i}.test/f`);
-    const first = (await (await similar(mine.id)).json()) as {
+    const listed = await similar(mine.id);
+    const first = (await listed.json()) as {
       next?: string;
       items: unknown[];
     };
     expect(first.items).toHaveLength(5);
     const cursor = new URL(first.next!).searchParams.get('cursor')!;
-    const second = (await (
-      await GET(
-        new Request(
-          `https://app.test/api/feeds/${mine.id}/similar?cursor=${cursor}`,
-          { headers: auth },
-        ),
-        { params: Promise.resolve({ id: String(mine.id) }) },
-      )
-    ).json()) as { next?: string; items: unknown[] };
+    const secondPage = await GET(
+      new Request(
+        `https://app.test/api/feeds/${mine.id}/similar?cursor=${cursor}`,
+        { headers: auth },
+      ),
+      { params: Promise.resolve({ id: String(mine.id) }) },
+    );
+    const second = (await secondPage.json()) as {
+      next?: string;
+      items: unknown[];
+    };
     expect([second.items.length, second.next]).toEqual([1, undefined]);
   });
 
   it('answers 400 for a bad cursor', async () => {
     const mine = (await repo.addFeed(7, 'https://shared.test/f'))!;
-    expect(
-      (
-        await GET(
-          new Request(
-            `https://app.test/api/feeds/${mine.id}/similar?cursor=x`,
-            {
-              headers: auth,
-            },
-          ),
-          { params: Promise.resolve({ id: String(mine.id) }) },
-        )
-      ).status,
-    ).toBe(400);
+    const res = await GET(
+      new Request(`https://app.test/api/feeds/${mine.id}/similar?cursor=x`, {
+        headers: auth,
+      }),
+      { params: Promise.resolve({ id: String(mine.id) }) },
+    );
+    expect(res.status).toBe(400);
   });
 
   it.each(['999', 'abc'])('answers 404 for feed %j', async (id) => {
-    expect((await similar(id)).status).toBe(404);
+    const res = await similar(id);
+    expect(res.status).toBe(404);
   });
 
   it('answers 404 for another person’s feed', async () => {
     const theirs = (await repo.addFeed(8, 'https://shared.test/f'))!;
-    expect((await similar(theirs.id)).status).toBe(404);
+    const res = await similar(theirs.id);
+    expect(res.status).toBe(404);
   });
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await similar(1)).status).toBe(401);
+    const res = await similar(1);
+    expect(res.status).toBe(401);
   });
 });

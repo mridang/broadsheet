@@ -55,14 +55,16 @@ export function feedScore(url: string): number {
 /** An attribute of one tag, or blank. */
 function attr(tag: string, name: string): string {
   return (
-    new RegExp(`\\b${name}\\s*=\\s*["']([^"']*)["']`, 'i').exec(tag)?.[1] ?? ''
+    new RegExp(String.raw`\b${name}\s*=\s*["']([^"']*)["']`, 'i').exec(
+      tag,
+    )?.[1] ?? ''
   );
 }
 
 /** `href` resolved against the page, when it is an http(s) address. */
 function resolve(href: string, base: string): string | undefined {
   try {
-    const url = new URL(href.replace(/&amp;/g, '&'), base);
+    const url = new URL(href.replaceAll('&amp;', '&'), base);
     return url.protocol === 'http:' || url.protocol === 'https:'
       ? url.href
       : undefined;
@@ -102,7 +104,10 @@ export function feedCandidates(html: string, pageUrl: string): string[] {
   linked.sort((a, b) => feedScore(b) - feedScore(a));
   const site = new URL('/', pageUrl).href;
   const usual = USUAL_PATHS.map((path) => new URL(path, site).href);
-  return [...new Set([...declared, ...linked, ...usual])];
+  const found = new Set(declared);
+  for (const url of linked) found.add(url);
+  for (const url of usual) found.add(url);
+  return [...found];
 }
 
 /**

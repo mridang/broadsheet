@@ -35,12 +35,12 @@ export function compareText(a: string, b: string): number {
 /**
  * Fold text for searching: lower case with accents removed, so "creme" finds
  * "Crème brûlée". (`Intl` can compare whole strings but has no substring
- * search, so matching uses this folded form with `includes`.)
+ * search, so matching uses this folded form with `includes`.).
  */
 export function foldText(text: string): string {
   return text
     .normalize('NFD')
-    .replace(/\p{M}+/gu, '')
+    .replaceAll(/\p{M}+/gu, '')
     .toLowerCase();
 }
 

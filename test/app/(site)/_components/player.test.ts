@@ -31,7 +31,7 @@ describe('stepRate', () => {
 
   it('stays within the slowest and fastest', () => {
     expect(stepRate(RATES[0], 'down')).toBe(RATES[0]);
-    expect(stepRate(9, 'up')).toBe(RATES[RATES.length - 1]);
+    expect(stepRate(9, 'up')).toBe(RATES.at(-1));
   });
 });
 

@@ -84,7 +84,8 @@ async function sessionOf(request: Request): Promise<SessionPayload | null> {
  */
 export const requestCookieResolver: CurrentUserResolver = {
   async currentUid(request) {
-    return (await sessionOf(request))?.uid ?? null;
+    const session = await sessionOf(request);
+    return session?.uid ?? null;
   },
   async currentLiveUid(request) {
     const session = await sessionOf(request);

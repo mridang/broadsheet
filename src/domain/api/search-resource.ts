@@ -28,7 +28,7 @@ export function searchResource(search: Readonly<SavedSearch>): SearchResource {
   return {
     id: String(search.id),
     query: search.query,
-    ...(search.feed_id !== null ? { feed_id: String(search.feed_id) } : {}),
+    ...(search.feed_id === null ? {} : { feed_id: String(search.feed_id) }),
     articles: `/api/articles?${query}`,
     ...(created ? { created_at: created } : {}),
   };
@@ -60,18 +60,22 @@ export function parseSearchInput(
     }
   }
   const raw = body['query'];
-  const query = typeof raw === 'string' ? raw.trim().replace(/\s+/g, ' ') : '';
+  const query =
+    typeof raw === 'string' ? raw.trim().replaceAll(/\s+/g, ' ') : '';
   if (raw === undefined) errors.push('query: required.');
   else if (!query) errors.push('query: must be non-blank text.');
   else if (query.length > MAX_QUERY_LENGTH) errors.push('query: too long.');
+  else {
+    // the query is non-blank and within the length limit
+  }
   const rawFeed = body['feed_id'];
-  let feed_id: number | null = null;
+  let feedId: number | null = null;
   if (rawFeed !== undefined && rawFeed !== null) {
     const id = typeof rawFeed === 'string' ? parseFeedId(rawFeed) : undefined;
     if (id === undefined) errors.push('feed_id: not a feed id.');
-    else feed_id = id;
+    else feedId = id;
   }
-  return errors.length
+  return errors.length > 0
     ? { ok: false, errors }
-    : { ok: true, input: { query, feed_id } };
+    : { ok: true, input: { query, feed_id: feedId } };
 }

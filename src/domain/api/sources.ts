@@ -44,7 +44,7 @@ export function parseSourceSearch(
     errors.push('q: from 2 to 200 characters.');
   const limit = parseLimit(params.get('limit'), 10);
   if (limit instanceof Response) errors.push('limit: not a valid page size.');
-  return errors.length || limit instanceof Response
+  return errors.length > 0 || limit instanceof Response
     ? { ok: false, errors }
     : { ok: true, search: { q, limit } };
 }
@@ -97,9 +97,13 @@ export function createSourcesCollection(
           },
     encode: (result) => {
       if ('found' in result) {
-        return page(result.found.map(rankedSourceResource), undefined, {
-          'Cache-Control': 'private, no-cache',
-        });
+        return page(
+          result.found.map((source) => rankedSourceResource(source)),
+          undefined,
+          {
+            'Cache-Control': 'private, no-cache',
+          },
+        );
       }
       const { query, rows } = result;
       const items = rows.slice(0, query.limit);

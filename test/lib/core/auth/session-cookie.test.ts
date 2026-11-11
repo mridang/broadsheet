@@ -66,22 +66,22 @@ describe('setSessionCookie', () => {
 
   it("carries the app's usual extra claims unless told otherwise", async () => {
     const u = user({ recipes_folder_id: 'folder-1' });
-    expect((await issued(u)).payload).toMatchObject(sessionClaims(u));
-    expect(
-      (await issued(u, { claims: { custom: 'yes' } })).payload,
-    ).toMatchObject({ custom: 'yes', uid: 7 });
-    expect(
-      (await issued(u, { claims: { custom: 'yes' } })).payload,
-    ).not.toHaveProperty('drive');
+    const plain = await issued(u);
+    expect(plain.payload).toMatchObject(sessionClaims(u));
+    const withClaims = await issued(u, { claims: { custom: 'yes' } });
+    expect(withClaims.payload).toMatchObject({ custom: 'yes', uid: 7 });
+    expect(withClaims.payload).not.toHaveProperty('drive');
   });
 
   it("stamps the session with the account's epoch, so signing out everywhere can end it", async () => {
-    expect((await issued(user({ session_epoch: 4 }))).payload?.ep).toBe(4);
+    const stamped = await issued(user({ session_epoch: 4 }));
+    expect(stamped.payload?.ep).toBe(4);
   });
 
   it('keeps an existing expiry, so correcting a hint never lengthens a session', async () => {
     const soon = Math.floor(Date.now() / 1000) + 3600;
-    expect((await issued(user(), { exp: soon })).payload?.exp).toBe(soon);
+    const kept = await issued(user(), { exp: soon });
+    expect(kept.payload?.exp).toBe(soon);
   });
 
   it('starts a full session when no expiry is given', async () => {

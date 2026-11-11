@@ -40,7 +40,8 @@ export async function readCopies(
   uid: number,
   ids: readonly number[],
 ): Promise<void> {
-  if (!(await repo.getPreferences(uid)).cluster_mark_read) return;
+  const prefs = await repo.getPreferences(uid);
+  if (!prefs.cluster_mark_read) return;
   for (const id of ids) {
     for (const sibling of await repo.clusterSiblingIds(uid, id)) {
       await repo.markRead(uid, sibling);
@@ -78,7 +79,7 @@ export function parseReadTime(
   ) {
     errors.push('seconds: must be a whole number from 0.');
   }
-  return errors.length
+  return errors.length > 0
     ? { ok: false, errors }
     : { ok: true, seconds: Math.min(seconds as number, MAX_READ_SECONDS) };
 }
@@ -163,9 +164,9 @@ export function createReadItem(
       method: 'DELETE',
       handle: async (_input, { request, uid }) => {
         const id = parseFeedId(idOf(request));
-        return id !== undefined
-          ? new Repository(getDatabase()).markUnread(uid, id)
-          : false;
+        return id === undefined
+          ? false
+          : new Repository(getDatabase()).markUnread(uid, id);
       },
       encode: (removed) => (removed ? noContent() : problems.notFound('read')),
     });
@@ -194,7 +195,7 @@ type ReadScopeBody =
 
 /** A list of up to {@link MAX_BULK_READS} id strings as numbers, or undefined. */
 function ids(raw: unknown): number[] | undefined {
-  if (!Array.isArray(raw) || !raw.length || raw.length > MAX_BULK_READS) {
+  if (!Array.isArray(raw) || raw.length === 0 || raw.length > MAX_BULK_READS) {
     return undefined;
   }
   const parsed = raw.map((v) =>
@@ -271,12 +272,12 @@ export function parseReadScope(
     if (at) scope[key] = at;
     else errors.push(`${key}: must be an RFC 3339 time.`);
   }
-  if (!errors.length && !Object.keys(scope).length) {
+  if (errors.length === 0 && Object.keys(scope).length === 0) {
     errors.push(
       `A read scope names at least one of ${known.join(', ')}; send before as now to mark everything read.`,
     );
   }
-  return errors.length ? { ok: false, errors } : { ok: true, scope };
+  return errors.length > 0 ? { ok: false, errors } : { ok: true, scope };
 }
 
 /**
@@ -323,18 +324,20 @@ export function createReadsCollection(
       ) {
         errors.push('section_id: no such section.');
       }
-      if (errors.length) {
+      if (errors.length > 0) {
         throw problems.badRequest('The read scope is not valid.', errors);
       }
+      const sectionId = scope.section_id;
       const filed =
-        scope.section_id === undefined
+        sectionId === undefined
           ? undefined
-          : feeds.filter((f) => f.section_id === scope.section_id);
+          : feeds.filter((f) => f.section_id === sectionId);
       const chosen = [named, filed].filter((list) => list !== undefined);
-      const sourceIds = chosen.length
-        ? chosen
-            .map((list) => new Set(list.map((f) => f!.source_id)))
-            .reduce((a, b) => a.intersection(b))
+      const [firstSources, ...otherSources] = chosen.map(
+        (list) => new Set(list.map((f) => f!.source_id)),
+      );
+      const sourceIds = firstSources
+        ? otherSources.reduce((a, b) => a.intersection(b), firstSources)
         : undefined;
       const done = await repo.markAllRead(uid, {
         ...(sourceIds ? { sourceIds: [...sourceIds] } : {}),

@@ -1,7 +1,7 @@
 /**
  * The tags on the signed-in person's saves, with their counts.
  *
- *   GET /api/users/self/saves/tags → 200
+ * GET /api/users/self/saves/tags → 200.
  *
  * The behaviour lives in the `saveTagsCollection` controller; this file only mounts it.
  */

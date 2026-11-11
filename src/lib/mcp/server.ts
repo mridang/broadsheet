@@ -53,10 +53,10 @@ export function tool<Ctx, Input extends z.ZodObject>(
  * A tool's outcome the assistant can read and act on: a refusal it can fix
  * (bad arguments, no such item) rather than a protocol failure.
  */
-export class ToolFailure extends Error {
+export class ToolFailureError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'ToolFailure';
+    this.name = 'ToolFailureError';
   }
 }
 
@@ -151,22 +151,32 @@ export class McpServer<Ctx> {
     for (const resource of this.#resources) {
       const found = resource.uri === uri ? {} : resource.match?.(uri);
       if (found) {
-        try {
-          const data = await resource.read(found, ctx);
-          return {
-            contents: [
-              { uri, mimeType: 'application/json', text: JSON.stringify(data) },
-            ],
-          };
-        } catch (error) {
-          if (error instanceof ToolFailure) {
-            throw new RpcError(RESOURCE_NOT_FOUND, error.message, { uri });
-          }
-          throw error;
-        }
+        return this.#readFound(resource, found, uri, ctx);
       }
     }
     throw new RpcError(RESOURCE_NOT_FOUND, 'Resource not found', { uri });
+  }
+
+  /** Read a resource whose parameters were found for the URI. */
+  async #readFound(
+    resource: McpResource<Ctx>,
+    found: Readonly<Record<string, string>>,
+    uri: string,
+    ctx: Ctx,
+  ): Promise<object> {
+    try {
+      const data = await resource.read(found, ctx);
+      return {
+        contents: [
+          { uri, mimeType: 'application/json', text: JSON.stringify(data) },
+        ],
+      };
+    } catch (error) {
+      if (error instanceof ToolFailureError) {
+        throw new RpcError(RESOURCE_NOT_FOUND, error.message, { uri });
+      }
+      throw error;
+    }
   }
 
   /** Render a prompt with its arguments. */
@@ -237,7 +247,7 @@ export class McpServer<Ctx> {
     try {
       return toolResult(await found.run(parsed.data, ctx));
     } catch (error) {
-      if (error instanceof ToolFailure) {
+      if (error instanceof ToolFailureError) {
         return toolError(error.message);
       }
       throw error;
@@ -251,7 +261,7 @@ export class McpServer<Ctx> {
     ctx: Ctx,
   ): Promise<object> {
     switch (method) {
-      case 'initialize':
+      case 'initialize': {
         return {
           protocolVersion: negotiateVersion(params['protocolVersion']),
           capabilities: {
@@ -262,13 +272,17 @@ export class McpServer<Ctx> {
           serverInfo: this.#info,
           instructions: this.#instructions,
         };
-      case 'ping':
+      }
+      case 'ping': {
         return {};
-      case 'tools/list':
+      }
+      case 'tools/list': {
         return this.#list();
-      case 'tools/call':
+      }
+      case 'tools/call': {
         return this.#call(params, ctx);
-      case 'resources/list':
+      }
+      case 'resources/list': {
         return {
           resources: this.#resources
             .filter((r) => r.uri)
@@ -279,7 +293,8 @@ export class McpServer<Ctx> {
               mimeType: 'application/json',
             })),
         };
-      case 'resources/templates/list':
+      }
+      case 'resources/templates/list': {
         return {
           resourceTemplates: this.#resources
             .filter((r) => r.uriTemplate)
@@ -290,9 +305,11 @@ export class McpServer<Ctx> {
               mimeType: 'application/json',
             })),
         };
-      case 'resources/read':
+      }
+      case 'resources/read': {
         return this.#readResource(params, ctx);
-      case 'prompts/list':
+      }
+      case 'prompts/list': {
         return {
           prompts: [...this.#prompts.values()].map((p) => ({
             name: p.name,
@@ -301,10 +318,13 @@ export class McpServer<Ctx> {
             arguments: p.arguments,
           })),
         };
-      case 'prompts/get':
+      }
+      case 'prompts/get': {
         return this.#getPrompt(params);
-      default:
+      }
+      default: {
         throw new RpcError(ERROR_METHOD_NOT_FOUND, 'Method not found');
+      }
     }
   }
 

@@ -24,10 +24,13 @@ function answer(response: Response) {
 }
 
 const refusal = (detail: string) =>
-  new Response(JSON.stringify({ title: 'No', detail }), {
-    status: 400,
-    headers: { 'Content-Type': 'application/problem+json' },
-  });
+  Response.json(
+    { title: 'No', detail },
+    {
+      status: 400,
+      headers: { 'Content-Type': 'application/problem+json' },
+    },
+  );
 
 describe('followFeed', () => {
   it('posts the address as JSON to the feeds collection', async () => {
@@ -164,7 +167,8 @@ describe('importTopics', () => {
 describe('fetchOpml', () => {
   it('asks the feeds collection for OPML', async () => {
     const spy = answer(new Response('<opml/>'));
-    expect(await (await fetchOpml()).text()).toBe('<opml/>');
+    const response = await fetchOpml();
+    expect(await response.text()).toBe('<opml/>');
     expect(spy.mock.calls[0]).toEqual([
       '/api/feeds',
       { headers: { Accept: 'text/x-opml' } },
@@ -199,15 +203,15 @@ describe('importOpml', () => {
 
   it('watches a large import until it is done, passing on each look', async () => {
     const look = (status: string, processed: number) =>
-      new Response(
-        JSON.stringify({
+      Response.json(
+        {
           status,
           total: 80,
           processed,
           added: processed,
           skipped: 0,
           rejected: [],
-        }),
+        },
         {
           status: processed ? 200 : 202,
           headers: { Location: '/api/feeds/imports/a' },
@@ -231,15 +235,15 @@ describe('importOpml', () => {
 
   it('throws when a large import stopped part way', async () => {
     jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({
+      Response.json(
+        {
           status: 'failed',
           total: 80,
           processed: 50,
           added: 50,
           skipped: 0,
           rejected: [],
-        }),
+        },
         { status: 202, headers: { Location: '/api/feeds/imports/a' } },
       ),
     );

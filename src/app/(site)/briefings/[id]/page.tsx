@@ -30,9 +30,9 @@ export const metadata: Metadata = { title: 'Briefing' };
  */
 export default async function BriefingPage({
   params,
-}: {
+}: Readonly<{
   params: Promise<{ id: string }>;
-}) {
+}>) {
   const user = await getCurrentUser();
   if (!user) redirect('/login');
   const { id } = await params;
@@ -69,7 +69,7 @@ export default async function BriefingPage({
           {b.error ? `: ${b.error}` : '.'}
         </ErrorText>
       ) : null}
-      {note.length ? (
+      {note.length > 0 ? (
         <div
           className={`${CARD} mt-8 space-y-4 p-6 font-serif text-base leading-relaxed text-ink sm:text-lg`}
         >

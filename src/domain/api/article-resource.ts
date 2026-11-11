@@ -102,9 +102,9 @@ export function articleDetailResource(
   return {
     ...articleResource(article),
     ...(article.body_text ? { body_text: article.body_text } : {}),
-    ...(article.original_summary !== null
-      ? { original_summary: article.original_summary }
-      : {}),
+    ...(article.original_summary === null
+      ? {}
+      : { original_summary: article.original_summary }),
   };
 }
 
@@ -185,7 +185,9 @@ export function parseArticleQuery(
   const window = params.get('window');
   if (window !== null) {
     if (!ranked) errors.push('window: only with a trending order.');
-    else if (!Object.hasOwn(WINDOWS, window)) {
+    else if (Object.hasOwn(WINDOWS, window)) {
+      // A known window for a trending order: nothing to report.
+    } else {
       errors.push('window: must be day, week or month.');
     }
   }
@@ -195,13 +197,19 @@ export function parseArticleQuery(
   const read = params.get('read');
   if (read !== null) {
     if (!ranked) errors.push('read: only with a trending order.');
-    else if (read !== 'false') errors.push('read: must be false.');
+    else if (read === 'false') {
+      // The only accepted value: nothing to report.
+    } else {
+      errors.push('read: must be false.');
+    }
   }
   const sort = params.get('sort');
   if (sort !== null) {
     if (!ranked) errors.push('sort: only with a trending order.');
     else if (sort !== 'newest' && sort !== 'oldest') {
       errors.push('sort: must be newest or oldest.');
+    } else {
+      // A valid sort for a trending order: nothing to report.
     }
   }
   const rawFeed = params.get('feed_id');
@@ -210,6 +218,8 @@ export function parseArticleQuery(
     errors.push('feed_id: not a feed id.');
   } else if (feed !== undefined && ranked) {
     errors.push('feed_id: not with a trending order.');
+  } else {
+    // A valid feed filter: nothing to report.
   }
   let before: number | undefined;
   let after: TrendingQuery['after'];
@@ -224,6 +234,9 @@ export function parseArticleQuery(
     ) {
       errors.push('cursor: not a cursor of this list.');
     } else if (ranked) after = { position: place, id: before };
+    else {
+      // An unranked cursor is only an id: nothing more to set.
+    }
   }
   let limit = DEFAULT_LIMIT;
   const rawLimit = params.get('limit');
@@ -233,14 +246,14 @@ export function parseArticleQuery(
       errors.push(`limit: must be a whole number from 1 to ${MAX_LIMIT}.`);
     }
   }
-  if (errors.length) return { ok: false, errors };
+  if (errors.length > 0) return { ok: false, errors };
   if (!ranked) {
     return {
       ok: true,
       query: {
         q,
         before,
-        ...(feed !== undefined ? { feed } : {}),
+        ...(feed === undefined ? {} : { feed }),
         ...(order === 'oldest' ? { oldest: true } : {}),
         limit,
       },

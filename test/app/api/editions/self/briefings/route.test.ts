@@ -91,7 +91,8 @@ describe('POST /api/editions/self/briefings', () => {
 
   it('answers 200 when it replaced the slot’s briefing', async () => {
     await write();
-    expect((await write()).status).toBe(200);
+    const res = await write();
+    expect(res.status).toBe(200);
   });
 
   it('answers 404 when too few stories qualify', async () => {
@@ -105,18 +106,21 @@ describe('POST /api/editions/self/briefings', () => {
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await write()).status).toBe(401);
+    const res = await write();
+    expect(res.status).toBe(401);
   });
 
   it('answers 403 for a request from another site', async () => {
-    expect((await write({ 'Sec-Fetch-Site': 'cross-site' })).status).toBe(403);
+    const res = await write({ 'Sec-Fetch-Site': 'cross-site' });
+    expect(res.status).toBe(403);
   });
 });
 
 describe('GET /api/editions/self/briefings', () => {
   it('lists the briefings newest first, a page at a time', async () => {
     await write();
-    const page = (await (await list('?limit=1')).json()) as {
+    const listed = await list('?limit=1');
+    const page = (await listed.json()) as {
       items: { summary: string }[];
       next?: string;
     };
@@ -125,11 +129,13 @@ describe('GET /api/editions/self/briefings', () => {
   });
 
   it('answers 400 for a bad parameter', async () => {
-    expect((await list('?limit=0')).status).toBe(400);
+    const res = await list('?limit=0');
+    expect(res.status).toBe(400);
   });
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await list()).status).toBe(401);
+    const res = await list();
+    expect(res.status).toBe(401);
   });
 });

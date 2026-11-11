@@ -35,9 +35,9 @@ export interface PushEnvironment {
 export function applicationServerKey(
   base64url: string,
 ): Uint8Array<ArrayBuffer> {
-  const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+  const base64 = base64url.replaceAll('-', '+').replaceAll('_', '/');
   const binary = atob(base64 + '='.repeat((4 - (base64.length % 4)) % 4));
-  return Uint8Array.from(binary, (c) => c.charCodeAt(0));
+  return Uint8Array.from(binary, (c) => c.codePointAt(0) ?? 0);
 }
 
 /** Throw when a response is not a success, so the caller shows the failure. */
@@ -88,7 +88,8 @@ export async function unsubscribeFromPush(
   });
   if (response.status !== 404)
     await expectOk(response, 'Removing the push subscription');
-  await (await environment.pushManager.getSubscription())?.unsubscribe();
+  const subscription = await environment.pushManager.getSubscription();
+  await subscription?.unsubscribe();
 }
 
 /** The parts of the browser the registration uses, so they can be stood in for. */
@@ -106,20 +107,19 @@ export interface WorkerEnvironment {
  * loading, so registering never competes with the page's own load. Does nothing
  * in development (a worker would hold on to stale pages) or in a browser
  * without service workers.
- *
  * @returns A function that stops waiting for the load, if it was still waiting.
  */
 export function registerWhenLoaded(
   environment: WorkerEnvironment,
 ): (() => void) | undefined {
-  const { serviceWorker } = environment;
-  if (!environment.production || !serviceWorker) {
+  const { production, serviceWorker, readyState } = environment;
+  if (!production || !serviceWorker) {
     return undefined;
   }
   const register = () => {
     void serviceWorker.register(WORKER_URL, { scope: '/' });
   };
-  if (environment.readyState === 'complete') {
+  if (readyState === 'complete') {
     register();
     return undefined;
   }

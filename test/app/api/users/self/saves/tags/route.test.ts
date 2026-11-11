@@ -50,7 +50,8 @@ beforeEach(async () => {
       points: 0,
     },
   ]);
-  story = (await repo.sourceArticles(feed.source_id, '2026-10-20'))[0]!.id;
+  const articles = await repo.sourceArticles(feed.source_id, '2026-10-20');
+  story = articles[0]!.id;
   auth = await cookieFor(7);
 });
 
@@ -67,7 +68,8 @@ const list = () =>
 describe('GET /api/users/self/saves/tags', () => {
   it('answers 200 with each tag and its count', async () => {
     await new Repository(db).saveArticle(7, story, ['a', 'b']);
-    expect(await (await list()).json()).toEqual({
+    const res = await list();
+    expect(await res.json()).toEqual({
       items: [
         { name: 'a', count: 1 },
         { name: 'b', count: 1 },
@@ -78,11 +80,13 @@ describe('GET /api/users/self/saves/tags', () => {
   it('shows nobody else’s tags', async () => {
     await new Repository(db).saveArticle(7, story, ['a']);
     auth = await cookieFor(8);
-    expect(await (await list()).json()).toEqual({ items: [] });
+    const res = await list();
+    expect(await res.json()).toEqual({ items: [] });
   });
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await list()).status).toBe(401);
+    const res = await list();
+    expect(res.status).toBe(401);
   });
 });

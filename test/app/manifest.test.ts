@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { access, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 
 import { BACKGROUND_COLOR, THEME_COLOR } from '@/app/_brand';
@@ -7,8 +7,8 @@ import manifest from '@/app/manifest';
 import { pngSize } from '../png';
 
 /** The names of the chunks a PNG file is made of, in order. */
-function pngChunks(file: string): readonly string[] {
-  const bytes = readFileSync(file);
+async function pngChunks(file: string): Promise<readonly string[]> {
+  const bytes = await readFile(file);
   const walk = (offset: number): readonly string[] =>
     offset >= bytes.length
       ? []
@@ -17,6 +17,16 @@ function pngChunks(file: string): readonly string[] {
           ...walk(offset + 12 + bytes.readUInt32BE(offset)),
         ];
   return walk(8);
+}
+
+/** Whether anything, file or folder, is at `file`. */
+async function exists(file: string): Promise<boolean> {
+  try {
+    await access(file);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 describe('web app manifest', () => {
@@ -41,17 +51,17 @@ describe('web app manifest', () => {
     expect((m.icons ?? []).some((i) => i.purpose === 'maskable')).toBe(true);
   });
 
-  it('points every icon at a file that exists', () => {
+  it('points every icon at a file that exists', async () => {
     for (const icon of m.icons ?? []) {
-      expect(existsSync(path.join(process.cwd(), 'public', icon.src))).toBe(
+      expect(await exists(path.join(process.cwd(), 'public', icon.src))).toBe(
         true,
       );
     }
   });
 
-  it('declares each icon at the size the file really has', () => {
+  it('declares each icon at the size the file really has', async () => {
     for (const icon of m.icons ?? []) {
-      const { width, height } = pngSize(
+      const { width, height } = await pngSize(
         path.join(process.cwd(), 'public', icon.src),
       );
       expect(icon.sizes).toBe(`${width}x${height}`);
@@ -86,10 +96,10 @@ describe('web app manifest', () => {
 
   // Chrome only shows the rich install dialog when a screenshot of each form
   // factor exists; whatever is declared must be a real, correctly sized file.
-  it('declares screenshots Chrome will accept, if any', () => {
+  it('declares screenshots Chrome will accept, if any', async () => {
     const shots = m.screenshots ?? [];
     for (const shot of shots) {
-      const { width, height } = pngSize(
+      const { width, height } = await pngSize(
         path.join(process.cwd(), 'public', shot.src),
       );
       expect(shot.sizes).toBe(`${width}x${height}`);
@@ -108,26 +118,29 @@ describe('web app manifest', () => {
     }
   });
 
-  it('carries no text or camera metadata in the screenshots, which are public', () => {
+  it('carries no text or camera metadata in the screenshots, which are public', async () => {
     const allowed = new Set(['IHDR', 'PLTE', 'tRNS', 'pHYs', 'IDAT', 'IEND']);
     for (const shot of m.screenshots ?? []) {
-      const chunks = pngChunks(path.join(process.cwd(), 'public', shot.src));
+      const chunks = await pngChunks(
+        path.join(process.cwd(), 'public', shot.src),
+      );
       expect(chunks.filter((c) => !allowed.has(c))).toEqual([]);
     }
   });
 
-  it('keeps each screenshot below the weight of the page it advertises', () => {
+  it('keeps each screenshot below the weight of the page it advertises', async () => {
     for (const shot of m.screenshots ?? []) {
-      const bytes = statSync(path.join(process.cwd(), 'public', shot.src)).size;
+      const info = await stat(path.join(process.cwd(), 'public', shot.src));
+      const bytes = info.size;
       expect(bytes).toBeLessThan(300 * 1024);
     }
   });
 
-  it('gives every shortcut an icon that exists, at the size the file really has', () => {
+  it('gives every shortcut an icon that exists, at the size the file really has', async () => {
     for (const shortcut of m.shortcuts ?? []) {
       expect(shortcut.icons).toHaveLength(1);
       for (const icon of shortcut.icons ?? []) {
-        const { width, height } = pngSize(
+        const { width, height } = await pngSize(
           path.join(process.cwd(), 'public', icon.src),
         );
         expect(icon.sizes).toBe(`${width}x${height}`);

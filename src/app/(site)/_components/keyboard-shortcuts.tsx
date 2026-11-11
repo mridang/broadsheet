@@ -34,13 +34,18 @@ type Desk = Readonly<{ name: string; first: number }>;
 
 /** The paper's sections, each with the index of its first story. */
 function desks(cards: readonly HTMLElement[]): Desk[] {
-  return Array.from(document.querySelectorAll('section[data-desk]')).flatMap(
+  return [...document.querySelectorAll('section[data-desk]')].flatMap(
     (zone) => {
       const first = cards.findIndex((card) => zone.contains(card));
       const name = zone.querySelector('h3')?.textContent?.trim() ?? '';
-      return first >= 0 && name ? [{ name, first }] : [];
+      return first !== -1 && name ? [{ name, first }] : [];
     },
   );
+}
+
+/** Hands focus back to the page's main region, not to nothing. */
+function releaseFocus(): void {
+  document.querySelector<HTMLElement>('#main')?.focus({ preventScroll: true });
 }
 
 /**
@@ -56,6 +61,7 @@ export function KeyboardShortcuts(): ReactElement {
   const [sections, setSections] = useState<Desk[]>([]);
   const [query, setQuery] = useState('');
 
+  // eslint-disable-next-line sonarjs/max-lines-per-function -- splitting the key handler is a logic rewrite that would be large
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       const target = event.target as HTMLElement | null;
@@ -70,7 +76,7 @@ export function KeyboardShortcuts(): ReactElement {
         return;
       }
       if (dialog?.open || picker.current?.open) return;
-      const stories = Array.from(document.querySelectorAll<HTMLElement>(STORY));
+      const stories = [...document.querySelectorAll<HTMLElement>(STORY)];
       const cards = stories.map((s) => s.parentElement ?? s);
       const current = focusedStory(cards, document.activeElement);
       const card = cards[current];
@@ -84,7 +90,7 @@ export function KeyboardShortcuts(): ReactElement {
       const visit = (url: string | undefined) => {
         if (!url) return;
         take();
-        window.location.assign(url);
+        globalThis.location.assign(url);
       };
       const go = (to: number) => {
         if (to < 0) return;
@@ -92,25 +98,26 @@ export function KeyboardShortcuts(): ReactElement {
         stories[to]?.focus();
         stories[to]?.scrollIntoView({ block: 'nearest' });
       };
-      const unread = () => cards.map((c) => c.hasAttribute('data-read'));
+      const unread = () => cards.map((c) => Object.hasOwn(c.dataset, 'read'));
       switch (shortcut) {
         case 'next':
-        case 'prev':
+        case 'prev': {
           // The arrows scroll the page until a story has focus.
           if (event.key.startsWith('Arrow') && current < 0) return;
           go(step(current, stories.length, shortcut));
           return;
-        case 'next-unread':
+        }
+        case 'next-unread': {
           go(nextUnread(unread(), current));
           return;
-        case 'last-unread':
+        }
+        case 'last-unread': {
           go(lastUnread(unread()));
           return;
+        }
         case 'next-section':
         case 'prev-section': {
-          const zones = Array.from(
-            document.querySelectorAll('section[data-desk]'),
-          );
+          const zones = [...document.querySelectorAll('section[data-desk]')];
           go(
             sectionStep(
               cards.map((c) => zones.findIndex((z) => z.contains(c))),
@@ -120,25 +127,30 @@ export function KeyboardShortcuts(): ReactElement {
           );
           return;
         }
-        case 'go-section':
+        case 'go-section': {
           take();
           setSections(desks(cards));
           setQuery('');
           picker.current?.showModal();
           return;
-        case 'older-edition':
+        }
+        case 'older-edition': {
           act('a[aria-label="Previous day"]', document);
           return;
-        case 'newer-edition':
+        }
+        case 'newer-edition': {
           act('a[aria-label="Next day"]', document);
           return;
-        case 'everything':
+        }
+        case 'everything': {
           visit('/');
           return;
-        case 'deselect':
-          if (current >= 0) (document.activeElement as HTMLElement).blur();
+        }
+        case 'deselect': {
+          if (current >= 0) releaseFocus();
           return;
-        case 'open':
+        }
+        case 'open': {
           // Enter on a link or button already does its own thing.
           if (event.key === 'Enter') return;
           if (current >= 0) {
@@ -146,6 +158,7 @@ export function KeyboardShortcuts(): ReactElement {
             stories[current]?.click();
           }
           return;
+        }
         case 'open-background': {
           const link = stories[current] as HTMLAnchorElement | undefined;
           if (!link) return;
@@ -153,20 +166,23 @@ export function KeyboardShortcuts(): ReactElement {
           window.open(link.href, '_blank', 'noopener');
           return;
         }
-        case 'full-text':
+        case 'full-text': {
           act('a[data-action="full-text"]');
           return;
+        }
         case 'collapse':
-        case 'expand':
+        case 'expand': {
           if (!card) return;
           take();
           card.querySelectorAll<HTMLElement>(BODY).forEach((part) => {
             part.hidden = shortcut === 'collapse';
           });
           return;
-        case 'comments':
+        }
+        case 'comments': {
           visit(card?.dataset['commentsUrl']);
           return;
+        }
         case 'ask': {
           const text = card?.querySelector<HTMLAnchorElement>(
             'a[data-action="full-text"]',
@@ -174,23 +190,27 @@ export function KeyboardShortcuts(): ReactElement {
           visit(text ? `${text.href}#ask` : undefined);
           return;
         }
-        case 'save':
+        case 'save': {
           act('button[data-action="save"]');
           return;
-        case 'listen':
+        }
+        case 'listen': {
           act('button[data-action="listen"]');
           return;
-        case 'queue':
+        }
+        case 'queue': {
           act('button[data-action="queue"]');
           return;
+        }
         case 'slower':
-        case 'faster':
+        case 'faster': {
           take();
           updatePlayer((p) => ({
             ...p,
             rate: stepRate(p.rate, shortcut === 'faster' ? 'up' : 'down'),
           }));
           return;
+        }
         case 'read': {
           const id = Number(card?.dataset['articleId']);
           if (!card || !id) return;
@@ -205,30 +225,34 @@ export function KeyboardShortcuts(): ReactElement {
           const marked = storiesToMark(cards.length, current, shortcut)
             .map((i) => cards[i]!)
             .filter((c) => c.dataset['articleId']);
-          if (!marked.length) return;
+          if (marked.length === 0) return;
           take();
           marked.forEach((c) => c.toggleAttribute('data-read', true));
           markManyRead(marked.map((c) => Number(c.dataset['articleId'])));
           return;
         }
-        case 'reload':
+        case 'reload': {
           take();
-          window.location.reload();
+          globalThis.location.reload();
           return;
-        case 'refresh':
+        }
+        case 'refresh': {
           take();
           void refreshFeeds()
-            .then(() => window.location.reload())
+            .then(() => globalThis.location.reload())
             .catch(() => undefined);
           return;
-        case 'search':
+        }
+        case 'search': {
           visit('/search');
           return;
-        case 'fullscreen':
+        }
+        case 'fullscreen': {
           take();
           if (document.fullscreenElement) void document.exitFullscreen();
           else void document.documentElement.requestFullscreen?.();
           return;
+        }
         case 'masthead': {
           const bar = document.querySelector<HTMLElement>(
             'header[data-top-bar]',

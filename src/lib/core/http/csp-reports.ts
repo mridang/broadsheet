@@ -51,13 +51,14 @@ function short(value: unknown, limit: number): string {
     return '';
   }
   // Control characters (a line break in a log line could pass for another line) become spaces.
-  const printable = [...value.slice(0, limit * 2)]
+  const head = value.slice(0, limit * 2);
+  const printable = [...head]
     .map((char) => {
       const code = char.codePointAt(0) ?? 0;
       return code < 32 || code === 127 ? ' ' : char;
     })
     .join('');
-  return printable.replace(/\s+/g, ' ').trim().slice(0, limit);
+  return printable.replaceAll(/\s+/g, ' ').trim().slice(0, limit);
 }
 
 /** The first of `keys` in `body` that holds text. */
@@ -145,18 +146,22 @@ function summarise(
  * {@link MAX_REPORTS_PER_REQUEST}. Anything that is not a report is ignored.
  */
 export function summariseReports(body: unknown): readonly ReportSummary[] {
-  const entries: readonly (readonly [
+  let entries: readonly (readonly [
     string,
     Readonly<Record<string, unknown>>,
-  ])[] = Array.isArray(body)
-    ? body.flatMap((entry): [string, Readonly<Record<string, unknown>>][] =>
+  ])[] = [];
+  if (Array.isArray(body)) {
+    entries = body.flatMap(
+      (entry): [string, Readonly<Record<string, unknown>>][] =>
         isRecord(entry) && isRecord(entry['body'])
           ? [[short(entry['type'], 40), entry['body']]]
           : [],
-      )
-    : isRecord(body) && isRecord(body['csp-report'])
-      ? [['csp-violation', body['csp-report']]]
-      : [];
+    );
+  } else if (isRecord(body) && isRecord(body['csp-report'])) {
+    entries = [['csp-violation', body['csp-report']]];
+  } else {
+    // Neither a batch nor a single report: there is nothing to summarise.
+  }
   return entries
     .slice(0, MAX_REPORTS_PER_REQUEST)
     .filter(([, report]) => !fromExtension(report))

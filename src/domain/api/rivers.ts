@@ -68,14 +68,18 @@ async function checkOwned(
       errors.push(`river_id: no such ${river.river_id}.`);
     }
   }
-  if (errors.length) {
+  if (errors.length > 0) {
     throw problems.badRequest('The river is not valid.', errors);
   }
 }
 
 /** The person's rivers as one page; there are never more than a page. */
 const listPage = (rivers: readonly River[]) =>
-  page(rivers.map(riverResource), undefined, { 'Cache-Control': 'no-store' });
+  page(
+    rivers.map((river) => riverResource(river)),
+    undefined,
+    { 'Cache-Control': 'no-store' },
+  );
 
 /**
  * `GET /api/users/self/rivers`: the person's rivers, the left column then the
@@ -165,9 +169,9 @@ export function createRiverItem(
     method: 'DELETE',
     handle: async (_input, { request, uid }) => {
       const id = parseFeedId(idOf(request));
-      return id !== undefined
-        ? new RiverRepository(getDatabase()).remove(uid, id)
-        : false;
+      return id === undefined
+        ? false
+        : new RiverRepository(getDatabase()).remove(uid, id);
     },
     encode: (removed) => (removed ? noContent() : problems.notFound('river')),
   });

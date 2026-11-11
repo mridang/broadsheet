@@ -74,9 +74,10 @@ describe('runInBackground', () => {
   it('lets the work run on its own outside a Cloudflare context', async () => {
     let done = false;
     runInBackground(
-      Promise.resolve().then(() => {
+      (async () => {
+        await Promise.resolve();
         done = true;
-      }),
+      })(),
     );
     await Promise.resolve();
     await Promise.resolve();

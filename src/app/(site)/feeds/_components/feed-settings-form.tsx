@@ -1,6 +1,6 @@
 'use client';
 
-import type { FormEvent, ReactElement } from 'react';
+import type { SubmitEvent, ReactElement } from 'react';
 
 import { editFeed } from '@/app/(site)/feeds/_components/feed-requests';
 import { useFeedAction } from '@/app/(site)/feeds/_components/use-feed-action';
@@ -31,7 +31,7 @@ export function FeedSettingsForm({
   sections: readonly SectionOption[];
 }>): ReactElement {
   const { busy, error, run } = useFeedAction();
-  const submit = (event: FormEvent<HTMLFormElement>): void => {
+  const submit = (event: SubmitEvent<HTMLFormElement>): void => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const section = String(form.get('section_id') ?? '');

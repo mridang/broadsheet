@@ -1,9 +1,92 @@
 import { is } from 'drizzle-orm';
 import { SQLiteTable, getTableConfig } from 'drizzle-orm/sqlite-core';
 import { describe, expect, it } from '@jest/globals';
+
 import type { DatabaseSync } from 'node:sqlite';
 
-import * as schema from '@/domain/db/schema';
+import {
+  users,
+  sources,
+  sections,
+  subscriptions,
+  subscriptionSections,
+  articles,
+  classifiers,
+  saves,
+  reads,
+  clusters,
+  issues,
+  editions,
+  editionIssues,
+  conversations,
+  messages,
+  answers,
+  aiUsage,
+  oauthClients,
+  oauthGrants,
+  oauthCodes,
+  oauthTokens,
+  pushSubscriptions,
+  webhooks,
+  feedTokens,
+  feedNotifications,
+  notificationDeliveries,
+  storyEmails,
+  savedSearches,
+  fetchHistory,
+  notificationRules,
+  userActivity,
+  preferences,
+  shares,
+  players,
+  rivers,
+  briefings,
+  promptScores,
+  feedRecommendations,
+  feedImports,
+} from '@/domain/db/schema';
+
+const schema = {
+  users,
+  sources,
+  sections,
+  subscriptions,
+  subscriptionSections,
+  articles,
+  classifiers,
+  saves,
+  reads,
+  clusters,
+  issues,
+  editions,
+  editionIssues,
+  conversations,
+  messages,
+  answers,
+  aiUsage,
+  oauthClients,
+  oauthGrants,
+  oauthCodes,
+  oauthTokens,
+  pushSubscriptions,
+  webhooks,
+  feedTokens,
+  feedNotifications,
+  notificationDeliveries,
+  storyEmails,
+  savedSearches,
+  fetchHistory,
+  notificationRules,
+  userActivity,
+  preferences,
+  shares,
+  players,
+  rivers,
+  briefings,
+  promptScores,
+  feedRecommendations,
+  feedImports,
+};
 import { APP_MIGRATIONS } from '../../lib/core/db/migrations';
 import { sqliteD1 } from '../../lib/core/db/sqlite-d1';
 
@@ -13,7 +96,7 @@ function columnsOf(raw: DatabaseSync, table: string): readonly string[] {
     .prepare(`PRAGMA table_info(${table})`)
     .all()
     .map((row) => String(row['name']))
-    .toSorted();
+    .toSorted((a, b) => a.localeCompare(b));
 }
 
 /** The names of the indexes SQLite reports for a table. */
@@ -55,7 +138,9 @@ describe('the schema file and the migrations', () => {
       expect(table).toBeDefined();
       const config = getTableConfig(table!);
       expect(columnsOf(raw, name)).toEqual(
-        config.columns.map((column) => column.name).toSorted(),
+        config.columns
+          .map((column) => column.name)
+          .toSorted((a, b) => a.localeCompare(b)),
       );
       // Every index the schema names exists (the database may carry more, such
       // as the legacy unique constraint on recipes.drive_file_id).
@@ -82,7 +167,9 @@ describe('the schema file and the migrations', () => {
         .all()
         .filter((row) => row['origin'] === 'c')
         .map((row) => String(row['name']));
-      expect(created.toSorted()).toEqual([...declared.keys()].toSorted());
+      expect(created.toSorted((a, b) => a.localeCompare(b))).toEqual(
+        [...declared.keys()].toSorted((a, b) => a.localeCompare(b)),
+      );
       created.forEach((index) =>
         expect(keyColumns(raw, index)).toEqual(declared.get(index)),
       );

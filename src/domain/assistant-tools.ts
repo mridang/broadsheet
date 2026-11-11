@@ -184,8 +184,8 @@ export class ToolRunner {
   /** Note stories as shown, and set them out for the model. */
   show(passages: readonly Passage[]): string {
     for (const p of passages) this.#seen.set(p.id, p.title);
-    return passages.length
-      ? passages.map(passageBlock).join('\n\n')
+    return passages.length > 0
+      ? passages.map((passage) => passageBlock(passage)).join('\n\n')
       : 'No stories found.';
   }
 
@@ -205,7 +205,7 @@ export class ToolRunner {
           }),
         );
       }
-      case 'search_saved_stories':
+      case 'search_saved_stories': {
         return this.show(
           await this.#repo.savedPassages(this.#uid, {
             query: str(args['query']),
@@ -213,19 +213,21 @@ export class ToolRunner {
             limit: count(args['limit'], 10, MAX_RESULTS),
           }),
         );
+      }
       case 'saved_summary': {
         const summary = await this.#repo.savedSummary(this.#uid);
         for (const r of summary.recent) this.#seen.set(r.id, r.title);
         return JSON.stringify(summary);
       }
-      case 'search_shared_stories':
+      case 'search_shared_stories': {
         return this.show(
           await this.#repo.sharedPassages({
             query: str(args['query']),
             limit: count(args['limit'], 10, MAX_RESULTS),
           }),
         );
-      case 'recent_reads':
+      }
+      case 'recent_reads': {
         return this.show(
           await this.#repo.recentReadPassages(
             this.#uid,
@@ -233,6 +235,7 @@ export class ToolRunner {
             count(args['limit'], 10, MAX_RESULTS),
           ),
         );
+      }
       case 'get_story': {
         const id = count(args['id'], 0, Number.MAX_SAFE_INTEGER);
         const article = id
@@ -244,15 +247,18 @@ export class ToolRunner {
           this.#uid,
           article.id,
         );
+        const annotationLine = annotation ? `\n${annotation}` : '';
         return storyBlock(
           `id="${article.id}"`,
-          `${article.title ?? ''} (${article.source ?? ''})\n${article.summary ?? ''}\n${(article.body_text ?? '').slice(0, STORY_LENGTH)}${annotation ? `\n${annotation}` : ''}`,
+          `${article.title ?? ''} (${article.source ?? ''})\n${article.summary ?? ''}\n${(article.body_text ?? '').slice(0, STORY_LENGTH)}${annotationLine}`,
         );
       }
-      case 'archive_summary':
+      case 'archive_summary': {
         return JSON.stringify(await this.#repo.archiveSummary(this.#uid));
-      default:
+      }
+      default: {
         return `There is no tool called ${call.name}.`;
+      }
     }
   }
 }
@@ -268,7 +274,7 @@ export interface AnsweredTurn {
  * search further with {@link ASSISTANT_TOOLS}, note the question against the
  * person's budget, and keep the question and the answer (citing only stories
  * it was shown) as turns, titling the conversation by its first question.
- * Throws {@link AnswerUnavailable} when the model fails, keeping nothing.
+ * Throws {@link AnswerUnavailableError} when the model fails, keeping nothing.
  */
 export async function answerTurn(
   repo: Repository,

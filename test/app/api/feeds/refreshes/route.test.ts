@@ -84,10 +84,11 @@ describe('POST /api/feeds/refreshes', () => {
     const res = await refresh();
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ feeds: 2, refreshed: 2, failed: 0 });
-    expect(refreshSource.mock.calls.map((c) => c[2].url).toSorted()).toEqual([
-      'https://a.test/1',
-      'https://a.test/2',
-    ]);
+    expect(
+      refreshSource.mock.calls
+        .map((c) => c[2].url)
+        .toSorted((a, b) => a.localeCompare(b)),
+    ).toEqual(['https://a.test/1', 'https://a.test/2']);
   });
 
   it('counts a feed that gave nothing or threw as failed, without failing the rest', async () => {

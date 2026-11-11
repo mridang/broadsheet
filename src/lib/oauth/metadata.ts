@@ -4,7 +4,7 @@
  * The documents that let an assistant discover how to sign in, and the
  * `WWW-Authenticate` challenge that points it at them:
  *
- *  - protected resource metadata (RFC 9728): "this MCP server's authorization
+ * - protected resource metadata (RFC 9728): "this MCP server's authorization
  *    server is over here";
  *  - authorization server metadata (RFC 8414): the endpoints and what they
  *    support.
@@ -26,6 +26,13 @@ export function resourceUri(origin: string): string {
   return `${origin}${MCP_PATH}`;
 }
 
+/** The path without any trailing slashes. */
+function withoutTrailingSlashes(path: string): string {
+  let end = path.length;
+  while (end > 0 && path.charAt(end - 1) === '/') end -= 1;
+  return path.slice(0, end);
+}
+
 /**
  * Whether a client-supplied `resource` names this MCP server. Read as a URL,
  * so case in the scheme and host does not matter; a trailing slash is
@@ -39,7 +46,7 @@ export function isOurResource(value: string, origin: string): boolean {
     !given.search &&
     !given.hash &&
     given.origin === ours.origin &&
-    given.pathname.replace(/\/+$/, '') === ours.pathname
+    withoutTrailingSlashes(given.pathname) === ours.pathname
   );
 }
 

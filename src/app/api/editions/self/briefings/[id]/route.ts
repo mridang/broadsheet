@@ -1,7 +1,7 @@
 /**
  * One of the signed-in person's briefings.
  *
- *   GET /api/editions/self/briefings/:id → 200
+ * GET /api/editions/self/briefings/:id → 200.
  *
  * The behaviour lives in the `briefingItem` controller; this file only mounts
  * it.

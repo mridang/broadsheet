@@ -96,14 +96,14 @@ describe('POST /api/sections', () => {
   });
 
   it('answers 415 for a body that is not JSON', async () => {
-    expect(
-      (await post('name=x', { 'Content-Type': 'text/plain' })).status,
-    ).toBe(415);
+    const res = await post('name=x', { 'Content-Type': 'text/plain' });
+    expect(res.status).toBe(415);
   });
 
   it('answers 401 when nobody is signed in, storing nothing', async () => {
     auth = {};
-    expect((await post('{"name":"Tech"}')).status).toBe(401);
+    const res = await post('{"name":"Tech"}');
+    expect(res.status).toBe(401);
     expect(await new Repository(db).listSections(7)).toHaveLength(0);
   });
 });

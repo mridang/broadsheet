@@ -92,16 +92,19 @@ describe('POST /webhooks/sources/{id}', () => {
   it('takes a signed push', async () => {
     const secret = (await repo.sourceById(sourceId))!.websub_secret!;
     const signature = `sha256=${createHmac('sha256', secret).update(FEED).digest('hex')}`;
-    expect((await push(sourceId, signature)).status).toBe(202);
+    const reply = await push(sourceId, signature);
+    expect(reply.status).toBe(202);
     expect((await repo.sourceById(sourceId))!.last_fetched_at).not.toBeNull();
   });
 
   it('acknowledges and ignores an unsigned push', async () => {
-    expect((await push(sourceId)).status).toBe(202);
+    const reply = await push(sourceId);
+    expect(reply.status).toBe(202);
     expect((await repo.sourceById(sourceId))!.last_fetched_at).toBeNull();
   });
 
   it('refuses a source with no subscription', async () => {
-    expect((await push(999)).status).toBe(404);
+    const reply = await push(999);
+    expect(reply.status).toBe(404);
   });
 });

@@ -38,22 +38,23 @@ const ENTITIES: Readonly<Record<string, string>> = {
 /** Escape text for an XML attribute value. */
 export function escapeXml(text: string): string {
   return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;');
 }
 
 function unescapeXml(text: string): string {
-  return text.replace(
+  return text.replaceAll(
     /&(#x[0-9a-f]+|#\d+|[a-z]+);/gi,
     (whole, name: string) => {
       if (name.startsWith('#')) {
         const code =
           name[1] === 'x' || name[1] === 'X'
-            ? parseInt(name.slice(2), 16)
-            : parseInt(name.slice(1), 10);
-        return code > 0 && code <= 0x10ffff
+            ? Number.parseInt(name.slice(2), 16)
+            : Number.parseInt(name.slice(1), 10);
+
+        return code > 0 && code <= 0x10_ff_ff
           ? String.fromCodePoint(code)
           : whole;
       }
@@ -64,7 +65,9 @@ function unescapeXml(text: string): string {
 
 function attributes(text: string): Map<string, string> {
   const found = new Map<string, string>();
-  for (const m of text.matchAll(/([\w:.-]+)\s*=\s*("([^"]*)"|'([^']*)')/g)) {
+  for (const m of text.matchAll(
+    /(?<![\w:.-])([\w:.-]+)\s*=\s*("([^"]*)"|'([^']*)')/g,
+  )) {
     found.set((m[1] ?? '').toLowerCase(), unescapeXml(m[3] ?? m[4] ?? ''));
   }
   return found;
@@ -81,6 +84,8 @@ function tagEnd(text: string, from: number): number {
       quote = c;
     } else if (c === '>') {
       return i + 1;
+    } else {
+      // Any other character leaves the tag open.
     }
   }
   return -1;
@@ -95,7 +100,7 @@ function skipMarkup(text: string, at: number): number | undefined {
   ] as const) {
     if (text.startsWith(open, at)) {
       const end = text.indexOf(close, at + open.length);
-      return end < 0 ? -1 : end + close.length;
+      return end === -1 ? -1 : end + close.length;
     }
   }
   return undefined;
@@ -144,17 +149,18 @@ export function parseOpml(text: string): OpmlParse {
           url,
           ...(label ? { title: label } : {}),
           ...(site ? { site_url: site } : {}),
-          ...(folders.length
+          ...(folders.length > 0
             ? { sections: folders.slice(0, MAX_OPML_DEPTH) }
             : {}),
         });
       }
-      if (!tag.trimEnd().endsWith('/')) {
-        const isFolder = !url && label !== '';
-        open.push(isFolder);
-        if (isFolder) folders.push(label);
-      }
+      const selfClosing = tag.trimEnd().endsWith('/');
+      const isFolder = !selfClosing && !url && label !== '';
+      if (!selfClosing) open.push(isFolder);
+      if (isFolder) folders.push(label);
       at = end - 1;
+    } else {
+      // Other markup, such as text or a closing tag of another kind, is skipped.
     }
     at = text.indexOf('<', at + 1);
   }
@@ -187,8 +193,10 @@ export function buildOpml(
   sections: readonly OpmlSection[],
   now: Date = new Date(),
 ): string {
-  const outline = (e: OpmlEntry, indent: string): string =>
-    `${indent}<outline type="rss" version="RSS" text="${escapeXml(e.title)}" title="${escapeXml(e.title)}" xmlUrl="${escapeXml(e.url)}"${e.site_url ? ` htmlUrl="${escapeXml(e.site_url)}"` : ''}/>`;
+  const outline = (e: OpmlEntry, indent: string): string => {
+    const site = e.site_url ? ` htmlUrl="${escapeXml(e.site_url)}"` : '';
+    return `${indent}<outline type="rss" version="RSS" text="${escapeXml(e.title)}" title="${escapeXml(e.title)}" xmlUrl="${escapeXml(e.url)}"${site}/>`;
+  };
   const known = new Set(sections.map((s) => s.id));
   const inside = (id: number | null): OpmlEntry[] =>
     entries.filter((e) =>
@@ -210,7 +218,7 @@ export function buildOpml(
         .filter((s) => s.parent_id === section.id)
         .flatMap((s) => folder(s, depth + 1, path)),
     ];
-    return body.length
+    return body.length > 0
       ? [
           `${indent}<outline text="${escapeXml(section.name)}" title="${escapeXml(section.name)}">`,
           ...body,
@@ -224,7 +232,7 @@ export function buildOpml(
     '<opml version="2.0">',
     `  <head><title>${escapeXml(title)}</title><dateCreated>${stamp}</dateCreated><dateModified>${stamp}</dateModified></head>`,
     '  <body>',
-    ...inside(null).map((e) => outline(e, '    ')),
+    ...inside(null).map((e) => outline(e, ' '.repeat(4))),
     ...sections
       .filter((s) => s.parent_id === null || !known.has(s.parent_id))
       .flatMap((s) => folder(s, 2, new Set())),

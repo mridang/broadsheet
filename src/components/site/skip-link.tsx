@@ -8,7 +8,7 @@ export function SkipLink(): ReactElement {
   return (
     <a
       href="#main"
-      className="sr-only z-50 bg-ink px-4 py-2 text-sm font-semibold text-on-ink focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:rounded-control"
+      className="fixed -top-20 left-2 z-50 rounded-control bg-ink px-4 py-2 text-sm font-semibold text-on-ink focus:top-2"
     >
       Skip to content
     </a>

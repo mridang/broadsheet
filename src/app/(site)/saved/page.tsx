@@ -29,9 +29,9 @@ export const metadata: Metadata = { title: 'Saved stories' };
  */
 export default async function SavedPage({
   searchParams,
-}: {
+}: Readonly<{
   searchParams: Promise<{ tag?: string }>;
-}) {
+}>) {
   const user = await getCurrentUser();
   if (!user) redirect('/login');
   const { tag } = await searchParams;
@@ -41,10 +41,12 @@ export default async function SavedPage({
     repo.savedTagCounts(user.id),
   ]);
 
+  const heading = tag ? ` tagged “${tag}”` : '';
+
   return (
     <div className="max-w-3xl">
       <PageHeader
-        title={`Saved stories${tag ? ` tagged “${tag}”` : ''}`}
+        title={`Saved stories${heading}`}
         description={
           tag ? (
             <TextLink tone="accent" href="/saved">
@@ -60,7 +62,7 @@ export default async function SavedPage({
           <TagControls tag={tag} />
         </div>
       ) : null}
-      {tags.length ? (
+      {tags.length > 0 ? (
         <nav aria-label="Tags" className="mt-6 flex flex-wrap gap-2">
           {tags.map((t) => (
             <TextLink
@@ -76,7 +78,7 @@ export default async function SavedPage({
           ))}
         </nav>
       ) : null}
-      {saves.length ? (
+      {saves.length > 0 ? (
         <ul className="mt-8 divide-y divide-line border-y border-line">
           {saves.map(({ article, tags }) => (
             <StoryRow

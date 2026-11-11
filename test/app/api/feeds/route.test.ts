@@ -6,6 +6,7 @@ import {
   it,
   jest,
 } from '@jest/globals';
+
 import type { DatabaseSync } from 'node:sqlite';
 
 import { SESSION_COOKIE } from '@/domain/auth/app';
@@ -63,10 +64,10 @@ afterEach(() => restore());
 const URL = 'https://app.test/api/feeds';
 
 /** A POST with the given body text, carrying the current caller's cookie. */
-const post = (
-  body: string,
-  headers: Record<string, string> = { 'content-type': 'application/json' },
-) =>
+const JSON_HEADERS: Record<string, string> = {
+  'content-type': 'application/json',
+};
+const post = (body: string, headers: Record<string, string> = JSON_HEADERS) =>
   POST(
     new Request(URL, {
       method: 'POST',
@@ -129,7 +130,8 @@ describe('POST /api/feeds', () => {
     discovered = () => 'https://a.test/atom.xml';
     const again = await follow('https://a.test/');
     expect(again.status).toBe(200);
-    expect((await body(again)).id).toBe(first.id);
+    const feed = await body(again);
+    expect(feed.id).toBe(first.id);
   });
 
   it('answers 400 for a page with no feed to be found, storing nothing', async () => {
@@ -137,16 +139,16 @@ describe('POST /api/feeds', () => {
     const res = await follow('https://a.test/');
     expect(res.status).toBe(400);
     expect(res.headers.get('content-type')).toBe('application/problem+json');
-    expect((await body(res)).errors).toEqual([
-      'url: no feed was found at this address.',
-    ]);
+    const problem = await body(res);
+    expect(problem.errors).toEqual(['url: no feed was found at this address.']);
     expect(stored(7)).toHaveLength(0);
   });
 
   it('lets two people follow the same address', async () => {
     await follow('https://a.test/feed.xml');
     auth = await cookieFor(8);
-    expect((await follow('https://a.test/feed.xml')).status).toBe(201);
+    const res = await follow('https://a.test/feed.xml');
+    expect(res.status).toBe(201);
   });
 
   it('answers 401 as a problem when nobody is signed in, storing nothing', async () => {
@@ -161,14 +163,15 @@ describe('POST /api/feeds', () => {
     const res = await follow('ftp://a.test/f');
     expect(res.status).toBe(400);
     expect(res.headers.get('content-type')).toBe('application/problem+json');
-    expect((await body(res)).errors).toEqual([
-      'url: must be an http or https address.',
-    ]);
+    const problem = await body(res);
+    expect(problem.errors).toEqual(['url: must be an http or https address.']);
   });
 
   it('answers 400 when the body is not a JSON object', async () => {
-    expect((await post('[]')).status).toBe(400);
-    expect((await post('{nope')).status).toBe(400);
+    const array = await post('[]');
+    expect(array.status).toBe(400);
+    const malformed = await post('{nope');
+    expect(malformed.status).toBe(400);
   });
 
   it('answers 415 to a form post, the way the old page sent it', async () => {
@@ -203,19 +206,21 @@ describe('GET /api/feeds', () => {
   it('pages with a cursor and refuses a bad cursor or limit', async () => {
     await follow('https://a.test/1');
     await follow('https://a.test/2');
-    const first = (await (await list('?limit=1')).json()) as {
+    const firstRes = await list('?limit=1');
+    const first = (await firstRes.json()) as {
       next: string;
       items: unknown[];
     };
     expect(first.items).toHaveLength(1);
-    const second = (await (
-      await list(
-        `?limit=1&cursor=${new globalThis.URL(first.next).searchParams.get('cursor')}`,
-      )
-    ).json()) as { items: { url: string }[] };
+    const secondRes = await list(
+      `?limit=1&cursor=${new globalThis.URL(first.next).searchParams.get('cursor')}`,
+    );
+    const second = (await secondRes.json()) as { items: { url: string }[] };
     expect(second.items.map((f) => f.url)).toEqual(['https://a.test/2']);
-    expect((await list('?cursor=!!')).status).toBe(400);
-    expect((await list('?limit=0')).status).toBe(400);
+    const badCursor = await list('?cursor=!!');
+    expect(badCursor.status).toBe(400);
+    const badLimit = await list('?limit=0');
+    expect(badLimit.status).toBe(400);
   });
 
   it('answers OPML for Accept: text/x-opml, sections as folders', async () => {
@@ -257,7 +262,8 @@ describe('GET /api/feeds', () => {
         'INSERT INTO subscription_sections (subscription_id, section_id) VALUES (?, 2)',
       )
       .run(feedId);
-    const xml = await (await list('', { accept: 'text/x-opml' })).text();
+    const opml = await list('', { accept: 'text/x-opml' });
+    const xml = await opml.text();
     expect(xml.match(/xmlUrl="https:\/\/a\.test\/1"/g)).toHaveLength(2);
   });
 
@@ -268,7 +274,8 @@ describe('GET /api/feeds', () => {
         "UPDATE sources SET title = 'Real & True', site_url = 'https://a.test/' WHERE url = 'https://a.test/1'",
       )
       .run();
-    const xml = await (await list('', { accept: 'text/x-opml' })).text();
+    const opml = await list('', { accept: 'text/x-opml' });
+    const xml = await opml.text();
     expect(xml).toContain('text="Real &amp; True"');
     expect(xml).toContain('htmlUrl="https://a.test/"');
   });
@@ -279,6 +286,7 @@ describe('GET /api/feeds', () => {
   });
 
   it('answers 401 when nobody is signed in', async () => {
-    expect((await GET(new Request(URL))).status).toBe(401);
+    const res = await GET(new Request(URL));
+    expect(res.status).toBe(401);
   });
 });

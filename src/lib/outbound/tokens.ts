@@ -9,11 +9,11 @@
 /** Bytes as unpadded base64url. */
 export function base64Url(bytes: Uint8Array): string {
   let binary = '';
-  for (const byte of bytes) binary += String.fromCharCode(byte);
+  for (const byte of bytes) binary += String.fromCodePoint(byte);
   return btoa(binary)
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
+    .replaceAll('+', '-')
+    .replaceAll('/', '_')
+    .replace(/={1,2}$/, '');
 }
 
 /** Unpadded (or padded) base64url as bytes; undefined when it is not base64url. */
@@ -21,10 +21,13 @@ export function fromBase64Url(
   text: string,
 ): Uint8Array<ArrayBuffer> | undefined {
   if (!/^[A-Za-z0-9_-]*={0,2}$/.test(text)) return undefined;
-  const base64 = text.replace(/=+$/, '').replace(/-/g, '+').replace(/_/g, '/');
+  const base64 = text
+    .replace(/={1,2}$/, '')
+    .replaceAll('-', '+')
+    .replaceAll('_', '/');
   try {
     const binary = atob(base64 + '='.repeat((4 - (base64.length % 4)) % 4));
-    return Uint8Array.from(binary, (c) => c.charCodeAt(0));
+    return Uint8Array.from(binary, (c) => c.codePointAt(0) ?? 0);
   } catch {
     return undefined;
   }

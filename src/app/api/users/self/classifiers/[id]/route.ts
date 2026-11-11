@@ -1,7 +1,7 @@
 /**
  * One of the signed-in person's classifiers.
  *
- *   DELETE /api/users/self/classifiers/:id → 204
+ * DELETE /api/users/self/classifiers/:id → 204.
  *
  * The behaviour lives in the `classifierItem` controller; this file only
  * mounts it.

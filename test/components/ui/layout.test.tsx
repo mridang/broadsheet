@@ -1,10 +1,20 @@
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readFile, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 
 import { describe, expect, it } from '@jest/globals';
 
 import { Container, Eyebrow, Heading } from '@/components/ui/layout';
 import { classOf, html } from '../render';
+
+const eyebrowColourOffenders = (file: string, source: string): string[] => {
+  const offenders: string[] = [];
+  for (const match of source.matchAll(/<Eyebrow\b[^>]*className="([^"]*)"/g)) {
+    if (/\btext-(ink|accent|subtle|muted|on-ink)\b/.test(match[1]!)) {
+      offenders.push(`${file}: ${match[1]}`);
+    }
+  }
+  return offenders;
+};
 
 describe('Eyebrow', () => {
   it('is a tracked-caps paragraph in the accent colour by default', () => {
@@ -35,32 +45,29 @@ describe('Eyebrow', () => {
     );
   });
 
-  it('is never given a colour class by a caller, since classes are joined and not merged', () => {
+  it('is never given a colour class by a caller, since classes are joined and not merged', async () => {
     // Two colour classes on one element are decided by the order Tailwind
     // generated them in, not by the order they were written. The tone prop is
     // the way to choose a colour.
     const offenders: string[] = [];
-    const walk = (dir: string) => {
-      for (const name of readdirSync(dir)) {
+    const walk = async (dir: string): Promise<void> => {
+      for (const name of await readdir(dir)) {
         const file = path.join(dir, name);
-        if (statSync(file).isDirectory()) {
-          walk(file);
+        const info = await stat(file);
+        if (info.isDirectory()) {
+          await walk(file);
         } else if (
           file.endsWith('.tsx') &&
           !file.includes(`${path.sep}views${path.sep}`)
         ) {
-          const source = readFileSync(file, 'utf8');
-          for (const match of source.matchAll(
-            /<Eyebrow\b[^>]*className="([^"]*)"/g,
-          )) {
-            if (/\btext-(ink|accent|subtle|muted|on-ink)\b/.test(match[1]!)) {
-              offenders.push(`${file}: ${match[1]}`);
-            }
-          }
+          const source = await readFile(file, 'utf8');
+          offenders.push(...eyebrowColourOffenders(file, source));
+        } else {
+          // Views and non-component files are not checked.
         }
       }
     };
-    walk(path.join(process.cwd(), 'src'));
+    await walk(path.join(process.cwd(), 'src'));
     expect(offenders).toEqual([]);
   });
 });

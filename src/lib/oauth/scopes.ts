@@ -24,9 +24,9 @@ export const SUPPORTED_SCOPES: readonly string[] = [SCOPE_READ, SCOPE_WRITE];
 export function normaliseScope(
   requested: string | null | undefined,
 ): readonly string[] {
-  const asked = (requested ?? '').split(/\s+/).filter(Boolean);
-  const known = SUPPORTED_SCOPES.filter((s) => asked.includes(s));
-  return known.length ? known : SUPPORTED_SCOPES;
+  const asked = new Set((requested ?? '').split(/\s+/).filter(Boolean));
+  const known = SUPPORTED_SCOPES.filter((s) => asked.has(s));
+  return known.length > 0 ? known : SUPPORTED_SCOPES;
 }
 
 /** Whether `granted` allows what `needed` asks for (`write` implies `read`). */

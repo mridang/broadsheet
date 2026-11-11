@@ -35,7 +35,11 @@ export async function AppShell({
         <aside className="sticky top-16 hidden h-[calc(100dvh-4rem)] w-60 shrink-0 self-start overflow-y-auto py-8 lg:block print:hidden">
           {sidebar}
         </aside>
-        <main id="main" className="min-w-0 flex-1 pt-8 pb-20 sm:pt-10">
+        <main
+          id="main"
+          tabIndex={-1}
+          className="min-w-0 flex-1 pt-8 pb-20 outline-none sm:pt-10"
+        >
           {children}
         </main>
       </div>

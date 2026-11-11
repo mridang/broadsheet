@@ -94,9 +94,9 @@ function removal(
     method: 'DELETE',
     handle: async (_input, { request, uid }) => {
       const id = parseFeedId(idOf(request));
-      return id !== undefined
-        ? remove(new OutboundRepository(getDatabase()), uid, id)
-        : false;
+      return id === undefined
+        ? false
+        : remove(new OutboundRepository(getDatabase()), uid, id);
     },
     encode: (removed) => (removed ? noContent() : problems.notFound(what)),
   });

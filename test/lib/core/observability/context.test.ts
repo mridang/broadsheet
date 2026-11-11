@@ -32,8 +32,9 @@ describe('setErrorContext', () => {
   });
 
   it('drops undefined values and anything that is not a plain value', async () => {
+    let gone: string | undefined;
     await setErrorContext({
-      gone: undefined,
+      gone,
       nan: Number.NaN,
       object: { a: 1 } as never,
       kept: 'yes',

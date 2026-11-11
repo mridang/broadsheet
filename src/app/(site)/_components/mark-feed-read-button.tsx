@@ -10,7 +10,7 @@ import { markFeedRead } from '@/app/(site)/_components/story-requests';
 export function MarkFeedReadButton({
   feedId,
 }: Readonly<{ feedId: number }>): ReactElement {
-  const action = useApiAction(() => window.location.reload());
+  const action = useApiAction(() => globalThis.location.reload());
   return (
     <>
       <Button

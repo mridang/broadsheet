@@ -52,7 +52,7 @@ function ids(value: unknown, field: string, errors: string[]): number[] {
   const parsed = value.map((v) =>
     typeof v === 'string' ? parseFeedId(v) : undefined,
   );
-  if (parsed.some((id) => id === undefined)) {
+  if (parsed.includes(undefined)) {
     errors.push(`${field}: each article id must be a string id.`);
     return [];
   }
@@ -74,7 +74,9 @@ export function parsePlayerInput(
   const raw = body['current'];
   if (raw === undefined) {
     errors.push('current: required, an object or null.');
-  } else if (raw !== null) {
+  } else if (raw === null) {
+    // A null current is the default, so there is nothing to check.
+  } else {
     const c = raw as Record<string, unknown>;
     const id =
       typeof c['article_id'] === 'string'
@@ -91,7 +93,7 @@ export function parsePlayerInput(
   }
   const queue = ids(body['queue'], 'queue', errors);
   const history = ids(body['history'], 'history', errors);
-  return errors.length
+  return errors.length > 0
     ? { ok: false, errors }
     : {
         ok: true,

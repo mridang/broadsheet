@@ -13,6 +13,13 @@ import { ErrorText } from '@/components/ui/notice';
 /** How often the progress bar moves, in milliseconds. */
 const TICK_MS = 200;
 
+/** The class and the mark of one stage: done, the one under way, or still to come. */
+function stageLook(i: number, stage: number): readonly [string, string] {
+  if (i < stage) return ['text-muted', '✓ '];
+  if (i === stage) return ['font-semibold text-ink', '› '];
+  return ['text-subtle', ''];
+}
+
 /** The page of the briefing a `Location` names, or undefined. */
 export function briefingPage(location: string | null): string | undefined {
   const id = /\/briefings\/(\d+)$/.exec(location ?? '')?.[1];
@@ -51,7 +58,7 @@ export function WriteBriefing(): ReactElement {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (started === null) return;
+    if (started === null) return undefined;
     const timer = setInterval(() => setNow(Date.now()), TICK_MS);
     return () => clearInterval(timer);
   }, [started]);
@@ -69,7 +76,7 @@ export function WriteBriefing(): ReactElement {
         ? briefingPage(response.headers.get('location'))
         : undefined;
       if (page) {
-        window.location.assign(page);
+        globalThis.location.assign(page);
         return;
       }
       setError(
@@ -95,7 +102,7 @@ export function WriteBriefing(): ReactElement {
       >
         {started === null ? 'Write a briefing now' : 'Writing…'}
       </Button>
-      {started !== null ? (
+      {started === null ? null : (
         <div className="mt-3">
           <progress
             aria-label="Writing the briefing"
@@ -105,26 +112,20 @@ export function WriteBriefing(): ReactElement {
             className="block h-1.5 w-full appearance-none overflow-hidden rounded-full bg-ink/10 [&::-moz-progress-bar]:bg-highlight [&::-webkit-progress-bar]:bg-ink/10 [&::-webkit-progress-value]:rounded-full [&::-webkit-progress-value]:bg-highlight"
           />
           <ol className="mt-2 space-y-0.5 text-xs">
-            {STAGES.map((name, i) => (
-              <li
-                key={name}
-                className={
-                  i < stage
-                    ? 'text-muted'
-                    : i === stage
-                      ? 'font-semibold text-ink'
-                      : 'text-subtle'
-                }
-              >
-                {i < stage ? '✓ ' : i === stage ? '› ' : ''}
-                {name}
-              </li>
-            ))}
+            {STAGES.map((name, i) => {
+              const [tone, mark] = stageLook(i, stage);
+              return (
+                <li key={name} className={tone}>
+                  {mark}
+                  {name}
+                </li>
+              );
+            })}
           </ol>
         </div>
-      ) : null}
+      )}
       <p role="status" aria-live="polite" className="sr-only">
-        {started !== null ? `${STAGES[stage]}…` : ''}
+        {started === null ? '' : `${STAGES[stage]}…`}
       </p>
       {error ? <ErrorText>{error}</ErrorText> : null}
     </div>

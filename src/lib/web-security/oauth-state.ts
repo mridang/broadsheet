@@ -24,6 +24,7 @@ export function newState(purpose: string): string {
 export type StateCheck =
   /** It matches the cookie and names its purpose: carry on. */
   | { readonly ok: true; readonly purpose: string }
+
   /**
    * It does not: stop. `claimed` is the purpose its label says (never trusted,
    * only used to pick the wording of the error), if it has one.
@@ -40,9 +41,10 @@ export function checkState(
   validPurposes: readonly string[],
 ): StateCheck {
   const purpose = state ? purposeOf(state, validPurposes) : undefined;
-  return state && expected && state === expected && purpose
-    ? { ok: true, purpose }
-    : { ok: false, claimed: purpose };
+  if (state && expected && state === expected && purpose) {
+    return { ok: true, purpose };
+  }
+  return { ok: false, claimed: purpose };
 }
 
 /**

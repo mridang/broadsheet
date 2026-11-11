@@ -26,9 +26,10 @@ describe('readJson', () => {
   });
 
   it('ignores media type parameters and case', async () => {
-    expect(
-      (await readJson(post('[]', 'Application/JSON; charset=utf-8'))).ok,
-    ).toBe(true);
+    const result = await readJson(
+      post('[]', 'Application/JSON; charset=utf-8'),
+    );
+    expect(result.ok).toBe(true);
   });
 
   it('refuses another media type with 415', async () => {
@@ -38,9 +39,8 @@ describe('readJson', () => {
 
   it('accepts the extra media types a route names', async () => {
     const request = post('{}', 'application/merge-patch+json');
-    expect((await readJson(request, ['application/merge-patch+json'])).ok).toBe(
-      true,
-    );
+    const result = await readJson(request, ['application/merge-patch+json']);
+    expect(result.ok).toBe(true);
   });
 
   it('refuses a body that is not JSON with 400', async () => {
@@ -53,7 +53,8 @@ describe('readJson', () => {
       method: 'POST',
       body: '{}',
     });
-    expect((await readJson(request)).ok).toBe(false);
+    const result = await readJson(request);
+    expect(result.ok).toBe(false);
   });
 });
 
@@ -78,7 +79,8 @@ describe('readJson size limit', () => {
   const jsonOf = (bytes: number) => `"${'x'.repeat(bytes - 2)}"`;
 
   it('accepts a body of exactly 256 KiB by default and refuses one byte more with 413', async () => {
-    expect((await readJson(post(jsonOf(256 * 1024)))).ok).toBe(true);
+    const accepted = await readJson(post(jsonOf(256 * 1024)));
+    expect(accepted.ok).toBe(true);
     const { status, body } = await refusal(
       await readJson(post(jsonOf(256 * 1024 + 1))),
     );
@@ -109,7 +111,8 @@ describe('readJson size limit', () => {
 
   it('takes a larger limit from the route', async () => {
     const body = jsonOf(500_000);
-    expect((await readJson(post(body), [], 1024 * 1024)).ok).toBe(true);
+    const larger = await readJson(post(body), [], 1024 * 1024);
+    expect(larger.ok).toBe(true);
     const { status, body: problem } = await refusal(
       await readJson(post(body), [], 100 * 1024),
     );
@@ -128,10 +131,13 @@ describe('readJson size limit', () => {
     const bad = new Request('http://localhost/x', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
+
       body: new Uint8Array([0x22, 0xff, 0x22]),
     });
-    expect((await refusal(await readJson(bad))).status).toBe(400);
-    expect((await refusal(await readJson(post('')))).status).toBe(400);
+    const notUtf8 = await refusal(await readJson(bad));
+    expect(notUtf8.status).toBe(400);
+    const empty = await refusal(await readJson(post('')));
+    expect(empty.status).toBe(400);
   });
 });
 

@@ -32,7 +32,7 @@ export function ShareButton({
   const [isShared, setIsShared] = useState(shared);
   const [comments, setComments] = useState('');
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string>();
+  const [errorText, setError] = useState<string>();
   const panel = useRef<HTMLDetailsElement>(null);
   const field = useId();
 
@@ -43,17 +43,17 @@ export function ShareButton({
       await setShared(articleId, share, comments);
       setIsShared(share);
       if (panel.current) panel.current.open = false;
-    } catch (err) {
-      setError(problemText(err, 'Could not share.'));
+    } catch (error) {
+      setError(problemText(error, 'Could not share.'));
     } finally {
       setBusy(false);
     }
   }
 
   const name = `${isShared ? 'Shared' : 'Share'} ${title}`;
-  const failure = error ? (
+  const failure = errorText ? (
     <p className="mt-2 text-xs text-danger" role="alert">
-      {error}
+      {errorText}
     </p>
   ) : null;
   const form = (

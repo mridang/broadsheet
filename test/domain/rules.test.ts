@@ -27,14 +27,17 @@ const rule = (over: Partial<NotificationRule>): NotificationRule => ({
 });
 
 describe('regexProblem', () => {
-  it.each(['^rust \\d', 'rust|go', '[a-z]+ released'])('accepts %s', (p) => {
-    expect(regexProblem(p)).toBeUndefined();
-  });
+  it.each([String.raw`^rust \d`, 'rust|go', '[a-z]+ released'])(
+    'accepts %s',
+    (p) => {
+      expect(regexProblem(p)).toBeUndefined();
+    },
+  );
 
   it.each([
     ['(a+)+', 'a repeated group may not itself repeat'],
     ['(x*)*y', 'a repeated group may not itself repeat'],
-    ['(a)\\1', 'back-references are not allowed'],
+    [String.raw`(a)\1`, 'back-references are not allowed'],
     ['(', 'not a valid regular expression'],
     ['a'.repeat(201), 'too long'],
   ])('refuses %s', (p, problem) => {
@@ -46,11 +49,11 @@ describe('matchesRule', () => {
   it.each([
     [{ kind: 'title', value: 'RUST' }, true],
     [{ kind: 'title', value: 'python' }, false],
-    [{ kind: 'title', value: '^rust \\d', is_regex: true }, true],
+    [{ kind: 'title', value: String.raw`^rust \d`, is_regex: true }, true],
     [{ kind: 'text', value: 'garbage collection' }, true],
     [{ kind: 'text', value: 'faster' }, true],
     [{ kind: 'url', value: 'blog.example' }, true],
-    [{ kind: 'url', value: 'rust-\\d$', is_regex: true }, true],
+    [{ kind: 'url', value: String.raw`rust-\d$`, is_regex: true }, true],
     [{ kind: 'author', value: 'Ferris' }, true],
     [{ kind: 'author', value: 'ferris' }, false],
     [{ kind: 'author', value: '^fer', is_regex: true }, true],
@@ -72,7 +75,8 @@ describe('matchesRule', () => {
   });
 
   it('matches nothing on a story without the field', () => {
-    const bare = { ...story, title: null, author: null, tags: undefined };
+    const bare = { ...story, title: null, author: null };
+    delete bare.tags;
     expect(matchesRule(rule({ kind: 'title' }), bare)).toBe(false);
     expect(matchesRule(rule({ kind: 'author', value: 'Ferris' }), bare)).toBe(
       false,
@@ -80,5 +84,41 @@ describe('matchesRule', () => {
     expect(matchesRule(rule({ kind: 'tag', value: 'release' }), bare)).toBe(
       false,
     );
+  });
+});
+
+describe('regexProblem repeated groups', () => {
+  const REPEATED = new RegExp(
+    [String.raw`\([^)]`, '*[+*}][^)]', String.raw`*\)\s`, '*[+*{?]'].join(''),
+  );
+
+  it.each([
+    '(a+)+',
+    '(a+) +',
+    '(a)+',
+    '(a)',
+    '((a+))*',
+    '(a|b*)?',
+    String.raw`(a+)\s{2}`,
+    '(a+)x',
+    '(a}+',
+    'a(b+)',
+    '(a)(b+)*',
+    '(a(b+)c)d',
+    '(a)+(b+)',
+    'a+(b)',
+    '(a+',
+    'x)+(y*',
+  ])('judges %s as the original pattern did', (pattern) => {
+    const problem = regexProblem(pattern);
+    expect(problem === 'a repeated group may not itself repeat').toBe(
+      REPEATED.test(pattern),
+    );
+  });
+
+  it('stays fast on many open brackets', () => {
+    const started = Date.now();
+    regexProblem('('.repeat(200));
+    expect(Date.now() - started).toBeLessThan(2000);
   });
 });

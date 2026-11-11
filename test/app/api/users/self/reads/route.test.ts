@@ -39,9 +39,9 @@ beforeEach(async () => {
   db = databaseFrom(made.d1);
   const repo = new Repository(db);
   const feed = (await repo.addFeed(7, 'https://a.test/f'))!;
-  const source_id = feed.source_id;
+  const sourceId = feed.source_id;
   feedId = feed.id;
-  await repo.writeEdition(source_id, '2026-10-20', [
+  await repo.writeEdition(sourceId, '2026-10-20', [
     {
       url: 'https://x/1',
       title: 'One',
@@ -53,7 +53,8 @@ beforeEach(async () => {
       points: 0,
     },
   ]);
-  story = (await repo.sourceArticles(source_id, '2026-10-20'))[0]!.id;
+  const articles = await repo.sourceArticles(sourceId, '2026-10-20');
+  story = articles[0]!.id;
   auth = await cookieFor(7);
 });
 
@@ -80,19 +81,22 @@ describe('POST /api/users/self/reads', () => {
 
   it('notes the stories as read', async () => {
     await readMany({ article_ids: [String(story)] });
-    expect([...(await new Repository(db).readState(7)).ids]).toEqual([story]);
+    const after = await new Repository(db).readState(7);
+    expect([...after.ids]).toEqual([story]);
   });
 
   it.each([{}, { article_ids: [] }, { article_ids: [1] }])(
     'answers 400 for %j',
     async (body) => {
-      expect((await readMany(body)).status).toBe(400);
+      const res = await readMany(body);
+      expect(res.status).toBe(400);
     },
   );
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await readMany({ article_ids: [String(story)] })).status).toBe(401);
+    const res = await readMany({ article_ids: [String(story)] });
+    expect(res.status).toBe(401);
   });
 });
 
@@ -112,18 +116,22 @@ describe('POST /api/users/self/reads with copies', () => {
         points: 0,
       },
     ]);
-    const copy = (await repo.sourceArticles(source_id, '2026-10-20'))[0]!.id;
+    const articles = await repo.sourceArticles(source_id, '2026-10-20');
+    const copy = articles[0]!.id;
     await repo.writeClusters('2026-10-20', [[story, copy]]);
     await repo.updatePreferences(7, { cluster_mark_read: true });
     await readMany({ article_ids: [String(story)] });
-    expect([...(await repo.readState(7)).ids].toSorted()).toEqual(
-      [story, copy].toSorted(),
+    const marked = await repo.readState(7);
+    expect([...marked.ids].toSorted((a, b) => a - b)).toEqual(
+      [story, copy].toSorted((a, b) => a - b),
     );
   });
 });
 
-const items = async (body: unknown) =>
-  ((await (await readMany(body)).json()) as { items: unknown[] }).items;
+const items = async (body: unknown) => {
+  const res = await readMany(body);
+  return ((await res.json()) as { items: unknown[] }).items;
+};
 
 describe('POST /api/users/self/reads with a scope', () => {
   it('marks every unread story read with before as now', async () => {
@@ -156,7 +164,8 @@ describe('POST /api/users/self/reads with a scope', () => {
   });
 
   it('answers 400 for a section the person does not have', async () => {
-    expect((await readMany({ section_id: '999' })).status).toBe(400);
+    const res = await readMany({ section_id: '999' });
+    expect(res.status).toBe(400);
   });
 
   it('answers 415 for a body that is not JSON', async () => {

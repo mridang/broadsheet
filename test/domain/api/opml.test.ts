@@ -193,7 +193,7 @@ describe('parseOpml robustness', () => {
 
   it('copes with a megabyte of unterminated outlines quickly', () => {
     const started = Date.now();
-    parseOpml(doc('<outline text="x'.repeat(60000)));
+    parseOpml(doc('<outline text="x'.repeat(60_000)));
     expect(Date.now() - started).toBeLessThan(1000);
   });
 
@@ -206,7 +206,12 @@ describe('parseOpml robustness', () => {
     );
     expect(parseOpml(xml)).toEqual({
       ok: true,
-      feeds: [{ url: 'https://a.test/f', sections: Array(8).fill('F') }],
+      feeds: [
+        {
+          url: 'https://a.test/f',
+          sections: Array.from({ length: 8 }, () => 'F'),
+        },
+      ],
     });
   });
 });

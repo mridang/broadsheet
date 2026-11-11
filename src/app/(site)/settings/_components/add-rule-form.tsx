@@ -1,6 +1,6 @@
 'use client';
 
-import type { FormEvent, ReactElement } from 'react';
+import type { ReactElement, SubmitEvent } from 'react';
 
 import { useApiAction } from '@/components/api/use-api-action';
 import { buttonClass } from '@/components/ui/button';
@@ -11,14 +11,21 @@ import {
   type RuleRequest,
 } from '@/app/(site)/settings/_components/settings-requests';
 
+/** The scope a rule's "Where to look" choice names. */
+function scopeOf(where: string) {
+  if (where.startsWith('feed:')) {
+    return { scope: 'feed', feed_id: where.slice('feed:'.length) };
+  }
+  if (where.startsWith('section:')) {
+    return { scope: 'section', section_id: where.slice('section:'.length) };
+  }
+  return { scope: 'all' };
+}
+
 /** The request a filled-in rule form makes. */
 export function ruleRequest(form: FormData): RuleRequest {
   const where = String(form.get('where') ?? 'all');
-  const scope = where.startsWith('feed:')
-    ? { scope: 'feed', feed_id: where.slice('feed:'.length) }
-    : where.startsWith('section:')
-      ? { scope: 'section', section_id: where.slice('section:'.length) }
-      : { scope: 'all' };
+  const scope = scopeOf(where);
   return {
     kind: String(form.get('kind') ?? 'title'),
     value: String(form.get('value') ?? ''),
@@ -28,6 +35,13 @@ export function ruleRequest(form: FormData): RuleRequest {
   };
 }
 
+/** The label each notification channel shows in the form. */
+const CHANNEL_LABELS = {
+  web: 'Push',
+  email: 'Email',
+  webhook: 'Webhook',
+} as const;
+
 /** The box for adding a rule that notifies about matching stories. */
 export function AddRuleForm({
   feeds,
@@ -36,8 +50,8 @@ export function AddRuleForm({
   feeds: readonly { id: number; title: string }[];
   sections: readonly { id: number; name: string }[];
 }>): ReactElement {
-  const { busy, error, run } = useApiAction(() => window.location.reload());
-  const submit = (event: FormEvent<HTMLFormElement>): void => {
+  const { busy, error, run } = useApiAction(() => globalThis.location.reload());
+  const submit = (event: SubmitEvent<HTMLFormElement>): void => {
     event.preventDefault();
     const request = ruleRequest(new FormData(event.currentTarget));
     void run(() => addRule(request), 'Could not add that rule.');
@@ -89,11 +103,7 @@ export function AddRuleForm({
                 value={channel}
                 defaultChecked={channel === 'web'}
               />{' '}
-              {channel === 'web'
-                ? 'Push'
-                : channel === 'email'
-                  ? 'Email'
-                  : 'Webhook'}
+              {CHANNEL_LABELS[channel]}
             </label>
           ))}
           <button

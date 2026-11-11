@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, type FormEvent, type ReactElement } from 'react';
+import { useRef, useState, type ReactElement, type SubmitEvent } from 'react';
 
 import {
   importOpml,
@@ -16,10 +16,10 @@ export function ImportFeedsForm(): ReactElement {
   const { busy, error, run } = useApiAction();
   const [progress, setProgress] = useState<ImportProgress>();
   const form = useRef<HTMLFormElement>(null);
-  const submit = (event: FormEvent<HTMLFormElement>): void => {
+  const submit = (event: SubmitEvent<HTMLFormElement>): void => {
     event.preventDefault();
     const file = new FormData(event.currentTarget).get('file');
-    if (!(file instanceof File) || !file.size) return;
+    if (!(file instanceof File) || file.size === 0) return;
     void run(async () => {
       const done = await importOpml(file, setProgress);
       const query = new URLSearchParams({
@@ -27,7 +27,7 @@ export function ImportFeedsForm(): ReactElement {
         skipped: String(done.skipped),
         rejected: String(done.rejected.length),
       });
-      window.location.assign(`/feeds?${query.toString()}`);
+      globalThis.location.assign(`/feeds?${query.toString()}`);
     }, 'Could not import that file.');
   };
   return (
@@ -45,7 +45,7 @@ export function ImportFeedsForm(): ReactElement {
           <input
             name="file"
             type="file"
-            accept=".opml,.xml,text/x-opml,text/xml"
+            accept=".opml, .xml, text/x-opml, text/xml"
             aria-label="OPML file"
             className="sr-only"
             required

@@ -21,9 +21,10 @@ describe('without a Cloudflare context (tests, scripts)', () => {
   it('lets background work run on its own', async () => {
     let done = false;
     runInBackground(
-      Promise.resolve().then(() => {
+      (async () => {
+        await Promise.resolve();
         done = true;
-      }),
+      })(),
     );
     await Promise.resolve();
     await Promise.resolve();
@@ -43,11 +44,11 @@ describe('without a Cloudflare context (tests, scripts)', () => {
 });
 
 describe('with a Cloudflare context', () => {
-  let restore: (() => void) | undefined;
+  let restore: (() => void) | null = null;
 
   afterEach(() => {
     restore?.();
-    restore = undefined;
+    restore = null;
   });
 
   it("hands out the context's D1 binding and environment", () => {

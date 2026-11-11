@@ -93,12 +93,15 @@ async function redeemCode(
   const clientId = form.get('client_id');
   const redirectUri = form.get('redirect_uri');
   const resource = form.get('resource');
+  if (!stored || stored.expiresAt <= now || stored.clientId !== clientId) {
+    return fail('invalid_grant', 'The code is not valid.');
+  }
+  const wrongRedirect =
+    redirectUri !== null && redirectUri !== stored.redirectUri;
+  const wrongResource = resource !== null && !isOurResource(resource, origin);
   if (
-    !stored ||
-    stored.expiresAt <= now ||
-    stored.clientId !== clientId ||
-    (redirectUri !== null && redirectUri !== stored.redirectUri) ||
-    (resource !== null && !isOurResource(resource, origin)) ||
+    wrongRedirect ||
+    wrongResource ||
     !(await verifyPkce(verifier, stored.codeChallenge))
   ) {
     return fail('invalid_grant', 'The code is not valid.');
@@ -126,15 +129,12 @@ async function refresh(
   }
   const stored = await store.takeToken(await hashSecret(token));
   const grant = stored ? await store.findGrant(stored.grantId) : undefined;
-  if (
-    !stored ||
-    stored.kind !== 'refresh' ||
-    stored.expiresAt <= now ||
-    !grant ||
-    grant.revoked ||
-    grant.clientId !== form.get('client_id')
-  ) {
-    return fail('invalid_grant', 'The refresh token is not valid.');
+  const invalid = fail('invalid_grant', 'The refresh token is not valid.');
+  if (!stored || stored.kind !== 'refresh' || stored.expiresAt <= now) {
+    return invalid;
+  }
+  if (!grant || grant.revoked || grant.clientId !== form.get('client_id')) {
+    return invalid;
   }
   return { ok: true, tokens: await issuePair(store, grant, now) };
 }
@@ -150,15 +150,18 @@ export async function handleTokenRequest(
     return fail('invalid_request', 'Send client_id.');
   }
   switch (form.get('grant_type')) {
-    case 'authorization_code':
+    case 'authorization_code': {
       return redeemCode(form, store, origin, now);
-    case 'refresh_token':
+    }
+    case 'refresh_token': {
       return refresh(form, store, now);
-    default:
+    }
+    default: {
       return fail(
         'unsupported_grant_type',
         'Use authorization_code or refresh_token.',
       );
+    }
   }
 }
 

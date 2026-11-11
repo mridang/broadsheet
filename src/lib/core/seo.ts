@@ -62,5 +62,5 @@ export function landingJsonLd(): Readonly<Record<string, unknown>> {
  * data can never close the tag or open a comment.
  */
 export function jsonLdText(data: unknown): string {
-  return JSON.stringify(data).replace(/</g, '\\u003c');
+  return JSON.stringify(data).replaceAll('<', String.raw`\u003c`);
 }

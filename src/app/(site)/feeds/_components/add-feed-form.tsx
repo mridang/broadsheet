@@ -1,6 +1,6 @@
 'use client';
 
-import type { FormEvent, ReactElement } from 'react';
+import type { SubmitEvent, ReactElement } from 'react';
 
 import { followFeed } from '@/app/(site)/feeds/_components/feed-requests';
 import { useFeedAction } from '@/app/(site)/feeds/_components/use-feed-action';
@@ -10,7 +10,7 @@ import { ErrorText } from '@/components/ui/notice';
 /** The box at the top of the feed manager for following another feed. */
 export function AddFeedForm(): ReactElement {
   const { busy, error, run } = useFeedAction();
-  const submit = (event: FormEvent<HTMLFormElement>): void => {
+  const submit = (event: SubmitEvent<HTMLFormElement>): void => {
     event.preventDefault();
     const url = String(new FormData(event.currentTarget).get('url') ?? '');
     void run(() => followFeed(url), 'Could not add that feed.');

@@ -12,10 +12,10 @@ import { and, desc, eq, getTableColumns, inArray, or } from 'drizzle-orm';
 import { type Database } from '@/domain/db/database';
 import {
   articles,
-  feed_tokens,
-  push_subscriptions,
+  feedTokens,
+  pushSubscriptions,
   sections,
-  subscription_sections,
+  subscriptionSections,
   subscriptions,
   webhooks,
 } from '@/domain/db/schema';
@@ -26,7 +26,7 @@ import {
 } from '@/domain/repository';
 
 /** A browser told when the day's issue is ready. */
-export type PushSubscription = typeof push_subscriptions.$inferSelect;
+export type PushSubscription = typeof pushSubscriptions.$inferSelect;
 
 /** What a browser hands over to subscribe. */
 export interface PushSubscriptionInput {
@@ -77,7 +77,7 @@ export type FeedFilter = (typeof FEED_FILTERS)[number];
 
 /** A token a feed reader fetches `/feed.xml` with (its hash only). */
 export type FeedToken = Omit<
-  typeof feed_tokens.$inferSelect,
+  typeof feedTokens.$inferSelect,
   'scope' | 'filter'
 > & {
   readonly scope: FeedScope;
@@ -87,11 +87,11 @@ export type FeedToken = Omit<
 /** What a new feed token shows. */
 export interface FeedTokenInput {
   readonly scope: FeedScope;
-  readonly tag?: string | undefined;
-  readonly section_id?: number | undefined;
+  readonly tag?: string;
+  readonly section_id?: number;
   /** The saved search a `search` feed follows. */
-  readonly search_id?: number | undefined;
-  readonly filter?: FeedFilter | undefined;
+  readonly search_id?: number;
+  readonly filter?: FeedFilter;
 }
 
 /** The events stored for a hook, keeping only the ones we know. */
@@ -114,7 +114,7 @@ function webhookOf(row: typeof webhooks.$inferSelect): Webhook {
 }
 
 /** A stored token row as a {@link FeedToken}. */
-function tokenOf(row: typeof feed_tokens.$inferSelect): FeedToken {
+function tokenOf(row: typeof feedTokens.$inferSelect): FeedToken {
   return {
     ...row,
     scope: (FEED_SCOPES as readonly string[]).includes(row.scope)
@@ -153,15 +153,15 @@ export class OutboundRepository {
     input: PushSubscriptionInput,
   ): Promise<{ subscription: PushSubscription; created: boolean }> {
     const [before] = await this.#db
-      .select({ id: push_subscriptions.id })
-      .from(push_subscriptions)
-      .where(eq(push_subscriptions.endpoint, input.endpoint))
+      .select({ id: pushSubscriptions.id })
+      .from(pushSubscriptions)
+      .where(eq(pushSubscriptions.endpoint, input.endpoint))
       .limit(1);
     const [row] = await this.#db
-      .insert(push_subscriptions)
+      .insert(pushSubscriptions)
       .values({ user_id: userId, ...input })
       .onConflictDoUpdate({
-        target: push_subscriptions.endpoint,
+        target: pushSubscriptions.endpoint,
         set: { user_id: userId, p256dh: input.p256dh, auth: input.auth },
       })
       .returning();
@@ -171,31 +171,31 @@ export class OutboundRepository {
   /** Forget one of the person's browsers. True when they had it. */
   async removePushSubscription(userId: number, id: number): Promise<boolean> {
     const removed = await this.#db
-      .delete(push_subscriptions)
+      .delete(pushSubscriptions)
       .where(
         and(
-          eq(push_subscriptions.id, id),
-          eq(push_subscriptions.user_id, userId),
+          eq(pushSubscriptions.id, id),
+          eq(pushSubscriptions.user_id, userId),
         ),
       )
-      .returning({ id: push_subscriptions.id });
+      .returning({ id: pushSubscriptions.id });
     return removed.length > 0;
   }
 
   /** Forget a browser the push service says is gone. */
   async removePushEndpoint(endpoint: string): Promise<void> {
     await this.#db
-      .delete(push_subscriptions)
-      .where(eq(push_subscriptions.endpoint, endpoint));
+      .delete(pushSubscriptions)
+      .where(eq(pushSubscriptions.endpoint, endpoint));
   }
 
   /** The person's browsers, newest first. */
   pushSubscriptions(userId: number): Promise<PushSubscription[]> {
     return this.#db
       .select()
-      .from(push_subscriptions)
-      .where(eq(push_subscriptions.user_id, userId))
-      .orderBy(desc(push_subscriptions.id));
+      .from(pushSubscriptions)
+      .where(eq(pushSubscriptions.user_id, userId))
+      .orderBy(desc(pushSubscriptions.id));
   }
 
   /** Add a webhook. */
@@ -228,14 +228,13 @@ export class OutboundRepository {
       .from(webhooks)
       .where(eq(webhooks.user_id, userId))
       .orderBy(desc(webhooks.id));
-    return rows.map(webhookOf);
+    return rows.map((row) => webhookOf(row));
   }
 
   /** The person's webhooks that want `event`. */
   async webhooksFor(userId: number, event: WebhookEvent): Promise<Webhook[]> {
-    return (await this.listWebhooks(userId)).filter((h) =>
-      h.events.includes(event),
-    );
+    const hooks = await this.listWebhooks(userId);
+    return hooks.filter((h) => h.events.includes(event));
   }
 
   /** Keep a feed token by its hash. */
@@ -245,7 +244,7 @@ export class OutboundRepository {
     input: FeedTokenInput,
   ): Promise<FeedToken> {
     const [row] = await this.#db
-      .insert(feed_tokens)
+      .insert(feedTokens)
       .values({
         user_id: userId,
         token_hash: tokenHash,
@@ -262,9 +261,9 @@ export class OutboundRepository {
   /** Revoke one of the person's feed tokens. True when they had it. */
   async removeFeedToken(userId: number, id: number): Promise<boolean> {
     const removed = await this.#db
-      .delete(feed_tokens)
-      .where(and(eq(feed_tokens.id, id), eq(feed_tokens.user_id, userId)))
-      .returning({ id: feed_tokens.id });
+      .delete(feedTokens)
+      .where(and(eq(feedTokens.id, id), eq(feedTokens.user_id, userId)))
+      .returning({ id: feedTokens.id });
     return removed.length > 0;
   }
 
@@ -272,18 +271,18 @@ export class OutboundRepository {
   async listFeedTokens(userId: number): Promise<FeedToken[]> {
     const rows = await this.#db
       .select()
-      .from(feed_tokens)
-      .where(eq(feed_tokens.user_id, userId))
-      .orderBy(desc(feed_tokens.id));
-    return rows.map(tokenOf);
+      .from(feedTokens)
+      .where(eq(feedTokens.user_id, userId))
+      .orderBy(desc(feedTokens.id));
+    return rows.map((row) => tokenOf(row));
   }
 
   /** The token with this hash, or undefined. */
   async feedTokenByHash(tokenHash: string): Promise<FeedToken | undefined> {
     const [row] = await this.#db
       .select()
-      .from(feed_tokens)
-      .where(eq(feed_tokens.token_hash, tokenHash))
+      .from(feedTokens)
+      .where(eq(feedTokens.token_hash, tokenHash))
       .limit(1);
     return row ? tokenOf(row) : undefined;
   }
@@ -320,9 +319,9 @@ export class OutboundRepository {
             inArray(
               subscriptions.id,
               this.#db
-                .select({ id: subscription_sections.subscription_id })
-                .from(subscription_sections)
-                .where(inArray(subscription_sections.section_id, ids)),
+                .select({ id: subscriptionSections.subscription_id })
+                .from(subscriptionSections)
+                .where(inArray(subscriptionSections.section_id, ids)),
             ),
           ),
     );

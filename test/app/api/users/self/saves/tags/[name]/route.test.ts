@@ -51,7 +51,8 @@ beforeEach(async () => {
       points: 0,
     },
   ]);
-  story = (await repo.sourceArticles(feed.source_id, '2026-10-20'))[0]!.id;
+  const articles = await repo.sourceArticles(feed.source_id, '2026-10-20');
+  story = articles[0]!.id;
   auth = await cookieFor(7);
 });
 
@@ -75,8 +76,10 @@ const remove = (name: string) =>
     params: Promise.resolve({ name }),
   });
 
-const tags = async () =>
-  (await new Repository(db).getSave(7, story))?.tags ?? [];
+const tags = async () => {
+  const save = await new Repository(db).getSave(7, story);
+  return save?.tags ?? [];
+};
 
 beforeEach(async () => {
   await new Repository(db).saveArticle(7, story, ['old news', 'b']);
@@ -101,30 +104,33 @@ describe('PATCH /api/users/self/saves/tags/:name', () => {
   });
 
   it('answers 415 for a body that is not JSON', async () => {
-    expect(
-      (await rename('b', 'x', { 'Content-Type': 'text/plain' })).status,
-    ).toBe(415);
+    const res = await rename('b', 'x', { 'Content-Type': 'text/plain' });
+    expect(res.status).toBe(415);
   });
 
   it('answers 404 for a tag no save carries', async () => {
-    expect((await rename('zzz', '{"name":"a"}')).status).toBe(404);
+    const res = await rename('zzz', '{"name":"a"}');
+    expect(res.status).toBe(404);
   });
 
   it('answers 404, renaming nothing, for another person', async () => {
     auth = await cookieFor(8);
-    expect((await rename('b', '{"name":"c"}')).status).toBe(404);
+    const res = await rename('b', '{"name":"c"}');
+    expect(res.status).toBe(404);
     expect(await tags()).toEqual(['old news', 'b']);
   });
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await rename('b', '{"name":"c"}')).status).toBe(401);
+    const res = await rename('b', '{"name":"c"}');
+    expect(res.status).toBe(401);
   });
 });
 
 describe('DELETE /api/users/self/saves/tags/:name', () => {
   it('answers 204 and takes the tag off, keeping the save', async () => {
-    expect((await remove('b')).status).toBe(204);
+    const res = await remove('b');
+    expect(res.status).toBe(204);
     expect(await tags()).toEqual(['old news']);
   });
 
@@ -137,7 +143,8 @@ describe('DELETE /api/users/self/saves/tags/:name', () => {
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await remove('b')).status).toBe(401);
+    const res = await remove('b');
+    expect(res.status).toBe(401);
   });
 
   it('answers 404 for a name that is not valid percent-encoding', async () => {

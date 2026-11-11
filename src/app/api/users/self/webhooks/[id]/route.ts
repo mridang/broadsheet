@@ -1,7 +1,7 @@
 /**
  * One of the signed-in person's webhooks.
  *
- *   DELETE /api/users/self/webhooks/:id → 204
+ * DELETE /api/users/self/webhooks/:id → 204.
  *
  * The behaviour lives in the `webhookItem` controller; this file only mounts it.
  */

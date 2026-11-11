@@ -1,9 +1,9 @@
 /**
  * The feeds the signed-in person follows.
  *
- *   GET  /api/feeds → a page of JSON, or OPML for `Accept: text/x-opml`
+ * GET  /api/feeds → a page of JSON, or OPML for `Accept: text/x-opml`
  *   POST /api/feeds {url} → 201 + Location (200 + Location when they
- *                           already follow it)
+ *                           already follow it).
  *
  * The behaviour lives in the `feedsCollection` controller; this file only
  * mounts it.

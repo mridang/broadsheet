@@ -22,7 +22,6 @@ interface VapidClaims {
  * Build the `Authorization: vapid t=<jwt>, k=<publicKey>` header for one
  * push request. The token expires 12h after `nowSeconds` (well below the
  * spec's 24h ceiling).
- *
  * @public
  */
 export async function signVapidAuthHeader(opts: {

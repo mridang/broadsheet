@@ -29,22 +29,24 @@ export const metadata: Metadata = { title: 'Feed' };
 export default async function FeedPage({
   params,
   searchParams,
-}: {
+}: Readonly<{
   params: Promise<{ id: string }>;
   searchParams: Promise<{ before?: string }>;
-}): Promise<ReactElement> {
+}>): Promise<ReactElement> {
   const user = await getCurrentUser();
   if (!user) redirect('/login');
-  const id = parseFeedId((await params).id);
+  const route = await params;
+  const id = parseFeedId(route.id);
   if (id === undefined) notFound();
   const repo = new Repository(getDatabase());
   const feed = await repo.getFeed(user.id, id);
   if (!feed) notFound();
-  const before = parseFeedId((await searchParams).before ?? '');
+  const query = await searchParams;
+  const before = parseFeedId(query.before ?? '');
   const rows = await repo.searchArticles(user.id, {
     feed: id,
     byDate: true,
-    ...(before !== undefined ? { before } : {}),
+    ...(before === undefined ? {} : { before }),
     limit: PAGE_SIZE,
   });
   const stories = rows.slice(0, PAGE_SIZE);
@@ -55,7 +57,7 @@ export default async function FeedPage({
     <div className="max-w-3xl">
       <FeedSummary feed={feed} heading />
       <PageSection id="stories" title="Stories">
-        {stories.length ? (
+        {stories.length > 0 ? (
           <ol className="divide-y divide-line border-y border-line">
             {stories.map((s) => (
               <StoryRow
@@ -85,14 +87,14 @@ export default async function FeedPage({
           </EmptyState>
         )}
         <p className="mt-6 flex gap-2">
-          {before !== undefined ? (
+          {before === undefined ? null : (
             <a
               className={buttonClass({ variant: 'outline', size: 'sm' })}
               href={`/feeds/${id}`}
             >
               ← Newest
             </a>
-          ) : null}{' '}
+          )}{' '}
           {rows.length > PAGE_SIZE && last ? (
             <a
               className={buttonClass({ variant: 'outline', size: 'sm' })}
@@ -104,7 +106,7 @@ export default async function FeedPage({
         </p>
       </PageSection>
       <PageSection id="about" title="Everything this feed says about itself">
-        {metadataElements.length ? (
+        {metadataElements.length > 0 ? (
           <FeedMetadata elements={metadataElements} />
         ) : (
           <p className="text-sm text-muted">

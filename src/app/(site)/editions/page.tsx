@@ -38,7 +38,7 @@ export default async function EditionsPage() {
         title="Your editions"
         description="Each edition is its own paper, laid out every day from the stories its rules pick."
       />
-      {editions.length ? null : (
+      {editions.length > 0 ? null : (
         <div className="mt-8">
           <EmptyState icon="editions" title="No editions yet">
             Make one below to get a second paper beside your daily one.

@@ -26,7 +26,9 @@ describe('DiscoverTabs', () => {
   it('links each tab to its own address', () => {
     TABS.forEach(([id, label]) =>
       expect(out).toMatch(
-        new RegExp(`<a[^>]*href="/discover\\?tab=${id}"[^>]*>${label}</a>`),
+        new RegExp(
+          String.raw`<a[^>]*href="/discover\?tab=${id}"[^>]*>${label}</a>`,
+        ),
       ),
     );
   });

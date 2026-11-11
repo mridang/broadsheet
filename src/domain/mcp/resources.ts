@@ -10,7 +10,7 @@ import { classifierResource } from '@/domain/api/classifier-resource';
 import { feedResource } from '@/domain/api/feed-resource';
 import { sectionResource } from '@/domain/api/section-resource';
 import { Repository } from '@/domain/repository';
-import { ToolFailure, type McpResource } from '@/lib/mcp';
+import { ToolFailureError, type McpResource } from '@/lib/mcp';
 import type { ToolContext } from './tools';
 import { compareText } from '@/lib/intl';
 
@@ -23,19 +23,21 @@ export const RESOURCES: readonly McpResource<ToolContext>[] = [
     name: 'feeds',
     uri: 'broadsheet://feeds',
     description: 'The feeds the person follows.',
-    read: async (_params, { uid, db }) => ({
-      feeds: (await new Repository(db).listFeeds(uid)).map(feedResource),
-    }),
+    read: async (_params, { uid, db }) => {
+      const feeds = await new Repository(db).listFeeds(uid);
+      return { feeds: feeds.map((feed) => feedResource(feed)) };
+    },
   },
   {
     name: 'sections',
     uri: 'broadsheet://sections',
     description: 'The sections the person groups feeds under.',
-    read: async (_params, { uid, db }) => ({
-      sections: (await new Repository(db).listSections(uid)).map(
-        sectionResource,
-      ),
-    }),
+    read: async (_params, { uid, db }) => {
+      const sections = await new Repository(db).listSections(uid);
+      return {
+        sections: sections.map((section) => sectionResource(section)),
+      };
+    },
   },
   {
     name: 'saved-tags',
@@ -49,7 +51,7 @@ export const RESOURCES: readonly McpResource<ToolContext>[] = [
       }
       return {
         tags: [...counts]
-          .sort(([a], [b]) => compareText(a, b))
+          .toSorted(([a], [b]) => compareText(a, b))
           .map(([tag, count]) => ({ tag, count })),
       };
     },
@@ -58,11 +60,14 @@ export const RESOURCES: readonly McpResource<ToolContext>[] = [
     name: 'classifiers',
     uri: 'broadsheet://classifiers',
     description: 'The likes and dislikes the person trained the paper with.',
-    read: async (_params, { uid, db }) => ({
-      classifiers: (await new Repository(db).listClassifiers(uid)).map(
-        classifierResource,
-      ),
-    }),
+    read: async (_params, { uid, db }) => {
+      const classifiers = await new Repository(db).listClassifiers(uid);
+      return {
+        classifiers: classifiers.map((classifier) =>
+          classifierResource(classifier),
+        ),
+      };
+    },
   },
   {
     name: 'profile',
@@ -70,7 +75,7 @@ export const RESOURCES: readonly McpResource<ToolContext>[] = [
     description: 'Who the person is.',
     read: async (_params, { uid, db }) => {
       const user = await new Repository(db).getUser(uid);
-      if (!user) throw new ToolFailure('There is no such account.');
+      if (!user) throw new ToolFailureError('There is no such account.');
       return { email: user.email, ...(user.name ? { name: user.name } : {}) };
     },
   },
@@ -84,7 +89,7 @@ export const RESOURCES: readonly McpResource<ToolContext>[] = [
     },
     read: async ({ feed_id }, { uid, db }) => {
       const feed = await new Repository(db).getFeed(uid, Number(feed_id));
-      if (!feed) throw new ToolFailure('There is no such feed.');
+      if (!feed) throw new ToolFailureError('There is no such feed.');
       return feedResource(feed);
     },
   },

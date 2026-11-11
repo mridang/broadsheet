@@ -18,8 +18,11 @@ export function ClusterBadge({
 }: Readonly<{ siblings: readonly Sibling[] }>) {
   const n = siblings.length;
   return (
-    <span title={`Also told by ${siblings.map((s) => s.source).join(', ')}`}>
+    <span>
       <Badge tone="accent">+{countOf(n, 'source')}</Badge>
+      <span className="sr-only">
+        {`Also told by ${siblings.map((s) => s.source).join(', ')}`}
+      </span>
     </span>
   );
 }

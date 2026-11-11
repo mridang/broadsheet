@@ -27,10 +27,13 @@ describe('saveSearch', () => {
 
   it('throws the server’s own words when it refuses', async () => {
     answer(
-      new Response(JSON.stringify({ title: 'No', detail: 'Not valid.' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/problem+json' },
-      }),
+      Response.json(
+        { title: 'No', detail: 'Not valid.' },
+        {
+          status: 400,
+          headers: { 'Content-Type': 'application/problem+json' },
+        },
+      ),
     );
     await expect(saveSearch('x')).rejects.toThrow(
       new ProblemError('Not valid.'),

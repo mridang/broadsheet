@@ -30,9 +30,13 @@ export function getEnv(): CloudflareEnv {
  * promise outside a Workers request (tests, scripts).
  */
 export function runInBackground(work: Promise<unknown>): void {
-  const guarded = work.catch((err: unknown) => {
-    console.error('background task failed', err);
-  });
+  const guarded = (async () => {
+    try {
+      await work;
+    } catch (error: unknown) {
+      console.error('background task failed', error);
+    }
+  })();
   try {
     getCloudflareContext().ctx.waitUntil(guarded);
   } catch {

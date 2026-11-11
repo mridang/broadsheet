@@ -42,17 +42,23 @@ export function StoryActions({
   tags?: readonly string[];
   title?: string;
 }>): ReactElement {
-  const train = useApiAction(() => window.location.reload());
+  const train = useApiAction(() => globalThis.location.reload());
   const error = train.error;
   const targets: Target[] = [
-    ...(feedId !== undefined
-      ? [{ kind: 'feed' as const, value: String(feedId), label: 'This feed' }]
-      : []),
+    ...(feedId === undefined
+      ? []
+      : [{ kind: 'feed' as const, value: String(feedId), label: 'This feed' }]),
     ...(author
       ? [{ kind: 'author' as const, value: author, label: author }]
       : []),
     ...tags.map((t) => ({ kind: 'tag' as const, value: t, label: `#${t}` })),
   ];
+  const words = {
+    like: 'More',
+    dislike: 'Less',
+    super_dislike: 'Never anything',
+  };
+  const icons = { like: '👍', dislike: '👎', super_dislike: '🚫' };
   const thumbs = (target: Target) =>
     (['like', 'dislike', 'super_dislike'] as const).map((score) => (
       <button
@@ -60,13 +66,7 @@ export function StoryActions({
         type="button"
         className={CHIP}
         disabled={train.busy}
-        aria-label={`${
-          score === 'like'
-            ? 'More'
-            : score === 'dislike'
-              ? 'Less'
-              : 'Never anything'
-        } like ${target.label}`}
+        aria-label={`${words[score]} like ${target.label}`}
         onClick={() =>
           void train.run(
             () => trainOn(target.kind, target.value, score),
@@ -74,7 +74,7 @@ export function StoryActions({
           )
         }
       >
-        {score === 'like' ? '👍' : score === 'dislike' ? '👎' : '🚫'}
+        {icons[score]}
       </button>
     ));
 
@@ -86,7 +86,6 @@ export function StoryActions({
         className={CHIP}
         disabled={train.busy}
         aria-label={`More from ${source}`}
-        title={`More from ${source}`}
         onClick={() =>
           void train.run(
             () => trainOn('source', source, 'like'),
@@ -101,7 +100,6 @@ export function StoryActions({
         className={CHIP}
         disabled={train.busy}
         aria-label={`Less from ${source}`}
-        title={`Less from ${source}`}
         onClick={() =>
           void train.run(
             () => trainOn('source', source, 'dislike'),

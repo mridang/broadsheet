@@ -5,6 +5,9 @@ import type { User } from '@/domain/auth/store';
 import { SESSION_SECRET, appRequest } from './auth-test-kit';
 import { installFakeTracing } from '../../lib/core/observability/fake-tracing';
 
+/** A value that is not there, for fields the test leaves out on purpose. */
+const unset = (): undefined => undefined;
+
 const tracing = installFakeTracing();
 
 const person = {
@@ -52,7 +55,7 @@ const context = (overrides: Record<string, unknown> = {}) => ({
   request: appRequest('GET', '/auth/callback'),
   env: env(),
   origin: 'https://app.test',
-  returnTo: undefined,
+  returnTo: unset(),
   ...overrides,
 });
 
@@ -73,9 +76,9 @@ describe('missingSignInSettings', () => {
     expect(
       missingSignInSettings(
         env({
-          GOOGLE_OAUTH_CLIENT_ID: undefined,
+          GOOGLE_OAUTH_CLIENT_ID: unset(),
           GOOGLE_OAUTH_CLIENT_SECRET: '',
-          SESSION_SECRET: undefined,
+          SESSION_SECRET: unset(),
         }),
       ),
     ).toEqual([
@@ -114,7 +117,7 @@ describe('completeSignIn', () => {
       sub: 'g1',
       email: 'ada@example.com',
       name: 'Ada',
-      picture: undefined,
+      picture: unset(),
     });
     expect(afterSignIn).toHaveBeenCalledWith(person);
     expect(
@@ -149,7 +152,7 @@ describe('completeSignIn', () => {
 
   it('fails closed without a session secret, recording nobody', async () => {
     await expect(
-      completeSignIn(context({ env: env({ SESSION_SECRET: undefined }) }), {
+      completeSignIn(context({ env: env({ SESSION_SECRET: unset() }) }), {
         sub: 'g1',
         email: 'ada@example.com',
       }),

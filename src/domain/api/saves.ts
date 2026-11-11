@@ -79,9 +79,8 @@ async function feedSource(
 async function optionalObject(
   request: Request,
 ): Promise<Readonly<Record<string, unknown>>> {
-  if (!request.headers.has('content-type')) {
-    if (!(await request.clone().text())) return {};
-  }
+  if (!request.headers.has('content-type') && !(await request.clone().text()))
+    return {};
   const body = await readJsonObject(request, 'The save must be a JSON object.');
   if (!body.ok) throw body.response;
   return body.value;
@@ -123,9 +122,13 @@ export function createSavesCollection(
         paging,
       ),
     encode: (slice) =>
-      page(slice.items.map(saveResource), slice.next, {
-        'Cache-Control': 'no-store',
-      }),
+      page(
+        slice.items.map((item) => saveResource(item)),
+        slice.next,
+        {
+          'Cache-Control': 'no-store',
+        },
+      ),
   });
 }
 
@@ -170,12 +173,12 @@ export function createSaveItem(
         const id = parseFeedId(idOf(request));
         const repo = new Repository(getDatabase());
         const saved =
-          id !== undefined ? await repo.saveArticle(uid, id, tags) : undefined;
+          id === undefined ? undefined : await repo.saveArticle(uid, id, tags);
         const annotated =
           saved && (notes !== undefined || highlights !== undefined)
             ? await repo.annotateSave(uid, id!, {
-                ...(notes !== undefined ? { notes } : {}),
-                ...(highlights !== undefined ? { highlights } : {}),
+                ...(notes === undefined ? {} : { notes }),
+                ...(highlights === undefined ? {} : { highlights }),
               })
             : undefined;
         const result = saved && {
@@ -196,9 +199,9 @@ export function createSaveItem(
       method: 'DELETE',
       handle: async (_input, { request, uid }) => {
         const id = parseFeedId(idOf(request));
-        return id !== undefined
-          ? new Repository(getDatabase()).unsaveArticle(uid, id)
-          : false;
+        return id === undefined
+          ? false
+          : new Repository(getDatabase()).unsaveArticle(uid, id);
       },
       encode: (removed) => (removed ? noContent() : problems.notFound('save')),
     });
@@ -227,11 +230,13 @@ export function createSaveTagsCollection(
     }),
   }).on<null, readonly SaveTagResource[]>({
     method: 'GET',
-    handle: async (_input, { uid }) =>
-      (await new Repository(getDatabase()).savedTagCounts(uid)).map((t) => ({
+    handle: async (_input, { uid }) => {
+      const counts = await new Repository(getDatabase()).savedTagCounts(uid);
+      return counts.map((t) => ({
         name: t.tag,
         count: t.count,
-      })),
+      }));
+    },
     encode: (items) =>
       ok({ items }, { headers: { 'Cache-Control': 'no-store' } }),
   });
@@ -288,9 +293,8 @@ export function createSaveTagItem(
         if (!(await repo.retagSaves(uid, tagOf(request), name))) {
           return undefined;
         }
-        const tag = (await repo.savedTagCounts(uid)).find(
-          (t) => t.tag === name,
-        );
+        const counts = await repo.savedTagCounts(uid);
+        const tag = counts.find((t) => t.tag === name);
         return tag ? { name, count: tag.count } : undefined;
       },
       encode: (tag) =>

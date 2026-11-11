@@ -83,7 +83,7 @@ export async function subscribeToHub(
       'hub.verify': 'async',
     }),
     redirect: 'follow',
-    signal: AbortSignal.timeout(15000),
+    signal: AbortSignal.timeout(15_000),
   });
   return response.ok;
 }

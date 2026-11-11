@@ -74,7 +74,8 @@ describe('GET /api/feeds/:id/statistics', () => {
 
   it('omits what is unknown', async () => {
     const feed = (await repo.addFeed(7, 'https://a.test/f'))!;
-    expect(await (await get(String(feed.id))).json()).toEqual({
+    const res = await get(String(feed.id));
+    expect(await res.json()).toEqual({
       fail_count: 0,
       archive_count: 0,
       subscribers: 1,
@@ -109,7 +110,8 @@ describe('GET /api/feeds/:id/statistics', () => {
     );
     await repo.addClassifier(7, { kind: 'title', value: 'rust', score: 1 });
     await repo.addClassifier(7, { kind: 'title', value: 'cats', score: -1 });
-    expect(await (await get(String(feed.id))).json()).toMatchObject({
+    const res = await get(String(feed.id));
+    expect(await res.json()).toMatchObject({
       classifier_counts: { focus: 1, neutral: 1, hidden: 1 },
     });
   });
@@ -124,6 +126,7 @@ describe('GET /api/feeds/:id/statistics', () => {
   });
 
   it('answers 401 when nobody is signed in', async () => {
-    expect((await get('1', {})).status).toBe(401);
+    const res = await get('1', {});
+    expect(res.status).toBe(401);
   });
 });

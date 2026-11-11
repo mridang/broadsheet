@@ -50,7 +50,8 @@ beforeEach(async () => {
       points: 0,
     },
   ]);
-  story = (await repo.sourceArticles(source_id, '2026-10-20'))[0]!.id;
+  const articles = await repo.sourceArticles(source_id, '2026-10-20');
+  story = articles[0]!.id;
   auth = await cookieFor(7);
 });
 
@@ -64,8 +65,10 @@ const list = (query = '') =>
     { params: Promise.resolve({}) },
   );
 
-const items = async (query = '') =>
-  ((await (await list(query)).json()) as { items: unknown[] }).items;
+const items = async (query = '') => {
+  const res = await list(query);
+  return ((await res.json()) as { items: unknown[] }).items;
+};
 
 describe('GET /api/users/self/saves', () => {
   beforeEach(async () => {
@@ -89,7 +92,8 @@ describe('GET /api/users/self/saves', () => {
   });
 
   it('answers 400 for too long a q', async () => {
-    expect((await list(`?q=${'a'.repeat(201)}`)).status).toBe(400);
+    const res = await list(`?q=${'a'.repeat(201)}`);
+    expect(res.status).toBe(400);
   });
 
   it('shows nobody else’s saves', async () => {
@@ -98,12 +102,14 @@ describe('GET /api/users/self/saves', () => {
   });
 
   it('answers 400 for a bad limit', async () => {
-    expect((await list('?limit=0')).status).toBe(400);
+    const res = await list('?limit=0');
+    expect(res.status).toBe(400);
   });
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await list()).status).toBe(401);
+    const res = await list();
+    expect(res.status).toBe(401);
   });
 });
 

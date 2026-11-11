@@ -10,8 +10,6 @@
 import { Repository, type Profile, type User } from '@/domain/repository';
 import { getDatabase } from '@/domain/db/database';
 
-export type { User };
-
 /** What Google tells us about a person who has just signed in. */
 export type GoogleProfile = Profile;
 
@@ -41,3 +39,5 @@ export function getSessionEpoch(id: number): Promise<number | undefined> {
 export function bumpSessionEpoch(id: number): Promise<void> {
   return repo().bumpSessionEpoch(id);
 }
+
+export { type User } from '@/domain/repository';

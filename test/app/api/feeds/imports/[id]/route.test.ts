@@ -54,15 +54,18 @@ describe('GET /api/feeds/imports/:id', () => {
 
   it('answers 404 for someone else’s import', async () => {
     const run = await runs.start(8, 80);
-    expect((await get(run.id)).status).toBe(404);
+    const res = await get(run.id);
+    expect(res.status).toBe(404);
   });
 
   it('answers 404 for no such import', async () => {
-    expect((await get('nope')).status).toBe(404);
+    const res = await get('nope');
+    expect(res.status).toBe(404);
   });
 
   it('answers 401 when nobody is signed in', async () => {
     const run = await runs.start(7, 80);
-    expect((await get(run.id, {})).status).toBe(401);
+    const res = await get(run.id, {});
+    expect(res.status).toBe(401);
   });
 });

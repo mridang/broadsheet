@@ -11,12 +11,12 @@ export interface AtomEntry {
   readonly title: string;
   readonly url: string;
   readonly updated: string;
-  readonly summary?: string | undefined;
-  readonly source?: string | undefined;
+  readonly summary?: string;
+  readonly source?: string;
   /** The story's full text, when it was kept. */
-  readonly content?: string | undefined;
+  readonly content?: string;
   /** Labels on the entry (a saved story's tags). */
-  readonly categories?: readonly string[] | undefined;
+  readonly categories?: readonly string[];
 }
 
 /** A whole feed. */
@@ -30,17 +30,22 @@ export interface AtomFeed {
 }
 
 /** Text made safe inside XML. */
+/** The C0 control characters XML 1.0 forbids (tab, newline and carriage return are allowed). */
+const FORBIDDEN_CONTROL = new RegExp(
+  String.raw`[\u0000-\u0008\u000B\u000C\u000E-\u001F]`,
+  'g',
+);
+
 export function escapeXml(text: string): string {
   return (
     text
       // Characters XML 1.0 cannot carry at all.
-      // eslint-disable-next-line no-control-regex
-      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&apos;')
+      .replaceAll(FORBIDDEN_CONTROL, '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&apos;')
   );
 }
 
@@ -78,7 +83,7 @@ export function atomXml(feed: AtomFeed): string {
     `  <link rel="self" href="${escapeXml(feed.self)}"/>`,
     `  <link rel="alternate" href="${escapeXml(feed.site)}"/>`,
     `  <updated>${escapeXml(feed.updated)}</updated>`,
-    ...feed.entries.map(entryXml),
+    ...feed.entries.map((entry) => entryXml(entry)),
     '</feed>',
     '',
   ].join('\n');

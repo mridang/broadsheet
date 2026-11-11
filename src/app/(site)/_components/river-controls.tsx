@@ -1,6 +1,6 @@
 'use client';
 
-import type { FormEvent, ReactElement } from 'react';
+import type { ReactElement, SubmitEvent } from 'react';
 
 import { useApiAction } from '@/components/api/use-api-action';
 import { buttonClass } from '@/components/ui/button';
@@ -21,8 +21,8 @@ export function RiverPicker({
   options: readonly RiverOption[];
   next: Readonly<{ left: number; right: number }>;
 }>): ReactElement {
-  const { busy, error, run } = useApiAction(() => window.location.reload());
-  const submit = (event: FormEvent<HTMLFormElement>): void => {
+  const { busy, error, run } = useApiAction(() => globalThis.location.reload());
+  const submit = (event: SubmitEvent<HTMLFormElement>): void => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     const side = data.get('side') === 'right' ? 'right' : 'left';
@@ -66,7 +66,7 @@ export function RiverPicker({
 export function UnpinRiverButton({
   id,
 }: Readonly<{ id: number }>): ReactElement {
-  const { busy, error, run } = useApiAction(() => window.location.reload());
+  const { busy, error, run } = useApiAction(() => globalThis.location.reload());
   return (
     <>
       <button

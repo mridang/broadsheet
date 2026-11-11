@@ -71,11 +71,13 @@ export const sources = sqliteTable(
     websub_secret: text('websub_secret'),
     /** When the hub's lease runs out; null until the hub verifies it. */
     websub_expires_at: text('websub_expires_at'),
+
     /**
      * How many subscriptions follow it. Kept by triggers on `subscriptions`
      * (migration 0035), so no query counts them.
      */
     follower_count: integer('follower_count').notNull().default(0),
+
     /**
      * How many distinct story addresses it has kept, however many editions
      * carry each. Kept by triggers on `articles` (migration 0035).
@@ -146,7 +148,7 @@ export const subscriptions = sqliteTable(
  * prints it): a feed can be filed in several, as a NewsBlur feed can sit in
  * several folders.
  */
-export const subscription_sections = sqliteTable(
+export const subscriptionSections = sqliteTable(
   'subscription_sections',
   {
     subscription_id: integer('subscription_id').notNull(),
@@ -322,7 +324,7 @@ export const editions = sqliteTable(
 );
 
 /** The paper a custom edition printed on `date`, as `issues` keeps it. */
-export const edition_issues = sqliteTable(
+export const editionIssues = sqliteTable(
   'edition_issues',
   {
     edition_id: integer('edition_id').notNull(),
@@ -388,7 +390,7 @@ export const answers = sqliteTable(
  * One question asked of the model, for the daily budgets: `kind` is `answer`
  * or `assistant`; `cached` (0/1) marks an answer served from {@link answers}.
  */
-export const ai_usage = sqliteTable(
+export const aiUsage = sqliteTable(
   'ai_usage',
   {
     id: integer('id').primaryKey({ autoIncrement: true }),
@@ -406,7 +408,7 @@ export const ai_usage = sqliteTable(
  * An assistant that registered itself to connect to `/mcp`. `redirect_uris`
  * is a JSON array; clients are public and prove themselves with PKCE.
  */
-export const oauth_clients = sqliteTable('oauth_clients', {
+export const oauthClients = sqliteTable('oauth_clients', {
   client_id: text('client_id').primaryKey(),
   client_name: text('client_name').notNull(),
   redirect_uris: text('redirect_uris').notNull(),
@@ -416,7 +418,7 @@ export const oauth_clients = sqliteTable('oauth_clients', {
 });
 
 /** One person's approval of one client; revoking it ends its tokens. */
-export const oauth_grants = sqliteTable(
+export const oauthGrants = sqliteTable(
   'oauth_grants',
   {
     id: text('id').primaryKey(),
@@ -433,7 +435,7 @@ export const oauth_grants = sqliteTable(
 );
 
 /** A single-use authorization code, stored as its hash. */
-export const oauth_codes = sqliteTable(
+export const oauthCodes = sqliteTable(
   'oauth_codes',
   {
     code_hash: text('code_hash').primaryKey(),
@@ -449,7 +451,7 @@ export const oauth_codes = sqliteTable(
 );
 
 /** An access or refresh token, stored as its hash; `kind` says which. */
-export const oauth_tokens = sqliteTable(
+export const oauthTokens = sqliteTable(
   'oauth_tokens',
   {
     token_hash: text('token_hash').primaryKey(),
@@ -468,7 +470,7 @@ export const oauth_tokens = sqliteTable(
  * service `endpoint` and the keys (`p256dh`, `auth`) its payloads are
  * encrypted to.
  */
-export const push_subscriptions = sqliteTable(
+export const pushSubscriptions = sqliteTable(
   'push_subscriptions',
   {
     id: integer('id').primaryKey({ autoIncrement: true }),
@@ -502,7 +504,7 @@ export const webhooks = sqliteTable(
  * A token a feed reader fetches `/feed.xml` with. Only its SHA-256 is kept.
  * `scope` is saves (optionally one `tag`), section (`section_id`) or edition.
  */
-export const feed_tokens = sqliteTable(
+export const feedTokens = sqliteTable(
   'feed_tokens',
   {
     id: integer('id').primaryKey({ autoIncrement: true }),
@@ -513,7 +515,7 @@ export const feed_tokens = sqliteTable(
     section_id: integer('section_id'),
     search_id: integer('search_id'),
     created_at: text('created_at').default(sql`(datetime('now'))`),
-    /** all, unread (no disliked stories) or focus (only liked ones). */
+    /** All, unread (no disliked stories) or focus (only liked ones). */
     filter: text('filter').notNull().default('all'),
   },
   (table) => [index('idx_feed_tokens_user').on(table.user_id)],
@@ -524,7 +526,7 @@ export const feed_tokens = sqliteTable(
  * unread (anything not disliked) or focus (only liked stories); `channels` is
  * a JSON array of web, email and webhook.
  */
-export const feed_notifications = sqliteTable(
+export const feedNotifications = sqliteTable(
   'feed_notifications',
   {
     user_id: integer('user_id').notNull(),
@@ -540,7 +542,7 @@ export const feed_notifications = sqliteTable(
 );
 
 /** A story a person was told about; `emailed` (0/1) counts toward the daily email cap. */
-export const notification_deliveries = sqliteTable(
+export const notificationDeliveries = sqliteTable(
   'notification_deliveries',
   {
     user_id: integer('user_id').notNull(),
@@ -557,7 +559,7 @@ export const notification_deliveries = sqliteTable(
 );
 
 /** A story a person emailed to others, counted for their daily quota. */
-export const story_emails = sqliteTable(
+export const storyEmails = sqliteTable(
   'story_emails',
   {
     id: integer('id').primaryKey({ autoIncrement: true }),
@@ -613,7 +615,7 @@ export const fetchHistory = sqliteTable(
  * text or url) matches `value` (a regular expression when `is_regex` is 1), in
  * one feed, one section or every feed (`scope`), by each of `channels`.
  */
-export const notification_rules = sqliteTable(
+export const notificationRules = sqliteTable(
   'notification_rules',
   {
     id: integer('id').primaryKey({ autoIncrement: true }),
@@ -631,7 +633,7 @@ export const notification_rules = sqliteTable(
 );
 
 /** The day (YYYY-MM-DD) a person last used the app. */
-export const user_activity = sqliteTable('user_activity', {
+export const userActivity = sqliteTable('user_activity', {
   user_id: integer('user_id').primaryKey(),
   last_seen_on: text('last_seen_on').notNull(),
 });
@@ -769,7 +771,7 @@ export const briefings = sqliteTable(
  * Whether the AI found a story matches a person's `prompt` classifier, asked
  * once per story and prompt.
  */
-export const prompt_scores = sqliteTable(
+export const promptScores = sqliteTable(
   'prompt_scores',
   {
     classifier_id: integer('classifier_id').notNull(),
@@ -788,7 +790,7 @@ export const prompt_scores = sqliteTable(
  * A feed someone put forward for everyone (migration 0029): `status` is
  * `pending` until a curator makes it `approved` or `declined`, at `decided_at`.
  */
-export const feed_recommendations = sqliteTable(
+export const feedRecommendations = sqliteTable(
   'feed_recommendations',
   {
     id: integer('id').primaryKey({ autoIncrement: true }),
@@ -810,7 +812,7 @@ export const feed_recommendations = sqliteTable(
  * `status` is `running` until it is `complete` or `failed`; `rejected` is a
  * JSON list of `{url, reason}`.
  */
-export const feed_imports = sqliteTable(
+export const feedImports = sqliteTable(
   'feed_imports',
   {
     id: text('id').primaryKey(),

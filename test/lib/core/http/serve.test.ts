@@ -447,7 +447,6 @@ describe('serve — the edge copy', () => {
   it('runs without an edge cache', async () => {
     const response = await serve(get('/'), {}, ctx().context, {
       app: appAnswering(() => page('a', 'n')),
-      cache: undefined,
       limits,
       pages,
     });

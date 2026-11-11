@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from '@jest/globals';
+
 import type { DatabaseSync } from 'node:sqlite';
 
 import {
@@ -73,9 +74,10 @@ describe.each(gates)('%s and the cross-site check', (_name, gate) => {
   });
 
   it('lets a same-origin write through', async () => {
-    expect(
-      (await gate(request('POST', { 'sec-fetch-site': 'same-origin' }))).ok,
-    ).toBe(true);
+    const outcome = await gate(
+      request('POST', { 'sec-fetch-site': 'same-origin' }),
+    );
+    expect(outcome.ok).toBe(true);
   });
 
   it('refuses a write with no Fetch Metadata and a foreign Origin', async () => {
@@ -86,11 +88,13 @@ describe.each(gates)('%s and the cross-site check', (_name, gate) => {
   });
 
   it('lets a write with no Fetch Metadata and our own Origin through', async () => {
-    expect((await gate(request('POST', { origin: ORIGIN }))).ok).toBe(true);
+    const outcome = await gate(request('POST', { origin: ORIGIN }));
+    expect(outcome.ok).toBe(true);
   });
 
   it('lets a write with neither header through (not a browser)', async () => {
-    expect((await gate(request('POST'))).ok).toBe(true);
+    const outcome = await gate(request('POST'));
+    expect(outcome.ok).toBe(true);
   });
 
   it.each(['GET', 'HEAD', 'OPTIONS'])(

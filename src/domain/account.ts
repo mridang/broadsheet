@@ -25,7 +25,8 @@ const PUBLIC_FEEDS: [string, string][] = [
 /** Seed a new user's default feeds and warm them in the background. */
 export async function seedDefaults(userId: number): Promise<void> {
   const repo = new Repository(getDatabase());
-  if ((await repo.listFeeds(userId)).length) return;
+  const existing = await repo.listFeeds(userId);
+  if (existing.length > 0) return;
   const added: Feed[] = [];
   for (const [url, title] of DEFAULT_FEEDS) {
     const f = await repo.addFeed(userId, url, title);
@@ -43,7 +44,8 @@ export async function ensurePublicUser(): Promise<number> {
     name: 'Hacker News',
     picture: '',
   });
-  if (!(await repo.listFeeds(u.id)).length) {
+  const existing = await repo.listFeeds(u.id);
+  if (existing.length === 0) {
     const added: Feed[] = [];
     for (const [url, title] of PUBLIC_FEEDS) {
       const f = await repo.addFeed(u.id, url, title);
@@ -56,7 +58,7 @@ export async function ensurePublicUser(): Promise<number> {
 
 /** Refresh feeds in the background (doesn't block the response). */
 function warm(feeds: Feed[]): void {
-  if (!feeds.length) return;
+  if (feeds.length === 0) return;
   runInBackground(
     Promise.all(
       feeds.map((f) =>

@@ -11,7 +11,7 @@ import { ErrorText } from '@/components/ui/notice';
 export function RemoveEditionButton({
   id,
 }: Readonly<{ id: number }>): ReactElement {
-  const { busy, error, run } = useApiAction(() => window.location.reload());
+  const { busy, error, run } = useApiAction(() => globalThis.location.reload());
   return (
     <div>
       <button

@@ -1,6 +1,6 @@
 'use client';
 
-import type { FormEvent, ReactElement } from 'react';
+import type { SubmitEvent, ReactElement } from 'react';
 
 import { useApiAction } from '@/components/api/use-api-action';
 import {
@@ -58,9 +58,9 @@ export function EditionForm({
   draft: EditionDraft;
   sections: readonly SectionOption[];
 }>): ReactElement {
-  const { busy, error, run } = useApiAction(() => window.location.reload());
-  const { id } = draft;
-  const submit = (event: FormEvent<HTMLFormElement>): void => {
+  const { busy, error, run } = useApiAction(() => globalThis.location.reload());
+  const { id, name, section_ids: sectionIds, query, tag } = draft;
+  const submit = (event: SubmitEvent<HTMLFormElement>): void => {
     event.preventDefault();
     const edition = editionOf(new FormData(event.currentTarget));
     void run(
@@ -75,12 +75,12 @@ export function EditionForm({
         type="text"
         placeholder="Name, such as Weekend"
         aria-label="Name"
-        defaultValue={draft.name}
+        defaultValue={name}
         maxLength={200}
         required
         className="sm:col-span-2"
       />
-      {sections.length ? (
+      {sections.length > 0 ? (
         <fieldset className="flex flex-wrap gap-x-4 gap-y-2 sm:col-span-2">
           <legend className="mb-2 text-xs font-medium text-subtle">
             Sections (none for every feed)
@@ -91,7 +91,7 @@ export function EditionForm({
                 type="checkbox"
                 name="section"
                 value={s.id}
-                defaultChecked={draft.section_ids.includes(s.id)}
+                defaultChecked={sectionIds.includes(s.id)}
               />{' '}
               {s.name}
             </label>
@@ -103,7 +103,7 @@ export function EditionForm({
         type="search"
         placeholder="Only stories matching"
         aria-label="Search"
-        defaultValue={draft.query}
+        defaultValue={query}
         maxLength={200}
       />
       <input
@@ -111,7 +111,7 @@ export function EditionForm({
         type="text"
         placeholder="Only stories saved under tag"
         aria-label="Tag"
-        defaultValue={draft.tag}
+        defaultValue={tag}
         maxLength={50}
       />
       <button

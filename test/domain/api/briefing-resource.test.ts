@@ -86,7 +86,7 @@ describe('parseBriefingQuery', () => {
   it('defaults the limit and reads a cursor', () => {
     expect(parseBriefingQuery(new URLSearchParams())).toEqual({
       ok: true,
-      query: { before: undefined, limit: 20 },
+      query: { limit: 20 },
     });
     const cursor = encodeCursor({ key: '9', id: '9' });
     expect(parseBriefingQuery(new URLSearchParams({ cursor }))).toMatchObject({

@@ -16,7 +16,7 @@ export function RemoveButton({
   label?: string;
   failure: string;
 }>): ReactElement {
-  const { busy, error, run } = useApiAction(() => window.location.reload());
+  const { busy, error, run } = useApiAction(() => globalThis.location.reload());
   return (
     <div>
       <button

@@ -1,7 +1,7 @@
 /**
  * One of the signed-in person's feed tokens.
  *
- *   DELETE /api/users/self/tokens/:id → 204
+ * DELETE /api/users/self/tokens/:id → 204.
  *
  * The behaviour lives in the `tokenItem` controller; this file only mounts it.
  */

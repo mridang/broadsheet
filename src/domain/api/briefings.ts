@@ -191,7 +191,9 @@ export function createBriefingItem(
       if (id === undefined) return undefined;
       const repo = new Repository(getDatabase());
       const briefing = await repo.getBriefing(uid, id);
-      return briefing ? (await show(repo, uid, [briefing]))[0] : undefined;
+      if (!briefing) return undefined;
+      const [shown] = await show(repo, uid, [briefing]);
+      return shown;
     },
     encode: (shown) =>
       shown

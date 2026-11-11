@@ -62,9 +62,13 @@ export function createSuggestionsCollection(
     handle: (_input, { uid }) =>
       new Repository(getDatabase()).suggestSources(uid, MAX_SUGGESTIONS),
     encode: (items) =>
-      page(items.map(suggestionResource), undefined, {
-        'Cache-Control': 'private, no-cache',
-      }),
+      page(
+        items.map((item) => suggestionResource(item)),
+        undefined,
+        {
+          'Cache-Control': 'private, no-cache',
+        },
+      ),
   });
 }
 
@@ -145,16 +149,18 @@ export function createSimilarFeeds(
         ? { items, next: start + limit }
         : { items };
     },
-    encode: (found) =>
-      found
-        ? page(
-            found.items.map(similarSourceResource),
-            found.next === undefined
-              ? undefined
-              : { key: String(found.next), id: String(found.next) },
-            PERSONAL,
-          )
-        : problems.notFound('feed'),
+    encode: (found) => {
+      if (!found) return problems.notFound('feed');
+      const next =
+        found.next === undefined
+          ? undefined
+          : { key: String(found.next), id: String(found.next) };
+      return page(
+        found.items.map((item) => similarSourceResource(item)),
+        next,
+        PERSONAL,
+      );
+    },
   });
 }
 

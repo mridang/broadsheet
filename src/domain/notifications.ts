@@ -12,14 +12,14 @@ import { and, desc, eq, gt, sql } from 'drizzle-orm';
 import { type Database } from '@/domain/db/database';
 import {
   articles,
-  feed_notifications,
-  notification_deliveries,
-  notification_rules,
+  feedNotifications,
+  notificationDeliveries,
+  notificationRules,
   sections,
   sources,
-  story_emails,
+  storyEmails,
   subscriptions,
-  user_activity,
+  userActivity,
 } from '@/domain/db/schema';
 import { notMuted } from '@/domain/repository';
 
@@ -93,8 +93,8 @@ export interface NotificationRuleInput {
   readonly value: string;
   readonly is_regex: boolean;
   readonly scope: RuleScope;
-  readonly feed_id?: number | undefined;
-  readonly section_id?: number | undefined;
+  readonly feed_id?: number;
+  readonly section_id?: number;
   readonly channels: readonly NotificationChannel[];
 }
 
@@ -131,7 +131,7 @@ const filterOf = (stored: string): NotificationFilter =>
   stored === 'focus' ? 'focus' : 'unread';
 
 /** A stored rule row as a {@link NotificationRule}. */
-function ruleOf(row: typeof notification_rules.$inferSelect): NotificationRule {
+function ruleOf(row: typeof notificationRules.$inferSelect): NotificationRule {
   return {
     id: row.id,
     kind: (RULE_KINDS as readonly string[]).includes(row.kind)
@@ -142,8 +142,8 @@ function ruleOf(row: typeof notification_rules.$inferSelect): NotificationRule {
     scope: (RULE_SCOPES as readonly string[]).includes(row.scope)
       ? (row.scope as RuleScope)
       : 'all',
-    ...(row.subscription_id !== null ? { feed_id: row.subscription_id } : {}),
-    ...(row.section_id !== null ? { section_id: row.section_id } : {}),
+    ...(row.subscription_id === null ? {} : { feed_id: row.subscription_id }),
+    ...(row.section_id === null ? {} : { section_id: row.section_id }),
     channels: channelsOf(row.channels),
     created_at: row.created_at,
   };
@@ -175,12 +175,12 @@ export class NotificationRepository {
       .limit(1);
     if (!feed) return undefined;
     const [before] = await this.#db
-      .select({ id: feed_notifications.subscription_id })
-      .from(feed_notifications)
+      .select({ id: feedNotifications.subscription_id })
+      .from(feedNotifications)
       .where(
         and(
-          eq(feed_notifications.user_id, userId),
-          eq(feed_notifications.subscription_id, feedId),
+          eq(feedNotifications.user_id, userId),
+          eq(feedNotifications.subscription_id, feedId),
         ),
       )
       .limit(1);
@@ -189,13 +189,10 @@ export class NotificationRepository {
       channels: JSON.stringify(setting.channels),
     };
     await this.#db
-      .insert(feed_notifications)
+      .insert(feedNotifications)
       .values({ user_id: userId, subscription_id: feedId, ...values })
       .onConflictDoUpdate({
-        target: [
-          feed_notifications.user_id,
-          feed_notifications.subscription_id,
-        ],
+        target: [feedNotifications.user_id, feedNotifications.subscription_id],
         set: values,
       });
     return { created: !before };
@@ -207,14 +204,14 @@ export class NotificationRepository {
     feedId: number,
   ): Promise<boolean> {
     const removed = await this.#db
-      .delete(feed_notifications)
+      .delete(feedNotifications)
       .where(
         and(
-          eq(feed_notifications.user_id, userId),
-          eq(feed_notifications.subscription_id, feedId),
+          eq(feedNotifications.user_id, userId),
+          eq(feedNotifications.subscription_id, feedId),
         ),
       )
-      .returning({ id: feed_notifications.subscription_id });
+      .returning({ id: feedNotifications.subscription_id });
     return removed.length > 0;
   }
 
@@ -227,16 +224,16 @@ export class NotificationRepository {
         title: subscriptions.title_override,
         source_title: sources.title,
         url: sources.url,
-        filter: feed_notifications.filter,
-        channels: feed_notifications.channels,
+        filter: feedNotifications.filter,
+        channels: feedNotifications.channels,
       })
-      .from(feed_notifications)
+      .from(feedNotifications)
       .innerJoin(
         subscriptions,
-        eq(feed_notifications.subscription_id, subscriptions.id),
+        eq(feedNotifications.subscription_id, subscriptions.id),
       )
       .innerJoin(sources, eq(subscriptions.source_id, sources.id))
-      .where(and(eq(feed_notifications.user_id, userId), notMuted))
+      .where(and(eq(feedNotifications.user_id, userId), notMuted))
       .orderBy(subscriptions.id);
     return rows.map((r) => ({
       feed_id: r.feed_id,
@@ -250,9 +247,9 @@ export class NotificationRepository {
   /** Everyone who has a feed that notifies. */
   async notifiedUserIds(): Promise<number[]> {
     const rows = await this.#db
-      .selectDistinct({ id: feed_notifications.user_id })
-      .from(feed_notifications)
-      .orderBy(feed_notifications.user_id);
+      .selectDistinct({ id: feedNotifications.user_id })
+      .from(feedNotifications)
+      .orderBy(feedNotifications.user_id);
     return rows.map((r) => r.id);
   }
 
@@ -262,7 +259,7 @@ export class NotificationRepository {
    * delivery they ever had before comparing the first story.
    */
   #notDelivered(userId: number) {
-    return sql`not exists (select 1 from ${notification_deliveries} as told where told.user_id = ${userId} and told.article_id = ${articles.id})`;
+    return sql`not exists (select 1 from ${notificationDeliveries} as told where told.user_id = ${userId} and told.article_id = ${articles.id})`;
   }
 
   /**
@@ -299,22 +296,22 @@ export class NotificationRepository {
    */
   async claimDelivery(userId: number, articleId: number): Promise<boolean> {
     const added = await this.#db
-      .insert(notification_deliveries)
+      .insert(notificationDeliveries)
       .values({ user_id: userId, article_id: articleId })
       .onConflictDoNothing()
-      .returning({ id: notification_deliveries.article_id });
+      .returning({ id: notificationDeliveries.article_id });
     return added.length > 0;
   }
 
   /** Note that a claimed story went to the person by email. */
   async markEmailed(userId: number, articleId: number): Promise<void> {
     await this.#db
-      .update(notification_deliveries)
+      .update(notificationDeliveries)
       .set({ emailed: 1 })
       .where(
         and(
-          eq(notification_deliveries.user_id, userId),
-          eq(notification_deliveries.article_id, articleId),
+          eq(notificationDeliveries.user_id, userId),
+          eq(notificationDeliveries.article_id, articleId),
         ),
       );
   }
@@ -323,18 +320,15 @@ export class NotificationRepository {
   async emailsToday(userId: number): Promise<number> {
     const [row] = await this.#db
       .select({ n: sql<number>`count(*)` })
-      .from(notification_deliveries)
+      .from(notificationDeliveries)
       .where(
         and(
-          eq(notification_deliveries.user_id, userId),
+          eq(notificationDeliveries.user_id, userId),
           // The literal `emailed = 1` is what lets the partial index
           // idx_notification_deliveries_emailed answer with the last day's
           // emails only; a bound 1 would not match it.
-          sql`${notification_deliveries.emailed} = 1`,
-          gt(
-            notification_deliveries.created_at,
-            sql`datetime('now', '-1 day')`,
-          ),
+          sql`${notificationDeliveries.emailed} = 1`,
+          gt(notificationDeliveries.created_at, sql`datetime('now', '-1 day')`),
         ),
       );
     return Number(row?.n ?? 0);
@@ -347,19 +341,20 @@ export class NotificationRepository {
     recipients: number,
   ): Promise<void> {
     await this.#db
-      .insert(story_emails)
-      .values({ user_id: userId, article_id: articleId, recipients });
+      .insert(storyEmails)
+      .values({ user_id: userId, article_id: articleId, recipients })
+      .run();
   }
 
   /** How many stories the person emailed to others in the last day. */
   async storyEmailsToday(userId: number): Promise<number> {
     const [row] = await this.#db
       .select({ n: sql<number>`count(*)` })
-      .from(story_emails)
+      .from(storyEmails)
       .where(
         and(
-          eq(story_emails.user_id, userId),
-          gt(story_emails.created_at, sql`datetime('now', '-1 day')`),
+          eq(storyEmails.user_id, userId),
+          gt(storyEmails.created_at, sql`datetime('now', '-1 day')`),
         ),
       );
     return Number(row?.n ?? 0);
@@ -397,7 +392,7 @@ export class NotificationRepository {
       if (!section) return undefined;
     }
     const [row] = await this.#db
-      .insert(notification_rules)
+      .insert(notificationRules)
       .values({
         user_id: userId,
         kind: input.kind,
@@ -415,14 +410,14 @@ export class NotificationRepository {
   /** Remove one of the person's rules. True when they had it. */
   async removeRule(userId: number, id: number): Promise<boolean> {
     const removed = await this.#db
-      .delete(notification_rules)
+      .delete(notificationRules)
       .where(
         and(
-          eq(notification_rules.id, id),
-          eq(notification_rules.user_id, userId),
+          eq(notificationRules.id, id),
+          eq(notificationRules.user_id, userId),
         ),
       )
-      .returning({ id: notification_rules.id });
+      .returning({ id: notificationRules.id });
     return removed.length > 0;
   }
 
@@ -430,18 +425,18 @@ export class NotificationRepository {
   async rules(userId: number): Promise<NotificationRule[]> {
     const rows = await this.#db
       .select()
-      .from(notification_rules)
-      .where(eq(notification_rules.user_id, userId))
-      .orderBy(notification_rules.id);
-    return rows.map(ruleOf);
+      .from(notificationRules)
+      .where(eq(notificationRules.user_id, userId))
+      .orderBy(notificationRules.id);
+    return rows.map((row) => ruleOf(row));
   }
 
   /** Everyone with a rule. */
   async ruleUserIds(): Promise<number[]> {
     const rows = await this.#db
-      .selectDistinct({ id: notification_rules.user_id })
-      .from(notification_rules)
-      .orderBy(notification_rules.user_id);
+      .selectDistinct({ id: notificationRules.user_id })
+      .from(notificationRules)
+      .orderBy(notificationRules.user_id);
     return rows.map((r) => r.id);
   }
 
@@ -488,10 +483,10 @@ export class NotificationRepository {
   /** Note that the person used the app on `day` (YYYY-MM-DD). */
   async noteSeen(userId: number, day: string): Promise<void> {
     await this.#db
-      .insert(user_activity)
+      .insert(userActivity)
       .values({ user_id: userId, last_seen_on: day })
       .onConflictDoUpdate({
-        target: user_activity.user_id,
+        target: userActivity.user_id,
         set: { last_seen_on: day },
       });
   }
@@ -499,9 +494,9 @@ export class NotificationRepository {
   /** The day the person last used the app, or undefined when never noted. */
   async lastSeen(userId: number): Promise<string | undefined> {
     const [row] = await this.#db
-      .select({ day: user_activity.last_seen_on })
-      .from(user_activity)
-      .where(eq(user_activity.user_id, userId))
+      .select({ day: userActivity.last_seen_on })
+      .from(userActivity)
+      .where(eq(userActivity.user_id, userId))
       .limit(1);
     return row?.day;
   }

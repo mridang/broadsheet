@@ -71,9 +71,13 @@ export function createSearchesCollection(
           paging,
         ),
       encode: (slice) =>
-        page(slice.items.map(searchResource), slice.next, {
-          'Cache-Control': 'no-store',
-        }),
+        page(
+          slice.items.map((search) => searchResource(search)),
+          slice.next,
+          {
+            'Cache-Control': 'no-store',
+          },
+        ),
     })
     .on<SearchInput, { search: SavedSearch; created: boolean }>({
       method: 'POST',
@@ -128,9 +132,9 @@ export function createSearchItem(
     method: 'DELETE',
     handle: async (_input, { request, uid }) => {
       const id = parseFeedId(idOf(request));
-      return id !== undefined
-        ? new Repository(getDatabase()).removeSearch(uid, id)
-        : false;
+      return id === undefined
+        ? false
+        : new Repository(getDatabase()).removeSearch(uid, id);
     },
     encode: (removed) =>
       removed ? noContent() : problems.notFound('saved search'),

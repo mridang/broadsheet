@@ -110,7 +110,7 @@ export function parseEditionInput(
     if (
       !Array.isArray(sections) ||
       sections.length > MAX_SECTIONS ||
-      ids.some((id) => id === undefined)
+      ids.includes(undefined)
     ) {
       errors.push(
         `section_ids: must be a list of at most ${MAX_SECTIONS} section ids.`,
@@ -121,5 +121,5 @@ export function parseEditionInput(
   if (query !== undefined) changes.query = query;
   const tag = optionalText('tag', body['tag'], MAX_TAG_LENGTH, errors);
   if (tag !== undefined) changes.tag = tag;
-  return errors.length ? { ok: false, errors } : { ok: true, changes };
+  return errors.length > 0 ? { ok: false, errors } : { ok: true, changes };
 }

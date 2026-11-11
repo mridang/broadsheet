@@ -96,8 +96,8 @@ export function briefingResource(
       };
     }),
     ...(b.model ? { model: b.model } : {}),
-    ...(b.tokens !== null ? { tokens: b.tokens } : {}),
-    ...(b.seconds !== null ? { seconds: b.seconds } : {}),
+    ...(b.tokens === null ? {} : { tokens: b.tokens }),
+    ...(b.seconds === null ? {} : { seconds: b.seconds }),
     ...(created ? { created_at: created } : {}),
   };
 }
@@ -142,7 +142,7 @@ export function parseBriefingQuery(
       errors.push(`limit: must be a whole number from 1 to ${MAX_LIMIT}.`);
     }
   }
-  return errors.length
+  return errors.length > 0
     ? { ok: false, errors }
     : { ok: true, query: { before, limit } };
 }

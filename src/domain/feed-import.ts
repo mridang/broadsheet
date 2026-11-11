@@ -38,7 +38,7 @@ export function comparable(address: string | null | undefined): string {
   if (!address) return '';
   try {
     const url = new URL(address.trim());
-    const path = url.pathname.replace(/\/+$/, '');
+    const path = trimTrailingSlashes(url.pathname);
     return `${url.hostname.replace(/^www\./, '')}${url.port}${path}${url.search}`.toLowerCase();
   } catch {
     return '';
@@ -80,7 +80,8 @@ export async function importFeeds(
       const key = `${parent ?? ''}/${name.toLowerCase()}`;
       let id = sectionIds.get(key);
       if (id === undefined) {
-        id = (await repo.addSection(uid, name, undefined, parent)).id;
+        const section = await repo.addSection(uid, name, undefined, parent);
+        id = section.id;
         sectionIds.set(key, id);
         sectionsAdded += 1;
       }
@@ -88,14 +89,14 @@ export async function importFeeds(
     }
     return parent;
   };
-  for (const entry of entries) {
+  const importEntry = async (entry: OpmlFeed): Promise<void> => {
     const checked = parseFeedInput({ url: entry.url });
     if (!checked.ok) {
       rejected.push({
         url: entry.url.slice(0, 200),
         reason: checked.errors[0] ?? 'not valid.',
       });
-      continue;
+      return;
     }
     const address = comparable(checked.url);
     const site = comparable(entry.site_url);
@@ -112,38 +113,43 @@ export async function importFeeds(
         added.set(address, filed);
         feeds[feeds.indexOf(again)] = filed;
       }
-      continue;
+      return;
     }
     const name = entry.title?.trim().toLowerCase() ?? '';
+    const knownFeed =
+      addresses.has(address) || (site !== '' && sites.has(site));
     if (
-      addresses.has(address) ||
-      (site !== '' && sites.has(site)) ||
+      knownFeed ||
       (name !== '' && titles.has(name)) ||
       (await repo.getFeedByUrl(uid, checked.url))
     ) {
       skipped += 1;
-      continue;
+      return;
     }
     const title = entry.title?.slice(0, MAX_NAME_LENGTH);
     const feed = await repo.addFeed(uid, checked.url, title);
     if (!feed) {
       rejected.push({ url: checked.url, reason: 'could not be added.' });
-      continue;
+      return;
     }
     addresses.add(address);
     if (name !== '') titles.add(name);
     if (site !== '') sites.add(site);
     const sectionId = await sectionFor(entry.sections ?? []);
     const changes = {
-      ...(sectionId !== null ? { section_id: sectionId } : {}),
+      ...(sectionId === null ? {} : { section_id: sectionId }),
       // The person's own name for a feed the source already names otherwise.
       ...(title && feed.title !== title ? { title } : {}),
     };
-    const filed = Object.keys(changes).length
-      ? ((await repo.updateFeed(uid, feed.id, changes)) ?? feed)
-      : feed;
+    const filed =
+      Object.keys(changes).length > 0
+        ? ((await repo.updateFeed(uid, feed.id, changes)) ?? feed)
+        : feed;
     feeds.push(filed);
     added.set(address, filed);
+  };
+  for (const entry of entries) {
+    await importEntry(entry);
   }
   return {
     added: feeds.length,
@@ -152,4 +158,11 @@ export async function importFeeds(
     rejected,
     feeds,
   };
+}
+
+/** Drops the trailing slashes; same as `.replace(/\/+$/, '')`, in linear time. */
+function trimTrailingSlashes(text: string): string {
+  let end = text.length;
+  while (end > 0 && text[end - 1] === '/') end -= 1;
+  return text.slice(0, end);
 }

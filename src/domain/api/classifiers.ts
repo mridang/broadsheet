@@ -75,9 +75,13 @@ export function createClassifiersCollection(
           paging,
         ),
       encode: (slice) =>
-        page(slice.items.map(classifierResource), slice.next, {
-          'Cache-Control': 'no-store',
-        }),
+        page(
+          slice.items.map((classifier) => classifierResource(classifier)),
+          slice.next,
+          {
+            'Cache-Control': 'no-store',
+          },
+        ),
     })
     .on<ClassifierInput, { classifier: Classifier; created: boolean }>({
       method: 'POST',
@@ -112,7 +116,7 @@ export function createClassifiersCollection(
             ? ['section_id: no such section.']
             : []),
         ];
-        if (errors.length) {
+        if (errors.length > 0) {
           throw problems.badRequest('The classifier is not valid.', errors);
         }
         const result = await repo.addClassifier(uid, input);
@@ -153,9 +157,9 @@ export function createClassifierItem(
     method: 'DELETE',
     handle: async (_input, { request, uid }) => {
       const id = parseFeedId(idOf(request));
-      return id !== undefined
-        ? new Repository(getDatabase()).removeClassifier(uid, id)
-        : false;
+      return id === undefined
+        ? false
+        : new Repository(getDatabase()).removeClassifier(uid, id);
     },
     encode: (removed) =>
       removed ? noContent() : problems.notFound('classifier'),

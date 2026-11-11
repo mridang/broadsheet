@@ -77,15 +77,16 @@ export async function setNotification(
   request: NotificationRequest,
 ): Promise<void> {
   const path = `/api/users/self/notifications/${feedId}`;
-  const res = request.channels.length
-    ? await fetch(path, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(request),
-      })
-    : await fetch(path, { method: 'DELETE' });
+  const res =
+    request.channels.length > 0
+      ? await fetch(path, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(request),
+        })
+      : await fetch(path, { method: 'DELETE' });
   // Stopping a feed that did not notify is already done.
-  if (res.status !== 404 || request.channels.length) await ensureOk(res);
+  if (res.status !== 404 || request.channels.length > 0) await ensureOk(res);
 }
 
 /** A new notification rule, as the form fills it in. */

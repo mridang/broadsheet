@@ -57,7 +57,7 @@ describe('authUrl', () => {
 function answerWith(body: unknown, status = 200) {
   return jest
     .spyOn(globalThis, 'fetch')
-    .mockResolvedValue(new Response(JSON.stringify(body), { status }));
+    .mockResolvedValue(Response.json(body, { status }));
 }
 
 afterEach(() => {
@@ -107,7 +107,8 @@ describe('exchangeCode', () => {
 
   it('fails when the answer has no access token', async () => {
     answerWith({ nothing: true });
-    expect((await client.exchangeCode(params)).ok).toBe(false);
+    const result = await client.exchangeCode(params);
+    expect(result.ok).toBe(false);
   });
 });
 
@@ -182,12 +183,14 @@ describe('getUserInfo', () => {
 
   it('fails when the answer does not say which account it is', async () => {
     answerWith({ email: 'a@b.com' });
-    expect((await client.getUserInfo('at')).ok).toBe(false);
+    const result = await client.getUserInfo('at');
+    expect(result.ok).toBe(false);
   });
 
   it('fails when the email is not text', async () => {
     answerWith({ sub: '1', email: 7 });
-    expect((await client.getUserInfo('at')).ok).toBe(false);
+    const result = await client.getUserInfo('at');
+    expect(result.ok).toBe(false);
   });
 });
 

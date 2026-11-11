@@ -175,7 +175,7 @@ describe('authenticateAccessToken', () => {
   it('refuses an expired token', async () => {
     const { access_token } = await tokens();
     expect(
-      await authenticateAccessToken(store, access_token, RESOURCE, 99999),
+      await authenticateAccessToken(store, access_token, RESOURCE, 99_999),
     ).toBeUndefined();
   });
 

@@ -36,16 +36,16 @@ export interface SaveResource {
 /** The API's view of a saved story. */
 export function saveResource(story: Readonly<SavedStory>): SaveResource {
   const saved = story.saved_at ? rfc3339(story.saved_at) : undefined;
-  const { article } = story;
+  const { article, tags, notes, highlights } = story;
   return {
     article_id: String(article.id),
     url: article.url,
     ...(article.title ? { title: article.title } : {}),
     ...(article.source ? { source: article.source } : {}),
-    tags: story.tags,
+    tags,
     ...(saved ? { saved_at: saved } : {}),
-    ...(story.notes ? { notes: story.notes } : {}),
-    ...(story.highlights?.length ? { highlights: story.highlights } : {}),
+    ...(notes ? { notes } : {}),
+    ...(highlights?.length ? { highlights } : {}),
   };
 }
 
@@ -108,17 +108,19 @@ export function parseSaveInput(
       `highlights: must be a list of up to ${MAX_HIGHLIGHTS} non-blank passages of at most ${MAX_HIGHLIGHT} characters.`,
     );
   }
-  return errors.length
+  return errors.length > 0
     ? { ok: false, errors }
     : {
         ok: true,
         tags: [...new Set((raw as string[]).map((t) => t.trim()))],
-        ...(notes !== undefined
-          ? { notes: typeof notes === 'string' && notes.trim() ? notes : null }
-          : {}),
-        ...(highlights !== undefined
-          ? { highlights: (highlights as string[]).map((h) => h.trim()) }
-          : {}),
+        ...(notes === undefined
+          ? {}
+          : {
+              notes: typeof notes === 'string' && notes.trim() ? notes : null,
+            }),
+        ...(highlights === undefined
+          ? {}
+          : { highlights: (highlights as string[]).map((h) => h.trim()) }),
       };
 }
 
@@ -148,7 +150,7 @@ export function parseSaveTagInput(
       `name: must be a non-blank string of at most ${MAX_TAG_LENGTH} characters.`,
     );
   }
-  return errors.length
+  return errors.length > 0
     ? { ok: false, errors }
     : { ok: true, name: (name as string).trim() };
 }

@@ -96,8 +96,9 @@ export class DailyScrape extends WorkflowEntrypoint<
   ): Promise<{ sources: number; ok: number; articles: number }> {
     const db = databaseFrom(this.env.DB);
     const edition = event.timestamp.toISOString().slice(0, 10);
-    const sources = await step.do('list sources', async () =>
-      (await new Repository(db).dueSources()).map(
+    const sources = await step.do('list sources', async () => {
+      const due = await new Repository(db).dueSources();
+      return due.map(
         ({ id, url, etag, last_modified, last_fetched_at }): Fetchable => ({
           id,
           url,
@@ -105,8 +106,8 @@ export class DailyScrape extends WorkflowEntrypoint<
           last_modified,
           last_fetched_at,
         }),
-      ),
-    );
+      );
+    });
     let ok = 0;
     let articles = 0;
     for (const source of sources) {
@@ -146,7 +147,9 @@ export class DailyScrape extends WorkflowEntrypoint<
         notifications.notifiedUserIds(),
         notifications.ruleUserIds(),
       ]);
-      return [...new Set([...feeds, ...rules])].toSorted((a, b) => a - b);
+      const ids = new Set(feeds);
+      for (const id of rules) ids.add(id);
+      return [...ids].toSorted((a, b) => a - b);
     });
     for (const reader of notified) {
       try {
@@ -425,7 +428,7 @@ export async function purgeExpired(
 async function startBriefings(env: CloudflareEnv, at: Date): Promise<void> {
   try {
     const due = await dueBriefings(new Repository(databaseFrom(env.DB)), at);
-    if (!due.length) return;
+    if (due.length === 0) return;
     const run = await env.BRIEFINGS.create({
       params: { due, at: at.toISOString() },
     });

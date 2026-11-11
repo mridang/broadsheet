@@ -53,19 +53,20 @@ function CloseGlyph(): ReactElement {
 function browserHost(): InstallHost {
   return {
     navigator,
-    matchMedia: (query) => window.matchMedia(query),
-    storage: () => window.localStorage,
+    matchMedia: (query) => globalThis.matchMedia(query),
+
+    storage: () => globalThis.localStorage,
   };
 }
 
 /**
  * Tells the page when the tip's answer may have changed behind its back: the
  * tip was dismissed in another tab. (Whether the device is an iPhone does not
- * change while the page is open.)
+ * change while the page is open.).
  */
 function subscribe(onChange: () => void): () => void {
-  window.addEventListener('storage', onChange);
-  return () => window.removeEventListener('storage', onChange);
+  globalThis.addEventListener('storage', onChange);
+  return () => globalThis.removeEventListener('storage', onChange);
 }
 
 /** Whether the tip applies to this browser right now. */

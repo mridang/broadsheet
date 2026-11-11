@@ -48,7 +48,7 @@ export function FeedMetadata({
           </dt>
           <dd className="mt-0.5 wrap-break-word text-ink">
             {e.text ? <Value text={e.text} /> : null}
-            {Object.entries(e.attributes).length ? (
+            {Object.entries(e.attributes).length > 0 ? (
               <ul className="mt-1 space-y-0.5 text-xs text-muted">
                 {Object.entries(e.attributes).map(([name, value]) => (
                   <li key={name}>
@@ -58,7 +58,7 @@ export function FeedMetadata({
                 ))}
               </ul>
             ) : null}
-            {e.children.length ? (
+            {e.children.length > 0 ? (
               <FeedMetadata elements={e.children} nested />
             ) : null}
           </dd>

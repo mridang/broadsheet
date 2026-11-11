@@ -1,0 +1,18 @@
+{
+  "ftpFeed": "ftp://x/f",
+  "ftpBare": "ftp://x",
+  "ftpImage": "ftp://a.com/x.jpg",
+  "httpEvilCallback": "http://evil.test/cb",
+  "httpPlainImage": "http://www.site.co.uk/a.png",
+  "httpPrivate10": "http://10.0.0.5/x.jpg",
+  "httpPrivate192": "http://192.168.1.1/x.jpg",
+  "httpPrivate172": "http://172.20.0.1/x.jpg",
+  "httpLinkLocalV6": "http://[fe80::1]/x.jpg",
+  "httpBrokenRedirect": "http://[",
+  "httpOrigin": "http://app.test",
+  "httpFeedAccepted": "http://a.test/f",
+  "httpFeedOtherScheme": "http://a.test/feed",
+  "httpSiteUrl": "http://www.a.test",
+  "httpPushEndpoint": "http://push.example.com/x",
+  "httpWebhook": "http://hooks.example.com/a"
+}

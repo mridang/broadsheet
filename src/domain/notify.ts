@@ -293,7 +293,7 @@ export function stillActive(
 ): boolean {
   if (!lastSeen) return true;
   const away = (Date.parse(edition) - Date.parse(lastSeen)) / 86_400_000;
-  return !(away > INACTIVE_DAYS);
+  return away <= INACTIVE_DAYS || Number.isNaN(away);
 }
 
 /** Everything delivering one story needs. */
@@ -399,7 +399,7 @@ export async function notifyNewStories(
     notifications.feedNotifications(userId),
     notifications.rules(userId),
   ]);
-  if (!settings.length && !rules.length) return totals;
+  if (settings.length === 0 && rules.length === 0) return totals;
   if (!stillActive(await notifications.lastSeen(userId), edition))
     return totals;
   const repo = new Repository(db);
@@ -418,14 +418,19 @@ export async function notifyNewStories(
     totals,
   };
   for (const setting of settings) {
-    const fresh = (
-      await notifications.undeliveredStories(userId, setting.source_id, edition)
-    ).filter((story) => notifies(setting.filter, verdict(story, training)));
+    const unsent = await notifications.undeliveredStories(
+      userId,
+      setting.source_id,
+      edition,
+    );
+    const fresh = unsent.filter((story) =>
+      notifies(setting.filter, verdict(story, training)),
+    );
     for (const story of fresh.slice(0, STORIES_PER_FEED)) {
       await deliverStory(delivery, setting, setting.channels, story);
     }
   }
-  if (rules.length) {
+  if (rules.length > 0) {
     const followed = await notifications.undeliveredFollowedStories(
       userId,
       edition,
@@ -440,7 +445,7 @@ export async function notifyNewStories(
       }
     }
   }
-  return totals;
+  return delivery.totals;
 }
 
 /**
@@ -461,7 +466,8 @@ export async function promptMatches(
   const candidates = followed
     .filter((story) => inScope(rule, story))
     .slice(0, PROMPT_BATCH);
-  let left = (await budget(repo, userId, 'classifier')).remaining;
+  const quota = await budget(repo, userId, 'classifier');
+  let left = quota.remaining;
   const matched: FollowedStory[] = [];
   for (const story of candidates) {
     if (matched.length >= STORIES_PER_FEED || left <= 0) break;

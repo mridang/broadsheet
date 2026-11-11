@@ -46,10 +46,11 @@ function dateline(published: string | null, edition: string | null): string {
  */
 export default async function ArticlePage({
   params,
-}: {
+}: Readonly<{
   params: Promise<{ id: string }>;
-}): Promise<ReactElement> {
-  const id = parseFeedId((await params).id);
+}>): Promise<ReactElement> {
+  const route = await params;
+  const id = parseFeedId(route.id);
   if (id === undefined) notFound();
   const user = await getCurrentUser();
   const ownerId = user ? user.id : await ensurePublicUser();
@@ -61,9 +62,10 @@ export default async function ArticlePage({
   const similar = (await repo.discoverArticles(ownerId, article.id)) ?? [];
   const paragraphs = (article.body_text ?? '').split('\n\n').filter(Boolean);
   const date = dateline(article.published_at, article.edition);
-  const shared = user
-    ? (await repo.sharedArticleIds(user.id)).has(article.id)
-    : false;
+  const sharedIds = user
+    ? await repo.sharedArticleIds(user.id)
+    : new Set<number>();
+  const shared = sharedIds.has(article.id);
 
   return (
     <article className="mx-auto max-w-2xl">
@@ -115,7 +117,7 @@ export default async function ArticlePage({
           </TextLink>
         ) : null}
       </div>
-      {paragraphs.length ? (
+      {paragraphs.length > 0 ? (
         <div className="mt-8 space-y-5 font-serif text-lg leading-8 text-ink/90">
           {paragraphs.map((text, i) => (
             <p key={i}>{text}</p>
@@ -127,7 +129,7 @@ export default async function ArticlePage({
         </p>
       )}
       {user ? <AskBox id={article.id} /> : null}
-      {similar.length ? (
+      {similar.length > 0 ? (
         <section aria-labelledby="similar" className="mt-12">
           <SectionHeader id="similar" title="Similar stories" />
           <ul className="mt-4 divide-y divide-line border-y border-line">

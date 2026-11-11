@@ -16,17 +16,17 @@ export const SUPPORTED_VERSIONS: readonly string[] = [
 ];
 
 /** Invalid JSON. */
-export const ERROR_PARSE = -32700;
+export const ERROR_PARSE = -32_700;
 /** Not a JSON-RPC request. */
-export const ERROR_INVALID_REQUEST = -32600;
+export const ERROR_INVALID_REQUEST = -32_600;
 /** No such method. */
-export const ERROR_METHOD_NOT_FOUND = -32601;
+export const ERROR_METHOD_NOT_FOUND = -32_601;
 /** The parameters do not fit the method. */
-export const ERROR_INVALID_PARAMS = -32602;
+export const ERROR_INVALID_PARAMS = -32_602;
 /** Something failed on our side. */
-export const ERROR_INTERNAL = -32603;
+export const ERROR_INTERNAL = -32_603;
 /** No resource at that URI (the MCP spec's code). */
-export const RESOURCE_NOT_FOUND = -32002;
+export const RESOURCE_NOT_FOUND = -32_002;
 
 /**
  * The revision to answer an `initialize` with: the client's when we speak it,
@@ -56,16 +56,22 @@ export interface JsonRpcMessage {
   readonly params?: unknown;
 }
 
+/** Whether a message's params are absent or an object. */
+const isValidParams = (params: unknown): boolean =>
+  params === undefined || isPlainObject(params);
+
+/** Whether a message's id is absent, a string or a number. */
+const isValidId = (id: unknown): boolean =>
+  id === undefined || typeof id === 'string' || typeof id === 'number';
+
 /** Whether a message is a well-formed request or notification. */
 export function isJsonRpcMessage(value: unknown): value is JsonRpcMessage {
+  if (!isPlainObject(value)) return false;
   return (
-    isPlainObject(value) &&
     value['jsonrpc'] === '2.0' &&
     typeof value['method'] === 'string' &&
-    (value['params'] === undefined || isPlainObject(value['params'])) &&
-    (value['id'] === undefined ||
-      typeof value['id'] === 'string' ||
-      typeof value['id'] === 'number')
+    isValidParams(value['params']) &&
+    isValidId(value['id'])
   );
 }
 

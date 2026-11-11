@@ -21,17 +21,19 @@ export const fakeCookies = async () => ({
   },
 });
 
+const DEFAULT_TEST_ENV: Readonly<Record<string, unknown>> = {
+  SESSION_SECRET,
+  GOOGLE_OAUTH_CLIENT_ID: 'client-id',
+  GOOGLE_OAUTH_CLIENT_SECRET: 'client-secret',
+};
+
 /**
  * Make `env` the Worker environment the code under test finds (there is no
  * database: tests of the sign-in code stand in for the app's store). Returns
  * the function that puts things back.
  */
 export function installEnv(
-  env: Readonly<Record<string, unknown>> = {
-    SESSION_SECRET,
-    GOOGLE_OAUTH_CLIENT_ID: 'client-id',
-    GOOGLE_OAUTH_CLIENT_SECRET: 'client-secret',
-  },
+  env: Readonly<Record<string, unknown>> = DEFAULT_TEST_ENV,
 ): () => void {
   return installCloudflareContext({} as D1Database, env);
 }

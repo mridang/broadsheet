@@ -26,12 +26,12 @@ function headerLink(header: string | null, rel: string): string | undefined {
 
 /** The address of the feed's own `<link rel>` (RSS `atom:link` or Atom). */
 function feedLink(xml: string, rel: string): string | undefined {
-  const head = xml.split(/<(?:item|entry)[\s>]/i)[0] ?? '';
+  const head = xml.split(/<(?:item|entry)[\s>]/i, 1)[0] ?? '';
   for (const [tag] of head.matchAll(/<(?:atom:)?link\b[^>]*>/gi)) {
     const rels = /\brel\s*=\s*["']([^"']+)["']/i.exec(tag)?.[1];
     const href = /\bhref\s*=\s*["']([^"']+)["']/i.exec(tag)?.[1];
     if (href && rels?.toLowerCase().split(/\s+/).includes(rel)) {
-      return href.replace(/&amp;/g, '&');
+      return href.replaceAll('&amp;', '&');
     }
   }
   return undefined;
@@ -100,7 +100,7 @@ export async function signatureMatches(
     ['verify'],
   );
   const given = Uint8Array.from(match[2].match(/../g) ?? [], (byte) =>
-    parseInt(byte, 16),
+    Number.parseInt(byte, 16),
   );
   return crypto.subtle.verify('HMAC', key, given, body);
 }

@@ -7,4 +7,19 @@
 
 export { GoogleOAuthClient, SIGN_IN_SCOPES } from './client';
 export type { GoogleOAuthCredentials } from './client';
-export * from './models';
+export {
+  type AccessTokenResponse,
+  AccessTokenResponseSchema,
+  type ExchangeCodeRequest,
+  ExchangeCodeRequestSchema,
+  type GoogleUserResponse,
+  GoogleUserResponseSchema,
+  type RefreshTokenRequest,
+  RefreshTokenRequestSchema,
+  type RevokeTokenRequest,
+  RevokeTokenRequestSchema,
+  type RevokeTokenResponse,
+  RevokeTokenResponseSchema,
+  type TokenResponse,
+  TokenResponseSchema,
+} from './models';

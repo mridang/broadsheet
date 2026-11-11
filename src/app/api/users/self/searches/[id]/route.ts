@@ -1,7 +1,7 @@
 /**
  * One of the signed-in person's saved searches.
  *
- *   DELETE /api/users/self/searches/:id → 204
+ * DELETE /api/users/self/searches/:id → 204.
  *
  * The behaviour lives in the `searchItem` controller; this file only mounts
  * it.

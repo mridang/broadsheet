@@ -8,7 +8,6 @@ import { BRAND_NAME } from '@/app/_brand';
 import type { ServerInfo } from '@/lib/mcp';
 
 /** The name the protected resource metadata gives the MCP server. */
-export const RESOURCE_NAME = BRAND_NAME;
 
 /** The server's identity in the `initialize` reply. */
 export const SERVER_INFO: ServerInfo = {
@@ -24,3 +23,5 @@ export const INSTRUCTIONS = [
   'and get_article for one story’s full text. Feeds, saves and training change',
   'what the person sees, so only change them when asked.',
 ].join(' ');
+
+export { BRAND_NAME as RESOURCE_NAME } from '@/app/_brand';

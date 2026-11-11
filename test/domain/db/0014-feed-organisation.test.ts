@@ -1,6 +1,7 @@
-import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { readFile } from 'node:fs/promises';
 import { beforeEach, describe, expect, it } from '@jest/globals';
+
 import type { DatabaseSync } from 'node:sqlite';
 
 import { APP_MIGRATIONS } from '../../lib/core/db/migrations';
@@ -9,9 +10,11 @@ import { sqliteD1 } from '../../lib/core/db/sqlite-d1';
 let raw: DatabaseSync;
 
 /** A database just before the migration, with a section and a feed in it. */
-beforeEach(() => {
+beforeEach(async () => {
   raw = sqliteD1(
-    ...APP_MIGRATIONS.filter((file) => file < '0014_feed_organisation.sql'),
+    ...APP_MIGRATIONS.filter(
+      (file) => file.localeCompare('0014_feed_organisation.sql') < 0,
+    ),
   ).raw;
   raw.exec(
     "INSERT INTO sources (id, url) VALUES (1, 'https://a.test/f');" +
@@ -19,7 +22,7 @@ beforeEach(() => {
       'INSERT INTO subscriptions (id, user_id, source_id, section_id, muted) VALUES (1, 1, 1, 1, 1);',
   );
   raw.exec(
-    readFileSync(
+    await readFile(
       path.join(process.cwd(), 'migrations', '0014_feed_organisation.sql'),
       'utf8',
     ),

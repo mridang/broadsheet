@@ -2,7 +2,7 @@
  * Pictures from other websites, served from our own address (see
  * `lib/cloudflare/images` for why).
  *
- *   GET /img?url=<picture address>&w=<width>
+ * GET /img?url=<picture address>&w=<width>.
  *
  * Who may ask, and for what, is each app's own rule, so it can't become a free
  * image proxy for the web. Stories come from any site, so there is no host

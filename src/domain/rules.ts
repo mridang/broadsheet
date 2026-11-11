@@ -34,7 +34,7 @@ export function regexProblem(pattern: string): string | undefined {
     return 'not a valid regular expression';
   }
   if (/\\[1-9]|\\k</.test(pattern)) return 'back-references are not allowed';
-  if (/\([^)]*[+*}][^)]*\)\s*[+*{?]/.test(pattern)) {
+  if (repeatsAGroup(pattern)) {
     return 'a repeated group may not itself repeat';
   }
   return undefined;
@@ -52,7 +52,8 @@ export type RuledStory = Pick<
 /** Whether the story is in the rule's feed, section or anywhere. */
 export function inScope(rule: NotificationRule, story: RuledStory): boolean {
   if (rule.scope === 'feed') return story.feed_id === rule.feed_id;
-  if (rule.scope === 'section') return story.section_id === rule.section_id;
+  if (rule.scope === 'section')
+    return story.section_id !== null && story.section_id === rule.section_id;
   return true;
 }
 
@@ -72,22 +73,45 @@ export function matchesRule(
 ): boolean {
   if (!inScope(rule, story)) return false;
   switch (rule.kind) {
-    case 'title':
+    case 'title': {
       return found(rule, story.title ?? '');
-    case 'url':
+    }
+    case 'url': {
       return found(rule, story.url);
-    case 'text':
+    }
+    case 'text': {
       return found(
         rule,
         [story.summary, story.body_text].filter(Boolean).join(' '),
       );
-    case 'author':
+    }
+    case 'author': {
       return rule.is_regex
         ? found(rule, story.author ?? '')
         : !!story.author && story.author === rule.value;
-    case 'tag':
+    }
+    case 'tag': {
       return (story.tags ?? []).includes(rule.value);
-    case 'prompt':
+    }
+    case 'prompt': {
       return false;
+    }
   }
+}
+
+/** Whether a `(...)` group holding a `+`, `*` or `}` is itself followed by a repeat. */
+function repeatsAGroup(pattern: string): boolean {
+  let open = pattern.indexOf('(');
+  while (open !== -1) {
+    const close = pattern.indexOf(')', open + 1);
+    if (close === -1) return false;
+    if (
+      /[+*}]/.test(pattern.slice(open + 1, close)) &&
+      /^\s*[+*{?]/.test(pattern.slice(close + 1))
+    ) {
+      return true;
+    }
+    open = pattern.indexOf('(', open + 1);
+  }
+  return false;
 }

@@ -262,13 +262,10 @@ describe('clusterEdition', () => {
       },
     );
     const run = jest.fn(async (_model: string, input: { text: string[] }) => ({
-      data: input.text.map((t) =>
-        t.startsWith('Earthquake')
-          ? [1, 0, 0]
-          : t.endsWith('1')
-            ? [0, 1, 0]
-            : [0, 0, 1],
-      ),
+      data: input.text.map((t) => {
+        if (t.startsWith('Earthquake')) return [1, 0, 0];
+        return t.endsWith('1') ? [0, 1, 0] : [0, 0, 1];
+      }),
     }));
     const getByIds = jest.fn(async (ids: string[]) =>
       ids.flatMap((id) => {
@@ -293,9 +290,8 @@ describe('clusterEdition', () => {
       articles: 4,
       clusters: 1,
     });
-    const rows = await repo.articlesByIds(
-      (await repo.editionArticles('2026-11-01')).map((a) => a.id),
-    );
+    const editionRows = await repo.editionArticles('2026-11-01');
+    const rows = await repo.articlesByIds(editionRows.map((a) => a.id));
     const quakes = rows.filter((a) => a.title === 'Earthquake hits city');
     expect(new Set(quakes.map((a) => a.cluster_id)).size).toBe(1);
     expect(quakes[0]?.cluster_id).not.toBeNull();
@@ -327,7 +323,8 @@ describe('clusterEdition', () => {
       },
     ]);
     await clusterEdition(db, env().env, '2026-11-03');
-    const quakes = (await repo.windowArticles('2026-11-01', '2026-11-03'))
+    const windowRows = await repo.windowArticles('2026-11-01', '2026-11-03');
+    const quakes = windowRows
       .filter((a) => a.title === 'Earthquake hits city')
       .map((a) => a.id);
     const rows = await repo.articlesByIds(quakes);
@@ -340,15 +337,16 @@ describe('clusterEdition', () => {
     await clusterEdition(db, env().env, '2026-11-01');
     const later = daysBefore('2026-11-01', -CLUSTER_TTL_DAYS - 1);
     await clusterEdition(db, env().env, later);
-    const rows = await repo.articlesByIds(
-      (await repo.editionArticles('2026-11-01')).map((a) => a.id),
-    );
+    const editionRows = await repo.editionArticles('2026-11-01');
+    const rows = await repo.articlesByIds(editionRows.map((a) => a.id));
     expect(rows.every((a) => a.cluster_id === null)).toBe(true);
   });
 
   it('skips clustering without embedding anything when no index is bound', async () => {
     const { run, env: e } = env();
-    const unbound = { ...e, VECTORIZE: undefined } as CloudflareEnv;
+    const unbound = Object.fromEntries(
+      Object.entries(e).filter(([key]) => key !== 'VECTORIZE'),
+    ) as CloudflareEnv;
     expect(await clusterEdition(db, unbound, '2026-11-01')).toEqual({
       articles: 0,
       clusters: 0,

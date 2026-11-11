@@ -14,12 +14,14 @@ interface CloudflareEnv extends Cloudflare.Env {
   VAPID_PRIVATE_KEY: string;
   /** Bearer token for the operator endpoints; where unset they are open (local development). */
   CRON_SECRET?: string;
+
   /**
    * Cloudflare Email Sending, for emailing a story. Optional: until the domain
    * is onboarded and the `send_email` binding is added, the API answers 503
    * and the app offers a mailto link instead.
    */
   EMAIL?: SendEmail;
+
   /**
    * Article embeddings, for clustering the same story from different sources.
    * Optional and off by default: until the index is created and the
@@ -28,8 +30,9 @@ interface CloudflareEnv extends Cloudflare.Env {
   VECTORIZE?: VectorizeIndex;
   /** The address stories are emailed from, on the onboarded domain. */
   EMAIL_FROM?: string;
+
   /**
-   * Public origin, e.g. https://broadsheet.apps.mrida.ng. Optional; derived
+   * Public origin, e.g. Https://broadsheet.apps.mrida.ng. Optional; derived
    * from the request when unset (local dev).
    */
   APP_URL?: string;

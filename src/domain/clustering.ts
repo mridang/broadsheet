@@ -36,7 +36,7 @@ export const CLUSTER_TTL_DAYS = 14;
 
 /** `days` days before a YYYY-MM-DD date. */
 export function daysBefore(date: string, days: number): string {
-  return new Date(Date.parse(`${date}T00:00:00Z`) - days * 86400000)
+  return new Date(Date.parse(`${date}T00:00:00Z`) - days * 86_400_000)
     .toISOString()
     .slice(0, 10);
 }
@@ -88,7 +88,7 @@ class Groups {
     this.#size = Array.from({ length: n }, () => 1);
   }
 
-  find(i: number): number {
+  rootOf(i: number): number {
     let root = i;
     while (this.#parent[root] !== root) root = this.#parent[root] ?? root;
     this.#parent[i] = root;
@@ -96,8 +96,8 @@ class Groups {
   }
 
   union(i: number, j: number): void {
-    const a = this.find(i);
-    const b = this.find(j);
+    const a = this.rootOf(i);
+    const b = this.rootOf(j);
     if (a === b) return;
     const size = (this.#size[a] ?? 1) + (this.#size[b] ?? 1);
     if (size > this.cap) return;
@@ -112,22 +112,19 @@ function candidatePairs(words: readonly Set<string>[]): [number, number][] {
   words.forEach((set, i) => {
     for (const w of set) index.set(w, [...(index.get(w) ?? []), i]);
   });
-  const seen = new Set<string>();
-  const pairs: [number, number][] = [];
+  // Keyed by pair, so a pair found twice keeps its first place and is kept once.
+  const seen = new Map<string, [number, number]>();
   for (const members of index.values()) {
     if (members.length > COMMON_WORD) continue;
     for (let x = 0; x < members.length; x++) {
       for (let y = x + 1; y < members.length; y++) {
         const i = members[x] ?? 0;
         const j = members[y] ?? 0;
-        const key = `${i}:${j}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        pairs.push([i, j]);
+        seen.set(`${i}:${j}`, [i, j]);
       }
     }
   }
-  return pairs;
+  return [...seen.values()];
 }
 
 /**
@@ -165,7 +162,7 @@ export function clusterGroups(
   }
   const byRoot = new Map<number, number[]>();
   items.forEach((_, i) => {
-    const root = groups.find(i);
+    const root = groups.rootOf(i);
     byRoot.set(root, [...(byRoot.get(root) ?? []), i]);
   });
   return [...byRoot.values()]
@@ -195,9 +192,9 @@ async function storedVectors(
   const found = new Map<number, number[]>();
   for (const part of batches(ids, LOOKUP_BATCH)) {
     // Vectorize's getByIds, not Testing Library's sync query of that name.
-    // eslint-disable-next-line testing-library/no-await-sync-queries
+
     for (const v of await index.getByIds(part.map(String))) {
-      found.set(Number(v.id), Array.from(v.values));
+      found.set(Number(v.id), [...v.values]);
     }
   }
   return found;
@@ -213,14 +210,14 @@ async function embedAll(
   const made = new Map<number, number[]>();
   for (const part of batches(articles, EMBED_BATCH)) {
     const out = await env.AI.run(EMBEDDING_MODEL, {
-      text: part.map(embeddingText),
+      text: part.map((a) => embeddingText(a)),
     });
     const data = 'data' in out ? (out.data ?? []) : [];
     const vectors = part.flatMap((a, i) => {
       const values = data[i];
       return values ? [{ a, values }] : [];
     });
-    if (!vectors.length) continue;
+    if (vectors.length === 0) continue;
     await index.upsert(
       vectors.map(({ a, values }) => ({
         id: String(a.id),

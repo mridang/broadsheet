@@ -11,7 +11,7 @@ import { removeSearch } from '@/app/(site)/search/_components/search-requests';
 export function RemoveSearchButton({
   id,
 }: Readonly<{ id: number }>): ReactElement {
-  const { busy, error, run } = useApiAction(() => window.location.reload());
+  const { busy, error, run } = useApiAction(() => globalThis.location.reload());
   return (
     <>
       <button

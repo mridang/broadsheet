@@ -139,22 +139,26 @@ export function slotsFor(
 ): { readonly slot: Slot; readonly at: number }[] {
   const preferred = preferredSlot(prefs.briefing_time);
   switch (prefs.briefing_frequency) {
-    case 'weekly':
+    case 'weekly': {
       return weekday === prefs.briefing_day ? [preferred] : [];
-    case 'twice_daily':
+    }
+    case 'twice_daily': {
       return [
         { slot: 'morning', at: SLOTS.morning },
         preferred.slot === 'morning'
           ? { slot: 'afternoon', at: SLOTS.afternoon }
           : preferred,
       ];
-    case 'thrice_daily':
+    }
+    case 'thrice_daily': {
       return (Object.keys(SLOTS) as FixedSlot[]).map((slot) => ({
         slot,
         at: SLOTS[slot],
       }));
-    default:
+    }
+    default: {
       return [preferred];
+    }
   }
 }
 
@@ -200,14 +204,12 @@ export function briefingTitle(
   frequency: Preferences['briefing_frequency'],
   localDate: string,
 ): string {
-  const part =
-    slot !== 'custom'
-      ? slot
-      : at >= SLOTS.evening
-        ? 'evening'
-        : at >= SLOTS.afternoon
-          ? 'afternoon'
-          : 'morning';
+  let part: string = slot;
+  if (slot === 'custom') {
+    if (at >= SLOTS.evening) part = 'evening';
+    else if (at >= SLOTS.afternoon) part = 'afternoon';
+    else part = 'morning';
+  }
   const kind = frequency === 'weekly' ? 'Weekly' : 'Daily';
   return `${part[0]?.toUpperCase()}${part.slice(1)} ${kind} Briefing — ${formatEdition(localDate)}`;
 }
@@ -299,7 +301,11 @@ export function clusterEntries(list: readonly Article[]): Entry[] {
     return {
       article,
       coverage: Math.max(1, new Set(group.map((a) => a.source_id)).size),
-      also: [...new Set(group.filter((a) => a.id !== article.id).map(name))],
+      also: [
+        ...new Set(
+          group.filter((a) => a.id !== article.id).map((a) => name(a)),
+        ),
+      ],
     };
   });
 }
@@ -312,8 +318,9 @@ export async function coveredUrls(
   const ids = stored.flatMap((s) =>
     parseBriefedStories(s ?? null).map((b) => b.id),
   );
-  if (!ids.length) return new Set();
-  return new Set((await repo.articlesByIds(ids)).map((a) => a.url));
+  if (ids.length === 0) return new Set();
+  const articles = await repo.articlesByIds(ids);
+  return new Set(articles.map((a) => a.url));
 }
 
 /** The source ids a briefing reads: all, or one section's and its nested ones'. */
@@ -326,7 +333,8 @@ async function sourcesFor(
   if (!m) return undefined;
   const sections = await repo.listSections(userId);
   const ids = sectionAndDescendants(sections, Number(m[1]));
-  return (await repo.listFeeds(userId))
+  const feeds = await repo.listFeeds(userId);
+  return feeds
     .filter((f) => f.section_id !== null && ids.has(f.section_id))
     .map((f) => f.source_id);
 }
@@ -344,16 +352,16 @@ async function extraSections(
     if (!sectionOn(key, prefs) || !prompt.trim()) continue;
     // A phrase search first, then every word of three letters or more.
     let found = await repo.searchSince(userId, prompt, since);
-    if (!found.length) {
+    if (found.length === 0) {
       const words = prompt.split(/\s+/).filter((w) => w.length >= 3);
-      if (words.length) {
+      if (words.length > 0) {
         found = await repo.searchSince(userId, words.join(' '), since);
       }
     }
     extra.set(key, found);
   }
   const want = (key: GlobalSection) => sectionOn(key, prefs);
-  const any = GLOBAL_SECTIONS.some(want);
+  const any = GLOBAL_SECTIONS.some((key) => want(key));
   const [read, saved, shared] = await Promise.all([
     any ? repo.popularArticles('reads', since, 12) : [],
     any ? repo.popularArticles('saves', since, 12) : [],
@@ -388,7 +396,7 @@ async function extraSections(
 
 /** What writing a briefing did. */
 export interface Written {
-  readonly briefing: StoredBriefing | undefined;
+  readonly briefing?: StoredBriefing;
   /** Whether it replaced one already stored for the slot and day. */
   readonly replaced: boolean;
   /** Why none was written, when none was. */
@@ -411,7 +419,7 @@ export async function writeScheduledBriefing(
   const repo = new Repository(db);
   const prefs = await repo.getPreferences(userId);
   const start = new Date(
-    now.getTime() - LOOKBACK_HOURS[prefs.briefing_frequency] * 3600000,
+    now.getTime() - LOOKBACK_HOURS[prefs.briefing_frequency] * 3_600_000,
   );
   const since = sqliteTime(start);
   const sources = await sourcesFor(repo, userId, prefs.briefing_sources);
@@ -420,7 +428,7 @@ export async function writeScheduledBriefing(
     await repo.briefedSince(userId, since, { slot, date: localDate }),
   );
   const articles = await repo.briefingArticles(userId, since, sources);
-  const monthStart = new Date(now.getTime() - 30 * 86400000)
+  const monthStart = new Date(now.getTime() - 30 * 86_400_000)
     .toISOString()
     .slice(0, 10);
   const candidates = await toCandidates(
@@ -450,9 +458,8 @@ export async function writeScheduledBriefing(
       ? 1
       : MIN_BRIEFED;
   const picks = selectStories(candidates, prefs, extra, minimum);
-  if (!picks.length) {
+  if (picks.length === 0) {
     return {
-      briefing: undefined,
       replaced: false,
       skipped: 'Too few stories.',
     };

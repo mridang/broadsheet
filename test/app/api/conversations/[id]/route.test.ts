@@ -35,7 +35,8 @@ beforeEach(async () => {
     )
     .run('g7', 'a@b.com', 'g8', 'b@b.com');
   const repo = new Repository(databaseFrom(made.d1));
-  conversation = (await repo.addConversation(7)).id;
+  const added = await repo.addConversation(7);
+  conversation = added.id;
   await repo.addMessage(conversation, 'user', 'Q');
   await repo.addMessage(conversation, 'assistant', 'A [1]', [42]);
   auth = await cookieFor(7);
@@ -67,17 +68,20 @@ describe('GET /api/conversations/:id', () => {
   });
 
   it.each(['999', 'abc'])('answers 404 for conversation %j', async (id) => {
-    expect((await read(id)).status).toBe(404);
+    const res = await read(id);
+    expect(res.status).toBe(404);
   });
 
   it('answers 404 to another person', async () => {
     auth = await cookieFor(8);
-    expect((await read(conversation)).status).toBe(404);
+    const res = await read(conversation);
+    expect(res.status).toBe(404);
   });
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await read(conversation)).status).toBe(401);
+    const res = await read(conversation);
+    expect(res.status).toBe(401);
   });
 });
 
@@ -92,24 +96,30 @@ const remove = (id: string | number) =>
 
 describe('DELETE /api/conversations/:id', () => {
   it('answers 204 and the conversation is gone', async () => {
-    expect((await remove(conversation)).status).toBe(204);
-    expect((await read(conversation)).status).toBe(404);
+    const removed = await remove(conversation);
+    expect(removed.status).toBe(204);
+    const res = await read(conversation);
+    expect(res.status).toBe(404);
   });
 
   it('answers 404 the second time', async () => {
     await remove(conversation);
-    expect((await remove(conversation)).status).toBe(404);
+    const removed = await remove(conversation);
+    expect(removed.status).toBe(404);
   });
 
   it('answers 404, removing nothing, for another person', async () => {
     auth = await cookieFor(8);
-    expect((await remove(conversation)).status).toBe(404);
+    const removed = await remove(conversation);
+    expect(removed.status).toBe(404);
     auth = await cookieFor(7);
-    expect((await read(conversation)).status).toBe(200);
+    const res = await read(conversation);
+    expect(res.status).toBe(200);
   });
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await remove(conversation)).status).toBe(401);
+    const removed = await remove(conversation);
+    expect(removed.status).toBe(401);
   });
 });

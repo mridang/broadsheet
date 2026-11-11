@@ -179,7 +179,7 @@ describe('parseIssueQuery', () => {
   it('defaults the limit', () => {
     expect(parseIssueQuery(new URLSearchParams())).toEqual({
       ok: true,
-      query: { before: undefined, limit: 20 },
+      query: { limit: 20 },
     });
   });
 

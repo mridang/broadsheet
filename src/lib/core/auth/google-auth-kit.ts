@@ -167,7 +167,7 @@ export class GoogleAuthKit {
           event: 'auth.callback.state_check_failed',
           hasState: Boolean(state),
           hasExpected: Boolean(expectedState),
-          match: state === expectedState,
+          match: state !== null && state === expectedState,
           oauthError,
         });
         return NextResponse.redirect(
@@ -247,12 +247,14 @@ export class GoogleAuthKit {
         const done = await other.complete(context, info.value, tokens.value);
         await setErrorContext({ 'auth.step': 'done' });
         return done;
-      } catch (err) {
+      } catch (error) {
         await setErrorContext({ 'auth.failure': FAILURE_AT[step] });
         logError({
           event: 'auth.callback.failed',
           error:
-            err instanceof Error ? `${err.name}: ${err.message}` : String(err),
+            error instanceof Error
+              ? `${error.name}: ${error.message}`
+              : String(error),
         });
         return finishFlow(origin, this.#failurePath(purpose, 'error'));
       }

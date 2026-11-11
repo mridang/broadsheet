@@ -35,7 +35,7 @@ export function VoiceButton({
   // False on the server and while hydrating, so both render the same.
   const supported = useSyncExternalStore(
     noChanges,
-    () => 'MediaRecorder' in window,
+    () => 'MediaRecorder' in globalThis,
     () => false,
   );
   if (!supported) return null;
@@ -64,6 +64,11 @@ export function VoiceButton({
       void start().catch(() => setRecording(false));
     }
   };
+  const label = (): string => {
+    if (recording) return 'Stop';
+    if (busy) return 'Listening…';
+    return 'Speak';
+  };
   return (
     <>
       <button
@@ -73,7 +78,7 @@ export function VoiceButton({
         aria-pressed={recording}
         onClick={toggle}
       >
-        {recording ? 'Stop' : busy ? 'Listening…' : 'Speak'}
+        {label()}
       </button>
       {error ? <ErrorText>{error}</ErrorText> : null}
     </>

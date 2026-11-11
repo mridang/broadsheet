@@ -1,7 +1,7 @@
 /**
  * The topics a new reader can pick starter feeds from.
  *
- *   GET /api/topics → 200 {self, items}
+ * GET /api/topics → 200 {self, items}.
  *
  * The behaviour lives in the `topicsCollection` controller; this file only
  * mounts it.

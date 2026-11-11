@@ -15,7 +15,7 @@ import { foldText, relativeTime, truncate } from '@/lib/intl';
 
 export type Tier = 'lead' | 'feature' | 'standard' | 'brief';
 
-/** tier -> [lane span, excerpt char budget]. */
+/** Tier -> [lane span, excerpt char budget]. */
 export const TIER: Record<Tier, readonly [number, number]> = {
   lead: [3, 620],
   feature: [2, 340],
@@ -138,24 +138,33 @@ export function tagsOf(tags: Classifiable['tags']): readonly string[] {
 export function matches(story: Classifiable, c: Training): boolean {
   if (c.is_regex) return regexMatches(story, c);
   switch (c.kind) {
-    case 'prompt':
+    case 'prompt': {
       return c.id !== undefined && !!story.prompt_ids?.has(c.id);
-    case 'author':
+    }
+    case 'author': {
       return !!story.author && same(story.author, c.value);
-    case 'source':
+    }
+    case 'source': {
       return !!story.source && same(story.source, c.value);
-    case 'feed':
+    }
+    case 'feed': {
       return story.feed_id !== undefined && String(story.feed_id) === c.value;
-    case 'title':
+    }
+    case 'title': {
       return titleHas(story.title, c.value);
-    case 'url':
+    }
+    case 'url': {
       return has(story.url, c.value);
-    case 'text':
+    }
+    case 'text': {
       return has(story.summary, c.value) || has(story.body_text, c.value);
-    case 'tag':
+    }
+    case 'tag': {
       return tagsOf(story.tags).some((t) => same(t, c.value));
-    default:
+    }
+    default: {
       return false;
+    }
   }
 }
 
@@ -175,18 +184,33 @@ function inScope(story: Classifiable, c: Training): boolean {
  * Worker cannot stop a slow match.
  */
 function regexMatches(story: Classifiable, c: Training): boolean {
-  const text =
-    c.kind === 'title'
-      ? story.title
-      : c.kind === 'author'
-        ? story.author
-        : c.kind === 'url'
-          ? story.url
-          : c.kind === 'text'
-            ? [story.summary, story.body_text].filter(Boolean).join(' ')
-            : undefined;
+  const text = regexSubject(story, c.kind);
   if (!text || regexProblem(c.value)) return false;
   return new RegExp(c.value, 'i').test(text.slice(0, MAX_REGEX_TEXT));
+}
+
+/** The part of a story that a classifier of `kind` reads, if any. */
+function regexSubject(
+  story: Classifiable,
+  kind: Training['kind'],
+): string | null | undefined {
+  switch (kind) {
+    case 'title': {
+      return story.title;
+    }
+    case 'author': {
+      return story.author;
+    }
+    case 'url': {
+      return story.url;
+    }
+    case 'text': {
+      return [story.summary, story.body_text].filter(Boolean).join(' ');
+    }
+    default: {
+      return undefined;
+    }
+  }
 }
 
 /** The most text a regular-expression classifier runs over. */
@@ -259,7 +283,7 @@ export function rank<T extends Article & Classifiable>(
       w: weight(a) + coverageBoost(covered(a)),
     }))
     .filter((x) => shows(x.v, level))
-    .sort((x, y) => y.v - x.v || y.w - x.w)
+    .toSorted((x, y) => y.v - x.v || y.w - x.w)
     .map((x) => x.a);
 }
 

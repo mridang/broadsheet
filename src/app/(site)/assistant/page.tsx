@@ -29,15 +29,16 @@ export const metadata: Metadata = {
  */
 export default async function AssistantPage({
   searchParams,
-}: {
+}: Readonly<{
   searchParams: Promise<{ c?: string }>;
-}): Promise<ReactElement> {
+}>): Promise<ReactElement> {
   const user = await getCurrentUser();
   if (!user) redirect('/login');
   const repo = new Repository(getDatabase());
-  const id = parseFeedId(String((await searchParams).c ?? ''));
+  const query = await searchParams;
+  const id = parseFeedId(String(query.c ?? ''));
   const open =
-    id !== undefined ? await repo.getConversation(user.id, id) : undefined;
+    id === undefined ? undefined : await repo.getConversation(user.id, id);
   const turns = open ? await repo.listMessages(open.id) : [];
   const current = open
     ? conversationResource(
@@ -71,7 +72,7 @@ export default async function AssistantPage({
           suggestions={current ? [] : starterQuestions(summary)}
         />
       </div>
-      {past.length ? (
+      {past.length > 0 ? (
         <PageSection id="past-conversations" title="Past conversations">
           <List>
             {past.map((c) => (

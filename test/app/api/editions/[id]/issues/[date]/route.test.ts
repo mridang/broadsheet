@@ -36,7 +36,8 @@ beforeEach(async () => {
     )
     .run('g7', 'a@b.com', 'g8', 'b@b.com');
   const repo = new Repository(databaseFrom(made.d1));
-  mine = (await repo.addCustomEdition(7, { name: 'Weekend' })).id;
+  const edition = await repo.addCustomEdition(7, { name: 'Weekend' });
+  mine = edition.id;
   await repo.saveEditionIssue(mine, DAY, '{"groups":[]}', 'Quiet day.');
   auth = await cookieFor(7);
 });
@@ -64,19 +65,23 @@ describe('GET /api/editions/:id/issues/:date', () => {
 
   it('answers 404 for another person’s edition', async () => {
     auth = await cookieFor(8);
-    expect((await get(mine, DAY)).status).toBe(404);
+    const res = await get(mine, DAY);
+    expect(res.status).toBe(404);
   });
 
   it('answers 404 for a day with no issue', async () => {
-    expect((await get(mine, '2026-10-31')).status).toBe(404);
+    const res = await get(mine, '2026-10-31');
+    expect(res.status).toBe(404);
   });
 
   it('answers 404 for a date that is not a calendar date', async () => {
-    expect((await get(mine, '2026-02-30')).status).toBe(404);
+    const res = await get(mine, '2026-02-30');
+    expect(res.status).toBe(404);
   });
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await get(mine, DAY)).status).toBe(401);
+    const res = await get(mine, DAY);
+    expect(res.status).toBe(401);
   });
 });

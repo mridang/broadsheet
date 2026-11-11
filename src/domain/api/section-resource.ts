@@ -41,13 +41,13 @@ export function sectionResource(section: Readonly<Section>): SectionResource {
     id: String(section.id),
     name: section.name,
     position: section.position,
-    ...(section.parent_id !== null
-      ? { parent_id: String(section.parent_id) }
-      : {}),
+    ...(section.parent_id === null
+      ? {}
+      : { parent_id: String(section.parent_id) }),
     ...(iconResource(section.icon) ? { icon: iconResource(section.icon) } : {}),
-    ...(section.auto_mark_read_days !== null
-      ? { auto_mark_read_days: section.auto_mark_read_days }
-      : {}),
+    ...(section.auto_mark_read_days === null
+      ? {}
+      : { auto_mark_read_days: section.auto_mark_read_days }),
     ...(created ? { created_at: created } : {}),
   };
 }
@@ -113,8 +113,11 @@ export function parseSectionInput(
   }
   if ('icon' in body) {
     const icon = parseIcon(body['icon'], 'icon');
-    if (!icon.ok) errors.push(...icon.errors);
-    else changes.icon = icon.icon && JSON.stringify(icon.icon);
+    if (icon.ok) {
+      changes.icon = icon.icon && JSON.stringify(icon.icon);
+    } else {
+      errors.push(...icon.errors);
+    }
   }
   if ('auto_mark_read_days' in body) {
     const days = body['auto_mark_read_days'];
@@ -126,5 +129,5 @@ export function parseSectionInput(
       );
     }
   }
-  return errors.length ? { ok: false, errors } : { ok: true, changes };
+  return errors.length > 0 ? { ok: false, errors } : { ok: true, changes };
 }

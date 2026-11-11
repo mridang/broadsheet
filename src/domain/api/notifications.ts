@@ -105,12 +105,12 @@ export function createNotificationItem(
       method: 'DELETE',
       handle: async (_input, { request, uid }) => {
         const feedId = parseFeedId(idOf(request));
-        return feedId !== undefined
-          ? new NotificationRepository(getDatabase()).removeFeedNotification(
+        return feedId === undefined
+          ? false
+          : new NotificationRepository(getDatabase()).removeFeedNotification(
               uid,
               feedId,
-            )
-          : false;
+            );
       },
       encode: (removed) =>
         removed ? noContent() : problems.notFound('notification'),
@@ -160,9 +160,9 @@ export function createNotificationRules(
       );
       if (!rule) {
         throw problems.badRequest('The notification rule is not valid.', [
-          input.feed_id !== undefined
-            ? 'feed_id: must name one of your feeds.'
-            : 'section_id: must name one of your sections.',
+          input.feed_id === undefined
+            ? 'section_id: must name one of your sections.'
+            : 'feed_id: must name one of your feeds.',
         ]);
       }
       return rule;
@@ -194,9 +194,9 @@ export function createNotificationRuleItem(
     method: 'DELETE',
     handle: async (_input, { request, uid }) => {
       const id = parseFeedId(idOf(request));
-      return id !== undefined
-        ? new NotificationRepository(getDatabase()).removeRule(uid, id)
-        : false;
+      return id === undefined
+        ? false
+        : new NotificationRepository(getDatabase()).removeRule(uid, id);
     },
     encode: (removed) =>
       removed ? noContent() : problems.notFound('notification rule'),

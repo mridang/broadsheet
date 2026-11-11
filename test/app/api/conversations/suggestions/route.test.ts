@@ -72,6 +72,7 @@ describe('GET /api/conversations/suggestions', () => {
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await list()).status).toBe(401);
+    const res = await list();
+    expect(res.status).toBe(401);
   });
 });

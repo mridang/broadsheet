@@ -25,6 +25,7 @@ export interface PushPayload {
 export interface DeliveryResult {
   readonly endpoint: string;
   readonly status: number;
+
   /**
    * `true` when the push endpoint signalled the subscription is gone
    * (HTTP 404/410) and we should drop it from D1.
@@ -35,7 +36,7 @@ export interface DeliveryResult {
 /**
  * Storage the push library needs but does not own: the set of registered
  * subscriptions. The app implements this port (over D1, a test fake, etc.); the
- * library stays free of any database. @public
+ * library stays free of any database. @public.
  */
 export interface PushSubscriptionStore {
   /** Read every active subscription. */

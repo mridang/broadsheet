@@ -37,10 +37,13 @@ describe('sendMessage', () => {
 
   it('throws the server’s words when refused', async () => {
     jest.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ title: 'No', detail: 'Down.' }), {
-        status: 502,
-        headers: { 'Content-Type': 'application/problem+json' },
-      }),
+      Response.json(
+        { title: 'No', detail: 'Down.' },
+        {
+          status: 502,
+          headers: { 'Content-Type': 'application/problem+json' },
+        },
+      ),
     );
     await expect(sendMessage('3', 'Q')).rejects.toBeInstanceOf(ProblemError);
   });
@@ -59,10 +62,13 @@ describe('deleteConversation', () => {
 
   it('throws the server’s words when refused', async () => {
     jest.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ title: 'No', detail: 'Gone.' }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/problem+json' },
-      }),
+      Response.json(
+        { title: 'No', detail: 'Gone.' },
+        {
+          status: 404,
+          headers: { 'Content-Type': 'application/problem+json' },
+        },
+      ),
     );
     await expect(deleteConversation('3')).rejects.toBeInstanceOf(ProblemError);
   });

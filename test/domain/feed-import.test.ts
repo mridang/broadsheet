@@ -5,6 +5,7 @@ import { comparable, importFeeds } from '@/domain/feed-import';
 import { Repository } from '@/domain/repository';
 import { APP_MIGRATIONS } from '../lib/core/db/migrations';
 import { sqliteD1 } from '../lib/core/db/sqlite-d1';
+import insecure from '../fixtures/insecure-urls.json';
 
 let repo: Repository;
 
@@ -26,13 +27,10 @@ describe('importFeeds', () => {
       sections_added: 1,
       rejected: [],
     });
-    expect((await repo.listSections(1)).map((s) => s.name)).toEqual([
-      'tech',
-      'News',
-    ]);
-    expect((await repo.listFeeds(1)).map((f) => f.section_id)).toEqual([
-      1, 2, 2,
-    ]);
+    const sectionsAfter = await repo.listSections(1);
+    expect(sectionsAfter.map((s) => s.name)).toEqual(['tech', 'News']);
+    const feedsAfter = await repo.listFeeds(1);
+    expect(feedsAfter.map((f) => f.section_id)).toEqual([1, 2, 2]);
   });
 
   it('skips feeds already followed and rejects invalid ones', async () => {
@@ -63,7 +61,8 @@ describe('importFeeds nesting, matching and names', () => {
       ['A', null],
       ['B', sections[0]!.id],
     ]);
-    expect((await repo.listFeeds(1)).map((f) => f.section_id)).toEqual([
+    const feeds = await repo.listFeeds(1);
+    expect(feeds.map((f) => f.section_id)).toEqual([
       sections[1]!.id,
       sections[1]!.id,
       sections[0]!.id,
@@ -73,7 +72,7 @@ describe('importFeeds nesting, matching and names', () => {
   it('treats the same feed under another scheme, www or slash as already followed', async () => {
     await repo.addFeed(1, 'https://www.a.test/feed/');
     const summary = await importFeeds(repo, 1, [
-      { url: 'http://a.test/feed' },
+      { url: insecure.httpFeedOtherScheme },
       { url: 'https://a.test/feed#top' },
     ]);
     expect(summary).toMatchObject({ added: 0, skipped: 2 });
@@ -87,7 +86,7 @@ describe('importFeeds nesting, matching and names', () => {
       [],
     );
     const summary = await importFeeds(repo, 1, [
-      { url: 'https://a.test/other.xml', site_url: 'http://www.a.test' },
+      { url: 'https://a.test/other.xml', site_url: insecure.httpSiteUrl },
     ]);
     expect(summary).toMatchObject({ added: 0, skipped: 1 });
   });
@@ -95,8 +94,10 @@ describe('importFeeds nesting, matching and names', () => {
   it('keeps the name in the file as the person’s own when the feed is named otherwise', async () => {
     await repo.addFeed(2, 'https://a.test/f', 'The Source Name');
     await importFeeds(repo, 1, [{ url: 'https://a.test/f', title: 'My Name' }]);
-    expect((await repo.listFeeds(1))[0]?.title).toBe('My Name');
-    expect((await repo.listFeeds(2))[0]?.title).toBe('The Source Name');
+    const [mine] = await repo.listFeeds(1);
+    const [theirs] = await repo.listFeeds(2);
+    expect(mine?.title).toBe('My Name');
+    expect(theirs?.title).toBe('The Source Name');
   });
 });
 
@@ -130,10 +131,20 @@ describe('comparable', () => {
     ]);
     expect(summary).toMatchObject({ added: 1, skipped: 0, sections_added: 2 });
     const [tech, news] = await repo.listSections(1);
-    expect((await repo.listFeeds(1))[0]?.section_ids).toEqual([
-      tech!.id,
-      news!.id,
-    ]);
+    const [listed] = await repo.listFeeds(1);
+    expect(listed?.section_ids).toEqual([tech!.id, news!.id]);
     expect(summary.feeds[0]?.section_ids).toEqual([tech!.id, news!.id]);
+  });
+});
+
+describe('comparable trailing slashes', () => {
+  it.each([
+    ['https://a.test', 'a.test'],
+    ['https://a.test/', 'a.test'],
+    ['https://a.test////', 'a.test'],
+    ['https://a.test/x///?q=1', 'a.test/x?q=1'],
+    ['https://a.test/x//y/', 'a.test/x//y'],
+  ])('reads %s as %s', (address, expected) => {
+    expect(comparable(address)).toBe(expected);
   });
 });

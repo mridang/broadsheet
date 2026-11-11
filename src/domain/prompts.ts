@@ -92,35 +92,58 @@ export async function scorePrompts(
   edition: string,
 ): Promise<number> {
   const pending = await repo.unscoredPrompts(userId, edition, PROMPT_BATCH);
-  if (!pending.length) return 0;
+  if (pending.length === 0) return 0;
   // NewsBlur stops classifying at the person's spending limit; so do we.
-  let left = (await budget(repo, userId, 'classifier')).remaining;
+  const quota = await budget(repo, userId, 'classifier');
+  let left = quota.remaining;
   const feeds = await repo.listFeeds(userId);
   const bySource = new Map(feeds.map((f) => [f.source_id, f]));
   let asked = 0;
   for (const { classifier, stories } of pending) {
     const answers = new Map<number, boolean>();
     for (const story of stories) {
-      // Out of the prompt's scope never matches; kept so it is not asked.
       if (!reaches(classifier, bySource.get(story.source_id))) {
+        // Out of the prompt's scope never matches; kept so it is not asked.
         answers.set(story.id, false);
-        continue;
-      }
-      if (left <= 0) break;
-      left -= 1;
-      asked += 1;
-      try {
-        const matched = await askPrompt(env.AI, classifier.value, story);
-        if (matched !== undefined) answers.set(story.id, matched);
-        await repo.recordUsage(userId, 'classifier');
-      } catch (error) {
-        logWarn({
-          event: 'prompt.failed',
-          error: error instanceof Error ? error.message : String(error),
-        });
+      } else if (left <= 0) {
+        break;
+      } else {
+        left -= 1;
+        asked += 1;
+        await askAndRecord(env, repo, userId, classifier.value, story, answers);
       }
     }
     await repo.savePromptScores(userId, classifier.id, answers);
   }
   return asked;
+}
+
+/** Records a prompt's answer, unless the model gave none. */
+function recordAnswer(
+  answers: Map<number, boolean>,
+  storyId: number,
+  matched: boolean | undefined = undefined,
+): void {
+  if (matched !== undefined) answers.set(storyId, matched);
+}
+
+/** Asks the model about one story and keeps its answer; a failure is logged and the story left for next time. */
+async function askAndRecord(
+  env: CloudflareEnv,
+  repo: Repository,
+  userId: number,
+  question: string,
+  story: Parameters<typeof askPrompt>[2] & { readonly id: number },
+  answers: Map<number, boolean>,
+): Promise<void> {
+  try {
+    const matched = await askPrompt(env.AI, question, story);
+    recordAnswer(answers, story.id, matched);
+    await repo.recordUsage(userId, 'classifier');
+  } catch (error) {
+    logWarn({
+      event: 'prompt.failed',
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 }

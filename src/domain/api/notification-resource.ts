@@ -60,7 +60,7 @@ export function parseNotificationInput(
   }
   if (
     !Array.isArray(channels) ||
-    !channels.length ||
+    channels.length === 0 ||
     !channels.every((c) =>
       (NOTIFICATION_CHANNELS as readonly unknown[]).includes(c),
     )
@@ -69,7 +69,7 @@ export function parseNotificationInput(
       `channels: must be a non-empty list of ${NOTIFICATION_CHANNELS.join(', ')}.`,
     );
   }
-  return errors.length
+  return errors.length > 0
     ? { ok: false, errors }
     : {
         ok: true,
@@ -117,10 +117,10 @@ export function notificationRuleResource(
     value: rule.value,
     is_regex: rule.is_regex,
     scope: rule.scope,
-    ...(rule.feed_id !== undefined ? { feed_id: String(rule.feed_id) } : {}),
-    ...(rule.section_id !== undefined
-      ? { section_id: String(rule.section_id) }
-      : {}),
+    ...(rule.feed_id === undefined ? {} : { feed_id: String(rule.feed_id) }),
+    ...(rule.section_id === undefined
+      ? {}
+      : { section_id: String(rule.section_id) }),
     channels: rule.channels,
     ...(at ? { created_at: at } : {}),
   };
@@ -136,7 +136,7 @@ export function notificationRuleResource(
 export function parseNotificationRuleInput(
   body: Readonly<Record<string, unknown>>,
 ): Checked<NotificationRuleInput> {
-  const allowed = [
+  const allowed = new Set([
     'kind',
     'value',
     'is_regex',
@@ -144,9 +144,9 @@ export function parseNotificationRuleInput(
     'feed_id',
     'section_id',
     'channels',
-  ];
+  ]);
   const errors = Object.keys(body)
-    .filter((key) => !allowed.includes(key))
+    .filter((key) => !allowed.has(key))
     .map((key) => `${key}: not a member of a notification rule.`);
   const {
     kind,
@@ -164,6 +164,8 @@ export function parseNotificationRuleInput(
     errors.push('is_regex: must be true or false.');
   } else if (isRegex && !(REGEX_KINDS as readonly unknown[]).includes(kind)) {
     errors.push(`is_regex: only for ${REGEX_KINDS.join(', ')}.`);
+  } else {
+    // A regex flag on a kind that accepts one needs no error.
   }
   if (
     typeof value !== 'string' ||
@@ -176,6 +178,8 @@ export function parseNotificationRuleInput(
   } else if (isRegex === true) {
     const problem = regexProblem(value);
     if (problem) errors.push(`value: ${problem}.`);
+  } else {
+    // A value that is not a regex, or a valid one, needs no error here.
   }
   if (!(RULE_SCOPES as readonly unknown[]).includes(scope)) {
     errors.push(`scope: must be one of ${RULE_SCOPES.join(', ')}.`);
@@ -187,14 +191,18 @@ export function parseNotificationRuleInput(
     errors.push('feed_id: must name one of your feeds.');
   } else if (scope !== 'feed' && feedId !== undefined) {
     errors.push('feed_id: only for a feed rule.');
+  } else {
+    // A feed the rule names, or none, is already checked above.
   }
   if (scope === 'section' && section === undefined) {
     errors.push('section_id: must name one of your sections.');
   } else if (scope !== 'section' && sectionId !== undefined) {
     errors.push('section_id: only for a section rule.');
+  } else {
+    // A section the rule names, or none, is already checked above.
   }
   errors.push(...channelErrors(channels));
-  return errors.length
+  return errors.length > 0
     ? { ok: false, errors }
     : {
         ok: true,
@@ -203,8 +211,8 @@ export function parseNotificationRuleInput(
           value: isRegex ? (value as string) : (value as string).trim(),
           is_regex: isRegex as boolean,
           scope: scope as RuleScope,
-          ...(feed !== undefined ? { feed_id: feed } : {}),
-          ...(section !== undefined ? { section_id: section } : {}),
+          ...(feed === undefined ? {} : { feed_id: feed }),
+          ...(section === undefined ? {} : { section_id: section }),
           channels: [...new Set(channels as NotificationChannel[])],
         },
       };

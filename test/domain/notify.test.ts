@@ -55,12 +55,11 @@ async function keys() {
         (await crypto.subtle.exportKey('raw', key)) as ArrayBuffer,
       ),
     );
+  const privateJwk = await crypto.subtle.exportKey('jwk', signing.privateKey);
   return {
     env: {
       VAPID_PUBLIC_KEY: await raw(signing.publicKey),
-      VAPID_PRIVATE_KEY: (
-        await crypto.subtle.exportKey('jwk', signing.privateKey)
-      ).d!,
+      VAPID_PRIVATE_KEY: privateJwk.d!,
       VAPID_SUBJECT: 'mailto:test@broadsheet.test',
     },
     p256dh: await raw(browser.publicKey),
@@ -90,7 +89,8 @@ describe('sendIssueReady', () => {
     expect(calls[0]?.init.headers).toMatchObject({
       'Content-Encoding': 'aes128gcm',
     });
-    expect((await repo.pushSubscriptions(1)).map((s) => s.endpoint)).toEqual([
+    const subs = await repo.pushSubscriptions(1);
+    expect(subs.map((s) => s.endpoint)).toEqual([
       'https://push.example.com/down',
       'https://push.example.com/ok',
     ]);
@@ -258,9 +258,14 @@ describe('notifyNewStories', () => {
       hooked: 0,
     });
     expect(calls).toHaveLength(2);
-    expect(
-      (await notifyNewStories(env, db, user.id, '2026-10-02', fetcher)).stories,
-    ).toBe(0);
+    const again = await notifyNewStories(
+      env,
+      db,
+      user.id,
+      '2026-10-02',
+      fetcher,
+    );
+    expect(again.stories).toBe(0);
   });
 
   it(`stops at ${STORIES_PER_FEED} stories a feed and run`, async () => {
@@ -271,9 +276,8 @@ describe('notifyNewStories', () => {
       'D',
       'E',
     ]);
-    expect(
-      (await notifyNewStories({}, db, user.id, '2026-10-02')).stories,
-    ).toBe(STORIES_PER_FEED);
+    const result = await notifyNewStories({}, db, user.id, '2026-10-02');
+    expect(result.stories).toBe(STORIES_PER_FEED);
   });
 
   it('leaves out disliked stories, and with focus keeps only liked ones', async () => {
@@ -288,17 +292,15 @@ describe('notifyNewStories', () => {
       value: 'rust',
       score: 1,
     });
-    expect(
-      (await notifyNewStories({}, db, user.id, '2026-10-02')).stories,
-    ).toBe(1);
+    const result = await notifyNewStories({}, db, user.id, '2026-10-02');
+    expect(result.stories).toBe(1);
   });
 
   it('emails the person their story under the feed’s name', async () => {
     const { user } = await notifying(['email'], 'unread', ['One']);
     const mail = mailbox();
-    expect(
-      (await notifyNewStories(mail, db, user.id, '2026-10-02')).emailed,
-    ).toBe(1);
+    const result = await notifyNewStories(mail, db, user.id, '2026-10-02');
+    expect(result.emailed).toBe(1);
     expect(mail.sent[0]).toMatchObject({ to: 'me@b.co', subject: 'Feed: One' });
     expect(await new NotificationRepository(db).emailsToday(user.id)).toBe(1);
   });
@@ -330,9 +332,8 @@ describe('notifyNewStories', () => {
       await counts.markEmailed(user.id, id);
     }
     const mail = mailbox();
-    expect(
-      (await notifyNewStories(mail, db, user.id, '2026-10-02')).emailed,
-    ).toBe(0);
+    const result = await notifyNewStories(mail, db, user.id, '2026-10-02');
+    expect(result.emailed).toBe(0);
     expect(mail.sent).toEqual([]);
   });
 
@@ -345,9 +346,14 @@ describe('notifyNewStories', () => {
       's',
     );
     const { fetcher, calls } = answering(204);
-    expect(
-      (await notifyNewStories({}, db, user.id, '2026-10-02', fetcher)).hooked,
-    ).toBe(1);
+    const result = await notifyNewStories(
+      {},
+      db,
+      user.id,
+      '2026-10-02',
+      fetcher,
+    );
+    expect(result.hooked).toBe(1);
     expect(JSON.parse(String(calls[0]?.init.body))).toMatchObject({
       event: 'story',
       data: {
@@ -399,9 +405,8 @@ describe('notifyNewStories rules and activity', () => {
       scope: 'all',
       channels: ['webhook'],
     });
-    expect(
-      (await notifyNewStories({}, db, user.id, '2026-10-02')).stories,
-    ).toBe(STORIES_PER_FEED);
+    const result = await notifyNewStories({}, db, user.id, '2026-10-02');
+    expect(result.stories).toBe(STORIES_PER_FEED);
   });
 
   it('tells about a story once when a feed and a rule both find it', async () => {
@@ -413,9 +418,8 @@ describe('notifyNewStories rules and activity', () => {
       scope: 'all',
       channels: ['webhook'],
     });
-    expect(
-      (await notifyNewStories({}, db, user.id, '2026-10-02')).stories,
-    ).toBe(1);
+    const result = await notifyNewStories({}, db, user.id, '2026-10-02');
+    expect(result.stories).toBe(1);
   });
 
   it('notifies about stories Workers AI says match a prompt rule', async () => {
@@ -435,9 +439,8 @@ describe('notifyNewStories rules and activity', () => {
         : 'No',
     }));
     const AI = { run } as unknown as Ai;
-    expect(
-      (await notifyNewStories({ AI }, db, user.id, '2026-10-02')).stories,
-    ).toBe(2);
+    const result = await notifyNewStories({ AI }, db, user.id, '2026-10-02');
+    expect(result.stories).toBe(2);
     expect(run).toHaveBeenCalledTimes(3);
   });
 
@@ -450,17 +453,15 @@ describe('notifyNewStories rules and activity', () => {
       scope: 'all',
       channels: ['webhook'],
     });
-    expect(
-      (await notifyNewStories({}, db, user.id, '2026-10-02')).stories,
-    ).toBe(0);
+    const result = await notifyNewStories({}, db, user.id, '2026-10-02');
+    expect(result.stories).toBe(0);
   });
 
   it('tells nobody who has been away for more than 90 days', async () => {
     const { user } = await notifying(['webhook'], 'unread', ['One']);
     await new NotificationRepository(db).noteSeen(user.id, '2026-06-01');
-    expect(
-      (await notifyNewStories({}, db, user.id, '2026-10-02')).stories,
-    ).toBe(0);
+    const result = await notifyNewStories({}, db, user.id, '2026-10-02');
+    expect(result.stories).toBe(0);
   });
 });
 
@@ -499,9 +500,8 @@ describe('sendBriefingReady', () => {
       auth,
     });
     const { fetcher, calls } = answering(201);
-    expect(
-      (await sendBriefingReady(env, db, 1, 4, 'Morning', fetcher)).sent,
-    ).toBe(1);
+    const briefing = await sendBriefingReady(env, db, 1, 4, 'Morning', fetcher);
+    expect(briefing.sent).toBe(1);
     expect(calls).toHaveLength(1);
   });
 });

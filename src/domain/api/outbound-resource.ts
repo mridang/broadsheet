@@ -33,7 +33,9 @@ export type Checked<T> =
 
 /** The checked value, or the errors, from a list of errors. */
 function checked<T>(errors: readonly string[], value: () => T): Checked<T> {
-  return errors.length ? { ok: false, errors } : { ok: true, value: value() };
+  return errors.length > 0
+    ? { ok: false, errors }
+    : { ok: true, value: value() };
 }
 
 /** Errors for every member of `body` not in `allowed`. */
@@ -171,7 +173,7 @@ export function parseWebhookInput(
   }
   if (
     !Array.isArray(events) ||
-    !events.length ||
+    events.length === 0 ||
     !events.every((e) => (WEBHOOK_EVENTS as readonly unknown[]).includes(e))
   ) {
     errors.push(
@@ -209,8 +211,8 @@ export function feedTokenResource(
     id: String(row.id),
     scope: row.scope,
     ...(row.tag ? { tag: row.tag } : {}),
-    ...(row.section_id !== null ? { section_id: String(row.section_id) } : {}),
-    ...(row.search_id !== null ? { search_id: String(row.search_id) } : {}),
+    ...(row.section_id === null ? {} : { section_id: String(row.section_id) }),
+    ...(row.search_id === null ? {} : { search_id: String(row.search_id) }),
     filter: row.filter,
     ...(secret
       ? {
@@ -257,6 +259,9 @@ export function parseFeedTokenInput(
       tag.trim().length > MAX_NAME_LENGTH
     )
       errors.push('tag: must be a non-blank string.');
+    else {
+      // A non-blank tag on a saves feed needs no error.
+    }
   }
   const section =
     typeof sectionId === 'string' ? parseFeedId(sectionId) : undefined;
@@ -264,6 +269,8 @@ export function parseFeedTokenInput(
     errors.push('section_id: must name one of your sections.');
   } else if (scope !== 'section' && sectionId !== undefined) {
     errors.push('section_id: only for a section feed.');
+  } else {
+    // A section the feed names, or none, is already checked above.
   }
   const search =
     typeof searchId === 'string' ? parseFeedId(searchId) : undefined;
@@ -271,6 +278,8 @@ export function parseFeedTokenInput(
     errors.push('search_id: must name one of your saved searches.');
   } else if (scope !== 'search' && searchId !== undefined) {
     errors.push('search_id: only for a search feed.');
+  } else {
+    // A saved search the feed names, or none, is already checked above.
   }
   if (filter !== undefined) {
     if (!(FEED_FILTERS as readonly unknown[]).includes(filter)) {
@@ -281,14 +290,16 @@ export function parseFeedTokenInput(
       errors.push('filter: a search feed keeps every story it finds.');
     } else if (scope === 'highlights' && filter !== 'all') {
       errors.push('filter: a highlights feed keeps every highlight.');
+    } else {
+      // Every other scope and filter pairing is allowed.
     }
   }
   return checked(errors, () => ({
     scope: scope as FeedScope,
-    ...(filter !== undefined ? { filter: filter as FeedFilter } : {}),
+    ...(filter === undefined ? {} : { filter: filter as FeedFilter }),
     ...(typeof tag === 'string' ? { tag: tag.trim() } : {}),
-    ...(section !== undefined ? { section_id: section } : {}),
-    ...(search !== undefined ? { search_id: search } : {}),
+    ...(section === undefined ? {} : { section_id: section }),
+    ...(search === undefined ? {} : { search_id: search }),
   }));
 }
 
@@ -312,10 +323,16 @@ const MAX_COMMENT_LENGTH = 2048;
 
 /** Whether `value` looks like one email address. */
 function isAddress(value: unknown): value is string {
+  return typeof value === 'string' && value.length <= 254 && isMailbox(value);
+}
+
+/** Whether `name` is a plain name an email may be sent under. */
+function isPlainName(name: unknown): name is string {
   return (
-    typeof value === 'string' &&
-    value.length <= 254 &&
-    /^[^\s@<>,;"]+@[^\s@<>,;"]+\.[^\s@<>,;"]+$/.test(value)
+    typeof name === 'string' &&
+    name.trim() !== '' &&
+    name.length <= MAX_NAME_LENGTH &&
+    !/[<>"\r\n]/.test(name)
   );
 }
 
@@ -346,13 +363,7 @@ export function parseEmailInput(
     'an email',
   );
   const fromName = body['from_name'];
-  if (
-    fromName !== undefined &&
-    (typeof fromName !== 'string' ||
-      !fromName.trim() ||
-      fromName.length > MAX_NAME_LENGTH ||
-      /[<>"\r\n]/.test(fromName))
-  ) {
+  if (fromName !== undefined && !isPlainName(fromName)) {
     errors.push('from_name: must be a plain name.');
   }
   const to = addressesOf(body['to']);
@@ -379,4 +390,16 @@ export function parseEmailInput(
     copy_me: copyMe !== false,
     ...(typeof fromName === 'string' ? { from_name: fromName.trim() } : {}),
   }));
+}
+
+/** `local@domain.tld` with no space, `@`, `<`, `>`, `,`, `;` or `"` in any part. */
+function isMailbox(value: string): boolean {
+  const at = value.indexOf('@');
+  if (at < 1) return false;
+  const domain = value.slice(at + 1);
+  return (
+    /^[^\s@<>,;"]+$/.test(value.slice(0, at)) &&
+    /^[^\s@<>,;"]+$/.test(domain) &&
+    domain.slice(1, -1).includes('.')
+  );
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
-import { readFileSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import {
@@ -273,8 +273,8 @@ describe('SECURITY_HEADERS', () => {
 });
 
 describe('public/_headers', () => {
-  it('gives static files the same security headers as the Worker gives pages', () => {
-    const file = readFileSync(
+  it('gives static files the same security headers as the Worker gives pages', async () => {
+    const file = await readFile(
       path.join(process.cwd(), 'public/_headers'),
       'utf8',
     );
@@ -283,8 +283,8 @@ describe('public/_headers', () => {
     }
   });
 
-  it('gives static files the default resource policy and detaches it where files are open', () => {
-    const file = readFileSync(
+  it('gives static files the default resource policy and detaches it where files are open', async () => {
+    const file = await readFile(
       path.join(process.cwd(), 'public/_headers'),
       'utf8',
     );

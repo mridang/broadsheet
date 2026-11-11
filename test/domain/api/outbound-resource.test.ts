@@ -9,6 +9,7 @@ import {
   pushSubscriptionResource,
   webhookResource,
 } from '@/domain/api/outbound-resource';
+import insecure from '../../fixtures/insecure-urls.json';
 
 const P256DH = 'B'.repeat(87);
 const AUTH = 'A'.repeat(22);
@@ -34,7 +35,7 @@ describe('parsePushSubscriptionInput', () => {
   it.each([
     [
       {
-        endpoint: 'http://push.example.com/x',
+        endpoint: insecure.httpPushEndpoint,
         keys: { p256dh: P256DH, auth: AUTH },
       },
       'endpoint: must be a public https address.',
@@ -103,7 +104,7 @@ describe('parseWebhookInput', () => {
 
   it.each([
     [
-      { url: 'http://hooks.example.com/a', events: ['save'] },
+      { url: insecure.httpWebhook, events: ['save'] },
       'url: must be a public https address.',
     ],
     [
@@ -290,5 +291,44 @@ describe('parseEmailInput', () => {
   ])('refuses %j', (body, error) => {
     const result = parseEmailInput(body);
     expect(!result.ok && result.errors).toContain(error);
+  });
+});
+
+describe('parseEmailInput addresses', () => {
+  const CLASS = String.raw`[^\s@<>,;"]`;
+  const ADDRESS = new RegExp(
+    ['^', CLASS, '+@', CLASS, String.raw`+\.`, CLASS, '+$'].join(''),
+  );
+
+  it.each([
+    'a@b.co',
+    'a@b',
+    '@b.co',
+    'a@',
+    'a@@b.co',
+    'a@b.',
+    'a@.b',
+    'a@.b.',
+    'a@b..c',
+    'a@b.c.',
+    'a@..',
+    'a@...',
+    'a b@c.d',
+    'a@b;c.d',
+    'a@b.c"',
+    'a<@b.c',
+    'a@b@c.d',
+    '.@.a.',
+    'plain',
+  ])('judges %j as the original pattern did', (address) => {
+    expect(parseEmailInput({ to: [address] }).ok).toBe(ADDRESS.test(address));
+  });
+
+  it('rejects a long run of dots quickly', () => {
+    const started = Date.now();
+    expect(parseEmailInput({ to: [`a@${'.'.repeat(250)}`] }).ok).toBe(
+      ADDRESS.test(`a@${'.'.repeat(250)}`),
+    );
+    expect(Date.now() - started).toBeLessThan(2000);
   });
 });

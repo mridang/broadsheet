@@ -5,6 +5,7 @@ import {
   matchesRegistered,
   redirectWith,
 } from '@/lib/oauth/redirect-uri';
+import insecure from '../../fixtures/insecure-urls.json';
 
 describe('isAcceptableRedirectUri', () => {
   it.each([
@@ -12,7 +13,7 @@ describe('isAcceptableRedirectUri', () => {
     ['http://localhost:8765/callback', true],
     ['http://127.0.0.1/cb', true],
     ['com.example.app:/callback', true],
-    ['http://evil.test/cb', false],
+    [insecure.httpEvilCallback, false],
     ['https://claude.ai/cb#frag', false],
     ['javascript:alert(1)', false],
     ['nonsense', false],
@@ -43,8 +44,9 @@ describe('matchesRegistered', () => {
 
 describe('redirectWith', () => {
   it('adds the parameters that are set', () => {
-    expect(
-      redirectWith('https://a.test/cb?x=1', { code: 'c', state: undefined }),
-    ).toBe('https://a.test/cb?x=1&code=c');
+    let state: string | undefined;
+    expect(redirectWith('https://a.test/cb?x=1', { code: 'c', state })).toBe(
+      'https://a.test/cb?x=1&code=c',
+    );
   });
 });

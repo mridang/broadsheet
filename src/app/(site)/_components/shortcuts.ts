@@ -152,7 +152,7 @@ export function isTyping(target: KeyTarget): boolean {
   if (!target) return false;
   if (target.isContentEditable) return true;
   const tag = target.tagName?.toUpperCase();
-  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+  return ['INPUT', 'TEXTAREA', 'SELECT'].includes(tag ?? '');
 }
 
 /**
@@ -200,12 +200,12 @@ export function sectionStep(
   current: number,
   move: 'next' | 'prev',
 ): number {
-  if (!sections.length) return -1;
+  if (sections.length === 0) return -1;
   const here = current < 0 ? undefined : sections[current];
   const first = (section: number) => sections.indexOf(section);
   const order = [...new Set(sections)];
   if (here === undefined) {
-    return first(move === 'next' ? order[0]! : order[order.length - 1]!);
+    return first(move === 'next' ? order[0]! : order.at(-1)!);
   }
   const at = order.indexOf(here) + (move === 'next' ? 1 : -1);
   return at >= 0 && at < order.length ? first(order[at]!) : -1;

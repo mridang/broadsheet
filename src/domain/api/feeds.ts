@@ -95,8 +95,10 @@ export function wantsOpml(request: Request): boolean {
     .split(',')
     .map((part) => part.trim().toLowerCase());
   const rank = (type: string): number => {
-    const index = accepted.findIndex((a) => a.split(';')[0]?.trim() === type);
-    return index < 0 ? Infinity : index;
+    const index = accepted.findIndex(
+      (a) => a.split(';', 1)[0]?.trim() === type,
+    );
+    return index === -1 ? Infinity : index;
   };
   return rank(OPML_TYPE) < rank('application/json');
 }
@@ -112,7 +114,7 @@ function opmlResponse({ feeds, sections }: FeedList): Response {
         title: f.title ?? f.url,
         ...(f.site_url ? { site_url: f.site_url } : {}),
       };
-      return f.section_ids.length
+      return f.section_ids.length > 0
         ? f.section_ids.map((id): OpmlEntry => ({ ...entry, section_id: id }))
         : [{ ...entry, section_id: null }];
     }),
@@ -151,10 +153,14 @@ function feedPage(
     after,
     limit,
   );
-  return page(slice.items.map(feedResource), slice.next, {
-    Vary: 'Accept',
-    'Cache-Control': 'private, no-cache',
-  });
+  return page(
+    slice.items.map((item) => feedResource(item)),
+    slice.next,
+    {
+      Vary: 'Accept',
+      'Cache-Control': 'private, no-cache',
+    },
+  );
 }
 
 /**
@@ -314,8 +320,8 @@ export function createFeedItem(
             );
           }
           if (address === current.url) {
-            const { url: _same, ...rest } = changes;
-            void _same;
+            const rest = { ...changes };
+            Reflect.deleteProperty(rest, 'url');
             return repo.updateFeed(uid, id, rest);
           }
         }
@@ -340,9 +346,9 @@ export function createFeedItem(
       method: 'DELETE',
       handle: async (_input, { request, uid }) => {
         const id = parseFeedId(idOf(request));
-        return id !== undefined
-          ? new Repository(getDatabase()).removeFeed(uid, id)
-          : false;
+        return id === undefined
+          ? false
+          : new Repository(getDatabase()).removeFeed(uid, id);
       },
       encode: (removed) => (removed ? noContent() : problems.notFound('feed')),
     });
@@ -360,7 +366,8 @@ async function checkSections(
   uid: number,
   changes: FeedChanges,
 ): Promise<void> {
-  const mine = new Set((await repo.listSections(uid)).map((s) => s.id));
+  const sections = await repo.listSections(uid);
+  const mine = new Set(sections.map((s) => s.id));
   if (typeof changes.section_id === 'number' && !mine.has(changes.section_id)) {
     throw problems.badRequest('The change is not valid.', [
       'section_id: no such section.',
@@ -376,7 +383,7 @@ async function checkSections(
 /** The trailing path segment of `/api/feeds/:id`. */
 export function idOf(request: Request): string {
   const segments = new URL(request.url).pathname.split('/');
-  return segments[segments.length - 1] ?? '';
+  return segments.at(-1) ?? '';
 }
 
 /** The source a feed reads from, as the scraper fetches it. */
@@ -413,10 +420,9 @@ export function createFeedRefreshes(
       const feeds = await new Repository(db).listFeeds(uid);
       const outcomes = await Promise.all(
         feeds.map((feed) =>
-          refreshSource(db, env, sourceOf(feed)).then(
-            (result) => result.ok,
-            () => false,
-          ),
+          refreshSource(db, env, sourceOf(feed))
+            .then((result) => result.ok)
+            .catch(() => false),
         ),
       );
       const refreshed = outcomes.filter(Boolean).length;
@@ -436,7 +442,7 @@ export const feedRefreshes = createFeedRefreshes();
 /** The id in a `/api/feeds/:id/statistics` path, or undefined. */
 function statisticsId(request: Request): number | undefined {
   const segments = new URL(request.url).pathname.split('/');
-  return parseFeedId(segments[segments.length - 2] ?? '');
+  return parseFeedId(segments.at(-2) ?? '');
 }
 
 /**
@@ -505,9 +511,9 @@ export function statisticsResource(
     ...(fetched ? { last_fetched_at: fetched } : {}),
     ...(stats.last_error ? { last_error: stats.last_error } : {}),
     fail_count: stats.fail_count,
-    ...(stats.update_minutes !== null
-      ? { update_minutes: stats.update_minutes }
-      : {}),
+    ...(stats.update_minutes === null
+      ? {}
+      : { update_minutes: stats.update_minutes }),
     subscribers: stats.subscribers,
     active_subscribers: stats.active_subscribers,
     story_count: stats.story_count,
@@ -522,17 +528,18 @@ export function statisticsResource(
       : {}),
     archive_count: stats.archive_count,
     classifier_counts: stats.classifier_counts,
-    ...(stats.fetch_history[0]?.duration_ms != null
-      ? { last_load_time_ms: stats.fetch_history[0].duration_ms }
-      : {}),
-    fetch_history: stats.fetch_history.map((h) => ({
-      ...((h.fetched_at ? rfc3339(h.fetched_at) : undefined)
-        ? { fetched_at: rfc3339(h.fetched_at!) }
-        : {}),
-      ok: h.ok,
-      ...(h.message ? { message: h.message } : {}),
-      ...(h.duration_ms !== null ? { duration_ms: h.duration_ms } : {}),
-    })),
+    ...(stats.fetch_history[0]?.duration_ms == null
+      ? {}
+      : { last_load_time_ms: stats.fetch_history[0].duration_ms }),
+    fetch_history: stats.fetch_history.map((h) => {
+      const fetchedAt = h.fetched_at ? rfc3339(h.fetched_at) : undefined;
+      return {
+        ...(fetchedAt ? { fetched_at: fetchedAt } : {}),
+        ok: h.ok,
+        ...(h.message ? { message: h.message } : {}),
+        ...(h.duration_ms === null ? {} : { duration_ms: h.duration_ms }),
+      };
+    }),
   };
 }
 
@@ -566,7 +573,7 @@ async function decodeImport(request: Request): Promise<ImportInput> {
       ]);
     }
     const unknown = ids.filter((id: string) => !findTopic(id));
-    if (unknown.length) {
+    if (unknown.length > 0) {
       throw problems.badRequest('The import is not valid.', [
         `topic_ids: no such topic: ${unknown.slice(0, 5).join(', ')}.`,
       ]);
@@ -700,7 +707,7 @@ export function createFeedImportItem(
     method: 'GET',
     handle: async (_input, { request, uid }) => {
       const id = new URL(request.url).pathname.split('/').at(-1) ?? '';
-      return new FeedImportRuns(getDatabase()).find(uid, id);
+      return new FeedImportRuns(getDatabase()).get(uid, id);
     },
     encode: (run) =>
       run
@@ -769,10 +776,9 @@ function feedIdsOf(body: Readonly<Record<string, unknown>>): number[] | string {
   const ids = Array.isArray(raw)
     ? raw.map((r) => (typeof r === 'string' ? parseFeedId(r) : undefined))
     : undefined;
-  return ids &&
-    ids.length &&
-    ids.length <= MAX_BATCH &&
-    ids.every((id) => id !== undefined)
+  const inRange =
+    ids !== undefined && ids.length > 0 && ids.length <= MAX_BATCH;
+  return inRange && ids.every((id) => id !== undefined)
     ? (ids as number[])
     : `feed_ids: a list of 1 to ${MAX_BATCH} feed ids.`;
 }
@@ -820,7 +826,7 @@ export function createFeedMoves(
       if (raw !== null && section === undefined) {
         errors.push('section_id: a section id, or null for none.');
       }
-      if (errors.length || typeof ids === 'string') {
+      if (errors.length > 0 || typeof ids === 'string') {
         throw problems.badRequest('The move is not valid.', errors);
       }
       return { feed_ids: ids, section_id: section ?? null };
@@ -863,7 +869,7 @@ export function createFeedRemovals(
         .filter((key) => key !== 'feed_ids')
         .map((key) => `${key}: not a member of a removal.`);
       const ids = feedIdsOf(body.value);
-      if (extra.length || typeof ids === 'string') {
+      if (extra.length > 0 || typeof ids === 'string') {
         throw problems.badRequest('The removal is not valid.', [
           ...extra,
           ...(typeof ids === 'string' ? [ids] : []),

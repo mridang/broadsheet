@@ -93,7 +93,7 @@ export default async function SettingsPage() {
         title="New stories"
         description="Be told about new stories in a feed: by push to the browsers above, by email, or as a webhook. At most three stories a feed each day."
       >
-        {feeds.length ? (
+        {feeds.length > 0 ? (
           <List label="Feeds">
             {feeds.map((f) => (
               <li key={f.id} className="px-4 py-3.5 sm:px-5">
@@ -120,7 +120,7 @@ export default async function SettingsPage() {
           }))}
           sections={sections.map((s) => ({ id: s.id, name: s.name }))}
         />
-        {rules.length ? (
+        {rules.length > 0 ? (
           <List label="Story rules" className="mt-4">
             {rules.map((rule) => (
               <ListItem
@@ -139,7 +139,7 @@ export default async function SettingsPage() {
         description="A signed POST to your own address whenever you save or like a story, or a notifying feed has a new one (IFTTT’s Webhooks service can take it)."
       >
         <AddWebhookForm />
-        {hooks.length ? (
+        {hooks.length > 0 ? (
           <List label="Webhooks" className="mt-4">
             {hooks.map((h) => (
               <ListItem
@@ -160,7 +160,7 @@ export default async function SettingsPage() {
         <AddTokenForm
           sections={sections.map((s) => ({ id: s.id, name: s.name }))}
         />
-        {tokens.length ? (
+        {tokens.length > 0 ? (
           <List label="Private feeds" className="mt-4">
             {tokens.map((t) => (
               <ListItem

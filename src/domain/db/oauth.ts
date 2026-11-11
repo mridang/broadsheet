@@ -9,10 +9,10 @@ import { and, eq, isNull, lt, sql } from 'drizzle-orm';
 
 import type { Database } from '@/domain/db/database';
 import {
-  oauth_clients,
-  oauth_codes,
-  oauth_grants,
-  oauth_tokens,
+  oauthClients,
+  oauthCodes,
+  oauthGrants,
+  oauthTokens,
 } from '@/domain/db/schema';
 import type {
   OAuthClient,
@@ -39,7 +39,7 @@ function listOf(stored: string): string[] {
 const scopeOf = (stored: string): string[] => stored.split(' ').filter(Boolean);
 
 /** A stored token row in the store's shape. */
-function tokenOf(row: typeof oauth_tokens.$inferSelect): StoredToken {
+function tokenOf(row: typeof oauthTokens.$inferSelect): StoredToken {
   return {
     tokenHash: row.token_hash,
     kind: row.kind as TokenKind,
@@ -59,8 +59,8 @@ export class D1OAuthStore implements OAuthStore {
   async findClient(clientId: string): Promise<OAuthClient | undefined> {
     const [row] = await this.#db
       .select()
-      .from(oauth_clients)
-      .where(eq(oauth_clients.client_id, clientId))
+      .from(oauthClients)
+      .where(eq(oauthClients.client_id, clientId))
       .limit(1);
     return row
       ? {
@@ -72,15 +72,16 @@ export class D1OAuthStore implements OAuthStore {
   }
 
   async saveClient(client: OAuthClient): Promise<void> {
-    await this.#db.insert(oauth_clients).values({
+    const insert = this.#db.insert(oauthClients).values({
       client_id: client.clientId,
       client_name: client.name,
       redirect_uris: JSON.stringify(client.redirectUris),
     });
+    await insert;
   }
 
   async saveCode(code: StoredCode): Promise<void> {
-    await this.#db.insert(oauth_codes).values({
+    const insert = this.#db.insert(oauthCodes).values({
       code_hash: code.codeHash,
       client_id: code.clientId,
       user_id: code.userId,
@@ -90,12 +91,13 @@ export class D1OAuthStore implements OAuthStore {
       resource: code.resource,
       expires_at: code.expiresAt,
     });
+    await insert;
   }
 
   async takeCode(codeHash: string): Promise<StoredCode | undefined> {
     const [row] = await this.#db
-      .delete(oauth_codes)
-      .where(eq(oauth_codes.code_hash, codeHash))
+      .delete(oauthCodes)
+      .where(eq(oauthCodes.code_hash, codeHash))
       .returning();
     return row
       ? {
@@ -112,20 +114,21 @@ export class D1OAuthStore implements OAuthStore {
   }
 
   async saveGrant(grant: Omit<StoredGrant, 'revoked'>): Promise<void> {
-    await this.#db.insert(oauth_grants).values({
+    const insert = this.#db.insert(oauthGrants).values({
       id: grant.id,
       user_id: grant.userId,
       client_id: grant.clientId,
       scope: grant.scope.join(' '),
       resource: grant.resource,
     });
+    await insert;
   }
 
   async findGrant(id: string): Promise<StoredGrant | undefined> {
     const [row] = await this.#db
       .select()
-      .from(oauth_grants)
-      .where(eq(oauth_grants.id, id))
+      .from(oauthGrants)
+      .where(eq(oauthGrants.id, id))
       .limit(1);
     return row
       ? {
@@ -141,34 +144,35 @@ export class D1OAuthStore implements OAuthStore {
 
   async revokeGrant(id: string): Promise<void> {
     await this.#db
-      .update(oauth_grants)
+      .update(oauthGrants)
       .set({ revoked_at: sql`(datetime('now'))` })
-      .where(and(eq(oauth_grants.id, id), isNull(oauth_grants.revoked_at)));
-    await this.#db.delete(oauth_tokens).where(eq(oauth_tokens.grant_id, id));
+      .where(and(eq(oauthGrants.id, id), isNull(oauthGrants.revoked_at)));
+    await this.#db.delete(oauthTokens).where(eq(oauthTokens.grant_id, id));
   }
 
   async saveToken(token: StoredToken): Promise<void> {
-    await this.#db.insert(oauth_tokens).values({
+    const insert = this.#db.insert(oauthTokens).values({
       token_hash: token.tokenHash,
       kind: token.kind,
       grant_id: token.grantId,
       expires_at: token.expiresAt,
     });
+    await insert;
   }
 
   async findToken(tokenHash: string): Promise<StoredToken | undefined> {
     const [row] = await this.#db
       .select()
-      .from(oauth_tokens)
-      .where(eq(oauth_tokens.token_hash, tokenHash))
+      .from(oauthTokens)
+      .where(eq(oauthTokens.token_hash, tokenHash))
       .limit(1);
     return row ? tokenOf(row) : undefined;
   }
 
   async takeToken(tokenHash: string): Promise<StoredToken | undefined> {
     const [row] = await this.#db
-      .delete(oauth_tokens)
-      .where(eq(oauth_tokens.token_hash, tokenHash))
+      .delete(oauthTokens)
+      .where(eq(oauthTokens.token_hash, tokenHash))
       .returning();
     return row ? tokenOf(row) : undefined;
   }
@@ -181,13 +185,13 @@ export class D1OAuthStore implements OAuthStore {
     now: number,
   ): Promise<{ readonly codes: number; readonly tokens: number }> {
     const codes = await this.#db
-      .delete(oauth_codes)
-      .where(lt(oauth_codes.expires_at, now))
-      .returning({ hash: oauth_codes.code_hash });
+      .delete(oauthCodes)
+      .where(lt(oauthCodes.expires_at, now))
+      .returning({ hash: oauthCodes.code_hash });
     const tokens = await this.#db
-      .delete(oauth_tokens)
-      .where(lt(oauth_tokens.expires_at, now))
-      .returning({ hash: oauth_tokens.token_hash });
+      .delete(oauthTokens)
+      .where(lt(oauthTokens.expires_at, now))
+      .returning({ hash: oauthTokens.token_hash });
     return { codes: codes.length, tokens: tokens.length };
   }
 }

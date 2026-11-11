@@ -91,10 +91,10 @@ describe('readBodyText', () => {
   });
 
   it('accepts a body of exactly the limit and refuses one byte more', async () => {
-    expect((await readBodyText(chunked(['a'.repeat(10)]), 10)).kind).toBe('ok');
-    expect((await readBodyText(chunked(['a'.repeat(11)]), 10)).kind).toBe(
-      'too-large',
-    );
+    const exact = await readBodyText(chunked(['a'.repeat(10)]), 10);
+    expect(exact.kind).toBe('ok');
+    const over = await readBodyText(chunked(['a'.repeat(11)]), 10);
+    expect(over.kind).toBe('too-large');
   });
 
   it('turns away a caller who dribbles a body in more pieces than anyone needs', async () => {
@@ -123,6 +123,7 @@ describe('readJsonBody', () => {
     expect(await readJsonBody(chunked(['{nope']), 100)).toEqual({
       kind: 'unparseable',
     });
+
     expect(await readJsonBody(chunked([new Uint8Array([0xff])]), 100)).toEqual({
       kind: 'unparseable',
     });

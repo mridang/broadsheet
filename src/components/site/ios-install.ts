@@ -40,6 +40,7 @@ const NOT_SAFARI =
 export type InstallEnvironment = Readonly<{
   /** `navigator.userAgent`. */
   userAgent: string;
+
   /**
    * `navigator.maxTouchPoints`. An iPad in its default "desktop website" mode
    * calls itself a Mac; the touch screen is what tells it apart from one.
@@ -103,6 +104,7 @@ export type InstallHost = Readonly<{
     Readonly<{ standalone?: boolean }>;
   matchMedia: (query: string) => Readonly<{ matches: boolean }>;
   /** `localStorage`, which may be missing or throw (private windows, blocked storage). */
+
   storage: () => Pick<Storage, 'getItem' | 'setItem'> | undefined;
 }>;
 

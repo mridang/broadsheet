@@ -28,8 +28,10 @@ export const PROMPTS: readonly McpPrompt[] = [
         description: 'Only this feed (from list_feeds).',
       },
     ],
-    render: ({ feed_id }) =>
-      `Call search_articles with an empty query and read_filter "unread"${feed_id ? ` and feed_id ${feed_id}` : ''}. Sort the stories into read now, save for later (save_article with a tag) and skip, and ask before marking anything read with mark_read.`,
+    render: ({ feed_id }) => {
+      const scope = feed_id ? ` and feed_id ${feed_id}` : '';
+      return `Call search_articles with an empty query and read_filter "unread"${scope}. Sort the stories into read now, save for later (save_article with a tag) and skip, and ask before marking anything read with mark_read.`;
+    },
   },
   {
     name: 'research_topic',
@@ -65,7 +67,11 @@ export const PROMPTS: readonly McpPrompt[] = [
     arguments: [
       { name: 'interests', description: 'What the person is interested in.' },
     ],
-    render: ({ interests }) =>
-      `Call discover_feeds and list_feeds${interests ? `, keeping to these interests: ${interests}` : ''}. Suggest a handful of feeds the person does not follow yet, and follow one with follow_feed only when asked.`,
+    render: ({ interests }) => {
+      const focus = interests
+        ? `, keeping to these interests: ${interests}`
+        : '';
+      return `Call discover_feeds and list_feeds${focus}. Suggest a handful of feeds the person does not follow yet, and follow one with follow_feed only when asked.`;
+    },
   },
 ];

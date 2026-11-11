@@ -14,11 +14,11 @@ describe('databaseFrom', () => {
 });
 
 describe('getDatabase', () => {
-  let restore: (() => void) | undefined;
+  let restore: (() => void) | null = null;
 
   afterEach(() => {
     restore?.();
-    restore = undefined;
+    restore = null;
   });
 
   it("wraps the request context's binding in a Drizzle client", () => {

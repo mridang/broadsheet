@@ -69,3 +69,19 @@ describe('atomXml content and categories', () => {
     expect(xml).toContain('<category term="c&amp;d"/>');
   });
 });
+
+describe('escapeXml control characters', () => {
+  const FORBIDDEN = new RegExp(
+    String.raw`[\u0000-\u0008\u000B\u000C\u000E-\u001F]`,
+    'g',
+  );
+
+  it('drops exactly the control characters XML 1.0 cannot carry', () => {
+    for (let code = 0; code < 0x80; code += 1) {
+      const text = `a${String.fromCodePoint(code)}b`;
+      expect(escapeXml(text)).toBe(escapeXml(text.replaceAll(FORBIDDEN, '')));
+    }
+    expect(escapeXml('a\tb\nc\rd')).toBe('a\tb\nc\rd');
+    expect(escapeXml('a\u0000\u000B\u001Fb')).toBe('ab');
+  });
+});

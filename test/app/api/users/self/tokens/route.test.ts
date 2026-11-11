@@ -76,6 +76,7 @@ describe('POST /api/users/self/tokens', () => {
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await post({ scope: 'edition' })).status).toBe(401);
+    const res = await post({ scope: 'edition' });
+    expect(res.status).toBe(401);
   });
 });

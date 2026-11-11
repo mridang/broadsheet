@@ -12,6 +12,7 @@ import {
   installCloudflareContext,
   sqliteD1,
 } from '../../lib/core/db/sqlite-d1';
+import insecure from '../../fixtures/insecure-urls.json';
 
 let restore: (() => void) | undefined;
 afterEach(() => restore?.());
@@ -49,7 +50,7 @@ describe('parseConversion', () => {
     [{}, 'url or google_news: send exactly one.'],
     [{ url: 'a', google_news: {} }, 'url or google_news: send exactly one.'],
     [{ url: 'x', more: 1 }, 'more: not a member of this request.'],
-    [{ url: 'ftp://x' }, 'url: not an address a feed can be found for.'],
+    [{ url: insecure.ftpBare }, 'url: not an address a feed can be found for.'],
     [{ url: 3 }, 'url: not an address a feed can be found for.'],
     [{ google_news: 'x' }, expect.stringMatching(/^google_news:/)],
     [{ google_news: {} }, expect.stringMatching(/^google_news:/)],

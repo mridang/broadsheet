@@ -70,16 +70,19 @@ describe('GET /api/sources', () => {
   it.each(['', '?q=a', '?q=ab&x=1'])(
     'answers 400 as a problem for %j',
     async (query) => {
-      expect((await search(query)).status).toBe(400);
+      const res = await search(query);
+      expect(res.status).toBe(400);
     },
   );
 
   it('still lists trending sources without q', async () => {
-    expect((await search('?order=follows')).status).toBe(200);
+    const res = await search('?order=follows');
+    expect(res.status).toBe(200);
   });
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await search('?q=ab')).status).toBe(401);
+    const res = await search('?q=ab');
+    expect(res.status).toBe(401);
   });
 });

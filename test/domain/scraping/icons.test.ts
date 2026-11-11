@@ -112,3 +112,20 @@ describe('firstWorkingIcon', () => {
     ).toBe('');
   });
 });
+
+describe('pageIcons sizes', () => {
+  it('reads each WxH pair once, without chaining', () => {
+    const html = `<head>
+      <link rel="icon" href="/chained.png" sizes="8x8x100">
+      <link rel="icon" href="/ten.png" sizes="10x10">
+      <link rel="icon" href="/two.png" sizes="16x16 64X32">
+      <link rel="icon" href="/mid.png" sizes="48x48">
+    </head>`;
+    expect(pageIcons(html, BASE)).toEqual([
+      'https://site.test/two.png',
+      'https://site.test/mid.png',
+      'https://site.test/ten.png',
+      'https://site.test/chained.png',
+    ]);
+  });
+});

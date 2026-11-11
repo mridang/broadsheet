@@ -1,7 +1,7 @@
 /**
  * The stories people shared.
  *
- *   GET /api/shares?user_id&limit&cursor → 200 {self, next?, items}
+ * GET /api/shares?user_id&limit&cursor → 200 {self, next?, items}.
  *
  * The behaviour lives in the `sharesCollection` controller; this file only
  * mounts it.

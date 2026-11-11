@@ -7,6 +7,7 @@ import { Repository } from '@/domain/repository';
 import type { ScrapedItem } from '@/lib/scraping';
 import { APP_MIGRATIONS } from '../../lib/core/db/migrations';
 import { sqliteD1 } from '../../lib/core/db/sqlite-d1';
+import insecure from '../../fixtures/insecure-urls.json';
 
 let db: Database;
 let ctx: ToolContext;
@@ -107,7 +108,7 @@ describe('follow_feed', () => {
   });
 
   it('refuses an address that is not http', async () => {
-    await expect(run('follow_feed', { url: 'ftp://x' })).rejects.toThrow(
+    await expect(run('follow_feed', { url: insecure.ftpBare })).rejects.toThrow(
       'url: must be an http or https address.',
     );
   });
@@ -343,12 +344,12 @@ describe('search_articles by read state', () => {
   it.each([
     ['unread', ['Go ships']],
     ['read', ['Rust ships']],
-  ])('keeps only %s stories', async (read_filter, titles) => {
+  ])('keeps only %s stories', async (readFilter, titles) => {
     const { articleId } = await seed();
     await new Repository(db).markRead(1, articleId);
     const found = (await run('search_articles', {
       query: '',
-      read_filter,
+      read_filter: readFilter,
     })) as {
       articles: { title: string }[];
     };
@@ -591,11 +592,13 @@ describe('ask_archive', () => {
       conversation_id: string;
       message: { content: string };
     };
-    expect([
-      result.message.content,
-      (await new Repository(db).listMessages(Number(result.conversation_id)))
-        .length,
-    ]).toEqual(['Rust shipped.', 2]);
+    const messages = await new Repository(db).listMessages(
+      Number(result.conversation_id),
+    );
+    expect([result.message.content, messages.length]).toEqual([
+      'Rust shipped.',
+      2,
+    ]);
   });
 
   it("refuses another person's conversation", async () => {
@@ -650,7 +653,7 @@ describe('search_articles filters', () => {
     const { feedId } = await seed();
     const other = await second();
     expect(await titles({ feed_ids: [other.id] })).toEqual(['Zig ships']);
-    expect((await titles({ feed_ids: [feedId, other.id] })).length).toBe(3);
+    expect(await titles({ feed_ids: [feedId, other.id] })).toHaveLength(3);
   });
 
   it('narrows to a section and its subsections', async () => {
@@ -685,7 +688,7 @@ describe('search_articles filters', () => {
     await seed();
     await second();
     expect(await titles({ date_to: '2026-10-15' })).toEqual(['Zig ships']);
-    expect((await titles({ date_from: '2026-10-15' })).length).toBe(2);
+    expect(await titles({ date_from: '2026-10-15' })).toHaveLength(2);
   });
 
   it('refuses a day that is not on the calendar', () => {
@@ -711,7 +714,7 @@ describe('search_articles filters', () => {
       score: -1,
     });
     expect(await titles({})).toEqual(['Rust ships']);
-    expect((await titles({ include_hidden: true })).length).toBe(2);
+    expect(await titles({ include_hidden: true })).toHaveLength(2);
   });
 
   it('fills a page past filtered stories and says where to continue', async () => {

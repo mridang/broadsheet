@@ -2,7 +2,7 @@ import type { Article } from '@/domain/repository';
 import { hostOf } from '@/domain/render/tiers';
 
 /** The low-weight tail of a desk, as a compact "In brief" list. */
-export function BriefBlock({ items }: { items: Article[] }) {
+export function BriefBlock({ items }: Readonly<{ items: Article[] }>) {
   return (
     <div className="mt-2 rounded-card bg-ink/3 p-5 sm:col-span-2 print:break-inside-avoid">
       <h3 className="text-label font-semibold text-subtle uppercase">

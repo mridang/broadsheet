@@ -3,22 +3,22 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "next dev --port 3737",
-    "typecheck": "tsc --noEmit",
     "build": "next build",
-    "start": "next start",
-    "migrate": "wrangler d1 migrations apply DB --local",
     "cf-typegen": "wrangler types && prettier --write worker-configuration.d.ts",
+    "cypress:open": "cypress open",
+    "cypress:run": "cypress run --browser chrome",
     "deploy": "wrangler d1 migrations apply DB --remote && opennextjs-cloudflare build && wrangler deploy",
-    "test": "jest --verbose --config=jest.config.mjs",
-    "test:watch": "npm run test -- --watch",
-    "test:debug": "jest --verbose --config=jest.config.mjs --detectOpenHandles",
+    "dev": "next dev --port 3737",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "npx eslint .",
     "lint:fix": "npx eslint . --fix",
-    "cypress:open": "cypress open",
-    "cypress:run": "cypress run --browser chrome"
+    "migrate": "wrangler d1 migrations apply DB --local",
+    "start": "next start",
+    "test": "jest --verbose --config=jest.config.mjs",
+    "test:debug": "jest --verbose --config=jest.config.mjs --detectOpenHandles",
+    "test:watch": "npm run test -- --watch",
+    "typecheck": "tsc --noEmit"
   },
   "keywords": [
     "cloudflare-d1",
@@ -59,9 +59,9 @@
   "devDependencies": {
     "@emnapi/core": "^1.11.3",
     "@emnapi/runtime": "^1.11.3",
-    "@eslint/compat": "^2.1.0",
+    "@eslint/compat": "^2.1.1",
     "@jest/globals": "^30.0.3",
-    "@mridang/eslint-defaults": "^1.7.0",
+    "@mridang/eslint-defaults": "^2.1.0",
     "@tailwindcss/postcss": "^4",
     "@tsconfig/node24": "^24.0.5",
     "@types/jest": "^30.0.0",
@@ -69,35 +69,36 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "cypress": "^16.2.0",
-    "eslint": "^9.39.4",
+    "eslint": "^9.39.5",
     "eslint-plugin-drizzle": "^0.2.3",
     "jest": "^30.0.3",
     "jest-junit": "^17.0.0",
     "knip": "^6.17.1",
-    "prettier": "^3.8.3",
+    "prettier": "^3.9.10",
     "tailwindcss": "^4",
     "ts-jest": "^29.4.0",
-    "typescript": "^6.0.3",
+    "typescript": "~6.0.3",
     "wrangler": "^4.151.1"
   },
   "overrides": {
+    "@eslint/core": "1.2.1",
+    "@jest/reporters": {
+      "glob": "^14.0.4"
+    },
     "@node-minify/core": {
       "glob": "^14.0.4"
     },
     "@opennextjs/cloudflare": {
       "glob": "^14.0.4"
     },
-    "@jest/reporters": {
-      "glob": "^14.0.4"
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "^11.0.5"
     },
     "jest-config": {
       "glob": "^14.0.4"
     },
     "jest-runtime": {
       "glob": "^14.0.4"
-    },
-    "@typescript-eslint/typescript-estree": {
-      "minimatch": "^11.0.5"
     },
     "test-exclude": {
       "glob": "^7.2.3"

@@ -38,10 +38,12 @@ export interface RiverInput {
 }
 
 /** What a river id names, once read. */
+type RiverSource = 'feed' | 'section' | 'search' | 'edition';
+
 export type RiverTarget =
   | { readonly kind: 'all' | 'saves' }
   | {
-      readonly kind: 'feed' | 'section' | 'search' | 'edition';
+      readonly kind: RiverSource;
       readonly id: number;
     };
 
@@ -51,7 +53,7 @@ export function parseRiverId(riverId: string): RiverTarget | undefined {
   const match = /^(feed|section|search|edition):([1-9]\d{0,14})$/.exec(riverId);
   return match
     ? {
-        kind: match[1] as 'feed' | 'section' | 'search' | 'edition',
+        kind: match[1] as RiverSource,
         id: Number(match[2]),
       }
     : undefined;
@@ -77,7 +79,7 @@ export class RiverRepository {
       .from(rivers)
       .where(eq(rivers.user_id, userId))
       .orderBy(asc(rivers.side), asc(rivers.position));
-    return rows.map(riverOf);
+    return rows.map((row) => riverOf(row));
   }
 
   /**
@@ -127,7 +129,8 @@ export class RiverRepository {
       .where(and(eq(rivers.id, id), eq(rivers.user_id, userId)))
       .returning();
     if (!gone) return false;
-    const rest = (await this.list(userId)).filter((r) => r.side === gone.side);
+    const all = await this.list(userId);
+    const rest = all.filter((r) => r.side === gone.side);
     for (const [position, river] of rest.entries()) {
       if (river.position !== position) {
         await this.#db
@@ -152,16 +155,21 @@ export async function ownsTarget(
   const repo = new Repository(db);
   switch (target.kind) {
     case 'all':
-    case 'saves':
+    case 'saves': {
       return true;
-    case 'feed':
+    }
+    case 'feed': {
       return !!(await repo.getFeed(userId, target.id));
-    case 'section':
+    }
+    case 'section': {
       return !!(await repo.getSection(userId, target.id));
-    case 'search':
+    }
+    case 'search': {
       return !!(await repo.getSearch(userId, target.id));
-    case 'edition':
+    }
+    case 'edition': {
       return !!(await repo.getCustomEdition(userId, target.id));
+    }
   }
 }
 
@@ -179,20 +187,24 @@ export async function riverStories(
   if (!target || !(await ownsTarget(db, userId, target))) return [];
   const repo = new Repository(db);
   switch (target.kind) {
-    case 'all':
-      return (await repo.searchArticles(userId, { limit })).slice(0, limit);
-    case 'saves':
-      return (await repo.listSaves(userId))
-        .slice(0, limit)
-        .map((s) => s.article);
-    case 'feed':
-      return (
-        await repo.searchArticles(userId, { feed: target.id, limit })
-      ).slice(0, limit);
+    case 'all': {
+      const found = await repo.searchArticles(userId, { limit });
+      return found.slice(0, limit);
+    }
+    case 'saves': {
+      const saves = await repo.listSaves(userId);
+      return saves.slice(0, limit).map((s) => s.article);
+    }
+    case 'feed': {
+      const found = await repo.searchArticles(userId, {
+        feed: target.id,
+        limit,
+      });
+      return found.slice(0, limit);
+    }
     case 'section': {
-      const feeds = (await repo.listFeeds(userId)).filter(
-        (f) => f.section_id === target.id,
-      );
+      const allFeeds = await repo.listFeeds(userId);
+      const feeds = allFeeds.filter((f) => f.section_id === target.id);
       const lists = await Promise.all(
         feeds.map((f) => repo.searchArticles(userId, { feed: f.id, limit })),
       );
@@ -203,13 +215,12 @@ export async function riverStories(
     }
     case 'search': {
       const search = await repo.getSearch(userId, target.id);
-      return (
-        await repo.searchArticles(userId, {
-          q: search!.query,
-          ...(search!.feed_id !== null ? { feed: search!.feed_id } : {}),
-          limit,
-        })
-      ).slice(0, limit);
+      const found = await repo.searchArticles(userId, {
+        q: search!.query,
+        ...(search!.feed_id === null ? {} : { feed: search!.feed_id }),
+        limit,
+      });
+      return found.slice(0, limit);
     }
     case 'edition': {
       const edition = await repo.getCustomEdition(userId, target.id);

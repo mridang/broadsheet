@@ -46,6 +46,8 @@ export function isImagesBinding(value: unknown): value is ImagesLike {
   );
 }
 
+type RefusalStatus = 400 | 404 | 413 | 415 | 502;
+
 /** What fetching a picture gave: its bytes and type, or why not. */
 export type ImageResult =
   | {
@@ -56,7 +58,7 @@ export type ImageResult =
     }
   | {
       readonly ok: false;
-      readonly status: 400 | 404 | 413 | 415 | 502;
+      readonly status: RefusalStatus;
       readonly reason: string;
     };
 
@@ -127,20 +129,25 @@ function isRasterImage(mediaType: string): boolean {
 /** The refusal that answers a fetch that gave no picture. */
 function refusalFor(failure: FetchFailure): ImageResult {
   switch (failure.reason) {
-    case 'blocked':
+    case 'blocked': {
       return refusal(400, 'Not a fetchable image address.');
-    case 'type':
+    }
+    case 'type': {
       return refusal(415, 'That address is not an image.');
-    case 'too-large':
+    }
+    case 'too-large': {
       return refusal(413, 'The image is too large.');
-    case 'status':
+    }
+    case 'status': {
       return failure.status === 404 || failure.status === 410
         ? refusal(404, 'The image is gone.')
         : refusal(502, 'The image site refused.');
+    }
     case 'redirects':
     case 'timeout':
-    case 'unreachable':
+    case 'unreachable': {
       return refusal(502, 'The image site did not answer.');
+    }
   }
 }
 

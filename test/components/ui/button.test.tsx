@@ -79,10 +79,10 @@ describe('ButtonLink', () => {
 });
 
 describe('IconButton', () => {
-  it('is named by its label, out loud and as a tooltip', () => {
+  it('is named by its label', () => {
     const out = html(<IconButton label="More actions">⋯</IconButton>);
     expect(out).toContain('aria-label="More actions"');
-    expect(out).toContain('title="More actions"');
+    expect(out).not.toContain('title=');
     expect(out).toContain('type="button"');
   });
 });

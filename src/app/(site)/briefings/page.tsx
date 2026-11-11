@@ -33,12 +33,13 @@ function beforeOf(raw: string | undefined): number | undefined {
  */
 export default async function BriefingsPage({
   searchParams,
-}: {
+}: Readonly<{
   searchParams: Promise<{ before?: string }>;
-}) {
+}>) {
   const user = await getCurrentUser();
   if (!user) redirect('/login');
-  const before = beforeOf((await searchParams).before);
+  const query = await searchParams;
+  const before = beforeOf(query.before);
   const rows = await new Repository(getDatabase()).listBriefings(
     user.id,
     PAGE + 1,
@@ -54,7 +55,7 @@ export default async function BriefingsPage({
         description="A short editor’s note on the stories that matter, written for your morning, midday and evening."
         actions={<WriteBriefing />}
       />
-      {items.length ? (
+      {items.length > 0 ? (
         <ul className="mt-8 divide-y divide-line border-y border-line">
           {items.map((b) => {
             const count = parseBriefedStories(b.stories).length;
@@ -82,7 +83,8 @@ export default async function BriefingsPage({
                   <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-muted">
                     {opening}
                   </p>
-                ) : failed && b.error ? (
+                ) : null}
+                {!opening && failed && b.error ? (
                   <p className="mt-1 text-sm text-muted">{b.error}</p>
                 ) : null}
               </li>
@@ -99,22 +101,22 @@ export default async function BriefingsPage({
       )}
       {before !== undefined || next !== undefined ? (
         <nav aria-label="Older and newer briefings" className="mt-6 flex gap-2">
-          {before !== undefined ? (
+          {before === undefined ? null : (
             <a
               className={buttonClass({ variant: 'outline', size: 'sm' })}
               href="/briefings"
             >
               Newest
             </a>
-          ) : null}
-          {next !== undefined ? (
+          )}
+          {next === undefined ? null : (
             <a
               className={buttonClass({ variant: 'outline', size: 'sm' })}
               href={`/briefings?before=${next}`}
             >
               Older briefings
             </a>
-          ) : null}
+          )}
         </nav>
       ) : null}
     </div>

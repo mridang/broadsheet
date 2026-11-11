@@ -21,9 +21,8 @@ import { cn } from '@/components/ui/cn';
  * left the panel, which must not stay open behind them. Focus going nowhere
  * (`next` is null: the window lost focus, or a click landed on something that
  * cannot take focus) is not leaving; a click outside is handled separately.
- *
- * @param root The popover's outer element (button and panel together).
- * @param next The element receiving focus, if there is one.
+ * @param root - The popover's outer element (button and panel together).
+ * @param next - The element receiving focus, if there is one.
  */
 export function focusLeft(
   root: Pick<Node, 'contains'>,
@@ -36,9 +35,8 @@ export function focusLeft(
  * The handler for key presses while a popover is open: Escape closes it and
  * puts focus back on its button (otherwise focus would be left on an item that
  * has just disappeared). Other keys are left to whatever has focus.
- *
- * @param close Closes the panel.
- * @param focusButton Moves focus back to the popover's button.
+ * @param close - Closes the panel.
+ * @param focusButton - Moves focus back to the popover's button.
  */
 export function escapeHandler(
   close: () => void,
@@ -60,9 +58,8 @@ type OpenedOn = Readonly<{ pathname: string | null }>;
  * `pathname`. Navigating (a link elsewhere, the back button) puts the person on
  * a different page, and a panel left floating over it would be a stranger there.
  * Deriving this from the path means no effect has to notice the navigation.
- *
- * @param openedOn Where it was opened, or `null` if it is closed.
- * @param pathname The path of the page being shown now.
+ * @param openedOn - Where it was opened, or `null` if it is closed.
+ * @param pathname - The path of the page being shown now.
  */
 export function isOpenOn(
   openedOn: OpenedOn | null,
@@ -78,8 +75,7 @@ type Placement = Readonly<{ top: number; right: number }>;
  * Whether this browser has the Popover API (Chrome 114, Firefox 125, Safari 17).
  * Where it has not, the panel is an ordinary box that the component shows and
  * hides itself, and the `popover` attribute does nothing.
- *
- * @param panel Any element; the API is looked for on it.
+ * @param panel - Any element; the API is looked for on it.
  */
 export function supportsPopover(panel: object): boolean {
   return 'popover' in panel;
@@ -89,8 +85,7 @@ export function supportsPopover(panel: object): boolean {
  * Whether this browser can anchor a panel to its button in CSS (`position-area`:
  * Chrome 125, Safari 26, Firefox 147). The same test the stylesheet makes with
  * `@supports`, so that the script steps in exactly when the stylesheet does not.
- *
- * @param css The `CSS` namespace (or anything with its `supports`).
+ * @param css - The `CSS` namespace (or anything with its `supports`).
  */
 export function supportsAnchorPositioning(
   css: Readonly<{
@@ -105,9 +100,8 @@ export function supportsAnchorPositioning(
  * anchor one to its button (before Safari 26 and Firefox 147): just under the
  * button, with the panel's right edge on the button's, like the anchored
  * layout. A button too near the window's right edge still leaves a margin.
- *
- * @param button The button's box, from `getBoundingClientRect()`.
- * @param viewportWidth The window's width, without a scrollbar.
+ * @param button - The button's box, from `getBoundingClientRect()`.
+ * @param viewportWidth - The window's width, without a scrollbar.
  */
 export function fallbackPlacement(
   button: Readonly<Pick<DOMRect, 'bottom' | 'right'>>,
@@ -245,7 +239,7 @@ export function Popover({
     const panelElement = panel.current;
     const rootElement = root.current;
     if (!panelElement || !rootElement) {
-      return;
+      return undefined;
     }
     const onPanelClick = (event: MouseEvent) => {
       if (

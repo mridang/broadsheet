@@ -1,6 +1,6 @@
 'use client';
 
-import type { FormEvent, ReactElement } from 'react';
+import type { SubmitEvent, ReactElement } from 'react';
 
 import { addSection } from '@/app/(site)/feeds/_components/feed-requests';
 import type { SectionOption } from '@/app/(site)/feeds/_components/feed-settings-form';
@@ -16,7 +16,7 @@ export function AddSectionForm({
   sections,
 }: Readonly<{ sections: readonly SectionOption[] }>): ReactElement {
   const { busy, error, run } = useFeedAction();
-  const submit = (event: FormEvent<HTMLFormElement>): void => {
+  const submit = (event: SubmitEvent<HTMLFormElement>): void => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const name = String(form.get('name') ?? '');
@@ -40,7 +40,7 @@ export function AddSectionForm({
           maxLength={200}
           required
         />
-        {sections.length ? (
+        {sections.length > 0 ? (
           <select name="parent_id" aria-label="Inside" defaultValue="">
             <option value="">Top level</option>
             {sections.map((s) => (

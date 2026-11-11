@@ -1,6 +1,6 @@
 'use client';
 
-import type { FormEvent, ReactElement } from 'react';
+import type { ReactElement, SubmitEvent } from 'react';
 
 import { importTopics } from '@/app/(site)/feeds/_components/feed-requests';
 import { useFeedAction } from '@/app/(site)/feeds/_components/use-feed-action';
@@ -18,7 +18,7 @@ export function TopicPicker({
   readonly topics: readonly Topic[];
 }): ReactElement {
   const { busy, error, run } = useFeedAction();
-  const submit = (event: FormEvent<HTMLFormElement>): void => {
+  const submit = (event: SubmitEvent<HTMLFormElement>): void => {
     event.preventDefault();
     const ids = new FormData(event.currentTarget).getAll('topic').map(String);
     void run(() => importTopics(ids), 'Could not follow those topics.');

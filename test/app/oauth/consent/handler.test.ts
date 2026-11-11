@@ -55,16 +55,15 @@ describe('handleConsent', () => {
   it('sends an approval back with a code the store can redeem', async () => {
     const response = await decide(post({ ...FIELDS, decision: 'approve' }));
     const location = new URL(response.headers.get('location')!);
+    const redeemed = await store.takeCode(
+      await hashSecret(location.searchParams.get('code')!),
+    );
     expect([
       response.status,
       location.origin,
       location.searchParams.get('state'),
       location.searchParams.get('iss'),
-      (
-        await store.takeCode(
-          await hashSecret(location.searchParams.get('code')!),
-        )
-      )?.userId,
+      redeemed?.userId,
     ]).toEqual([303, 'https://claude.ai', 's', ORIGIN, 1]);
   });
 

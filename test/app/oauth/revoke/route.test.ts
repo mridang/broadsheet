@@ -26,18 +26,21 @@ const revoke = (body: string, type = 'application/x-www-form-urlencoded') =>
 
 describe('POST /oauth/revoke', () => {
   it('answers 200 for an unknown token', async () => {
-    expect((await revoke('token=nope&client_id=c1')).status).toBe(200);
+    const reply = await revoke('token=nope&client_id=c1');
+    expect(reply.status).toBe(200);
   });
 
   it.each([[''], ['token=x'], ['client_id=c1']])(
     'needs a token and client_id: %j',
     async (body) => {
-      expect((await revoke(body)).status).toBe(400);
+      const reply = await revoke(body);
+      expect(reply.status).toBe(400);
     },
   );
 
   it('refuses a JSON body', async () => {
-    expect((await revoke('{}', 'application/json')).status).toBe(400);
+    const reply = await revoke('{}', 'application/json');
+    expect(reply.status).toBe(400);
   });
 
   it('answers the preflight', () => {

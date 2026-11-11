@@ -26,6 +26,7 @@ describe('isImagesBinding', () => {
   );
 });
 
+// eslint-disable-next-line sonarjs/max-lines-per-function -- logic rewrite that would be large
 describe('fetchImage', () => {
   it('passes a photo through with the type its site gave', async () => {
     const result = await fetchImage('https://a.com/x.jpg', 640, {
@@ -64,11 +65,11 @@ describe('fetchImage', () => {
       // The caller (the image service) snaps the width; the proxy uses it as given.
       const result = await fetchImage('https://a.com/x.jpg', 800, {
         fetcher: returning(big()),
-        images: images(new Uint8Array(9_000).buffer, seen),
+        images: images(new Uint8Array(9000).buffer, seen),
       });
       expect(seen.width).toBe(800);
       expect(result).toMatchObject({ ok: true, type: 'image/webp' });
-      expect(result.ok && result.bytes.byteLength).toBe(9_000);
+      expect(result.ok && result.bytes.byteLength).toBe(9000);
     });
 
     it('sends the original when scaling fails', async () => {
@@ -249,9 +250,8 @@ describe('fetchImage', () => {
           headers: { 'content-type': 'image/jpeg' },
         }),
       );
-      expect(
-        (await fetchImage('https://a.com/x.jpg', 640, { fetcher })).ok,
-      ).toBe(true);
+      const fetched = await fetchImage('https://a.com/x.jpg', 640, { fetcher });
+      expect(fetched.ok).toBe(true);
     });
 
     it('says the image is gone for a 410 as well', async () => {

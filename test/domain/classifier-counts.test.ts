@@ -81,9 +81,8 @@ describe('feedClassifierCounts', () => {
       value: 'rust',
       score: 1,
     });
-    const [rust] = (
-      await repo.sourceArticles(feed.source_id, '2026-10-02')
-    ).filter((a) => a.title === 'Rust');
+    const dayArticles = await repo.sourceArticles(feed.source_id, '2026-10-02');
+    const rust = dayArticles.find((a) => a.title === 'Rust');
     await repo.markRead(user.id, rust!.id);
     expect(await feedClassifierCounts(repo, user.id, feed)).toEqual({
       focus: 0,

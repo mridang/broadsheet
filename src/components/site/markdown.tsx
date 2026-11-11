@@ -16,16 +16,28 @@ function safeHref(href: string): boolean {
   return /^https?:\/\//i.test(href) || /^\/(?!\/)/.test(href);
 }
 
+/** The inline marks, one alternative each, in the order they are tried. */
+export const INLINE_MARKS = [
+  /\[#(\d+)\]/, // citation
+  // eslint-disable-next-line sonarjs/super-linear-regex -- tried: a `[` with no `]` after it rescans the rest of the line, and no regex form or string method gives the same links without that scan; a line is short text and the run is cut at the first `]`
+  /\[([^\]]+)\]\(([^)\s]+)\)/, // link
+  /\*{2}([^*]+)\*{2}/, // bold
+  /\*([^*\s][^*]*)\*/, // emphasis
+  /`([^`]+)`/, // code
+]
+  .map((mark) => mark.source)
+  .join('|');
+
 /** The inline marks of one line of text, as elements. */
 export function inline(text: string, keyPrefix = ''): ReactNode[] {
-  const pattern =
-    /\[#(\d+)\]|\[([^\]]+)\]\(([^)\s]+)\)|\*\*([^*]+)\*\*|\*([^*\s][^*]*)\*|`([^`]+)`/g;
+  const pattern = new RegExp(INLINE_MARKS, 'g');
   const out: ReactNode[] = [];
   let last = 0;
   let n = 0;
   for (const m of text.matchAll(pattern)) {
     if (m.index > last) out.push(text.slice(last, m.index));
-    const key = `${keyPrefix}${n++}`;
+    const key = `${keyPrefix}${n}`;
+    n += 1;
     const [whole, cite, label, href, bold, em, code] = m;
     if (cite) {
       out.push(
@@ -46,6 +58,9 @@ export function inline(text: string, keyPrefix = ''): ReactNode[] {
     } else if (bold) out.push(<strong key={key}>{bold}</strong>);
     else if (em) out.push(<em key={key}>{em}</em>);
     else if (code) out.push(<code key={key}>{code}</code>);
+    else {
+      // Every match is one of the forms above, so there is nothing more to emit.
+    }
     last = m.index + whole.length;
   }
   if (last < text.length) out.push(text.slice(last));
@@ -63,10 +78,10 @@ export function blocks(markdown: string): Block[] {
   for (const raw of markdown.split('\n')) {
     const line = raw.trim();
     if (!line) continue;
-    const bullet = /^[-*]\s+(.*)$/.exec(line);
-    const numbered = /^\d+[.)]\s+(.*)$/.exec(line);
-    const heading = /^#{1,6}\s+(.*)$/.exec(line);
-    const kind = bullet ? 'ul' : numbered ? 'ol' : undefined;
+    const bullet = /^[-*]\s+(\S.*)$/.exec(line);
+    const numbered = /^\d+[.)]\s+(\S.*)$/.exec(line);
+    const heading = /^#{1,6}\s+(\S.*)$/.exec(line);
+    const kind = bullet ? 'ul' : numbered && 'ol';
     const prev = out.at(-1);
     if (kind) {
       const item = (bullet ?? numbered)![1]!;

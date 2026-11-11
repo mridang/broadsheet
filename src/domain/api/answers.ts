@@ -8,7 +8,7 @@
  */
 
 import {
-  AnswerUnavailable,
+  AnswerUnavailableError,
   articlePrompt,
   cacheKey,
   complete,
@@ -68,7 +68,7 @@ export interface AnswerResource {
  * resource belongs to.
  */
 export function parentIdOf(request: Request): string {
-  return new URL(request.url).pathname.split('/')[3] ?? '';
+  return new URL(request.url).pathname.split('/', 4)[3] ?? '';
 }
 
 /** The 502 for a model that could not answer. */
@@ -143,7 +143,8 @@ function streamed(
           send('chunk', { text: piece });
         }
         const answer = withoutThinking(text);
-        if (!answer) throw new AnswerUnavailable('The model gave no answer.');
+        if (!answer)
+          throw new AnswerUnavailableError('The model gave no answer.');
         send('complete', await finish(answer));
       } catch (error) {
         logWarn({
@@ -189,11 +190,11 @@ export function createAnswersCollection(
     method: 'POST',
     decode: readAnswerRequest,
     handle: async (call, { request, uid }) => {
-      const { question, history } = call;
+      const { question, history, model, thinking } = call;
       const repo = new Repository(getDatabase());
       const id = parseFeedId(parentIdOf(request));
       const article =
-        id !== undefined ? await repo.getArticle(uid, id) : undefined;
+        id === undefined ? undefined : await repo.getArticle(uid, id);
       if (!article) return problems.notFound('article');
       const preset = question.kind === 'preset' ? question.preset : undefined;
       const text =
@@ -203,18 +204,21 @@ export function createAnswersCollection(
       const answered = async (
         answer: string,
         cached: boolean,
-      ): Promise<AnswerResource> => ({
-        article_id: String(article.id),
-        ...(preset ? { question_id: preset.id } : {}),
-        question: text,
-        answer,
-        model: call.model,
-        thinking: call.thinking,
-        cached,
-        remaining: (await budget(repo, uid, 'answer')).remaining,
-      });
+      ): Promise<AnswerResource> => {
+        const { remaining } = await budget(repo, uid, 'answer');
+        return {
+          article_id: String(article.id),
+          ...(preset ? { question_id: preset.id } : {}),
+          question: text,
+          answer,
+          model,
+          thinking,
+          cached,
+          remaining,
+        };
+      };
       const key =
-        preset && !history.length ? cacheKey(preset.id, call) : undefined;
+        preset && history.length === 0 ? cacheKey(preset.id, call) : undefined;
       const cached = key
         ? await repo.cachedAnswer(uid, article.id, key)
         : undefined;
@@ -249,7 +253,7 @@ export function createAnswersCollection(
           await complete(answerModel(), prompt, modelFor(call)),
         );
       } catch (error) {
-        if (error instanceof AnswerUnavailable) {
+        if (error instanceof AnswerUnavailableError) {
           return assistantUnavailable(error);
         }
         throw error;

@@ -6,10 +6,28 @@
  * thin map of endpoint to typed result.
  */
 
-export * from './exchange-code-request';
-export * from './token-response';
-export * from './refresh-token-request';
-export * from './access-token-response';
-export * from './google-user-response';
-export * from './revoke-token-request';
-export * from './revoke-token-response';
+export {
+  type ExchangeCodeRequest,
+  ExchangeCodeRequestSchema,
+} from './exchange-code-request';
+export { type TokenResponse, TokenResponseSchema } from './token-response';
+export {
+  type RefreshTokenRequest,
+  RefreshTokenRequestSchema,
+} from './refresh-token-request';
+export {
+  type AccessTokenResponse,
+  AccessTokenResponseSchema,
+} from './access-token-response';
+export {
+  type GoogleUserResponse,
+  GoogleUserResponseSchema,
+} from './google-user-response';
+export {
+  type RevokeTokenRequest,
+  RevokeTokenRequestSchema,
+} from './revoke-token-request';
+export {
+  type RevokeTokenResponse,
+  RevokeTokenResponseSchema,
+} from './revoke-token-response';

@@ -11,4 +11,14 @@
  * lives in `./server`.
  */
 
-export * from './address';
+export {
+  ALLOWED_HOSTS,
+  ALLOWED_WIDTHS,
+  DEFAULT_WIDTH,
+  IMAGE_PATH,
+  imageSrc,
+  imageSrcSet,
+  isAllowedHost,
+  isProxyableUrl,
+  snapWidth,
+} from './address';

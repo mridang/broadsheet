@@ -18,7 +18,12 @@ export function isAcceptableRedirectUri(uri: string): boolean {
   if (url.protocol === 'https:') return url.hostname !== '';
   if (url.protocol === 'http:') return LOOPBACK.has(url.hostname);
   // A private-use scheme must contain a dot so it names a domain the app owns.
-  return /^[a-z][a-z0-9+.-]*\.[a-z0-9+.-]+:$/i.test(url.protocol);
+  const scheme = url.protocol.slice(0, -1);
+  return (
+    /^[a-z][a-z0-9+.-]*$/i.test(scheme) &&
+    scheme.includes('.') &&
+    !scheme.endsWith('.')
+  );
 }
 
 /**

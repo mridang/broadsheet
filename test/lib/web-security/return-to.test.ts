@@ -13,7 +13,7 @@ describe('safeReturnPath', () => {
   it('refuses anything that could leave the site', () => {
     expect(safeReturnPath('https://evil.example')).toBeUndefined();
     expect(safeReturnPath('//evil.example')).toBeUndefined();
-    expect(safeReturnPath('/\\evil.example')).toBeUndefined();
+    expect(safeReturnPath(String.raw`/\evil.example`)).toBeUndefined();
     expect(safeReturnPath('javascript:alert(1)')).toBeUndefined();
   });
 

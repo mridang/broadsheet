@@ -11,25 +11,25 @@
 /** Encode raw bytes as standard (padded) base64. */
 export function bytesToBase64(bytes: Uint8Array): string {
   // btoa wants a "binary string": one character per byte.
-  return btoa(Array.from(bytes, (byte) => String.fromCharCode(byte)).join(''));
+  return btoa(Array.from(bytes, (byte) => String.fromCodePoint(byte)).join(''));
 }
 
 /** Decode standard base64 into raw bytes. Throws on malformed input. */
 export function base64ToBytes(base64: string): Uint8Array {
-  return Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
+  return Uint8Array.from(atob(base64), (char) => char.codePointAt(0) ?? 0);
 }
 
 /** Encode raw bytes as URL-safe base64 (`-` and `_`, no padding). */
 export function bytesToBase64Url(bytes: Uint8Array): string {
   return bytesToBase64(bytes)
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
+    .replaceAll('+', '-')
+    .replaceAll('/', '_')
+    .replaceAll('=', '');
 }
 
 /** Decode URL-safe base64, with or without padding, into raw bytes. Throws on malformed input. */
 export function base64UrlToBytes(text: string): Uint8Array {
-  const standard = text.replace(/-/g, '+').replace(/_/g, '/');
+  const standard = text.replaceAll('-', '+').replaceAll('_', '/');
   // Put back the padding that the URL-safe form leaves off.
   return base64ToBytes(standard + '==='.slice((standard.length + 3) % 4));
 }

@@ -121,7 +121,7 @@ afterEach(() => {
 });
 
 /** Run the callback for a browser that holds `cookie`, at `query`. */
-function callback(query: string, cookie?: string): Promise<Response> {
+function runCallback(query: string, cookie?: string): Promise<Response> {
   jar.clear();
   if (cookie) {
     jar.set(STATE_COOKIE, cookie);
@@ -150,7 +150,7 @@ describe('the error context of the login handler', () => {
 
 describe('the error context of the callback handler', () => {
   it('names a finished sign-in and carries no failure', async () => {
-    await callback('code=c&state=signin.a', 'signin.a');
+    await runCallback('code=c&state=signin.a', 'signin.a');
     expect(tracing.attributes).toEqual({
       'auth.provider': 'google',
       'auth.flow': 'callback',
@@ -159,7 +159,7 @@ describe('the error context of the callback handler', () => {
   });
 
   it('names the other ask by its purpose', async () => {
-    await callback('code=c&state=other.a', 'other.a');
+    await runCallback('code=c&state=other.a', 'other.a');
     expect(tracing.attributes).toMatchObject({
       'auth.flow': 'other',
       'auth.step': 'done',
@@ -167,7 +167,7 @@ describe('the error context of the callback handler', () => {
   });
 
   it('says state_mismatch when the state does not check out', async () => {
-    await callback('code=c&state=signin.other', 'signin.a');
+    await runCallback('code=c&state=signin.other', 'signin.a');
     expect(tracing.attributes).toMatchObject({
       'auth.step': 'state',
       'auth.failure': 'state_mismatch',
@@ -175,35 +175,35 @@ describe('the error context of the callback handler', () => {
   });
 
   it('says denied when Google reports an error, and no_code when it sends nothing', async () => {
-    await callback('error=access_denied&state=signin.a', 'signin.a');
+    await runCallback('error=access_denied&state=signin.a', 'signin.a');
     expect(tracing.attributes['auth.failure']).toBe('denied');
-    await callback('state=signin.a', 'signin.a');
+    await runCallback('state=signin.a', 'signin.a');
     expect(tracing.attributes['auth.failure']).toBe('no_code');
   });
 
   it('says not_configured when settings are missing', async () => {
     missing = ['SESSION_SECRET'];
-    await callback('code=c&state=signin.a', 'signin.a');
+    await runCallback('code=c&state=signin.a', 'signin.a');
     expect(tracing.attributes['auth.failure']).toBe('not_configured');
   });
 
   it('says where the round trip failed, whatever the cause', async () => {
     google.token = 'fails';
-    await callback('code=c&state=signin.a', 'signin.a');
+    await runCallback('code=c&state=signin.a', 'signin.a');
     expect(tracing.attributes).toMatchObject({
       'auth.step': 'exchange',
       'auth.failure': 'token_exchange_failed',
     });
     google.token = 'ok';
     google.userinfo = 'fails';
-    await callback('code=c&state=signin.a', 'signin.a');
+    await runCallback('code=c&state=signin.a', 'signin.a');
     expect(tracing.attributes).toMatchObject({
       'auth.step': 'userinfo',
       'auth.failure': 'userinfo_failed',
     });
     google.userinfo = 'ok';
     completeSignIn.mockRejectedValueOnce(new Error('boom'));
-    await callback('code=c&state=signin.a', 'signin.a');
+    await runCallback('code=c&state=signin.a', 'signin.a');
     expect(tracing.attributes).toMatchObject({
       'auth.step': 'finish',
       'auth.failure': 'finish_failed',
@@ -212,7 +212,7 @@ describe('the error context of the callback handler', () => {
 
   it('never puts the state, the code, a token or Google’s text in the context', async () => {
     google.token = 'fails';
-    await callback('code=the-code&state=signin.a', 'signin.a');
+    await runCallback('code=the-code&state=signin.a', 'signin.a');
     const everything = JSON.stringify(tracing.attributes);
     for (const secret of ['the-code', 'signin.a', 'SECRET-DETAIL', 'at']) {
       expect(everything).not.toContain(secret);

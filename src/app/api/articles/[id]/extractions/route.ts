@@ -1,7 +1,7 @@
 /**
  * Fetching an article's text again from its page.
  *
- *   POST /api/articles/:id/extractions → 200
+ * POST /api/articles/:id/extractions → 200.
  *
  * The behaviour lives in the `articleExtractions` controller; this file only
  * mounts it.

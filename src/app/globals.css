@@ -427,11 +427,11 @@ body {
     flex-shrink: 0;
   }
 
-  /* eslint-disable css/use-baseline -- a browser without it keeps its own tick colour, which is fine. */
-  input:is([type='checkbox'], [type='radio']):not([role='switch']) {
-    accent-color: var(--color-accent);
+  @supports (accent-color: auto) {
+    input:is([type='checkbox'], [type='radio']):not([role='switch']) {
+      accent-color: var(--color-accent);
+    }
   }
-  /* eslint-enable css/use-baseline */
 
   input:is([type='checkbox'], [type='radio']):focus-visible {
     outline: 2px solid var(--color-ink);

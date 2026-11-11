@@ -28,7 +28,7 @@ export const MAX_ITEMS = 100;
 /** The next rate up or down, staying within the ones offered. */
 export function stepRate(rate: number, move: 'up' | 'down'): number {
   const at = RATES.findIndex((r) => r >= rate);
-  const here = at < 0 ? RATES.length - 1 : at;
+  const here = at === -1 ? RATES.length - 1 : at;
   const to = move === 'up' ? here + 1 : here - 1;
   return RATES[Math.min(RATES.length - 1, Math.max(0, to))]!;
 }

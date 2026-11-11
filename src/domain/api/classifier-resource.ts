@@ -63,22 +63,21 @@ export function classifierResource(
   const created = classifier.created_at
     ? rfc3339(classifier.created_at)
     : undefined;
+  let score: ClassifierResource['score'];
+  if (classifier.score > 0) score = 'like';
+  else if (classifier.score <= -2) score = 'super_dislike';
+  else score = 'dislike';
   return {
     id: String(classifier.id),
     kind: classifier.kind,
     value: classifier.value,
-    score:
-      classifier.score > 0
-        ? 'like'
-        : classifier.score <= -2
-          ? 'super_dislike'
-          : 'dislike',
-    ...(classifier.scope_feed_id !== null
-      ? { feed_id: String(classifier.scope_feed_id) }
-      : {}),
-    ...(classifier.scope_section_id !== null
-      ? { section_id: String(classifier.scope_section_id) }
-      : {}),
+    score,
+    ...(classifier.scope_feed_id === null
+      ? {}
+      : { feed_id: String(classifier.scope_feed_id) }),
+    ...(classifier.scope_section_id === null
+      ? {}
+      : { section_id: String(classifier.scope_section_id) }),
     is_regex: classifier.is_regex === 1,
     ...(created ? { created_at: created } : {}),
   };
@@ -122,12 +121,18 @@ export function parseClassifierInput(
     errors.push('value: too long.');
   else if (kind === 'feed' && parseFeedId(value.trim()) === undefined)
     errors.push('value: a feed classifier names a feed id.');
+  else {
+    // A value that is fine for this kind: nothing to report.
+  }
   if (typeof score !== 'string' || !Object.hasOwn(SCORES, score))
     errors.push('score: must be like, dislike or super_dislike.');
   else if (kind === 'prompt' && score === 'super_dislike')
     errors.push(
       'score: a prompt classifier is like (focus) or dislike (hidden).',
     );
+  else {
+    // A score that is fine for this kind: nothing to report.
+  }
   const regex = body['is_regex'];
   if (regex !== undefined && typeof regex !== 'boolean')
     errors.push('is_regex: must be true or false.');
@@ -136,6 +141,8 @@ export function parseClassifierInput(
   else if (regex && typeof value === 'string') {
     const problem = regexProblem(value.trim());
     if (problem) errors.push(`value: ${problem}.`);
+  } else {
+    // Not a regex, or nothing to check: nothing to report.
   }
   const scope = (key: 'feed_id' | 'section_id'): number | undefined => {
     const raw = body[key];
@@ -148,7 +155,7 @@ export function parseClassifierInput(
   const sectionId = scope('section_id');
   if (feedId !== undefined && sectionId !== undefined)
     errors.push('section_id: a classifier is scoped to a feed or a section.');
-  return errors.length
+  return errors.length > 0
     ? { ok: false, errors }
     : {
         ok: true,
@@ -156,8 +163,8 @@ export function parseClassifierInput(
           kind: kind as string,
           value: (value as string).trim(),
           score: SCORES[score as Score],
-          ...(feedId !== undefined ? { scope_feed_id: feedId } : {}),
-          ...(sectionId !== undefined ? { scope_section_id: sectionId } : {}),
+          ...(feedId === undefined ? {} : { scope_feed_id: feedId }),
+          ...(sectionId === undefined ? {} : { scope_section_id: sectionId }),
           ...(regex ? { is_regex: true } : {}),
         },
       };

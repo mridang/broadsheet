@@ -58,7 +58,7 @@ async function searchPage(
   const items: ArticleSummary[] = rows.slice(0, query.limit);
   const last = items.at(-1);
   return {
-    items: items.map(articleResource),
+    items: items.map((item) => articleResource(item)),
     ...(rows.length > query.limit && last
       ? { next: { key: String(last.id), id: String(last.id) } }
       : {}),
@@ -159,7 +159,7 @@ export const articleItem = createArticleItem();
 /** The `{id}` of `/api/articles/{id}/...`: the segment before the last. */
 function articleIdOf(request: Request): number | undefined {
   const segments = new URL(request.url).pathname.split('/');
-  return parseFeedId(segments[segments.length - 2] ?? '');
+  return parseFeedId(segments.at(-2) ?? '');
 }
 
 /** How many similar stories `/similar` lists. */
@@ -195,7 +195,7 @@ function similarScope(request: Request): SimilarScope {
   if (scope !== 'followed' && scope !== 'all') {
     errors.push('scope: followed or all.');
   }
-  if (errors.length) {
+  if (errors.length > 0) {
     throw problems.badRequest('The request is not valid.', errors);
   }
   return scope as SimilarScope;
@@ -227,13 +227,13 @@ export function createSimilarArticles(
       const repo = new Repository(getDatabase());
       const article = await repo.getArticle(uid, id);
       if (!article) return undefined;
-      return scope === 'all'
-        ? (
-            (await repo.discoverArticles(uid, article.id, MAX_DISCOVERED)) ?? []
-          ).map(discoveredArticleResource)
-        : (await repo.similarArticles(uid, article, SIMILAR)).map(
-            articleResource,
-          );
+      if (scope === 'all') {
+        const discovered =
+          (await repo.discoverArticles(uid, article.id, MAX_DISCOVERED)) ?? [];
+        return discovered.map((item) => discoveredArticleResource(item));
+      }
+      const similar = await repo.similarArticles(uid, article, SIMILAR);
+      return similar.map((item) => articleResource(item));
     },
     encode: (items) =>
       items

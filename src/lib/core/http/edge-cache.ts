@@ -81,7 +81,7 @@ function allowedQuery(
     names.add(name);
   }
   return new URLSearchParams(
-    entries.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
+    entries.toSorted(([a], [b]) => (a < b ? -1 : Number(a > b))),
   );
 }
 
@@ -127,8 +127,9 @@ export function edgeCacheKey(
 ): Request {
   const url = new URL(request.url);
   const query = allowedQuery(url, allowed)?.toString() ?? '';
+  const search = query ? `?${query}` : '';
   return new Request(
-    `https://edge.${SITE_NAME.toLowerCase()}.invalid/${encodeURIComponent(version)}${url.pathname}${query ? `?${query}` : ''}`,
+    `https://edge.${SITE_NAME.toLowerCase()}.invalid/${encodeURIComponent(version)}${url.pathname}${search}`,
   );
 }
 
@@ -173,7 +174,8 @@ export async function withFreshNonce(
   if (old === undefined) {
     return cached;
   }
-  return new Response((await cached.text()).replaceAll(old, nonce), {
+  const bodyText = await cached.text();
+  return new Response(bodyText.replaceAll(old, nonce), {
     status: cached.status,
     statusText: cached.statusText,
     headers: replacingHeaders(cached.headers, {

@@ -49,7 +49,7 @@ export const MAX_QUESTION_LENGTH = 500;
 export const MAX_TURN_LENGTH = 4000;
 
 /** Characters of an article's text sent with a question about it. */
-const ARTICLE_CONTEXT = 12000;
+const ARTICLE_CONTEXT = 12_000;
 
 /** Earlier turns of a conversation sent with a new question. */
 export const HISTORY_TURNS = 6;
@@ -62,9 +62,12 @@ export const DAILY_LIMITS = {
   transcription: 20,
 } as const;
 
+/** Who wrote one message of a chat prompt. */
+type ChatRole = 'system' | 'user' | 'assistant' | 'tool';
+
 /** One message of a chat prompt. */
 export interface ChatMessage {
-  readonly role: 'system' | 'user' | 'assistant' | 'tool';
+  readonly role: ChatRole;
   readonly content: string;
   readonly name?: string;
 }
@@ -198,11 +201,8 @@ export function cacheKey(
   presetId: string,
   request: Pick<AnswerRequest, 'model' | 'thinking'>,
 ): string {
-  return request.thinking
-    ? `${presetId}:thinking`
-    : request.model === 'fast'
-      ? presetId
-      : `${presetId}:${request.model}`;
+  if (request.thinking) return `${presetId}:thinking`;
+  return request.model === 'fast' ? presetId : `${presetId}:${request.model}`;
 }
 
 /** A checked request body, or what was wrong with it. */
@@ -221,8 +221,10 @@ function questionText(
   else if (!question) errors.push(`${key}: must not be blank.`);
   else if (question.length > MAX_QUESTION_LENGTH) {
     errors.push(`${key}: at most ${MAX_QUESTION_LENGTH} characters.`);
+  } else {
+    // the question is non-blank and within the length limit
   }
-  return errors.length ? undefined : question;
+  return errors.length > 0 ? undefined : question;
 }
 
 /** The names in `body` that are not in `allowed`, as errors. */
@@ -233,6 +235,11 @@ function strangers(
   return Object.keys(body)
     .filter((name) => !allowed.includes(name))
     .map((name) => `${name}: not a member of this request.`);
+}
+
+/** Whether a follow-up turn's role is one a person or the model wrote. */
+function isTurnRole(value: unknown): value is 'user' | 'assistant' {
+  return value === 'user' || value === 'assistant';
 }
 
 /**
@@ -248,11 +255,14 @@ function parseHistory(value: unknown, errors: string[]): ChatMessage[] {
   }
   return value.flatMap((turn: unknown, i) => {
     const t = (turn ?? {}) as Record<string, unknown>;
+    const extraKey = Object.keys(t).some(
+      (k) => k !== 'role' && k !== 'content',
+    );
     if (
-      (t['role'] !== 'user' && t['role'] !== 'assistant') ||
+      !isTurnRole(t['role']) ||
       typeof t['content'] !== 'string' ||
       t['content'].length > MAX_TURN_LENGTH ||
-      Object.keys(t).some((k) => k !== 'role' && k !== 'content')
+      extraKey
     ) {
       errors.push(
         `history[${i}]: must be {role: user|assistant, content} with at most ${MAX_TURN_LENGTH} characters.`,
@@ -303,7 +313,7 @@ export function parseAnswerRequest(
     if (text !== undefined) question = { kind: 'custom', question: text };
   }
   const history = parseHistory(body['history'], errors);
-  return errors.length || !question
+  return errors.length > 0 || !question
     ? { ok: false, errors }
     : {
         ok: true,
@@ -327,7 +337,7 @@ export function parseQuestion(
 ): Checked<string> {
   const errors = strangers(body, [key]);
   const question = questionText(body[key], key, errors);
-  return errors.length || question === undefined
+  return errors.length > 0 || question === undefined
     ? { ok: false, errors }
     : { ok: true, value: question };
 }
@@ -342,7 +352,7 @@ const DATA_ONLY =
  * open one is taken out, so the text cannot break out of it.
  */
 export function storyBlock(attributes: string, text: string): string {
-  const inert = text.replace(/<\/?\s*story\b[^>]*>/gi, '');
+  const inert = text.replaceAll(/<\/?\s*story\b[^>]*>/gi, '');
   return `<story ${attributes}>\n${inert}\n</story>`;
 }
 
@@ -384,9 +394,10 @@ export function articlePrompt(
 
 /** A passage as a story element the assistant can cite by its id. */
 export function passageBlock(p: Passage): string {
+  const annotationLine = p.annotation ? `\n${p.annotation}` : '';
   return storyBlock(
     `id="${p.id}"`,
-    `${p.title ?? ''} (${p.source ?? ''}, ${p.date ?? 'undated'})\n${p.summary ?? ''}\n${p.text}${p.annotation ? `\n${p.annotation}` : ''}`,
+    `${p.title ?? ''} (${p.source ?? ''}, ${p.date ?? 'undated'})\n${p.summary ?? ''}\n${p.text}${annotationLine}`,
   );
 }
 
@@ -401,7 +412,7 @@ export function archivePrompt(
   question: string,
   today: string,
 ): ChatMessage[] {
-  const found = passages.map(passageBlock).join('\n\n');
+  const found = passages.map((passage) => passageBlock(passage)).join('\n\n');
   return [
     {
       role: 'system',
@@ -442,9 +453,14 @@ export function citedIds(
 }
 
 /** Thrown when the model could not be asked or gave no answer. */
-export class AnswerUnavailable extends Error {}
+export class AnswerUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'AnswerUnavailableError';
+  }
+}
 
-/** Ask the model once; its raw reply, or {@link AnswerUnavailable}. */
+/** Ask the model once; its raw reply, or {@link AnswerUnavailableError}. */
 async function ask(
   model: AnswerModel | undefined,
   name: ModelId | typeof TRANSCRIPTION_MODEL,
@@ -454,7 +470,7 @@ async function ask(
   tool_calls?: unknown;
   text?: unknown;
 } | null> {
-  if (!model) throw new AnswerUnavailable('No model is bound.');
+  if (!model) throw new AnswerUnavailableError('No model is bound.');
   try {
     return (await model.run(name, input)) as {
       response?: unknown;
@@ -462,52 +478,52 @@ async function ask(
       text?: unknown;
     } | null;
   } catch (error) {
-    throw new AnswerUnavailable(
+    throw new AnswerUnavailableError(
       error instanceof Error ? error.message : String(error),
     );
   }
 }
 
-/** The text of a reply, or {@link AnswerUnavailable} when there is none. */
+/** The text of a reply, or {@link AnswerUnavailableError} when there is none. */
 function replyText(out: { response?: unknown } | null): string {
   const response = out?.response;
   if (typeof response !== 'string' || !response.trim()) {
-    throw new AnswerUnavailable('The model gave no answer.');
+    throw new AnswerUnavailableError('The model gave no answer.');
   }
   return response.trim();
 }
 
 /** A reply with the reasoning of a thinking model (`<think>…</think>`) taken out. */
 export function withoutThinking(text: string): string {
-  return text.replace(/<think>[\s\S]*?(<\/think>|$)/g, '').trim();
+  return text.replaceAll(/<think>[\s\S]*?(<\/think>|$)/g, '').trim();
 }
 
-/** Ask the model (`fast` unless named); the text of its reply, or {@link AnswerUnavailable}. */
+/** Ask the model (`fast` unless named); the text of its reply, or {@link AnswerUnavailableError}. */
 export async function complete(
   model: AnswerModel | undefined,
   messages: ChatMessage[],
   name: ModelId = ANSWER_MODEL,
 ): Promise<string> {
   const text = withoutThinking(replyText(await ask(model, name, { messages })));
-  if (!text) throw new AnswerUnavailable('The model gave no answer.');
+  if (!text) throw new AnswerUnavailableError('The model gave no answer.');
   return text;
 }
 
 /**
  * Ask the model for a streamed reply: the pieces of its text as they come.
- * Throws {@link AnswerUnavailable} when the model cannot be asked.
+ * Throws {@link AnswerUnavailableError} when the model cannot be asked.
  */
 export async function* streamAnswer(
   model: AnswerModel | undefined,
   messages: ChatMessage[],
   name: ModelId = ANSWER_MODEL,
 ): AsyncGenerator<string> {
-  if (!model) throw new AnswerUnavailable('No model is bound.');
+  if (!model) throw new AnswerUnavailableError('No model is bound.');
   let out: unknown;
   try {
     out = await model.run(name, { messages, stream: true });
   } catch (error) {
-    throw new AnswerUnavailable(
+    throw new AnswerUnavailableError(
       error instanceof Error ? error.message : String(error),
     );
   }
@@ -537,34 +553,41 @@ export async function* modelStreamText(
     const lines = buffered.split('\n');
     buffered = done ? '' : (lines.pop() ?? '');
     for (const line of lines) {
-      const data = line.startsWith('data:') ? line.slice(5).trim() : '';
-      if (!data || data === '[DONE]') continue;
-      try {
-        const piece = (JSON.parse(data) as { response?: unknown }).response;
-        if (typeof piece === 'string' && piece) yield piece;
-      } catch {
-        // A line that is not JSON carries no text.
-      }
+      const piece = pieceOfLine(line);
+      if (piece) yield piece;
     }
     if (done) return;
+  }
+}
+
+/** The text piece of one event line, or undefined when it carries none. */
+function pieceOfLine(line: string): string | undefined {
+  const data = line.startsWith('data:') ? line.slice(5).trim() : '';
+  if (!data || data === '[DONE]') return undefined;
+  try {
+    const piece = (JSON.parse(data) as { response?: unknown }).response;
+    return typeof piece === 'string' ? piece : undefined;
+  } catch {
+    // A line that is not JSON carries no text.
+    return undefined;
   }
 }
 
 /** Largest recording accepted for a spoken question, in bytes. */
 export const MAX_AUDIO_BYTES = 10 * 1024 * 1024;
 
-/** Turn a spoken question into text with Whisper, or {@link AnswerUnavailable}. */
+/** Turn a spoken question into text with Whisper, or {@link AnswerUnavailableError}. */
 export async function transcribe(
   model: AnswerModel | undefined,
   audio: Uint8Array,
 ): Promise<string> {
   let binary = '';
-  for (let i = 0; i < audio.length; i += 0x8000) {
-    binary += String.fromCharCode(...audio.subarray(i, i + 0x8000));
+  for (let i = 0; i < audio.length; i += 0x80_00) {
+    binary += String.fromCodePoint(...audio.subarray(i, i + 0x80_00));
   }
   const out = await ask(model, TRANSCRIPTION_MODEL, { audio: btoa(binary) });
   const text = typeof out?.text === 'string' ? out.text.trim() : '';
-  if (!text) throw new AnswerUnavailable('Nothing could be heard.');
+  if (!text) throw new AnswerUnavailableError('Nothing could be heard.');
   return text;
 }
 
@@ -618,13 +641,14 @@ export async function converse(
       ...(round < MAX_TOOL_ROUNDS ? { tools } : {}),
     });
     const calls = round < MAX_TOOL_ROUNDS ? toolCallsOf(out) : [];
-    if (!calls.length) return replyText(out);
+    if (calls.length === 0) return replyText(out);
     for (const call of calls) {
       thread.push({ role: 'assistant', content: JSON.stringify(call) });
-      thread.push({ role: 'tool', name: call.name, content: await run(call) });
+      const content = await run(call);
+      thread.push({ role: 'tool', name: call.name, content });
     }
   }
-  throw new AnswerUnavailable('The assistant did not answer.');
+  throw new AnswerUnavailableError('The assistant did not answer.');
 }
 
 /** The UTC day `now` falls in, as stored timestamps write it, and the seconds until the next. */

@@ -128,7 +128,6 @@ export function IconButton({
     <button
       type="button"
       aria-label={label}
-      title={label}
       className={cn(
         'focus-ring inline-flex shrink-0 items-center justify-center rounded-control text-muted transition-colors',
         'hover:bg-ink/5 hover:text-ink active:bg-ink/10',

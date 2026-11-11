@@ -66,10 +66,11 @@ describe('D1OAuthStore', () => {
       expiresAt: 10,
     });
     await store.revokeGrant('g1');
-    expect([
-      (await store.findGrant('g1'))?.revoked,
-      await store.findToken('t'),
-    ]).toEqual([true, undefined]);
+    const grantAfter = await store.findGrant('g1');
+    expect([grantAfter?.revoked, await store.findToken('t')]).toEqual([
+      true,
+      undefined,
+    ]);
   });
 
   it('finds a token and gives it back only once when taken', async () => {

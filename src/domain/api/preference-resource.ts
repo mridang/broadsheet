@@ -61,17 +61,21 @@ export const WEEKDAYS: readonly string[] = [
   'sat',
 ];
 /** The times of day a briefing may come at, besides one written HH:MM. */
-const TIMES: readonly string[] = ['auto', 'morning', 'afternoon', 'evening'];
+const TIMES: ReadonlySet<string> = new Set([
+  'auto',
+  'morning',
+  'afternoon',
+  'evening',
+]);
 
 /** The API's view of a person's preferences. */
 export function preferencesResource(p: Preferences): PreferencesResource {
   const order = [
-    ...new Set([
-      ...(p.briefing_section_order ?? []).filter((k): k is Category =>
+    ...new Set(
+      (p.briefing_section_order ?? []).filter((k): k is Category =>
         CATEGORIES.includes(k as Category),
       ),
-      ...CATEGORIES,
-    ]),
+    ).union(new Set(CATEGORIES)),
   ];
   return {
     story_clustering: p.story_clustering,
@@ -109,7 +113,7 @@ export type PreferenceChangesInput =
   | { readonly ok: true; readonly changes: Partial<Preferences> }
   | { readonly ok: false; readonly errors: readonly string[] };
 
-const TOP = [
+const TOP = new Set([
   'story_clustering',
   'cluster_mode',
   'cluster_mark_read',
@@ -120,8 +124,8 @@ const TOP = [
   'mark_read_on_open',
   'auto_mark_read_days',
   'mark_read_on_scroll',
-];
-const BRIEFING = [
+]);
+const BRIEFING = new Set([
   'enabled',
   'story_count',
   'length',
@@ -136,7 +140,7 @@ const BRIEFING = [
   'sections',
   'section_order',
   'prompts',
-];
+]);
 
 /** `value` when it is one of `allowed`, else undefined. */
 const oneOf = <T extends string>(
@@ -154,7 +158,7 @@ function briefingChanges(
   errors: string[],
 ): void {
   for (const key of Object.keys(brief)) {
-    if (!BRIEFING.includes(key)) {
+    if (!BRIEFING.has(key)) {
       errors.push(`briefing.${key}: not a briefing preference.`);
     }
   }
@@ -211,7 +215,7 @@ function briefingChanges(
     const t = brief['time'];
     if (
       typeof t === 'string' &&
-      (TIMES.includes(t) || clockMinutes(t) !== undefined)
+      (TIMES.has(t) || clockMinutes(t) !== undefined)
     ) {
       changes.briefing_time = t;
     } else {
@@ -294,7 +298,7 @@ export function parsePreferenceChanges(
   const errors: string[] = [];
   const changes: Changes = {};
   for (const key of Object.keys(body)) {
-    if (!TOP.includes(key)) errors.push(`${key}: not a preference.`);
+    if (!TOP.has(key)) errors.push(`${key}: not a preference.`);
   }
   for (const key of [
     'story_clustering',
@@ -355,7 +359,7 @@ export function parsePreferenceChanges(
       briefingChanges(b as Record<string, unknown>, changes, errors);
     }
   }
-  return errors.length ? { ok: false, errors } : { ok: true, changes };
+  return errors.length > 0 ? { ok: false, errors } : { ok: true, changes };
 }
 
 /** The section a `section:{id}` source names, or undefined for `all`. */

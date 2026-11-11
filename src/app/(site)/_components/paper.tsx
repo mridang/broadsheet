@@ -12,12 +12,12 @@ export function Paper({
   articles,
   briefing,
   personal,
-}: {
+}: Readonly<{
   layout: Layout;
   articles: ReadonlyMap<number, Article>;
   briefing: string | null;
   personal?: Personal;
-}) {
+}>) {
   return (
     <>
       {briefing ? (

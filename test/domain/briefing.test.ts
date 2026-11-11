@@ -148,7 +148,7 @@ describe('selectStories', () => {
       [...five, ...[6, 7, 8].map((id) => candidate({ id, liked: true }))],
       { ...prefs, briefing_read_filter: 'focus' },
     );
-    expect(ids(picks).toSorted()).toEqual([6, 7, 8]);
+    expect(ids(picks).toSorted((a, b) => a - b)).toEqual([6, 7, 8]);
   });
 
   it(`writes nothing for fewer than ${MIN_BRIEFED} stories`, () => {
@@ -214,7 +214,7 @@ const picks: Choice[] = [
 
 describe('sectionsOf', () => {
   it('lists the sections in print order', () => {
-    expect(sectionsOf([...picks].reverse())).toEqual([
+    expect(sectionsOf([...picks].toReversed())).toEqual([
       'top_stories',
       'widely_covered',
     ]);
@@ -233,20 +233,20 @@ describe('systemPrompt', () => {
     ['short', 'under 300 words'],
     ['medium', 'under 600 words'],
     ['detailed', 'up to 1000 words'],
-  ] as const)('asks for the %s length', (briefing_length, wording) => {
-    expect(systemPrompt(picks, { ...prefs, briefing_length })).toContain(
-      wording,
-    );
+  ] as const)('asks for the %s length', (briefingLength, wording) => {
+    expect(
+      systemPrompt(picks, { ...prefs, briefing_length: briefingLength }),
+    ).toContain(wording);
   });
 
   it.each([
     ['editorial', 'flowing prose'],
     ['bullets', 'starting with "• "'],
     ['headlines', 'just its headline'],
-  ] as const)('asks for the %s style', (briefing_style, wording) => {
-    expect(systemPrompt(picks, { ...prefs, briefing_style })).toContain(
-      wording,
-    );
+  ] as const)('asks for the %s style', (briefingStyle, wording) => {
+    expect(
+      systemPrompt(picks, { ...prefs, briefing_style: briefingStyle }),
+    ).toContain(wording);
   });
 
   it('asks for plain text only', () => {
@@ -462,7 +462,7 @@ describe('selectStories with the reader’s settings', () => {
       ],
       { ...prefs, briefing_read_filter: 'focus' },
     );
-    expect(ids(picks).toSorted()).toEqual([7, 8, 9]);
+    expect(ids(picks).toSorted((a, b) => a - b)).toEqual([7, 8, 9]);
   });
 
   it('covers read stories when the reader includes them', () => {
@@ -619,8 +619,7 @@ describe('composeBriefing', () => {
 
   it('reports no tokens when the model does not say', async () => {
     const { env } = envWith('Note.');
-    expect(
-      (await composeBriefing(env, picks, prefs, '2026-11-01', noWait)).tokens,
-    ).toBeNull();
+    const out = await composeBriefing(env, picks, prefs, '2026-11-01', noWait);
+    expect(out.tokens).toBeNull();
   });
 });

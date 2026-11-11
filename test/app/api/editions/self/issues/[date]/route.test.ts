@@ -112,7 +112,8 @@ describe('GET /api/editions/self/issues/:date', () => {
       value: 'rust',
       score: 1,
     });
-    expect((await copyOf(await get(DAY)))['score']).toBe(1);
+    const copy = await copyOf(await get(DAY));
+    expect(copy['score']).toBe(1);
   });
 
   it('shows the picture and opening with the expanded preview', async () => {
@@ -136,6 +137,7 @@ describe('GET /api/editions/self/issues/:date', () => {
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await get(DAY)).status).toBe(401);
+    const res = await get(DAY);
+    expect(res.status).toBe(401);
   });
 });
