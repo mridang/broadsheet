@@ -78,7 +78,6 @@ export function sqliteD1(...migrations: readonly string[]): {
   const raw = new DatabaseSync(':memory:');
   migrations.forEach((file) =>
     raw.exec(
-      // eslint-disable-next-line n/no-sync -- sqliteD1 is a synchronous factory with ~65 callers, and module-level await here breaks jest resolution of node:sqlite
       readFileSync(path.join(process.cwd(), 'migrations', file), 'utf8'),
     ),
   );

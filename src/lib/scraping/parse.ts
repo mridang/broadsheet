@@ -166,7 +166,7 @@ function xmlText(raw: string): string {
       const n = /^x/i.test(code)
         ? Number.parseInt(code.slice(1), 16)
         : Number(code);
-      // eslint-disable-next-line unicorn/number-literal-case -- conflicts with Prettier formatting
+
       return n > 0 && n <= 0x10_ff_ff ? String.fromCodePoint(n) : whole;
     })
     .replaceAll('&lt;', '<')

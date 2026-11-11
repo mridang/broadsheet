@@ -17,7 +17,6 @@ type PushState = 'unsupported' | 'loading' | 'off' | { readonly id: string };
 
 /** The browser's push manager, once the service worker is ready. */
 async function environment(): Promise<PushEnvironment> {
-  // eslint-disable-next-line n/no-unsupported-features/node-builtins -- experimental API used on purpose: navigator is the browser global in this client component
   const registration = await navigator.serviceWorker.ready;
   return {
     pushManager: registration.pushManager,
@@ -40,7 +39,6 @@ export function PushSettings({
 
   useEffect(() => {
     const supported =
-      // eslint-disable-next-line n/no-unsupported-features/node-builtins -- experimental API used on purpose: navigator is the browser global in this client component
       'serviceWorker' in navigator && 'PushManager' in globalThis;
     void (supported ? environment() : Promise.reject(new Error('unsupported')))
       .then((env) => env.pushManager.getSubscription())

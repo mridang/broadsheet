@@ -106,7 +106,6 @@ describe('readBodyText', () => {
 
   it('calls invalid UTF-8 unreadable', async () => {
     expect(
-      // eslint-disable-next-line unicorn/number-literal-case -- conflicts with Prettier formatting
       await readBodyText(chunked([new Uint8Array([0xff, 0xfe])]), 100),
     ).toEqual({ kind: 'unreadable' });
   });
@@ -124,7 +123,7 @@ describe('readJsonBody', () => {
     expect(await readJsonBody(chunked(['{nope']), 100)).toEqual({
       kind: 'unparseable',
     });
-    // eslint-disable-next-line unicorn/number-literal-case -- conflicts with Prettier formatting
+
     expect(await readJsonBody(chunked([new Uint8Array([0xff])]), 100)).toEqual({
       kind: 'unparseable',
     });

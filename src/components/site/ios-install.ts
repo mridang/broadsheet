@@ -104,7 +104,7 @@ export type InstallHost = Readonly<{
     Readonly<{ standalone?: boolean }>;
   matchMedia: (query: string) => Readonly<{ matches: boolean }>;
   /** `localStorage`, which may be missing or throw (private windows, blocked storage). */
-  // eslint-disable-next-line n/no-unsupported-features/node-builtins -- experimental API used on purpose
+
   storage: () => Pick<Storage, 'getItem' | 'setItem'> | undefined;
 }>;
 

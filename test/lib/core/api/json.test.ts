@@ -131,7 +131,7 @@ describe('readJson size limit', () => {
     const bad = new Request('http://localhost/x', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      // eslint-disable-next-line unicorn/number-literal-case -- conflicts with Prettier formatting
+
       body: new Uint8Array([0x22, 0xff, 0x22]),
     });
     const notUtf8 = await refusal(await readJson(bad));

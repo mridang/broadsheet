@@ -40,7 +40,6 @@ export function VoiceButton({
   );
   if (!supported) return null;
   const start = async (): Promise<void> => {
-    // eslint-disable-next-line n/no-unsupported-features/node-builtins -- browser navigator in a client component, not Node's experimental global
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     const chunks: Blob[] = [];
     const rec = new MediaRecorder(stream);
