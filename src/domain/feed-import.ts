@@ -89,15 +89,14 @@ export async function importFeeds(
     }
     return parent;
   };
-  // eslint-disable-next-line sonarjs/too-many-break-or-continue-in-loop -- each entry leaves the loop at its own early exit (rejected, already filed, or skipped), and one exit would need a large rewrite
-  for (const entry of entries) {
+  const importEntry = async (entry: OpmlFeed): Promise<void> => {
     const checked = parseFeedInput({ url: entry.url });
     if (!checked.ok) {
       rejected.push({
         url: entry.url.slice(0, 200),
         reason: checked.errors[0] ?? 'not valid.',
       });
-      continue;
+      return;
     }
     const address = comparable(checked.url);
     const site = comparable(entry.site_url);
@@ -114,7 +113,7 @@ export async function importFeeds(
         added.set(address, filed);
         feeds[feeds.indexOf(again)] = filed;
       }
-      continue;
+      return;
     }
     const name = entry.title?.trim().toLowerCase() ?? '';
     const knownFeed =
@@ -125,13 +124,13 @@ export async function importFeeds(
       (await repo.getFeedByUrl(uid, checked.url))
     ) {
       skipped += 1;
-      continue;
+      return;
     }
     const title = entry.title?.slice(0, MAX_NAME_LENGTH);
     const feed = await repo.addFeed(uid, checked.url, title);
     if (!feed) {
       rejected.push({ url: checked.url, reason: 'could not be added.' });
-      continue;
+      return;
     }
     addresses.add(address);
     if (name !== '') titles.add(name);
@@ -148,6 +147,9 @@ export async function importFeeds(
         : feed;
     feeds.push(filed);
     added.set(address, filed);
+  };
+  for (const entry of entries) {
+    await importEntry(entry);
   }
   return {
     added: feeds.length,
