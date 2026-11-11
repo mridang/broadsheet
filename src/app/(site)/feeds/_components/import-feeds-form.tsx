@@ -45,8 +45,7 @@ export function ImportFeedsForm(): ReactElement {
           <input
             name="file"
             type="file"
-            // eslint-disable-next-line unicorn/no-invalid-file-input-accept -- the test pins the compact form
-            accept=".opml,.xml,text/x-opml,text/xml"
+            accept=".opml, .xml, text/x-opml, text/xml"
             aria-label="OPML file"
             className="sr-only"
             required
