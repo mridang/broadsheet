@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from '@jest/globals';
 import { sql } from 'drizzle-orm';
-// eslint-disable-next-line n/no-unsupported-features/node-builtins -- experimental API used on purpose
+
 import type { DatabaseSync } from 'node:sqlite';
 
 import { ShareRepository } from '@/domain/shares';

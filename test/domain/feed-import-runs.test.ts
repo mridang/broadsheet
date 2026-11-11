@@ -5,7 +5,7 @@ import { FeedImportRuns } from '@/domain/feed-import-runs';
 import { Repository } from '@/domain/repository';
 import { APP_MIGRATIONS } from '../lib/core/db/migrations';
 import { sqliteD1 } from '../lib/core/db/sqlite-d1';
-// eslint-disable-next-line n/no-unsupported-features/node-builtins -- experimental API used on purpose
+
 import type { DatabaseSync } from 'node:sqlite';
 
 let runs: FeedImportRuns;
