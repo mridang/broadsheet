@@ -15,8 +15,7 @@ async function signOut(): Promise<void> {
   } catch {
     // Nothing to do about it here: the front page below shows what is true.
   }
-  // eslint-disable-next-line unicorn/prefer-global-this -- tests stub window, not globalThis.location
-  window.location.assign('/');
+  globalThis.window.location.assign('/');
 }
 
 /** "Sign out", the last item of the account menu in the top bar. */

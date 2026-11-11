@@ -12,7 +12,7 @@ describe('SkipLink', () => {
 
   it('stays out of sight until it has focus', () => {
     const out = html(<SkipLink />);
-    expect(out).toContain('sr-only');
-    expect(out).toContain('focus:not-sr-only');
+    expect(out).toContain('-top-20');
+    expect(out).toContain('focus:top-2');
   });
 });
