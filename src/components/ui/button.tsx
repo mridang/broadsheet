@@ -125,11 +125,9 @@ export function IconButton({
   } & Omit<ComponentProps<'button'>, 'aria-label'>
 >): ReactElement {
   return (
-    // eslint-disable-next-line github/a11y-no-title-attribute -- icon-only buttons keep the native tooltip for sighted users; aria-label supplies the accessible name
     <button
       type="button"
       aria-label={label}
-      title={label}
       className={cn(
         'focus-ring inline-flex shrink-0 items-center justify-center rounded-control text-muted transition-colors',
         'hover:bg-ink/5 hover:text-ink active:bg-ink/10',

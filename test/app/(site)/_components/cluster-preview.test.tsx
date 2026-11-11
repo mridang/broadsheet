@@ -25,7 +25,8 @@ describe('ClusterBadge', () => {
   it('counts the other sources and names them', () => {
     const out = html(<ClusterBadge siblings={siblings} />);
     expect(out).toContain('+2 sources');
-    expect(out).toContain('title="Also told by B, "');
+    expect(out).toContain('>Also told by B, </span>');
+    expect(out).not.toContain('title=');
   });
 
   it('says source for one', () => {
