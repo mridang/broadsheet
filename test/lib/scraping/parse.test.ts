@@ -458,3 +458,22 @@ describe('articleText heading glyphs', () => {
     );
   });
 });
+
+describe('feedHeader attribute names', () => {
+  it('reads dashed, dotted and namespaced names and both quote styles', () => {
+    const xml = `<rss><channel><x a-b.c:d = "1" e='2' f="3"/></channel></rss>`;
+    expect(feedHeader(xml)[0]?.attributes).toEqual({
+      'a-b.c:d': '1',
+      e: '2',
+      f: '3',
+    });
+  });
+
+  it('reads a very long attribute name quickly', () => {
+    const name = 'a'.repeat(50_000);
+    const xml = `<rss><channel><x ${name}="1"/></channel></rss>`;
+    const started = Date.now();
+    expect(feedHeader(xml)[0]?.attributes[name]).toBe('1');
+    expect(Date.now() - started).toBeLessThan(2000);
+  });
+});

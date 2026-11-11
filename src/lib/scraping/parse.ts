@@ -221,8 +221,7 @@ export function feedHeader(xml: string): FeedElement[] {
       if (count > MAX_HEADER_ELEMENTS * 50) break;
       const attributes: Record<string, string> = {};
       for (const a of (m[4] ?? '').matchAll(
-        // eslint-disable-next-line sonarjs/super-linear-regex -- the attribute text was already matched by the token pattern, so the scan stays short
-        /([\w:.-]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g,
+        /(?<![\w:.-])([\w:.-]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g,
       )) {
         attributes[a[1] ?? ''] = xmlText(a[2] ?? a[3] ?? '');
       }
