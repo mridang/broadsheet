@@ -1657,11 +1657,7 @@ export class Repository {
       limit,
     }: ArticleQuery,
   ): Promise<ArticleSummary[]> {
-    const host = domain
-      ?.trim()
-      .toLowerCase()
-      // eslint-disable-next-line sonarjs/super-linear-regex -- the host comes from a short search term, so the dot runs are short and the scan stays cheap
-      .replaceAll(/^\.+|\.+$/g, '');
+    const host = trimDots(domain?.trim().toLowerCase());
     const match = ftsQuery(q);
     const hostLike = (pattern: string) =>
       sql`lower(${articles.url}) like ${pattern}`;
@@ -4346,4 +4342,14 @@ export function autoMarkReadDays(
       return at.auto_mark_read_days || undefined;
   }
   return person || undefined;
+}
+
+/** Drops leading and trailing dots; same as `.replaceAll(/^\.+|\.+$/g, '')`, in linear time. */
+function trimDots(text: string | undefined): string | undefined {
+  if (text === undefined) return undefined;
+  let start = 0;
+  let end = text.length;
+  while (start < end && text[start] === '.') start += 1;
+  while (end > start && text[end - 1] === '.') end -= 1;
+  return text.slice(start, end);
 }

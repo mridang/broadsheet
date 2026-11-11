@@ -13,9 +13,7 @@ import type { ScrapedItem } from './types';
 const MAX_PER_FEED = 100;
 
 export const decode = (s = ''): string =>
-  decodeEntities(s.replaceAll(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1'))
-    // eslint-disable-next-line sonarjs/super-linear-regex -- the stripped text must match what the feed holds; a linear pattern would remove different markup
-    .replaceAll(/<[^>]+>/g, '')
+  stripTags(decodeEntities(s.replaceAll(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')))
     .replaceAll(/\s+/g, ' ')
     .trim();
 
@@ -499,10 +497,6 @@ const MAX_BODY = 60_000;
 const NOT_STORY =
   /<(script|style|noscript|svg|template|nav|header|footer|aside|form|iframe|button)\b[\s\S]*?<\/\1>/gi;
 
-/** The permalink glyph many sites put at either end of a heading (`#`, `¶`, `§`). */
-// eslint-disable-next-line sonarjs/super-linear-regex -- headings are short; the trailing glyph check runs once per heading
-const PERMALINK = /^[#¶§]+\s*|\s*[#¶§]+$/g;
-
 /** The inside of the first `<name>` element, or undefined when there is none. */
 function region(html: string, name: string): string | undefined {
   return new RegExp(String.raw`<${name}\b[^>]*>([\s\S]*)</${name}>`, 'i').exec(
@@ -531,8 +525,37 @@ export function articleText(html: string): string {
   )) {
     const heading = /^h/i.test(m[1] ?? '');
     const raw = decode(m[2] ?? '');
-    const text = heading ? raw.replaceAll(PERMALINK, '').trim() : raw;
+    const text = heading ? withoutPermalink(raw) : raw;
     if (heading ? text : text.split(' ').length >= 4) blocks.push(text);
   }
   return blocks.join('\n\n').slice(0, MAX_BODY);
+}
+
+/** Drops the permalink glyph many sites put at either end of a heading (`#`, `¶`, `§`), then trims it. */
+function withoutPermalink(heading: string): string {
+  const glyph = (c: string | undefined) => c !== undefined && '#¶§'.includes(c);
+  let start = 0;
+  let end = heading.length;
+  while (glyph(heading[start])) start += 1;
+  while (end > start && glyph(heading[end - 1])) end -= 1;
+  return heading.slice(start, end).trim();
+}
+
+/** Removes every `<...>` run of one or more characters; same as `replaceAll(/<[^>]+>/g, '')`, in linear time. */
+function stripTags(html: string): string {
+  let out = '';
+  let from = 0;
+  let open = html.indexOf('<');
+  while (open !== -1) {
+    const close = html.indexOf('>', open + 1);
+    if (close === -1) break;
+    if (close === open + 1) {
+      open = html.indexOf('<', close);
+    } else {
+      out += html.slice(from, open);
+      from = close + 1;
+      open = html.indexOf('<', from);
+    }
+  }
+  return out + html.slice(from);
 }

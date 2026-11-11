@@ -18,13 +18,7 @@ interface Declared {
 /** The longest side a `sizes` value names (`32x32 192x192` → 192; `any` → 512). */
 function largest(sizes: string): number {
   if (/\bany\b/i.test(sizes)) return 512;
-  return Math.max(
-    0,
-    // eslint-disable-next-line sonarjs/super-linear-regex -- the sizes attribute is short, so the digit runs cannot backtrack far
-    ...[...sizes.matchAll(/(\d+)x(\d+)/gi)].map((m) =>
-      Math.max(Number(m[1]), Number(m[2])),
-    ),
-  );
+  return Math.max(0, ...sizePairs(sizes).map(([w, h]) => Math.max(w, h)));
 }
 
 /** An address made absolute against `base`, or undefined when it is not one. */
@@ -140,4 +134,20 @@ export async function firstWorkingIcon(
     }
   }
   return '';
+}
+
+/** The `WxH` pairs of a sizes attribute, left to right, none sharing a digit run. */
+function sizePairs(sizes: string): [number, number][] {
+  const out: [number, number][] = [];
+  const parts = [...sizes.matchAll(/\d+|x/gi)];
+  for (let i = 0; i + 2 < parts.length; i += 1) {
+    const [a, x, b] = [parts[i]!, parts[i + 1]!, parts[i + 2]!];
+    const isX = (m: RegExpExecArray | RegExpMatchArray) =>
+      m[0].toLowerCase() === 'x';
+    if (!isX(a) && isX(x) && !isX(b) && b.index === a.index + a[0].length + 1) {
+      out.push([Number(a[0]), Number(b[0])]);
+      i += 2;
+    }
+  }
+  return out;
 }

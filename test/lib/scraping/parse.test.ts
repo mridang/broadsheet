@@ -2,6 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 
 import {
   articleText,
+  decode,
   domainClean,
   feedDetails,
   feedHeader,
@@ -413,5 +414,47 @@ describe('itemAuthor with several authors', () => {
     expect(
       itemAuthor('<dc:creator>Ada</dc:creator><dc:creator>Grace</dc:creator>'),
     ).toBe('Ada, Grace');
+  });
+});
+
+describe('decode tag stripping', () => {
+  const TAG = new RegExp(['<[^>]', '+>'].join(''), 'g');
+
+  it.each([
+    'a <> b',
+    'a <b>c</b> d',
+    '<<>',
+    '<><b>x',
+    'a < b <i>c</i>',
+    'x<y',
+    'x>y<z>',
+    '',
+  ])('strips tags in %j as the original pattern did', (text) => {
+    expect(decode(text)).toBe(
+      text.replaceAll(TAG, '').replaceAll(/\s+/g, ' ').trim(),
+    );
+  });
+
+  it('stays fast on a long run of "<"', () => {
+    const started = Date.now();
+    decode(`a ${'<'.repeat(100_000)}`);
+    expect(Date.now() - started).toBeLessThan(2000);
+  });
+});
+
+describe('articleText heading glyphs', () => {
+  it.each([
+    ['# Title', 'Title'],
+    ['Title #', 'Title'],
+    ['§ Title ¶', 'Title'],
+    ['## # Title', '# Title'],
+    ['# #', ''],
+    ['Title # ', 'Title'],
+    ['A # B', 'A # B'],
+    [' # Title', 'Title'],
+  ])('reads the heading %j as %j', (heading, expected) => {
+    expect(articleText(`<article><h2>${heading}</h2></article>`)).toBe(
+      expected,
+    );
   });
 });

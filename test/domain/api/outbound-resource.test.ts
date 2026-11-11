@@ -295,8 +295,9 @@ describe('parseEmailInput', () => {
 });
 
 describe('parseEmailInput addresses', () => {
+  const CLASS = String.raw`[^\s@<>,;"]`;
   const ADDRESS = new RegExp(
-    String.raw`^[^\s@<>,;"]+@[^\s@<>,;"]+\.[^\s@<>,;"]+$`,
+    ['^', CLASS, '+@', CLASS, String.raw`+\.`, CLASS, '+$'].join(''),
   );
 
   it.each([

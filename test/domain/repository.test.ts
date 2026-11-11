@@ -2399,6 +2399,7 @@ describe('archive helpers', () => {
       ['Two', 'One'],
       [],
     ]);
+    expect(await titles(' ..A.test.. ')).toEqual(['Two', 'One']);
   });
 
   it('lists oldest first, continuing after an id', async () => {

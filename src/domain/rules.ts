@@ -34,8 +34,7 @@ export function regexProblem(pattern: string): string | undefined {
     return 'not a valid regular expression';
   }
   if (/\\[1-9]|\\k</.test(pattern)) return 'back-references are not allowed';
-  // eslint-disable-next-line sonarjs/super-linear-regex -- the pattern is length-capped above, so the scan over it stays bounded
-  if (/\([^)]*[+*}][^)]*\)\s*[+*{?]/.test(pattern)) {
+  if (repeatsAGroup(pattern)) {
     return 'a repeated group may not itself repeat';
   }
   return undefined;
@@ -98,4 +97,21 @@ export function matchesRule(
       return false;
     }
   }
+}
+
+/** Whether a `(...)` group holding a `+`, `*` or `}` is itself followed by a repeat. */
+function repeatsAGroup(pattern: string): boolean {
+  let open = pattern.indexOf('(');
+  while (open !== -1) {
+    const close = pattern.indexOf(')', open + 1);
+    if (close === -1) return false;
+    if (
+      /[+*}]/.test(pattern.slice(open + 1, close)) &&
+      /^\s*[+*{?]/.test(pattern.slice(close + 1))
+    ) {
+      return true;
+    }
+    open = pattern.indexOf('(', open + 1);
+  }
+  return false;
 }

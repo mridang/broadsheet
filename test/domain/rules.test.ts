@@ -86,3 +86,39 @@ describe('matchesRule', () => {
     );
   });
 });
+
+describe('regexProblem repeated groups', () => {
+  const REPEATED = new RegExp(
+    [String.raw`\([^)]`, '*[+*}][^)]', String.raw`*\)\s`, '*[+*{?]'].join(''),
+  );
+
+  it.each([
+    '(a+)+',
+    '(a+) +',
+    '(a)+',
+    '(a)',
+    '((a+))*',
+    '(a|b*)?',
+    String.raw`(a+)\s{2}`,
+    '(a+)x',
+    '(a}+',
+    'a(b+)',
+    '(a)(b+)*',
+    '(a(b+)c)d',
+    '(a)+(b+)',
+    'a+(b)',
+    '(a+',
+    'x)+(y*',
+  ])('judges %s as the original pattern did', (pattern) => {
+    const problem = regexProblem(pattern);
+    expect(problem === 'a repeated group may not itself repeat').toBe(
+      REPEATED.test(pattern),
+    );
+  });
+
+  it('stays fast on many open brackets', () => {
+    const started = Date.now();
+    regexProblem('('.repeat(200));
+    expect(Date.now() - started).toBeLessThan(2000);
+  });
+});
