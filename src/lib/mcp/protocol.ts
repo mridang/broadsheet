@@ -56,16 +56,22 @@ export interface JsonRpcMessage {
   readonly params?: unknown;
 }
 
+/** Whether a message's params are absent or an object. */
+const isValidParams = (params: unknown): boolean =>
+  params === undefined || isPlainObject(params);
+
+/** Whether a message's id is absent, a string or a number. */
+const isValidId = (id: unknown): boolean =>
+  id === undefined || typeof id === 'string' || typeof id === 'number';
+
 /** Whether a message is a well-formed request or notification. */
 export function isJsonRpcMessage(value: unknown): value is JsonRpcMessage {
+  if (!isPlainObject(value)) return false;
   return (
-    isPlainObject(value) &&
     value['jsonrpc'] === '2.0' &&
     typeof value['method'] === 'string' &&
-    (value['params'] === undefined || isPlainObject(value['params'])) &&
-    (value['id'] === undefined ||
-      typeof value['id'] === 'string' ||
-      typeof value['id'] === 'number')
+    isValidParams(value['params']) &&
+    isValidId(value['id'])
   );
 }
 

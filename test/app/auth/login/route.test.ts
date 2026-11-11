@@ -150,7 +150,8 @@ describe('GET /auth/login on a server that is not set up', () => {
   it('names every missing setting, and never a value', async () => {
     restore();
     restore = installEnv({ GOOGLE_OAUTH_CLIENT_ID: 'visible-id-value' });
-    const text = await (await GET(appRequest('GET', '/auth/login'))).text();
+    const response = await GET(appRequest('GET', '/auth/login'));
+    const text = await response.text();
     expect(text).toContain('GOOGLE_OAUTH_CLIENT_SECRET, SESSION_SECRET');
     expect(text).not.toContain('visible-id-value');
   });

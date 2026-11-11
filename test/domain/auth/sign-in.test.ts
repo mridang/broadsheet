@@ -52,6 +52,7 @@ const context = (overrides: Record<string, unknown> = {}) => ({
   request: appRequest('GET', '/auth/callback'),
   env: env(),
   origin: 'https://app.test',
+  // eslint-disable-next-line sonarjs/no-undefined-assignment -- the test exercises an undefined value on purpose
   returnTo: undefined,
   ...overrides,
 });
@@ -73,8 +74,10 @@ describe('missingSignInSettings', () => {
     expect(
       missingSignInSettings(
         env({
+          // eslint-disable-next-line sonarjs/no-undefined-assignment -- the test exercises an undefined value on purpose
           GOOGLE_OAUTH_CLIENT_ID: undefined,
           GOOGLE_OAUTH_CLIENT_SECRET: '',
+          // eslint-disable-next-line sonarjs/no-undefined-assignment -- the test exercises an undefined value on purpose
           SESSION_SECRET: undefined,
         }),
       ),
@@ -114,6 +117,7 @@ describe('completeSignIn', () => {
       sub: 'g1',
       email: 'ada@example.com',
       name: 'Ada',
+      // eslint-disable-next-line sonarjs/no-undefined-assignment -- the test exercises an undefined value on purpose
       picture: undefined,
     });
     expect(afterSignIn).toHaveBeenCalledWith(person);
@@ -149,6 +153,7 @@ describe('completeSignIn', () => {
 
   it('fails closed without a session secret, recording nobody', async () => {
     await expect(
+      // eslint-disable-next-line sonarjs/no-undefined-assignment -- the test exercises an undefined value on purpose
       completeSignIn(context({ env: env({ SESSION_SECRET: undefined }) }), {
         sub: 'g1',
         email: 'ada@example.com',

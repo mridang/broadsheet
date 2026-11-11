@@ -38,8 +38,8 @@ describe('endpointForId', () => {
   });
 
   it('finds nothing for an id nobody has', async () => {
-    expect(await endpointForId(['https://a.test/1'], 'f'.repeat(64))).toBe(
-      undefined,
-    );
+    expect(
+      await endpointForId(['https://a.test/1'], 'f'.repeat(64)),
+    ).toBeUndefined();
   });
 });

@@ -79,11 +79,13 @@ describe('GET /api/podcasts', () => {
   });
 
   it('answers 400 without a search', async () => {
-    expect((await search('')).status).toBe(400);
+    const res = await search('');
+    expect(res.status).toBe(400);
   });
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await search('?q=rust')).status).toBe(401);
+    const res = await search('?q=rust');
+    expect(res.status).toBe(401);
   });
 });

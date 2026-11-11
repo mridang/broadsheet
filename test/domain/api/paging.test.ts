@@ -7,7 +7,7 @@ const request = (query: string) => new Request(`https://app.test/x${query}`);
 
 describe('pageRequest', () => {
   it('defaults to the first page of 20', () => {
-    expect(pageRequest(request(''))).toEqual({ after: undefined, limit: 20 });
+    expect(pageRequest(request(''))).toEqual({ limit: 20 });
   });
 
   it('reads the limit and the cursor', () => {
@@ -37,7 +37,7 @@ describe('newestPage', () => {
   ];
 
   it('pages newest first, breaking ties by the higher id', () => {
-    const first = newestPage(rows, (r) => r, { after: undefined, limit: 2 });
+    const first = newestPage(rows, (r) => r, pageRequest(request('?limit=2')));
     expect(first.items).toEqual(rows.slice(0, 2));
     const second = newestPage(rows, (r) => r, { after: first.next, limit: 2 });
     expect(second).toEqual({ items: [rows[2]] });

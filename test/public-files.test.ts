@@ -5,6 +5,7 @@ import path from 'node:path';
 import { BRAND_NAME, BRAND_URL, SECURITY_CONTACT } from '@/app/_brand';
 
 const read = (name: string) =>
+  // eslint-disable-next-line n/no-sync -- sync is fine in a test helper
   readFileSync(path.join(process.cwd(), 'public', name), 'utf8');
 
 /** Plain-text files are served without a charset, so they must be ASCII. */

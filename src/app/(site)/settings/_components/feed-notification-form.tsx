@@ -1,6 +1,6 @@
 'use client';
 
-import type { FormEvent, ReactElement } from 'react';
+import type { ReactElement, SubmitEvent } from 'react';
 
 import { useApiAction } from '@/components/api/use-api-action';
 import {
@@ -19,6 +19,13 @@ export function notificationRequest(form: FormData): NotificationRequest {
   };
 }
 
+/** The label each notification channel shows in the form. */
+const CHANNEL_LABELS = {
+  web: 'Push',
+  email: 'Email',
+  webhook: 'Webhook',
+} as const;
+
 /** How one feed tells the person about new stories. */
 export function FeedNotificationForm({
   feedId,
@@ -32,7 +39,7 @@ export function FeedNotificationForm({
   channels: readonly string[];
 }>): ReactElement {
   const { busy, error, run } = useApiAction();
-  const submit = (event: FormEvent<HTMLFormElement>): void => {
+  const submit = (event: SubmitEvent<HTMLFormElement>): void => {
     event.preventDefault();
     const request = notificationRequest(new FormData(event.currentTarget));
     void run(
@@ -65,11 +72,7 @@ export function FeedNotificationForm({
             value={channel}
             defaultChecked={channels.includes(channel)}
           />{' '}
-          {channel === 'web'
-            ? 'Push'
-            : channel === 'email'
-              ? 'Email'
-              : 'Webhook'}
+          {CHANNEL_LABELS[channel]}
         </label>
       ))}
       <button

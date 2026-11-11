@@ -19,10 +19,10 @@ const ARROW = buttonClass({
 export function EditionBar({
   selected,
   editions,
-}: {
+}: Readonly<{
   selected: string;
   editions: string[];
-}) {
+}>) {
   const i = editions.indexOf(selected);
   const older = i === -1 ? undefined : editions[i + 1]; // editions are newest-first
   const newer = i > 0 ? editions[i - 1] : undefined;

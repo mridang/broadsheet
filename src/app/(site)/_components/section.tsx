@@ -72,11 +72,11 @@ export function Section({
   desk,
   articles,
   personal,
-}: {
+}: Readonly<{
   desk: LaidDesk;
   articles: ReadonlyMap<number, Article>;
   personal?: Personal;
-}) {
+}>) {
   const stories = visibleStories(desk, articles, personal);
   const main = stories.flatMap((s) =>
     s.tier === 'brief' ? [] : [{ ...s, tier: s.tier }],

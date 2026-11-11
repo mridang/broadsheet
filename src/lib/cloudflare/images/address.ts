@@ -46,9 +46,9 @@ const LARGEST_WIDTH = Math.max(...ALLOWED_WIDTHS);
 /** The nearest allowed width at or above `width` (the largest if none is). */
 export function snapWidth(width: number): number {
   return (
-    [...ALLOWED_WIDTHS]
-      .sort((a, b) => a - b)
-      .find((allowed) => allowed >= width) ?? LARGEST_WIDTH
+    ALLOWED_WIDTHS.toSorted((a, b) => a - b).find(
+      (allowed) => allowed >= width,
+    ) ?? LARGEST_WIDTH
   );
 }
 

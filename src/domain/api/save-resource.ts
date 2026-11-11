@@ -36,16 +36,16 @@ export interface SaveResource {
 /** The API's view of a saved story. */
 export function saveResource(story: Readonly<SavedStory>): SaveResource {
   const saved = story.saved_at ? rfc3339(story.saved_at) : undefined;
-  const { article } = story;
+  const { article, tags, notes, highlights } = story;
   return {
     article_id: String(article.id),
     url: article.url,
     ...(article.title ? { title: article.title } : {}),
     ...(article.source ? { source: article.source } : {}),
-    tags: story.tags,
+    tags,
     ...(saved ? { saved_at: saved } : {}),
-    ...(story.notes ? { notes: story.notes } : {}),
-    ...(story.highlights?.length ? { highlights: story.highlights } : {}),
+    ...(notes ? { notes } : {}),
+    ...(highlights?.length ? { highlights } : {}),
   };
 }
 

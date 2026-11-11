@@ -76,7 +76,7 @@ export type EdgeCacheHint = {
 
 /** Request options plus Cloudflare's `cf` extension, which other runtimes ignore. */
 export type SafeRequestInit = RequestInit & {
-  readonly cf?: EdgeCacheHint | undefined;
+  readonly cf?: EdgeCacheHint;
 };
 
 /** The fetch function, narrowed to what this module needs, so tests can fake it. */

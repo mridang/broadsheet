@@ -62,7 +62,8 @@ describe('POST /api/users/self/searches', () => {
   });
 
   it('answers 200 with the search kept before', async () => {
-    const first = (await (await post({ query: 'rust' })).json()) as {
+    const firstRes = await post({ query: 'rust' });
+    const first = (await firstRes.json()) as {
       id: string;
     };
     const again = await post({ query: 'rust' });
@@ -94,7 +95,8 @@ describe('POST /api/users/self/searches', () => {
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await post({ query: 'rust' })).status).toBe(401);
+    const res = await post({ query: 'rust' });
+    expect(res.status).toBe(401);
   });
 });
 
@@ -102,29 +104,31 @@ describe('GET /api/users/self/searches', () => {
   it('lists the person’s searches as pages, newest first', async () => {
     await post({ query: 'one' });
     await post({ query: 'two' });
-    const page = (await (await list('?limit=1')).json()) as {
+    const pageRes = await list('?limit=1');
+    const page = (await pageRes.json()) as {
       next?: string;
       items: { query: string }[];
     };
     expect(page.items).toHaveLength(1);
-    const rest = (await (
-      await list(new globalThis.URL(page.next!).search)
-    ).json()) as {
+    const restRes = await list(new globalThis.URL(page.next!).search);
+    const rest = (await restRes.json()) as {
       items: { query: string }[];
     };
     expect(
       [...page.items, ...rest.items]
         .map((s) => s.query)
-        .sort((a, b) => a.localeCompare(b)),
+        .toSorted((a, b) => a.localeCompare(b)),
     ).toEqual(['one', 'two']);
   });
 
   it('refuses a bad cursor', async () => {
-    expect((await list('?cursor=nope')).status).toBe(400);
+    const res = await list('?cursor=nope');
+    expect(res.status).toBe(400);
   });
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await list()).status).toBe(401);
+    const res = await list();
+    expect(res.status).toBe(401);
   });
 });

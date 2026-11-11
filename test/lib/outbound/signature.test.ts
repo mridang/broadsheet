@@ -1,14 +1,15 @@
-import { createHmac } from 'node:crypto';
+import { createHmac, randomUUID } from 'node:crypto';
 import { describe, expect, it } from '@jest/globals';
 
 import { signatureHeaders } from '@/lib/outbound/signature';
 
 describe('signatureHeaders', () => {
   it('signs the timestamp and body with HMAC-SHA256 under the secret', async () => {
-    const expected = createHmac('sha256', 's3cret')
+    const secret = randomUUID();
+    const expected = createHmac('sha256', secret)
       .update('1700000000.{"a":1}')
       .digest('hex');
-    expect(await signatureHeaders('s3cret', '{"a":1}', 1_700_000_000)).toEqual({
+    expect(await signatureHeaders(secret, '{"a":1}', 1_700_000_000)).toEqual({
       'Webhook-Timestamp': '1700000000',
       'Webhook-Signature': `sha256=${expected}`,
     });

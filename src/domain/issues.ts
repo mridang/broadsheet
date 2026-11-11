@@ -97,15 +97,17 @@ export async function composeLayout(
         days === undefined
           ? undefined
           : new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
+      const stories = await repo.sourceArticles(feed.source_id, date);
       return {
         feed,
-        articles: (await repo.sourceArticles(feed.source_id, date))
-          .filter(
-            (a) =>
-              (!reads || reads.ids.has(a.id) || !reads.urls.has(a.url)) &&
-              (!oldest || !a.edition || a.edition >= oldest) &&
-              (!pick?.keep || pick.keep(a.id)),
-          )
+        articles: stories
+          .filter((a) => {
+            const unread =
+              !reads || reads.ids.has(a.id) || !reads.urls.has(a.url);
+            const inWindow =
+              !oldest || !a.edition || a.edition.localeCompare(oldest) >= 0;
+            return unread && inWindow && (!pick?.keep || pick.keep(a.id));
+          })
           // The reader's AI prompts this story matched, for `verdict`.
           .map((a) => {
             const ids = prompted.get(a.id);
@@ -211,7 +213,8 @@ async function briefedUrls(
 ): Promise<Set<string>> {
   const ids = parseBriefedStories(stored ?? null).map((s) => s.id);
   if (ids.length === 0) return new Set();
-  return new Set((await repo.articlesByIds(ids)).map((a) => a.url));
+  const articles = await repo.articlesByIds(ids);
+  return new Set(articles.map((a) => a.url));
 }
 
 /**
@@ -269,14 +272,16 @@ export async function publishIssue(
   const repo = new Repository(db);
   await scorePrompts(env, repo, userId, date);
   const layout = await composeLayout(repo, userId, date, userId);
+  const prefs = await repo.getPreferences(userId);
+  const priorIssue = await repo.getIssue(userId, dayBefore(date));
   const { briefing, briefed, stories } = await briefingFor(
     repo,
     env,
     userId,
     layout,
     date,
-    await repo.getPreferences(userId),
-    (await repo.getIssue(userId, dayBefore(date)))?.briefing_stories,
+    prefs,
+    priorIssue?.briefing_stories,
   );
   await repo.saveIssue(
     userId,
@@ -331,14 +336,16 @@ export async function publishEditionIssue(
     edition.user_id,
     await editionPick(repo, edition, date),
   );
+  const prefs = await repo.getPreferences(edition.user_id);
+  const priorIssue = await repo.getEditionIssue(edition.id, dayBefore(date));
   const { briefing, briefed, stories } = await briefingFor(
     repo,
     env,
     edition.user_id,
     layout,
     date,
-    await repo.getPreferences(edition.user_id),
-    (await repo.getEditionIssue(edition.id, dayBefore(date)))?.briefing_stories,
+    prefs,
+    priorIssue?.briefing_stories,
   );
   await repo.saveEditionIssue(
     edition.id,

@@ -149,7 +149,11 @@ export function createTrendingFeeds(
     handle: ({ kind, days, limit }, { uid }) =>
       new Repository(getDatabase()).trendingSites(uid, kind, days, limit),
     encode: (items) =>
-      page(items.map(rankedSourceResource), undefined, PERSONAL),
+      page(
+        items.map((item) => rankedSourceResource(item)),
+        undefined,
+        PERSONAL,
+      ),
   });
 }
 
@@ -337,12 +341,14 @@ export function createNewsTopics(
 export const newsTopics = createNewsTopics();
 
 /** A recommendation on the wire. */
+type RecommendationStatus = 'pending' | 'approved' | 'declined';
+
 export interface RecommendationResource {
   readonly id: string;
   readonly url: string;
   readonly title?: string;
   readonly description: string;
-  readonly status: 'pending' | 'approved' | 'declined';
+  readonly status: RecommendationStatus;
   readonly created_at?: string;
   readonly decided_at?: string;
 }
@@ -466,7 +472,11 @@ export function createRecommendationsCollection(
       handle: (status) =>
         new Repository(getDatabase()).listRecommendations(status),
       encode: (items) =>
-        page(items.map(recommendationResource), undefined, PERSONAL),
+        page(
+          items.map((item) => recommendationResource(item)),
+          undefined,
+          PERSONAL,
+        ),
     })
     .on<
       { url: string; title?: string; description: string },

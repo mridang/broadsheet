@@ -63,6 +63,7 @@ export function convertToFeed(input: string): Conversion | undefined {
   }
   if (url.protocol !== 'https:' && url.protocol !== 'http:') return undefined;
   const host = url.hostname.toLowerCase();
+  // eslint-disable-next-line sonarjs/super-linear-regex -- a parsed URL path is short, so the scan stays cheap
   const base = `${url.origin}${url.pathname}`.replace(/\/+$/, '');
   const [first = '', second = ''] = url.pathname.split('/').filter(Boolean);
   if (host.endsWith('.substack.com')) {

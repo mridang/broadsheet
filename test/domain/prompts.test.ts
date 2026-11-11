@@ -42,7 +42,8 @@ let feedId: number;
 
 beforeEach(async () => {
   repo = new Repository(databaseFrom(sqliteD1(...APP_MIGRATIONS).d1));
-  uid = (await repo.upsertUser({ sub: 'g', email: 'a@b.c' })).id;
+  const owner = await repo.upsertUser({ sub: 'g', email: 'a@b.c' });
+  uid = owner.id;
   const feed = (await repo.addFeed(uid, 'https://x.test/rss', 'X'))!;
   feedId = feed.id;
   await repo.writeEdition(feed.source_id, DAY, [item(1), item(2)]);
@@ -116,7 +117,8 @@ describe('scorePrompts', () => {
       throw new Error('down');
     });
     expect(await scorePrompts(env, repo, uid, DAY)).toBe(2);
-    expect((await repo.promptMatches(uid)).size).toBe(0);
+    const matches = await repo.promptMatches(uid);
+    expect(matches.size).toBe(0);
   });
 
   it('asks nothing about stories outside the prompt’s feed', async () => {

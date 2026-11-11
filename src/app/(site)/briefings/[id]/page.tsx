@@ -30,9 +30,9 @@ export const metadata: Metadata = { title: 'Briefing' };
  */
 export default async function BriefingPage({
   params,
-}: {
+}: Readonly<{
   params: Promise<{ id: string }>;
-}) {
+}>) {
   const user = await getCurrentUser();
   if (!user) redirect('/login');
   const { id } = await params;

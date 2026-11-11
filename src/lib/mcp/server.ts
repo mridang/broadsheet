@@ -151,22 +151,32 @@ export class McpServer<Ctx> {
     for (const resource of this.#resources) {
       const found = resource.uri === uri ? {} : resource.match?.(uri);
       if (found) {
-        try {
-          const data = await resource.read(found, ctx);
-          return {
-            contents: [
-              { uri, mimeType: 'application/json', text: JSON.stringify(data) },
-            ],
-          };
-        } catch (error) {
-          if (error instanceof ToolFailure) {
-            throw new RpcError(RESOURCE_NOT_FOUND, error.message, { uri });
-          }
-          throw error;
-        }
+        return this.#readFound(resource, found, uri, ctx);
       }
     }
     throw new RpcError(RESOURCE_NOT_FOUND, 'Resource not found', { uri });
+  }
+
+  /** Read a resource whose parameters were found for the URI. */
+  async #readFound(
+    resource: McpResource<Ctx>,
+    found: Readonly<Record<string, string>>,
+    uri: string,
+    ctx: Ctx,
+  ): Promise<object> {
+    try {
+      const data = await resource.read(found, ctx);
+      return {
+        contents: [
+          { uri, mimeType: 'application/json', text: JSON.stringify(data) },
+        ],
+      };
+    } catch (error) {
+      if (error instanceof ToolFailure) {
+        throw new RpcError(RESOURCE_NOT_FOUND, error.message, { uri });
+      }
+      throw error;
+    }
   }
 
   /** Render a prompt with its arguments. */

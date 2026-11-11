@@ -8,7 +8,7 @@ import {
   jest,
 } from '@jest/globals';
 import { readdirSync, readFileSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import path from 'node:path';
 
 import { SESSION_COOKIE } from '@/domain/auth/app';
 import { databaseFrom } from '@/domain/db/database';
@@ -56,6 +56,7 @@ interface Operation {
 }
 
 const spec = JSON.parse(
+  // eslint-disable-next-line n/no-sync -- sync is fine in a script or bootstrap
   readFileSync(new URL('../openapi.json', import.meta.url), 'utf8'),
 ) as Json & {
   openapi: string;
@@ -100,16 +101,16 @@ for (const [path, item] of Object.entries(spec.paths)) {
   }
 }
 
-const API = join(process.cwd(), 'src/app/api');
+const API = path.join(process.cwd(), 'src/app/api');
 
 const routeFiles = (dir: string): string[] =>
-  readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
-    entry.isDirectory()
-      ? routeFiles(join(dir, entry.name))
-      : entry.name === 'route.ts'
-        ? [join(dir, entry.name)]
-        : [],
-  );
+  // eslint-disable-next-line n/no-sync -- sync is fine in a test helper
+  readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    if (entry.isDirectory()) {
+      return routeFiles(path.join(dir, entry.name));
+    }
+    return entry.name === 'route.ts' ? [path.join(dir, entry.name)] : [];
+  });
 
 /** Every `METHOD /path` a route under src/app/api exports, with its handler. */
 const handlers = new Map<string, Handler>();
@@ -233,20 +234,22 @@ const ROUTES: Record<string, () => Promise<Record<string, unknown>>> = {
 
 beforeAll(async () => {
   const listed = routeFiles(API).map((file) =>
-    relative(API, file).replace(/\.ts$/, ''),
+    path.relative(API, file).replace(/\.ts$/, ''),
   );
   expect(
-    listed.filter((rel) => !(rel in ROUTES)).sort((a, b) => a.localeCompare(b)),
+    listed
+      .filter((rel) => !(rel in ROUTES))
+      .toSorted((a, b) => a.localeCompare(b)),
   ).toEqual([]);
   for (const rel of listed) {
-    const path = `/api/${rel}`
+    const route = `/api/${rel}`
       .replace(/\/?route$/, '')
-      .replace(/\[([a-z_]+)\]/g, '{$1}');
+      .replaceAll(/\[([a-z_]+)\]/g, '{$1}');
     const module = await ROUTES[rel]!();
     for (const method of METHODS) {
       const handler = module[method.toUpperCase()];
       if (typeof handler === 'function') {
-        handlers.set(`${method.toUpperCase()} ${path}`, handler as Handler);
+        handlers.set(`${method.toUpperCase()} ${route}`, handler as Handler);
       }
     }
   }
@@ -276,6 +279,8 @@ function refs(node: unknown, found: string[] = []): string[] {
         refs(value, found);
       }
     }
+  } else {
+    // Scalars hold no references.
   }
   return found;
 }
@@ -316,6 +321,20 @@ function parametersOf(op: Operation & { path: string }): Parameter[] {
 const DATE_TIME =
   /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
 
+/** The JSON type of a value, where a whole number is an integer. */
+function jsonTypeOf(value: unknown): string {
+  if (value === null) {
+    return 'null';
+  }
+  if (Array.isArray(value)) {
+    return 'array';
+  }
+  if (Number.isInteger(value)) {
+    return 'integer';
+  }
+  return typeof value;
+}
+
 /** What is wrong with `value` against `schema`, as messages naming where. */
 function violations(schema: unknown, value: unknown, at = '$'): string[] {
   const s = deref(schema);
@@ -330,17 +349,10 @@ function violations(schema: unknown, value: unknown, at = '$'): string[] {
         : [`${at}: matches none of ${key}`];
     }
   }
-  const types = ([] as string[]).concat((s['type'] as string | string[]) ?? []);
-  const actual =
-    value === null
-      ? 'null'
-      : Array.isArray(value)
-        ? 'array'
-        : Number.isInteger(value)
-          ? 'integer'
-          : typeof value;
+  const types = [(s['type'] as string | string[]) ?? []].flat();
+  const actual = jsonTypeOf(value);
   if (
-    types.length &&
+    types.length > 0 &&
     !types.includes(actual) &&
     !(actual === 'integer' && types.includes('number'))
   ) {
@@ -397,6 +409,8 @@ function violations(schema: unknown, value: unknown, at = '$'): string[] {
         problems.push(
           ...violations(s['additionalProperties'], v, `${at}.${key}`),
         );
+      } else {
+        // An extra member with no schema of its own is allowed.
       }
     }
   }
@@ -414,7 +428,7 @@ describe('openapi.json', () => {
   it('resolves every $ref', () => {
     const missing = refs(spec).filter((ref) => {
       try {
-        return deref({ $ref: ref }) === undefined;
+        return deref<Json | undefined>({ $ref: ref }) === undefined;
       } catch {
         return true;
       }
@@ -445,12 +459,12 @@ describe('openapi.json', () => {
     expect(
       routes
         .filter((key) => !operations.has(key))
-        .sort((a, b) => a.localeCompare(b)),
+        .toSorted((a, b) => a.localeCompare(b)),
     ).toEqual([]);
     expect(
       [...operations.keys()]
         .filter((key) => !handlers.has(key))
-        .sort((a, b) => a.localeCompare(b)),
+        .toSorted((a, b) => a.localeCompare(b)),
     ).toEqual([]);
   });
 
@@ -495,7 +509,7 @@ describe('openapi.json', () => {
         }
       }
       if (
-        ['POST', 'PUT', 'PATCH'].includes(key.split(' ')[0]!) &&
+        ['POST', 'PUT', 'PATCH'].includes(key.split(' ', 1)[0]!) &&
         !op.responses['415'] &&
         op.requestBody
       ) {
@@ -516,16 +530,15 @@ describe('openapi.json', () => {
       for (const [status, raw] of Object.entries(op.responses)) {
         const response = deref(raw);
         const content = (response['content'] as Json | undefined) ?? {};
-        if (Number(status) >= 400) {
-          const schema = (
-            content['application/problem+json'] as Json | undefined
-          )?.['schema'];
-          if (
-            Object.keys(content).join() !== 'application/problem+json' ||
-            !schema
-          ) {
-            wrong.push(`${key} ${status}: not application/problem+json`);
-          }
+        const problemSchema = (
+          content['application/problem+json'] as Json | undefined
+        )?.['schema'];
+        if (
+          Number(status) >= 400 &&
+          (Object.keys(content).join(',') !== 'application/problem+json' ||
+            !problemSchema)
+        ) {
+          wrong.push(`${key} ${status}: not application/problem+json`);
         }
         if (
           status === '201' &&
@@ -533,7 +546,7 @@ describe('openapi.json', () => {
         ) {
           wrong.push(`${key} 201: no Location`);
         }
-        if (status === '204' && Object.keys(content).length) {
+        if (status === '204' && Object.keys(content).length > 0) {
           wrong.push(`${key} 204: has a body`);
         }
       }
@@ -554,10 +567,11 @@ describe('openapi.json', () => {
         node.forEach((n, i) => walk(n, `${at}[${i}]`));
       } else if (node && typeof node === 'object') {
         for (const [key, value] of Object.entries(node)) {
-          if (key === 'example' || key === 'examples' || key === 'enum') {
+          if (['example', 'examples', 'enum'].includes(key)) {
             continue;
           }
           if (key === 'properties' && value && typeof value === 'object') {
+            // eslint-disable-next-line sonarjs/nested-control-flow -- extracting this walk would be a large logic rewrite
             for (const [name, schema] of Object.entries(value)) {
               // The browser's own PushSubscription member, accepted next to expiration_time.
               if (
@@ -567,10 +581,12 @@ describe('openapi.json', () => {
                 wrong.push(`${at}: ${name}`);
               }
               const type = (schema as Json)['type'];
+              const isString =
+                type === 'string' ||
+                (Array.isArray(type) && type.includes('string'));
               if (
                 name.endsWith('_at') &&
-                (type === 'string' ||
-                  (Array.isArray(type) && type.includes('string'))) &&
+                isString &&
                 (schema as Json)['format'] !== 'date-time'
               ) {
                 wrong.push(`${at}: ${name} is not date-time`);
@@ -579,6 +595,8 @@ describe('openapi.json', () => {
           }
           walk(value, `${at}.${key}`);
         }
+      } else {
+        // Scalars have no members to check.
       }
     };
     walk(spec.paths, 'paths');
@@ -596,8 +614,8 @@ describe('openapi.json', () => {
         ? (flat(schema['schema'])['properties'] as Json | undefined)
         : undefined;
       if (properties?.['next']) {
-        const names = parametersOf(op).map((p) => p.name);
-        if (!names.includes('cursor') || !names.includes('limit')) {
+        const names = new Set(parametersOf(op).map((p) => p.name));
+        if (!names.has('cursor') || !names.has('limit')) {
           wrong.push(key);
         }
       }
@@ -987,7 +1005,7 @@ const VALID: Record<string, (w: World) => Case> = {
   }),
 };
 
-let restore: (() => void) | undefined;
+let restore: (() => void) | null = null;
 let cookie: string;
 
 /** Call the route of an operation as the caller (or nobody). */
@@ -998,10 +1016,11 @@ async function call(
 ): Promise<Response> {
   const [method, path] = key.split(' ') as [string, string];
   const params = c.params ?? {};
-  const url = `https://app.test${path.replace(
-    /\{([a-z_]+)\}/g,
-    (_, name: string) => encodeURIComponent(params[name] ?? 'x'),
-  )}${c.query ? `?${c.query}` : ''}`;
+  const pathname = path.replaceAll(/\{([a-z_]+)\}/g, (_, name: string) =>
+    encodeURIComponent(params[name] ?? 'x'),
+  );
+  const query = c.query ? `?${c.query}` : '';
+  const url = `https://app.test${pathname}${query}`;
   const headers: Record<string, string> = {};
   const who = options.cookie === undefined ? cookie : options.cookie;
   jar.clear();
@@ -1013,7 +1032,9 @@ async function call(
   if (c.raw) {
     headers['Content-Type'] = c.raw.type;
     body = c.raw.text;
-  } else if (c.body !== undefined) {
+  } else if (c.body === undefined) {
+    // Without a raw or JSON body, the request sends no body.
+  } else {
     headers['Content-Type'] = 'application/json';
     body = typeof c.body === 'string' ? c.body : JSON.stringify(c.body);
   }
@@ -1073,7 +1094,8 @@ async function world(): Promise<World> {
       body_text: 'All about rust and its release.',
     },
   ]);
-  const article = (await repo.sourceArticles(feed.source_id, DAY))[0]!;
+  const articles = await repo.sourceArticles(feed.source_id, DAY);
+  const article = articles[0]!;
   const briefing = await repo.saveBriefing({
     user_id: ME,
     slot: 'morning',
@@ -1186,7 +1208,7 @@ beforeEach(() => {
 
 afterEach(() => {
   restore?.();
-  restore = undefined;
+  restore = null;
   jest.restoreAllMocks();
 });
 
@@ -1196,10 +1218,13 @@ function wrongValue(schema: unknown): unknown {
   if (Array.isArray(s['enum'])) {
     return '__not_a_member__';
   }
-  const type = ([] as string[])
-    .concat((s['type'] as string | string[]) ?? [])
+  const type = [(s['type'] as string | string[]) ?? []]
+    .flat()
     .find((t) => t !== 'null');
-  return type === 'string' ? 12345 : type ? 'text' : undefined;
+  if (type === 'string') {
+    return 12_345;
+  }
+  return type ? 'text' : undefined;
 }
 
 /** Text that is no id, date, number or choice, for a path or query. */
@@ -1241,7 +1266,7 @@ const documented = (op: Operation): Set<number> =>
 
 /** The media type of a response, without parameters. */
 const mediaType = (res: Response): string =>
-  (res.headers.get('content-type') ?? '').split(';')[0]!.trim();
+  (res.headers.get('content-type') ?? '').split(';', 1)[0]!.trim();
 
 /**
  * What is wrong with an answer: a status the operation does not document, an
@@ -1298,7 +1323,7 @@ describe('the controllers agree with openapi.json', () => {
       ),
     ];
     expect(refusals.map((r) => r.status)).toEqual([403, 403]);
-    expect(refusals.map(mediaType)).toEqual([
+    expect(refusals.map((r) => mediaType(r))).toEqual([
       'application/problem+json',
       'application/problem+json',
     ]);
@@ -1308,7 +1333,7 @@ describe('the controllers agree with openapi.json', () => {
     expect(
       [...operations.keys()]
         .filter((key) => !(key in VALID))
-        .sort((a, b) => a.localeCompare(b)),
+        .toSorted((a, b) => a.localeCompare(b)),
     ).toEqual([]);
     expect(Object.keys(VALID).filter((key) => !operations.has(key))).toEqual(
       [],
@@ -1327,7 +1352,7 @@ describe('the controllers agree with openapi.json', () => {
     const fail = (what: string, problems: string[]) =>
       problems.forEach((p) => wrong.push(`${what}: ${p}`));
     const isPublic = Array.isArray(op.security) && op.security.length === 0;
-    const writes = key.split(' ')[0] !== 'GET';
+    const writes = key.split(' ', 1)[0] !== 'GET';
 
     // Who may call it: the spec and the controller must say the same.
     const anonymous = await call(key, valid, { cookie: null });
@@ -1360,6 +1385,8 @@ describe('the controllers agree with openapi.json', () => {
         wrong.push(`${what}: answers ${res.status}`);
       } else if (want && res.status !== want) {
         wrong.push(`${what}: answers ${res.status}, not ${want}`);
+      } else {
+        // The answer is one the case allows.
       }
       fail(what, await wrongAnswer(op, res));
     };
@@ -1494,13 +1521,13 @@ describe('the controllers agree with openapi.json', () => {
       }
     }
     if (json && valid.body && typeof valid.body === 'object') {
-      const names = new Set([
-        ...Object.keys(valid.body as Json),
-        ...Object.keys(
-          (flat((json[1] as Json)['schema'])['properties'] as
-            Json | undefined) ?? {},
-        ),
-      ]);
+      const names = new Set(Object.keys(valid.body as Json));
+      const declared =
+        (flat((json[1] as Json)['schema'])['properties'] as Json | undefined) ??
+        {};
+      for (const name of Object.keys(declared)) {
+        names.add(name);
+      }
       for (const name of names) {
         for (const junk of JUNK_JSON) {
           await survives(`${name} ${JSON.stringify(junk)?.slice(0, 20)}`, {

@@ -259,6 +259,9 @@ export function parseFeedTokenInput(
       tag.trim().length > MAX_NAME_LENGTH
     )
       errors.push('tag: must be a non-blank string.');
+    else {
+      // A non-blank tag on a saves feed needs no error.
+    }
   }
   const section =
     typeof sectionId === 'string' ? parseFeedId(sectionId) : undefined;
@@ -266,6 +269,8 @@ export function parseFeedTokenInput(
     errors.push('section_id: must name one of your sections.');
   } else if (scope !== 'section' && sectionId !== undefined) {
     errors.push('section_id: only for a section feed.');
+  } else {
+    // A section the feed names, or none, is already checked above.
   }
   const search =
     typeof searchId === 'string' ? parseFeedId(searchId) : undefined;
@@ -273,6 +278,8 @@ export function parseFeedTokenInput(
     errors.push('search_id: must name one of your saved searches.');
   } else if (scope !== 'search' && searchId !== undefined) {
     errors.push('search_id: only for a search feed.');
+  } else {
+    // A saved search the feed names, or none, is already checked above.
   }
   if (filter !== undefined) {
     if (!(FEED_FILTERS as readonly unknown[]).includes(filter)) {
@@ -283,6 +290,8 @@ export function parseFeedTokenInput(
       errors.push('filter: a search feed keeps every story it finds.');
     } else if (scope === 'highlights' && filter !== 'all') {
       errors.push('filter: a highlights feed keeps every highlight.');
+    } else {
+      // Every other scope and filter pairing is allowed.
     }
   }
   return checked(errors, () => ({
@@ -317,7 +326,18 @@ function isAddress(value: unknown): value is string {
   return (
     typeof value === 'string' &&
     value.length <= 254 &&
+    // eslint-disable-next-line sonarjs/super-linear-regex -- the value is capped at 254 characters by the check above
     /^[^\s@<>,;"]+@[^\s@<>,;"]+\.[^\s@<>,;"]+$/.test(value)
+  );
+}
+
+/** Whether `name` is a plain name an email may be sent under. */
+function isPlainName(name: unknown): name is string {
+  return (
+    typeof name === 'string' &&
+    name.trim() !== '' &&
+    name.length <= MAX_NAME_LENGTH &&
+    !/[<>"\r\n]/.test(name)
   );
 }
 
@@ -348,13 +368,7 @@ export function parseEmailInput(
     'an email',
   );
   const fromName = body['from_name'];
-  if (
-    fromName !== undefined &&
-    (typeof fromName !== 'string' ||
-      !fromName.trim() ||
-      fromName.length > MAX_NAME_LENGTH ||
-      /[<>"\r\n]/.test(fromName))
-  ) {
+  if (fromName !== undefined && !isPlainName(fromName)) {
     errors.push('from_name: must be a plain name.');
   }
   const to = addressesOf(body['to']);

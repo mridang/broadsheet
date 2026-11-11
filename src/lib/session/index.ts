@@ -35,9 +35,12 @@ export function requireSessionSecret(secret: string | undefined): string {
   return secret;
 }
 
+/** A plain value a caller may add as a session claim. */
+type ClaimValue = string | number | boolean | undefined;
+
 /** The extra claims a caller adds: plain values only. */
 interface ExtraClaims {
-  readonly [claim: string]: string | number | boolean | undefined;
+  readonly [claim: string]: ClaimValue;
 }
 
 /** The claims carried in the session token. */
@@ -179,14 +182,10 @@ function parsePayload(body: string): SessionPayload | null {
 
 /** Whether a parsed value carries the claims every session token we issue has. */
 function isSessionPayload(value: unknown): value is SessionPayload {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'exp' in value &&
-    typeof value.exp === 'number' &&
-    // Optional, but a wrong type means the token is not one of ours.
-    (!('ep' in value) || typeof value.ep === 'number')
-  );
+  if (typeof value !== 'object' || value === null) return false;
+  if (!('exp' in value) || typeof value.exp !== 'number') return false;
+  // Optional, but a wrong type means the token is not one of ours.
+  return !('ep' in value) || typeof value.ep === 'number';
 }
 
 /**

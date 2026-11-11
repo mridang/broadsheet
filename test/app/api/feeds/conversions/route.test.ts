@@ -84,20 +84,20 @@ describe('POST /api/feeds/conversions', () => {
   });
 
   it('answers 415 for a body that is not JSON', async () => {
-    expect((await convert('x', { 'Content-Type': 'text/plain' })).status).toBe(
-      415,
-    );
+    const res = await convert('x', { 'Content-Type': 'text/plain' });
+    expect(res.status).toBe(415);
   });
 
   it('answers 403 for a request from another site', async () => {
-    expect(
-      (await convert('{"url":"https://a"}', { 'Sec-Fetch-Site': 'cross-site' }))
-        .status,
-    ).toBe(403);
+    const res = await convert('{"url":"https://a"}', {
+      'Sec-Fetch-Site': 'cross-site',
+    });
+    expect(res.status).toBe(403);
   });
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await convert('{"url":"https://a"}')).status).toBe(401);
+    const res = await convert('{"url":"https://a"}');
+    expect(res.status).toBe(401);
   });
 });

@@ -62,7 +62,8 @@ describe('GET /api/users/self/preferences', () => {
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await get()).status).toBe(401);
+    const res = await get();
+    expect(res.status).toBe(401);
   });
 });
 
@@ -70,7 +71,8 @@ describe('PATCH /api/users/self/preferences', () => {
   it('answers 200 with the change kept', async () => {
     const res = await patch({ briefing: { style: 'editorial' } });
     expect(res.status).toBe(200);
-    const body = (await (await get()).json()) as {
+    const current = await get();
+    const body = (await current.json()) as {
       briefing: { style: string };
     };
     expect(body.briefing.style).toBe('editorial');
@@ -86,33 +88,34 @@ describe('PATCH /api/users/self/preferences', () => {
   });
 
   it('answers 400 for a body that is not an object', async () => {
-    expect((await patch('[1]')).status).toBe(400);
+    const res = await patch('[1]');
+    expect(res.status).toBe(400);
   });
 
   it('accepts the current ETag in If-Match', async () => {
-    const tag = (await get()).headers.get('etag')!;
-    expect(
-      (await patch({ cluster_mark_read: true }, { 'if-match': tag })).status,
-    ).toBe(200);
+    const current = await get();
+    const tag = current.headers.get('etag')!;
+    const res = await patch({ cluster_mark_read: true }, { 'if-match': tag });
+    expect(res.status).toBe(200);
   });
 
   it('answers 412 for an older ETag', async () => {
-    const tag = (await get()).headers.get('etag')!;
+    const current = await get();
+    const tag = current.headers.get('etag')!;
     await patch({ cluster_mark_read: true });
-    expect(
-      (await patch({ story_clustering: false }, { 'if-match': tag })).status,
-    ).toBe(412);
+    const res = await patch({ story_clustering: false }, { 'if-match': tag });
+    expect(res.status).toBe(412);
   });
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await patch({})).status).toBe(401);
+    const res = await patch({});
+    expect(res.status).toBe(401);
   });
 
   it('answers 403 for a change from another site', async () => {
-    expect((await patch({}, { 'Sec-Fetch-Site': 'cross-site' })).status).toBe(
-      403,
-    );
+    const res = await patch({}, { 'Sec-Fetch-Site': 'cross-site' });
+    expect(res.status).toBe(403);
   });
 });
 

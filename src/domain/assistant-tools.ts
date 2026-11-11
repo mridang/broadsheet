@@ -185,7 +185,7 @@ export class ToolRunner {
   show(passages: readonly Passage[]): string {
     for (const p of passages) this.#seen.set(p.id, p.title);
     return passages.length > 0
-      ? passages.map(passageBlock).join('\n\n')
+      ? passages.map((passage) => passageBlock(passage)).join('\n\n')
       : 'No stories found.';
   }
 
@@ -247,9 +247,10 @@ export class ToolRunner {
           this.#uid,
           article.id,
         );
+        const annotationLine = annotation ? `\n${annotation}` : '';
         return storyBlock(
           `id="${article.id}"`,
-          `${article.title ?? ''} (${article.source ?? ''})\n${article.summary ?? ''}\n${(article.body_text ?? '').slice(0, STORY_LENGTH)}${annotation ? `\n${annotation}` : ''}`,
+          `${article.title ?? ''} (${article.source ?? ''})\n${article.summary ?? ''}\n${(article.body_text ?? '').slice(0, STORY_LENGTH)}${annotationLine}`,
         );
       }
       case 'archive_summary': {

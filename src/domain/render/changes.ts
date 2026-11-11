@@ -19,18 +19,21 @@ export const MAX_WORDS = 3000;
 
 /** A story's text without its markup, its entities read and its spaces folded. */
 export function plainText(html: string): string {
-  return html
-    .replaceAll(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, ' ')
-    .replaceAll(/<br\s*\/?>|<\/(p|div|li|h[1-6])>/gi, ' ')
-    .replaceAll(/<[^>]*>/g, '')
-    .replaceAll('&nbsp;', ' ')
-    .replaceAll('&lt;', '<')
-    .replaceAll('&gt;', '>')
-    .replaceAll('&quot;', '"')
-    .replaceAll(/&#39;|&apos;/g, "'")
-    .replaceAll('&amp;', '&')
-    .replaceAll(/\s+/g, ' ')
-    .trim();
+  return (
+    html
+      .replaceAll(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, ' ')
+      .replaceAll(/<br\s*\/?>|<\/(p|div|li|h[1-6])>/gi, ' ')
+      // eslint-disable-next-line sonarjs/super-linear-regex -- a tag is a single '<' then non-'>' characters, so the match cannot backtrack
+      .replaceAll(/<[^>]*>/g, '')
+      .replaceAll('&nbsp;', ' ')
+      .replaceAll('&lt;', '<')
+      .replaceAll('&gt;', '>')
+      .replaceAll('&quot;', '"')
+      .replaceAll(/&#39;|&apos;/g, "'")
+      .replaceAll('&amp;', '&')
+      .replaceAll(/\s+/g, ' ')
+      .trim()
+  );
 }
 
 /** Whether the story's text changed since it was first seen. */
@@ -87,12 +90,20 @@ export function storyChanges(original: string, current: string): Change[] {
       i++;
       j++;
     } else if (lengths[i + 1]![j]! >= lengths[i]![j + 1]!) {
-      push(out, 'del', a[i++]!);
+      push(out, 'del', a[i]!);
+      i++;
     } else {
-      push(out, 'ins', b[j++]!);
+      push(out, 'ins', b[j]!);
+      j++;
     }
   }
-  while (i < a.length) push(out, 'del', a[i++]!);
-  while (j < b.length) push(out, 'ins', b[j++]!);
+  while (i < a.length) {
+    push(out, 'del', a[i]!);
+    i++;
+  }
+  while (j < b.length) {
+    push(out, 'ins', b[j]!);
+    j++;
+  }
   return out;
 }

@@ -293,7 +293,7 @@ export function stillActive(
 ): boolean {
   if (!lastSeen) return true;
   const away = (Date.parse(edition) - Date.parse(lastSeen)) / 86_400_000;
-  return !(away > INACTIVE_DAYS);
+  return away <= INACTIVE_DAYS || Number.isNaN(away);
 }
 
 /** Everything delivering one story needs. */
@@ -386,6 +386,7 @@ async function deliverStory(
  * and only once Email Sending is set up; webhooks get a `story` event. Nobody
  * away for more than {@link INACTIVE_DAYS} days is told anything.
  */
+// eslint-disable-next-line sonarjs/no-invariant-returns -- every path returns the totals object that the body fills in as it delivers; the rule cannot see the mutation
 export async function notifyNewStories(
   env: NotifyEnvironment,
   db: Database,
@@ -418,9 +419,14 @@ export async function notifyNewStories(
     totals,
   };
   for (const setting of settings) {
-    const fresh = (
-      await notifications.undeliveredStories(userId, setting.source_id, edition)
-    ).filter((story) => notifies(setting.filter, verdict(story, training)));
+    const unsent = await notifications.undeliveredStories(
+      userId,
+      setting.source_id,
+      edition,
+    );
+    const fresh = unsent.filter((story) =>
+      notifies(setting.filter, verdict(story, training)),
+    );
     for (const story of fresh.slice(0, STORIES_PER_FEED)) {
       await deliverStory(delivery, setting, setting.channels, story);
     }
@@ -461,7 +467,8 @@ export async function promptMatches(
   const candidates = followed
     .filter((story) => inScope(rule, story))
     .slice(0, PROMPT_BATCH);
-  let left = (await budget(repo, userId, 'classifier')).remaining;
+  const quota = await budget(repo, userId, 'classifier');
+  let left = quota.remaining;
   const matched: FollowedStory[] = [];
   for (const story of candidates) {
     if (matched.length >= STORIES_PER_FEED || left <= 0) break;

@@ -83,7 +83,8 @@ describe('GET /api/editions/self/issues', () => {
     const repo = new Repository(db);
     await repo.saveIssue(7, '2026-10-31', '{"groups":[]}', 'Old.');
     await repo.saveIssue(7, DAY, '{"groups":[]}', 'New.');
-    const first = (await (await list('?limit=1')).json()) as {
+    const listed = await list('?limit=1');
+    const first = (await listed.json()) as {
       items: unknown[];
       next: string;
     };
@@ -91,7 +92,8 @@ describe('GET /api/editions/self/issues', () => {
       { date: DAY, briefing: 'New.', created_at: expect.any(String) },
     ]);
     const next = new URL(first.next);
-    const second = (await (await list(next.search)).json()) as {
+    const listedNext = await list(next.search);
+    const second = (await listedNext.json()) as {
       items: { date: string }[];
       next?: string;
     };
@@ -102,12 +104,14 @@ describe('GET /api/editions/self/issues', () => {
   });
 
   it('answers 400 for a bad parameter', async () => {
-    expect((await list('?limit=0')).status).toBe(400);
+    const res = await list('?limit=0');
+    expect(res.status).toBe(400);
   });
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await list()).status).toBe(401);
+    const res = await list();
+    expect(res.status).toBe(401);
   });
 });
 
@@ -128,7 +132,8 @@ describe('POST /api/editions/self/issues', () => {
 
   it('answers 200 when it replaced the stored issue', async () => {
     await publish({ date: DAY });
-    expect((await publish({ date: DAY })).status).toBe(200);
+    const res = await publish({ date: DAY });
+    expect(res.status).toBe(200);
   });
 
   it('answers 404 for a day with no edition', async () => {
@@ -145,12 +150,15 @@ describe('POST /api/editions/self/issues', () => {
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await publish({ date: DAY })).status).toBe(401);
+    const res = await publish({ date: DAY });
+    expect(res.status).toBe(401);
   });
 
   it('answers 403 for a request from another site', async () => {
-    expect(
-      (await publish({ date: DAY }, { 'Sec-Fetch-Site': 'cross-site' })).status,
-    ).toBe(403);
+    const res = await publish(
+      { date: DAY },
+      { 'Sec-Fetch-Site': 'cross-site' },
+    );
+    expect(res.status).toBe(403);
   });
 });

@@ -152,7 +152,7 @@ export function isTyping(target: KeyTarget): boolean {
   if (!target) return false;
   if (target.isContentEditable) return true;
   const tag = target.tagName?.toUpperCase();
-  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+  return ['INPUT', 'TEXTAREA', 'SELECT'].includes(tag ?? '');
 }
 
 /**

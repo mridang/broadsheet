@@ -68,15 +68,18 @@ describe('POST /api/feeds/moves', () => {
     );
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ moved: 1 });
-    expect((await repo.getFeed(7, mine))?.section_id).toBe(section.id);
-    expect((await repo.getFeed(8, theirs))?.section_id).toBeNull();
+    const mineFeed = await repo.getFeed(7, mine);
+    expect(mineFeed?.section_id).toBe(section.id);
+    const theirFeed = await repo.getFeed(8, theirs);
+    expect(theirFeed?.section_id).toBeNull();
   });
 
   it('takes feeds out of every section with a null section', async () => {
     const section = await repo.addSection(7, 'Tech');
     await repo.updateFeed(7, mine, { section_id: section.id });
     await post(JSON.stringify({ feed_ids: [String(mine)], section_id: null }));
-    expect((await repo.getFeed(7, mine))?.section_id).toBeNull();
+    const moved = await repo.getFeed(7, mine);
+    expect(moved?.section_id).toBeNull();
   });
 
   it('answers 400 naming section_id for another person’s section', async () => {
@@ -113,9 +116,8 @@ describe('POST /api/feeds/moves', () => {
   });
 
   it('answers 415 for a body that is not JSON', async () => {
-    expect((await post('x', { 'Content-Type': 'text/plain' })).status).toBe(
-      415,
-    );
+    const res = await post('x', { 'Content-Type': 'text/plain' });
+    expect(res.status).toBe(415);
   });
 
   it('answers 401 when nobody is signed in, moving nothing', async () => {
@@ -128,6 +130,7 @@ describe('POST /api/feeds/moves', () => {
       }),
     );
     expect(res.status).toBe(401);
-    expect((await repo.getFeed(7, mine))?.section_id).toBeNull();
+    const moved = await repo.getFeed(7, mine);
+    expect(moved?.section_id).toBeNull();
   });
 });

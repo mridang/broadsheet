@@ -35,7 +35,7 @@ export async function verifyPkce(
   // Compare every character so timing doesn't reveal how much matched.
   const diff = Array.from(
     { length: computed.length },
-    (_, i) => computed.charCodeAt(i) ^ challenge.charCodeAt(i),
+    (_, i) => (computed.codePointAt(i) ?? 0) ^ (challenge.codePointAt(i) ?? 0),
   ).reduce((all, one) => all | one, 0);
   return diff === 0;
 }

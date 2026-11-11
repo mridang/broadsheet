@@ -63,16 +63,15 @@ export function classifierResource(
   const created = classifier.created_at
     ? rfc3339(classifier.created_at)
     : undefined;
+  let score: ClassifierResource['score'];
+  if (classifier.score > 0) score = 'like';
+  else if (classifier.score <= -2) score = 'super_dislike';
+  else score = 'dislike';
   return {
     id: String(classifier.id),
     kind: classifier.kind,
     value: classifier.value,
-    score:
-      classifier.score > 0
-        ? 'like'
-        : classifier.score <= -2
-          ? 'super_dislike'
-          : 'dislike',
+    score,
     ...(classifier.scope_feed_id === null
       ? {}
       : { feed_id: String(classifier.scope_feed_id) }),
@@ -122,12 +121,18 @@ export function parseClassifierInput(
     errors.push('value: too long.');
   else if (kind === 'feed' && parseFeedId(value.trim()) === undefined)
     errors.push('value: a feed classifier names a feed id.');
+  else {
+    // A value that is fine for this kind: nothing to report.
+  }
   if (typeof score !== 'string' || !Object.hasOwn(SCORES, score))
     errors.push('score: must be like, dislike or super_dislike.');
   else if (kind === 'prompt' && score === 'super_dislike')
     errors.push(
       'score: a prompt classifier is like (focus) or dislike (hidden).',
     );
+  else {
+    // A score that is fine for this kind: nothing to report.
+  }
   const regex = body['is_regex'];
   if (regex !== undefined && typeof regex !== 'boolean')
     errors.push('is_regex: must be true or false.');
@@ -136,6 +141,8 @@ export function parseClassifierInput(
   else if (regex && typeof value === 'string') {
     const problem = regexProblem(value.trim());
     if (problem) errors.push(`value: ${problem}.`);
+  } else {
+    // Not a regex, or nothing to check: nothing to report.
   }
   const scope = (key: 'feed_id' | 'section_id'): number | undefined => {
     const raw = body[key];

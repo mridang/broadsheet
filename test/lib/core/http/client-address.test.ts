@@ -28,9 +28,13 @@ describe('addressSubject', () => {
   });
 
   it.each([
+    // eslint-disable-next-line sonarjs/no-hardcoded-ip -- test fixture
     ['::1', '0:0:0:0::/64'],
+    // eslint-disable-next-line sonarjs/no-hardcoded-ip -- test fixture
     ['2001:DB8::', '2001:db8:0:0::/64'],
+    // eslint-disable-next-line sonarjs/no-hardcoded-ip -- test fixture
     ['fe80::1%eth0', 'fe80:0:0:0::/64'],
+    // eslint-disable-next-line sonarjs/no-hardcoded-ip -- test fixture
     ['::ffff:192.0.2.1', '0:0:0:0::/64'],
     ['2001:db8::1:2', '2001:db8:0:0::/64'],
   ])('reads %s', (address, subject) => {
@@ -57,6 +61,7 @@ describe('clientSubject', () => {
       clientSubject(
         from({
           'cf-connecting-ip': '203.0.113.7',
+          // eslint-disable-next-line sonarjs/no-hardcoded-ip -- test fixture
           'x-forwarded-for': '1.1.1.1',
         }),
       ),

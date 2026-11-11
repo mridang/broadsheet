@@ -167,7 +167,7 @@ export class GoogleAuthKit {
           event: 'auth.callback.state_check_failed',
           hasState: Boolean(state),
           hasExpected: Boolean(expectedState),
-          match: state === expectedState,
+          match: state !== null && state === expectedState,
           oauthError,
         });
         return NextResponse.redirect(

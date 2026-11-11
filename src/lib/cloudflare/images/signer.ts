@@ -37,13 +37,14 @@ export class ImageSigner {
 
   /** The HMAC-SHA-256 key for the secret, imported once and reused. */
   #hmacKey(): Promise<CryptoKey> {
-    return (this.#key ??= crypto.subtle.importKey(
+    this.#key ??= crypto.subtle.importKey(
       'raw',
       bufferSource(new TextEncoder().encode(this.#secret)),
       { name: 'HMAC', hash: 'SHA-256' },
       false,
       ['sign', 'verify'],
-    ));
+    );
+    return this.#key;
   }
 
   /** The signature of `url`, URL-safe base64. */

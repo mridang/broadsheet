@@ -49,8 +49,10 @@ beforeEach(async () => {
     story('https://x/2', 'Faster builds for the Rust compiler'),
     story('https://x/3', 'Winter gardening'),
   ]);
-  id = (await repo.searchArticles(7, { q: 'winter', limit: 1 }))[0]!.id - 2;
-  other = (await repo.searchArticles(8, { q: 'notes', limit: 1 }))[0]!.id;
+  const winterHits = await repo.searchArticles(7, { q: 'winter', limit: 1 });
+  id = winterHits[0]!.id - 2;
+  const notesHits = await repo.searchArticles(8, { q: 'notes', limit: 1 });
+  other = notesHits[0]!.id;
 });
 
 afterEach(() => restore());
@@ -92,7 +94,8 @@ describe('GET /api/articles/:id/similar', () => {
   });
 
   it('refuses a caller who is not signed in', async () => {
-    expect((await get(String(id))).status).toBe(401);
+    const res = await get(String(id));
+    expect(res.status).toBe(401);
   });
 
   it('with scope=all, lists similar stories from any source, saying which are followed', async () => {
@@ -114,7 +117,8 @@ describe('GET /api/articles/:id/similar', () => {
   });
 
   it('leaves stories from sources the caller does not follow out by default', async () => {
-    const page = (await (await get(String(id), 7)).json()) as {
+    const response = await get(String(id), 7);
+    const page = (await response.json()) as {
       items: { url: string }[];
     };
     expect(page.items.map((a) => a.url)).not.toContain('https://y/1');

@@ -51,7 +51,8 @@ beforeEach(async () => {
       points: 0,
     },
   ]);
-  story = (await repo.sourceArticles(source_id, '2026-10-20'))[0]!.id;
+  const articles = await repo.sourceArticles(source_id, '2026-10-20');
+  story = articles[0]!.id;
   auth = await cookieFor(7);
 });
 
@@ -78,13 +79,16 @@ describe('POST /api/users/self/reads/:article_id', () => {
   it('notes the story as read for that person only', async () => {
     await read(story);
     const repo = new Repository(db);
-    expect([...(await repo.readState(7)).ids]).toEqual([story]);
-    expect((await repo.readState(8)).ids.size).toBe(0);
+    const read7 = await repo.readState(7);
+    expect([...read7.ids]).toEqual([story]);
+    const read8 = await repo.readState(8);
+    expect(read8.ids.size).toBe(0);
   });
 
   it('answers 200 the second time', async () => {
     await read(story);
-    expect((await read(story)).status).toBe(200);
+    const res = await read(story);
+    expect(res.status).toBe(200);
   });
 
   it.each(['999', 'abc', '0'])('answers 404 for article %j', async (id) => {
@@ -95,7 +99,8 @@ describe('POST /api/users/self/reads/:article_id', () => {
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await read(story)).status).toBe(401);
+    const res = await read(story);
+    expect(res.status).toBe(401);
   });
 });
 
@@ -111,16 +116,20 @@ const unread = (id: string | number) =>
 describe('DELETE /api/users/self/reads/:article_id', () => {
   it('answers 204 and marks the story unread', async () => {
     await read(story);
-    expect((await unread(story)).status).toBe(204);
-    expect((await new Repository(db).readState(7)).ids.size).toBe(0);
+    const res = await unread(story);
+    expect(res.status).toBe(204);
+    const left = await new Repository(db).readState(7);
+    expect(left.ids.size).toBe(0);
   });
 
   it.each(['999', 'abc'])('answers 404 for article %j', async (id) => {
-    expect((await unread(id)).status).toBe(404);
+    const res = await unread(id);
+    expect(res.status).toBe(404);
   });
 
   it('answers 404 for a story that was not read', async () => {
-    expect((await unread(story)).status).toBe(404);
+    const res = await unread(story);
+    expect(res.status).toBe(404);
   });
 
   it('answers 404 as a problem, unmarking nothing, for another person', async () => {
@@ -129,12 +138,14 @@ describe('DELETE /api/users/self/reads/:article_id', () => {
     const res = await unread(story);
     expect(res.status).toBe(404);
     expect(res.headers.get('content-type')).toBe('application/problem+json');
-    expect((await new Repository(db).readState(7)).ids.size).toBe(1);
+    const after = await new Repository(db).readState(7);
+    expect(after.ids.size).toBe(1);
   });
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await unread(story)).status).toBe(401);
+    const res = await unread(story);
+    expect(res.status).toBe(401);
   });
 });
 
@@ -156,22 +167,25 @@ describe('POST /api/users/self/reads/:article_id with copies', () => {
         points: 0,
       },
     ]);
-    copy = (await repo.sourceArticles(source_id, '2026-10-20'))[0]!.id;
+    const articles = await repo.sourceArticles(source_id, '2026-10-20');
+    copy = articles[0]!.id;
     await repo.writeClusters('2026-10-20', [[story, copy]]);
   });
 
   it('leaves the other copies unread by default', async () => {
     await read(story);
-    expect([...(await new Repository(db).readState(7)).ids]).toEqual([story]);
+    const after = await new Repository(db).readState(7);
+    expect([...after.ids]).toEqual([story]);
   });
 
   it('marks the other copies read when the person asked for that', async () => {
     const repo = new Repository(db);
     await repo.updatePreferences(7, { cluster_mark_read: true });
     await read(story);
-    expect(
-      [...(await repo.readState(7)).ids].toSorted((a, b) => a - b),
-    ).toEqual([story, copy].toSorted((a, b) => a - b));
+    const marked = await repo.readState(7);
+    expect([...marked.ids].toSorted((a, b) => a - b)).toEqual(
+      [story, copy].toSorted((a, b) => a - b),
+    );
   });
 });
 
@@ -188,7 +202,8 @@ const time = (id: string | number, body: string) =>
 describe('PATCH /api/users/self/reads/:article_id', () => {
   it('answers 200 with the longest time spent', async () => {
     await read(story);
-    expect((await time(story, '{"seconds":40}')).status).toBe(200);
+    const first = await time(story, '{"seconds":40}');
+    expect(first.status).toBe(200);
     const res = await time(story, '{"seconds":12}');
     expect(await res.json()).toEqual({
       article_id: String(story),
@@ -205,7 +220,8 @@ describe('PATCH /api/users/self/reads/:article_id', () => {
   it('answers 404 for another person’s read', async () => {
     await read(story);
     auth = await cookieFor(8);
-    expect((await time(story, '{"seconds":40}')).status).toBe(404);
+    const res = await time(story, '{"seconds":40}');
+    expect(res.status).toBe(404);
   });
 
   it('answers 400 naming a bad time', async () => {
@@ -219,6 +235,7 @@ describe('PATCH /api/users/self/reads/:article_id', () => {
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await time(story, '{"seconds":40}')).status).toBe(401);
+    const res = await time(story, '{"seconds":40}');
+    expect(res.status).toBe(401);
   });
 });

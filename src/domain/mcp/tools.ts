@@ -144,7 +144,7 @@ export async function collect<T extends { readonly id: number }>(
     }
     if (rows.length <= BATCH) return { items };
   }
-  return before !== undefined ? { items, next: before } : { items };
+  return before === undefined ? { items } : { items, next: before };
 }
 
 /** A section and every section nested under it, by id. */
@@ -189,13 +189,13 @@ async function feedScope(
   ]);
   const mine = new Set(feeds.map((f) => f.id));
   const named = [
-    ...(scope.feed_id !== undefined ? [scope.feed_id] : []),
+    ...(scope.feed_id === undefined ? [] : [scope.feed_id]),
     ...(scope.feed_ids ?? []),
   ];
   if (named.some((f) => !mine.has(f))) {
     throw new ToolFailure('There is no such feed.');
   }
-  let ids = named.length ? named : [...mine];
+  let ids = named.length > 0 ? named : [...mine];
   if (scope.section_id !== undefined) {
     if (!sections.some((s) => s.id === scope.section_id)) {
       throw new ToolFailure('There is no such section.');
@@ -359,9 +359,9 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
       if (!feed) throw new ToolFailure('The feed could not be added.');
       refresh({ id: feed.source_id, url: feed.url });
       const filed =
-        section_id !== undefined
-          ? await repo.updateFeed(uid, feed.id, { section_id })
-          : feed;
+        section_id === undefined
+          ? feed
+          : await repo.updateFeed(uid, feed.id, { section_id });
       return { feed: feedResource(filed ?? feed), created: true };
     },
   }),
@@ -414,15 +414,15 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
             feed_id: String(feed.id),
             feed: feed.title ?? feed.url,
             section:
-              feed.section_id !== null
-                ? (names.get(feed.section_id) ?? null)
-                : null,
+              feed.section_id === null
+                ? null
+                : (names.get(feed.section_id) ?? null),
             stories: rank(
               await repo.sourceArticles(feed.source_id, edition),
               training,
             )
               .filter((a) => !reads.ids.has(a.id) && !reads.urls.has(a.url))
-              .map(articleResource),
+              .map((a) => articleResource(a)),
           })),
       );
       return {
@@ -523,7 +523,7 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
             q: args.query,
             limit,
             oldest: args.order === 'oldest',
-            ...(before !== undefined ? { before } : {}),
+            ...(before === undefined ? {} : { before }),
             ...(feeds ? { feeds } : {}),
             ...(args.domain ? { domain: args.domain } : {}),
             ...(args.date_from ? { from: args.date_from } : {}),
@@ -534,8 +534,8 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
         args.before,
       );
       return {
-        articles: items.map(articleResource),
-        ...(next !== undefined ? { next_before: next } : {}),
+        articles: items.map((item) => articleResource(item)),
+        ...(next === undefined ? {} : { next_before: next }),
       };
     },
   }),
@@ -586,8 +586,8 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
       const story =
         notes !== undefined || highlights !== undefined
           ? await repo.annotateSave(uid, article_id, {
-              ...(notes !== undefined ? { notes: notes?.trim() || null } : {}),
-              ...(highlights !== undefined ? { highlights } : {}),
+              ...(notes === undefined ? {} : { notes: notes?.trim() || null }),
+              ...(highlights === undefined ? {} : { highlights }),
             })
           : saved.story;
       return { save: saveResource(story!), created: saved.created };
@@ -621,7 +621,7 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
       const repo = new Repository(db);
       const all = await repo.listClassifiers(uid);
       if (feed_id === undefined) {
-        return { classifiers: all.map(classifierResource) };
+        return { classifiers: all.map((c) => classifierResource(c)) };
       }
       const feed = await repo.getFeed(uid, feed_id);
       if (!feed) throw new ToolFailure('There is no such feed.');
@@ -633,7 +633,7 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
               (c.kind === 'feed' && c.value === String(feed.source_id)) ||
               (c.kind === 'source' && c.value.toLowerCase() === title),
           )
-          .map(classifierResource),
+          .map((c) => classifierResource(c)),
       };
     },
   }),
@@ -645,18 +645,22 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
     input: z.object({
       feed_id: id('feed'),
       ...Object.fromEntries(
-        TRAINABLE.flatMap((kind) =>
-          (['like', 'dislike', 'super_dislike'] as const).map((score) => [
-            `${score}_${kind}`,
-            z
-              .array(z.string())
-              .max(20)
-              .optional()
-              .describe(
-                `${kind === 'text' ? 'Phrases in the text' : `${kind[0]!.toUpperCase()}${kind.slice(1)}s`} to ${score.replace('_', '-')}.`,
-              ),
-          ]),
-        ),
+        TRAINABLE.flatMap((kind) => {
+          const label =
+            kind === 'text'
+              ? 'Phrases in the text'
+              : `${kind[0]!.toUpperCase()}${kind.slice(1)}s`;
+          return (['like', 'dislike', 'super_dislike'] as const).map(
+            (score) => [
+              `${score}_${kind}`,
+              z
+                .array(z.string())
+                .max(20)
+                .optional()
+                .describe(`${label} to ${score.replace('_', '-')}.`),
+            ],
+          );
+        }),
       ),
       like_feed: z
         .boolean()
@@ -694,13 +698,15 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
             ]
           : []),
       ];
-      if (!wanted.length) throw new ToolFailure('Send something to train.');
+      if (wanted.length === 0)
+        throw new ToolFailure('Send something to train.');
       const inputs = wanted.map((w) => checked(parseClassifierInput(w)).input);
       const trained = [];
       for (const one of inputs) {
-        trained.push((await repo.addClassifier(uid, one)).classifier);
+        const added = await repo.addClassifier(uid, one);
+        trained.push(added.classifier);
       }
-      return { classifiers: trained.map(classifierResource) };
+      return { classifiers: trained.map((c) => classifierResource(c)) };
     },
   }),
   tool({
@@ -855,9 +861,9 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
         parseSectionInput(
           {
             ...dropUndefined(rest),
-            ...(parent_id !== undefined
-              ? { parent_id: String(parent_id) }
-              : {}),
+            ...(parent_id === undefined
+              ? {}
+              : { parent_id: String(parent_id) }),
           },
           true,
         ),
@@ -988,8 +994,8 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
       }
       const repo = new Repository(db);
       const feeds = await feedScope(repo, uid, {
-        ...(feed_id !== undefined ? { feed_id } : {}),
-        ...(section_id !== undefined ? { section_id } : {}),
+        ...(feed_id === undefined ? {} : { feed_id }),
+        ...(section_id === undefined ? {} : { section_id }),
       });
       const to =
         older_than_days === undefined
@@ -997,17 +1003,16 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
           : new Date(Date.now() - older_than_days * 86_400_000)
               .toISOString()
               .slice(0, 10);
-      const sweep =
-        (feeds === undefined && to === undefined) || feeds?.length === 0
-          ? []
-          : (
-              await repo.searchArticles(uid, {
-                limit: MAX_MARK,
-                ...(feeds ? { feeds } : {}),
-                ...(to ? { to } : {}),
-              })
-            ).map((a) => a.id);
-      const ids = [...new Set([...(article_ids ?? []), ...sweep])].slice(
+      let sweep: number[] = [];
+      if ((feeds !== undefined || to !== undefined) && feeds?.length !== 0) {
+        const found = await repo.searchArticles(uid, {
+          limit: MAX_MARK,
+          ...(feeds ? { feeds } : {}),
+          ...(to ? { to } : {}),
+        });
+        sweep = found.map((a) => a.id);
+      }
+      const ids = [...new Set(article_ids).union(new Set(sweep))].slice(
         0,
         MAX_MARK,
       );
@@ -1053,9 +1058,9 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
         tag === undefined && !query ? undefined : repo.listSaves(uid),
       ]);
       return {
-        saves: shown.slice(0, MAX_SEARCH).map(saveResource),
-        tags: [...new Set((all ?? shown).flatMap((s) => s.tags))].sort((a, b) =>
-          a.localeCompare(b),
+        saves: shown.slice(0, MAX_SEARCH).map((s) => saveResource(s)),
+        tags: [...new Set((all ?? shown).flatMap((s) => s.tags))].toSorted(
+          (a, b) => a.localeCompare(b),
         ),
       };
     },
@@ -1075,7 +1080,8 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
     readOnly: true,
     run: async ({ date }, { uid, db }) => {
       const repo = new Repository(db);
-      const day = date ?? (await repo.listEditions(uid))[0] ?? todayEdition();
+      const editions = date === undefined ? await repo.listEditions(uid) : [];
+      const day = date ?? editions[0] ?? todayEdition();
       if (!isIssueDate(day))
         throw new ToolFailure('That is not a calendar date.');
       return issueResource(await issueFor(repo, uid, day, uid));
@@ -1144,12 +1150,14 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
           t.id.toLowerCase() === wanted ||
           t.name.toLowerCase() === wanted,
       );
-      if (wanted && !topics.length)
+      if (wanted && topics.length === 0)
         throw new ToolFailure('There is no such topic.');
+      const suggested = await new Repository(db).suggestSources(
+        uid,
+        MAX_SUGGESTIONS,
+      );
       return {
-        suggestions: (
-          await new Repository(db).suggestSources(uid, MAX_SUGGESTIONS)
-        ).map(suggestionResource),
+        suggestions: suggested.map((s) => suggestionResource(s)),
         topics: topics.map((t) => ({ id: t.id, name: t.name, feeds: t.feeds })),
       };
     },
@@ -1176,7 +1184,8 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
           : await repo.getConversation(uid, conversation_id);
       if (!conversation)
         throw new ToolFailure('There is no such conversation.');
-      if (!(await budget(repo, uid, 'assistant')).remaining) {
+      const quota = await budget(repo, uid, 'assistant');
+      if (!quota.remaining) {
         throw new ToolFailure(
           'You have used all your assistant questions for today. They reset at midnight UTC.',
         );
@@ -1284,7 +1293,7 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
           shares.list({
             limit: batch,
             ...(sharer_ids ? { userIds: sharer_ids } : {}),
-            ...(after !== undefined ? { before: after } : {}),
+            ...(after === undefined ? {} : { before: after }),
           }),
         (s) =>
           !read ||
@@ -1294,8 +1303,8 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
         before,
       );
       return {
-        shares: items.map(shareResource),
-        ...(next !== undefined ? { next_before: next } : {}),
+        shares: items.map((s) => shareResource(s)),
+        ...(next === undefined ? {} : { next_before: next }),
       };
     },
   }),
@@ -1351,7 +1360,7 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
       const quiet = [...monthly]
         .filter(([, n]) => n <= args.stories_per_month)
         .map(([f]) => f);
-      if (!quiet.length) return { feed_ids: [], articles: [] };
+      if (quiet.length === 0) return { feed_ids: [], articles: [] };
       const [read, training] = await Promise.all([
         args.read_filter === 'all' ? undefined : repo.readState(uid),
         args.include_hidden ? [] : repo.listClassifiers(uid),
@@ -1362,7 +1371,7 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
             feeds: quiet,
             limit,
             oldest: args.order === 'oldest',
-            ...(before !== undefined ? { before } : {}),
+            ...(before === undefined ? {} : { before }),
           }),
         (a) =>
           (!read ||
@@ -1374,8 +1383,8 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
       );
       return {
         feed_ids: quiet.map(String),
-        articles: items.map(articleResource),
-        ...(next !== undefined ? { next_before: next } : {}),
+        articles: items.map((item) => articleResource(item)),
+        ...(next === undefined ? {} : { next_before: next }),
       };
     },
   }),
@@ -1420,13 +1429,12 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
     run: async ({ action, feed_id, channels, filter }, { uid, db }) => {
       const notifications = new NotificationRepository(db);
       if (action === 'list') {
+        const rows = await notifications.feedNotifications(uid);
         return {
-          notifications: (await notifications.feedNotifications(uid)).map(
-            (n) => ({
-              ...notificationResource(n.feed_id, n),
-              feed_title: n.feed_title,
-            }),
-          ),
+          notifications: rows.map((n) => ({
+            ...notificationResource(n.feed_id, n),
+            feed_title: n.feed_title,
+          })),
         };
       }
       if (feed_id === undefined) throw new ToolFailure('Send feed_id.');

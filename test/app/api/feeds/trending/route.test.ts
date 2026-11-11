@@ -76,7 +76,8 @@ describe('GET /api/feeds/trending', () => {
   it.each(['rising', 'hidden', 'new'])(
     'answers 200 for kind %s',
     async (kind) => {
-      expect((await list(`?kind=${kind}&days=30&limit=5`)).status).toBe(200);
+      const res = await list(`?kind=${kind}&days=30&limit=5`);
+      expect(res.status).toBe(200);
     },
   );
 
@@ -91,6 +92,7 @@ describe('GET /api/feeds/trending', () => {
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await list()).status).toBe(401);
+    const res = await list();
+    expect(res.status).toBe(401);
   });
 });

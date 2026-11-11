@@ -29,18 +29,20 @@ export const metadata: Metadata = { title: 'Feed' };
 export default async function FeedPage({
   params,
   searchParams,
-}: {
+}: Readonly<{
   params: Promise<{ id: string }>;
   searchParams: Promise<{ before?: string }>;
-}): Promise<ReactElement> {
+}>): Promise<ReactElement> {
   const user = await getCurrentUser();
   if (!user) redirect('/login');
-  const id = parseFeedId((await params).id);
+  const route = await params;
+  const id = parseFeedId(route.id);
   if (id === undefined) notFound();
   const repo = new Repository(getDatabase());
   const feed = await repo.getFeed(user.id, id);
   if (!feed) notFound();
-  const before = parseFeedId((await searchParams).before ?? '');
+  const query = await searchParams;
+  const before = parseFeedId(query.before ?? '');
   const rows = await repo.searchArticles(user.id, {
     feed: id,
     byDate: true,

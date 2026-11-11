@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent, type ReactElement } from 'react';
+import { useState, type ReactElement, type SubmitEvent } from 'react';
 
 import { useApiAction } from '@/components/api/use-api-action';
 import { addWebhook } from '@/app/(site)/settings/_components/settings-requests';
@@ -12,7 +12,7 @@ import { ErrorText } from '@/components/ui/notice';
 export function AddWebhookForm(): ReactElement {
   const [secret, setSecret] = useState<string | undefined>(undefined);
   const { busy, error, run } = useApiAction();
-  const submit = (event: FormEvent<HTMLFormElement>): void => {
+  const submit = (event: SubmitEvent<HTMLFormElement>): void => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const url = String(form.get('url') ?? '');

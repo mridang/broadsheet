@@ -2,7 +2,7 @@
 
 import { Chip } from '@/components/ui/badge';
 import { SectionHeader } from '@/components/ui/page-header';
-import { useRef, useState, type FormEvent, type ReactElement } from 'react';
+import { useRef, useState, type SubmitEvent, type ReactElement } from 'react';
 
 import {
   askArticle,
@@ -53,7 +53,7 @@ export function AskBox({ id }: Readonly<{ id: number }>): ReactElement {
       setRemaining(reply.remaining);
     }, 'Could not answer that.');
   };
-  const submit = (event: FormEvent<HTMLFormElement>): void => {
+  const submit = (event: SubmitEvent<HTMLFormElement>): void => {
     event.preventDefault();
     const form = event.currentTarget;
     const question = String(new FormData(form).get('question') ?? '');

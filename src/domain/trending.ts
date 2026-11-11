@@ -227,27 +227,38 @@ export function diversify<T extends Candidate>(
           .slice(0, smallSlots)
       : [];
     const ordered = [...small, ...remaining.filter((c) => !small.includes(c))];
-    for (const c of ordered) {
-      if (c.cluster !== null && clusters.has(c.cluster)) continue;
-      if (c.title && titles.has(c.title)) continue;
-      const capped = c.topic !== 'other';
-      if (
-        block.length >= BLOCK_SIZE ||
-        sources.has(c.source) ||
-        (c.domain && domains.has(c.domain)) ||
-        (c.publisher && publishers.has(c.publisher)) ||
-        (capped && (topics.get(c.topic) ?? 0) >= MAX_TOPIC_PER_BLOCK)
-      ) {
-        deferred.push(c);
-        continue;
-      }
+    const take = (c: (typeof ordered)[number]) => {
       block.push(c);
       sources.add(c.source);
       if (c.domain) domains.add(c.domain);
       if (c.publisher) publishers.add(c.publisher);
-      if (capped) topics.set(c.topic, (topics.get(c.topic) ?? 0) + 1);
+      if (c.topic !== 'other') {
+        topics.set(c.topic, (topics.get(c.topic) ?? 0) + 1);
+      }
       if (c.cluster !== null) clusters.add(c.cluster);
       if (c.title) titles.add(c.title);
+    };
+    for (const c of ordered) {
+      const alreadyUsed =
+        (c.cluster !== null && clusters.has(c.cluster)) ||
+        (c.title && titles.has(c.title));
+      if (alreadyUsed) continue;
+      const capped = c.topic !== 'other';
+      const sameFeed =
+        sources.has(c.source) || (c.domain && domains.has(c.domain));
+      const samePublisher = c.publisher && publishers.has(c.publisher);
+      const overTopic =
+        capped && (topics.get(c.topic) ?? 0) >= MAX_TOPIC_PER_BLOCK;
+      if (
+        block.length >= BLOCK_SIZE ||
+        sameFeed ||
+        samePublisher ||
+        overTopic
+      ) {
+        deferred.push(c);
+      } else {
+        take(c);
+      }
     }
     if (block.length === 0) break;
     out.push(...block);
@@ -272,9 +283,6 @@ export function capSourceShare<T extends Candidate>(list: readonly T[]): T[] {
       }
       return seen;
     });
-    if (counts.every((seen) => [...seen.values()].every((n) => n <= limit))) {
-      break;
-    }
     const kept = fields.map(() => new Map<unknown, number>());
     const filtered = capped.filter((c) => {
       if (fields.some((f, i) => c[f] && (kept[i]!.get(c[f]) ?? 0) >= limit)) {
@@ -285,7 +293,13 @@ export function capSourceShare<T extends Candidate>(list: readonly T[]): T[] {
       });
       return true;
     });
-    if (filtered.length === capped.length) break;
+    // When every count is within the limit the filter keeps everything anyway.
+    if (
+      counts.every((seen) => [...seen.values()].every((n) => n <= limit)) ||
+      filtered.length === capped.length
+    ) {
+      break;
+    }
     capped = filtered;
   }
   return capped;

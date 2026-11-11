@@ -24,20 +24,15 @@ import {
 
 describe('compareText', () => {
   it('alphabetises accented letters with their base letter', () => {
-    expect(['Eggs', 'Éclair', 'Zucchini', 'Apple'].sort(compareText)).toEqual([
-      'Apple',
-      'Éclair',
-      'Eggs',
-      'Zucchini',
-    ]);
+    expect(
+      ['Eggs', 'Éclair', 'Zucchini', 'Apple'].toSorted(compareText),
+    ).toEqual(['Apple', 'Éclair', 'Eggs', 'Zucchini']);
   });
 
   it('compares digit runs as numbers', () => {
-    expect(['Recipe 10', 'Recipe 2', 'Recipe 1'].sort(compareText)).toEqual([
-      'Recipe 1',
-      'Recipe 2',
-      'Recipe 10',
-    ]);
+    expect(['Recipe 10', 'Recipe 2', 'Recipe 1'].toSorted(compareText)).toEqual(
+      ['Recipe 1', 'Recipe 2', 'Recipe 10'],
+    );
   });
 
   it('treats case and accent differences as ties', () => {

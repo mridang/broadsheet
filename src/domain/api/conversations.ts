@@ -89,7 +89,11 @@ export function createConversationsCollection(
           paging,
         ),
       encode: (slice) =>
-        page(slice.items.map(conversationSummaryResource), slice.next, PRIVATE),
+        page(
+          slice.items.map((item) => conversationSummaryResource(item)),
+          slice.next,
+          PRIVATE,
+        ),
     })
     .on<null, ConversationResource>({
       method: 'POST',

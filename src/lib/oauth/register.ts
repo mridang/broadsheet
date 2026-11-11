@@ -49,7 +49,7 @@ export async function registerClient(
         'Send redirect_uris, and only token_endpoint_auth_method "none" with the code and refresh_token grants.',
     };
   }
-  const { redirect_uris: uris } = parsed.data;
+  const { redirect_uris: uris, client_name: clientName } = parsed.data;
   const refused = uris.find((uri) => !isAcceptableRedirectUri(uri));
   if (refused !== undefined) {
     return {
@@ -61,7 +61,7 @@ export async function registerClient(
   }
   const client: OAuthClient = {
     clientId: crypto.randomUUID(),
-    name: parsed.data.client_name ?? 'An unnamed app',
+    name: clientName ?? 'An unnamed app',
     redirectUris: uris,
   };
   await store.saveClient(client);

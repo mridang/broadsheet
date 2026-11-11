@@ -51,7 +51,8 @@ beforeEach(async () => {
       body_text: 'Old text.',
     },
   ]);
-  id = (await repo.searchArticles(7, { limit: 1 }))[0]!.id;
+  const hits = await repo.searchArticles(7, { limit: 1 });
+  id = hits[0]!.id;
   jest
     .spyOn(globalThis, 'fetch')
     .mockImplementation(async () => new Response(`<p>${TEXT}</p>`));
@@ -92,6 +93,7 @@ describe('POST /api/articles/:id/extractions', () => {
   });
 
   it('refuses a caller who is not signed in', async () => {
-    expect((await post(String(id))).status).toBe(401);
+    const res = await post(String(id));
+    expect(res.status).toBe(401);
   });
 });

@@ -13,7 +13,9 @@ class FakeUtterance {
 function host() {
   const spoken: FakeUtterance[] = [];
   const synth = {
-    speak: jest.fn((u: FakeUtterance) => void spoken.push(u)),
+    speak: jest.fn((u: FakeUtterance) => {
+      spoken.push(u);
+    }),
     cancel: jest.fn(),
   };
   return {

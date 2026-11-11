@@ -30,7 +30,7 @@ let loading: Promise<void> | undefined;
 
 /** The page's reader, made on first use. */
 function browserReader(): ReadAloud | null {
-  if (shared === undefined) shared = webSpeech(window);
+  if (shared === undefined) shared = webSpeech(globalThis);
   return shared;
 }
 
@@ -43,7 +43,7 @@ function subscribe(): () => void {
 function listenTo(id: number): void {
   document
     .querySelector<HTMLButtonElement>(
-      `button[data-action="listen"][data-article-id="${id}"]`,
+      `button[data-action="listen"][data-article-id="${CSS.escape(String(id))}"]`,
     )
     ?.click();
 }

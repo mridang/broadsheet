@@ -93,21 +93,24 @@ describe('DELETE /api/feeds/:id', () => {
 
   it('answers 404, removing nothing, for another person’s feed', async () => {
     auth = await cookieFor(8);
-    expect((await remove(mine)).status).toBe(404);
+    const res = await remove(mine);
+    expect(res.status).toBe(404);
     expect(await listFeeds(db, 7)).toHaveLength(1);
   });
 
   it.each(['refreshes', 'abc', '1; DROP TABLE feeds', '0', '-1'])(
     'answers 404 for %j, which cannot name a feed',
     async (id) => {
-      expect((await remove(id)).status).toBe(404);
+      const res = await remove(id);
+      expect(res.status).toBe(404);
       expect(await listFeeds(db, 7)).toHaveLength(1);
     },
   );
 
   it('answers 401 when nobody is signed in, removing nothing', async () => {
     auth = {};
-    expect((await remove(mine)).status).toBe(401);
+    const res = await remove(mine);
+    expect(res.status).toBe(401);
     expect(await listFeeds(db, 7)).toHaveLength(1);
   });
 });
@@ -222,9 +225,8 @@ describe('PATCH /api/feeds/:id', () => {
 
   it('answers 404 rather than 400 for another person’s feed with a bad section', async () => {
     auth = await cookieFor(8);
-    expect(
-      (await patch(mine, JSON.stringify({ section_id: '999' }))).status,
-    ).toBe(404);
+    const res = await patch(mine, JSON.stringify({ section_id: '999' }));
+    expect(res.status).toBe(404);
   });
 
   it('answers 400 as a problem naming the bad field', async () => {
@@ -240,17 +242,21 @@ describe('PATCH /api/feeds/:id', () => {
 
   it('answers 404, changing nothing, for another person’s feed', async () => {
     auth = await cookieFor(8);
-    expect((await patch(mine, '{"muted":true}')).status).toBe(404);
-    expect((await listFeeds(db, 7))[0]?.muted).toBe(false);
+    const res = await patch(mine, '{"muted":true}');
+    expect(res.status).toBe(404);
+    const feeds = await listFeeds(db, 7);
+    expect(feeds[0]?.muted).toBe(false);
   });
 
   it('answers 404 for an id that cannot name a feed', async () => {
-    expect((await patch('abc', '{"muted":true}')).status).toBe(404);
+    const res = await patch('abc', '{"muted":true}');
+    expect(res.status).toBe(404);
   });
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await patch(mine, '{"muted":true}')).status).toBe(401);
+    const res = await patch(mine, '{"muted":true}');
+    expect(res.status).toBe(401);
   });
 });
 
@@ -281,7 +287,8 @@ describe('PATCH /api/feeds/:id with a new address', () => {
     expect(((await res.json()) as { errors: string[] }).errors).toEqual([
       'url: no feed was found at this address.',
     ]);
-    expect((await listFeeds(db, 7))[0]?.url).toBe('https://a.test/feed.xml');
+    const feeds = await listFeeds(db, 7);
+    expect(feeds[0]?.url).toBe('https://a.test/feed.xml');
   });
 
   it('follows the new address in its place and fetches it', async () => {
@@ -297,9 +304,8 @@ describe('PATCH /api/feeds/:id with a new address', () => {
     });
     await settleBackground();
     expect(refreshSource).toHaveBeenCalledTimes(1);
-    expect((await listFeeds(db, 7)).map((f) => f.url)).toEqual([
-      'https://new.test/f',
-    ]);
+    const feeds = await listFeeds(db, 7);
+    expect(feeds.map((f) => f.url)).toEqual(['https://new.test/f']);
   });
 
   it('answers 409 as a problem when they already follow that address', async () => {
@@ -310,9 +316,8 @@ describe('PATCH /api/feeds/:id with a new address', () => {
     );
     expect(res.status).toBe(409);
     expect(res.headers.get('content-type')).toBe('application/problem+json');
-    expect((await listFeeds(db, 7)).map((f) => f.url)).toContain(
-      'https://a.test/feed.xml',
-    );
+    const feeds = await listFeeds(db, 7);
+    expect(feeds.map((f) => f.url)).toContain('https://a.test/feed.xml');
   });
 
   it('changes nothing else, and does not refetch, when the address is the same', async () => {
@@ -328,15 +333,17 @@ describe('PATCH /api/feeds/:id with a new address', () => {
   });
 
   it('answers 400 for an address that is not http(s)', async () => {
-    expect(
-      (await patch(mine, JSON.stringify({ url: 'ftp://x/f' }))).status,
-    ).toBe(400);
+    // eslint-disable-next-line sonarjs/no-clear-text-protocols -- test fixture
+    const res = await patch(mine, JSON.stringify({ url: 'ftp://x/f' }));
+    expect(res.status).toBe(400);
   });
 
   it('answers 404 for another person’s feed', async () => {
     auth = await cookieFor(8);
-    expect(
-      (await patch(mine, JSON.stringify({ url: 'https://new.test/f' }))).status,
-    ).toBe(404);
+    const res = await patch(
+      mine,
+      JSON.stringify({ url: 'https://new.test/f' }),
+    );
+    expect(res.status).toBe(404);
   });
 });

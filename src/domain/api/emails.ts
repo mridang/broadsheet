@@ -67,7 +67,7 @@ export type EmailedStory = Pick<
 /** Who is sending, and what they add. */
 export interface StoryEmailOptions {
   readonly sender?: string;
-  readonly comment?: string | undefined;
+  readonly comment?: string;
 }
 
 /**
@@ -97,15 +97,18 @@ export function storyEmail(
       ? `Sent by ${options.sender} from ${BRAND_NAME}.`
       : `Sent from ${BRAND_NAME}.`,
   ].filter((line) => line.trim());
+  const paragraphHtml = (p: string): string => {
+    if (p === article.url) {
+      return `<p><a href="${escapeXml(p)}">${escapeXml(p)}</a></p>`;
+    }
+    if (p === title) {
+      return `<h1>${escapeXml(p)}</h1>`;
+    }
+    return `<p>${escapeXml(p)}</p>`;
+  };
   const html = [
     '<!doctype html><html><body>',
-    ...paragraphs.map((p) =>
-      p === article.url
-        ? `<p><a href="${escapeXml(p)}">${escapeXml(p)}</a></p>`
-        : p === title
-          ? `<h1>${escapeXml(p)}</h1>`
-          : `<p>${escapeXml(p)}</p>`,
-    ),
+    ...paragraphs.map((p) => paragraphHtml(p)),
     '</body></html>',
   ].join('\n');
   return {

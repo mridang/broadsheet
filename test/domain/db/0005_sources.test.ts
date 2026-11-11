@@ -1,6 +1,7 @@
-import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { readFile } from 'node:fs/promises';
 import { beforeEach, describe, expect, it } from '@jest/globals';
+// eslint-disable-next-line n/no-unsupported-features/node-builtins -- experimental API used on purpose
 import type { DatabaseSync } from 'node:sqlite';
 
 import { sqliteD1 } from '../../lib/core/db/sqlite-d1';
@@ -8,7 +9,7 @@ import { sqliteD1 } from '../../lib/core/db/sqlite-d1';
 let raw: DatabaseSync;
 
 /** Two people following one address, one following another, with articles. */
-beforeEach(() => {
+beforeEach(async () => {
   raw = sqliteD1(
     '0001_init.sql',
     '0002_editions.sql',
@@ -31,7 +32,7 @@ beforeEach(() => {
   article.run(101, 11, 'https://x/1', 'One again');
   article.run(102, 12, 'https://x/2', 'Two');
   raw.exec(
-    readFileSync(
+    await readFile(
       path.join(process.cwd(), 'migrations', '0005_sources.sql'),
       'utf8',
     ),

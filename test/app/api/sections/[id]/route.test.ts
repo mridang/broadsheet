@@ -35,7 +35,8 @@ beforeEach(async () => {
     )
     .run('g7', 'a@b.com', 'g8', 'b@b.com');
   db = databaseFrom(made.d1);
-  mine = (await new Repository(db).addSection(7, 'Tech')).id;
+  const section = await new Repository(db).addSection(7, 'Tech');
+  mine = section.id;
   auth = await cookieFor(7);
 });
 
@@ -104,9 +105,8 @@ describe('PATCH /api/sections/:id', () => {
 
   it('answers 404 rather than 400 for another person’s section with a bad parent', async () => {
     auth = await cookieFor(8);
-    expect(
-      (await patch(mine, JSON.stringify({ parent_id: String(mine) }))).status,
-    ).toBe(404);
+    const res = await patch(mine, JSON.stringify({ parent_id: String(mine) }));
+    expect(res.status).toBe(404);
   });
 
   it('answers 400 as a problem naming the bad field', async () => {
@@ -116,20 +116,22 @@ describe('PATCH /api/sections/:id', () => {
   });
 
   it('answers 415 for a body that is not JSON', async () => {
-    expect(
-      (await patch(mine, 'x', { 'Content-Type': 'text/plain' })).status,
-    ).toBe(415);
+    const res = await patch(mine, 'x', { 'Content-Type': 'text/plain' });
+    expect(res.status).toBe(415);
   });
 
   it('answers 404, changing nothing, for another person’s section', async () => {
     auth = await cookieFor(8);
-    expect((await patch(mine, '{"name":"Q"}')).status).toBe(404);
-    expect((await sections())[0]?.name).toBe('Tech');
+    const res = await patch(mine, '{"name":"Q"}');
+    expect(res.status).toBe(404);
+    const listed = await sections();
+    expect(listed[0]?.name).toBe('Tech');
   });
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await patch(mine, '{"name":"Q"}')).status).toBe(401);
+    const res = await patch(mine, '{"name":"Q"}');
+    expect(res.status).toBe(401);
   });
 });
 
@@ -138,15 +140,18 @@ describe('DELETE /api/sections/:id', () => {
     const repo = new Repository(db);
     const feed = (await repo.addFeed(7, 'https://a.test/f'))!;
     await repo.updateFeed(7, feed.id, { section_id: mine });
-    expect((await remove(mine, '?feeds=keep')).status).toBe(204);
-    expect((await repo.getFeed(7, feed.id))?.section_ids).toEqual([]);
+    const res = await remove(mine, '?feeds=keep');
+    expect(res.status).toBe(204);
+    const kept = await repo.getFeed(7, feed.id);
+    expect(kept?.section_ids).toEqual([]);
   });
 
   it('unfollows the feeds only in the section with ?feeds=unfollow', async () => {
     const repo = new Repository(db);
     const feed = (await repo.addFeed(7, 'https://a.test/f'))!;
     await repo.updateFeed(7, feed.id, { section_id: mine });
-    expect((await remove(mine, '?feeds=unfollow')).status).toBe(204);
+    const res = await remove(mine, '?feeds=unfollow');
+    expect(res.status).toBe(204);
     expect(await repo.listFeeds(7)).toEqual([]);
   });
 
@@ -175,18 +180,21 @@ describe('DELETE /api/sections/:id', () => {
   it.each(['abc', '0', '-1'])(
     'answers 404 for %j, which cannot name a section',
     async (id) => {
-      expect((await remove(id)).status).toBe(404);
+      const res = await remove(id);
+      expect(res.status).toBe(404);
     },
   );
 
   it('answers 404, removing nothing, for another person’s section', async () => {
     auth = await cookieFor(8);
-    expect((await remove(mine)).status).toBe(404);
+    const res = await remove(mine);
+    expect(res.status).toBe(404);
     expect(await sections()).toHaveLength(1);
   });
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await remove(mine)).status).toBe(401);
+    const res = await remove(mine);
+    expect(res.status).toBe(401);
   });
 });

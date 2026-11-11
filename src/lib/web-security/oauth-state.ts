@@ -41,9 +41,10 @@ export function checkState(
   validPurposes: readonly string[],
 ): StateCheck {
   const purpose = state ? purposeOf(state, validPurposes) : undefined;
-  return state && expected && state === expected && purpose
-    ? { ok: true, purpose }
-    : { ok: false, claimed: purpose };
+  if (state && expected && state === expected && purpose) {
+    return { ok: true, purpose };
+  }
+  return { ok: false, claimed: purpose };
 }
 
 /**

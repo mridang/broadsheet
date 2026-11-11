@@ -209,7 +209,7 @@ describe('parseOpml robustness', () => {
       feeds: [
         {
           url: 'https://a.test/f',
-          sections: Array.from({ length: 8 }).fill('F'),
+          sections: Array.from({ length: 8 }, () => 'F'),
         },
       ],
     });

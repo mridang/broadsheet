@@ -93,8 +93,8 @@ export interface NotificationRuleInput {
   readonly value: string;
   readonly is_regex: boolean;
   readonly scope: RuleScope;
-  readonly feed_id?: number | undefined;
-  readonly section_id?: number | undefined;
+  readonly feed_id?: number;
+  readonly section_id?: number;
   readonly channels: readonly NotificationChannel[];
 }
 
@@ -348,6 +348,7 @@ export class NotificationRepository {
   ): Promise<void> {
     await this.#db
       .insert(story_emails)
+      // eslint-disable-next-line unicorn/no-unused-array-method-return -- drizzle's insert().values(), not Array#values
       .values({ user_id: userId, article_id: articleId, recipients });
   }
 
@@ -433,7 +434,7 @@ export class NotificationRepository {
       .from(notification_rules)
       .where(eq(notification_rules.user_id, userId))
       .orderBy(notification_rules.id);
-    return rows.map(ruleOf);
+    return rows.map((row) => ruleOf(row));
   }
 
   /** Everyone with a rule. */

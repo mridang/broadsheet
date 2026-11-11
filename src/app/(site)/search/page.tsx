@@ -30,9 +30,9 @@ export const metadata: Metadata = {
  */
 export default async function SearchPage({
   searchParams,
-}: {
+}: Readonly<{
   searchParams: Promise<{ q?: string; cursor?: string; feed_id?: string }>;
-}): Promise<ReactElement> {
+}>): Promise<ReactElement> {
   const { q = '', cursor, feed_id: feedId } = await searchParams;
   const params = new URLSearchParams({ q: String(q) });
   if (cursor) params.set('cursor', String(cursor));
@@ -48,6 +48,8 @@ export default async function SearchPage({
     ? await new Repository(getDatabase()).listSearches(user.id)
     : [];
   const items = rows.slice(0, query.limit);
+  const feedProps =
+    query.feed === undefined ? {} : { feedId: String(query.feed) };
   const last = rows.length > query.limit ? items.at(-1) : undefined;
   const older = last
     ? `/search?${new URLSearchParams({
@@ -82,19 +84,15 @@ export default async function SearchPage({
       </form>
       <SavedSearches searches={saved} />
       {user && input.ok && query.q ? (
-        <SaveSearchButton
-          query={query.q}
-          {...(query.feed === undefined ? {} : { feedId: String(query.feed) })}
+        <SaveSearchButton query={query.q} {...feedProps} />
+      ) : null}
+      {input.ok && query.q && items.length === 0 ? (
+        <EmptyState
+          icon="search"
+          title="No stories hold every one of those words."
         />
       ) : null}
-      {input.ok ? (
-        query.q && items.length === 0 ? (
-          <EmptyState
-            icon="search"
-            title="No stories hold every one of those words."
-          />
-        ) : null
-      ) : (
+      {input.ok ? null : (
         <Notice tone="danger">That search could not be read.</Notice>
       )}
       {items.length > 0 ? (

@@ -20,6 +20,7 @@ function largest(sizes: string): number {
   if (/\bany\b/i.test(sizes)) return 512;
   return Math.max(
     0,
+    // eslint-disable-next-line sonarjs/super-linear-regex -- the sizes attribute is short, so the digit runs cannot backtrack far
     ...[...sizes.matchAll(/(\d+)x(\d+)/gi)].map((m) =>
       Math.max(Number(m[1]), Number(m[2])),
     ),
@@ -40,11 +41,8 @@ function absolute(href: string, base: string): string | undefined {
 
 /** One attribute of a tag, or blank. */
 function attribute(tag: string, name: string): string {
-  return (
-    tag.match(
-      new RegExp(String.raw`\b${name}\s*=\s*["']([^"']*)["']`, 'i'),
-    )?.[1] ?? ''
-  );
+  const pattern = new RegExp(String.raw`\b${name}\s*=\s*["']([^"']*)["']`, 'i');
+  return pattern.exec(tag)?.[1] ?? '';
 }
 
 /** The icons a page's `<link>` tags declare, largest first. */
@@ -52,18 +50,18 @@ export function pageIcons(html: string, base: string): string[] {
   const found: Declared[] = [];
   for (const [tag] of html.matchAll(/<link\b[^>]*>/gi)) {
     const rel = attribute(tag, 'rel').toLowerCase().split(/\s+/);
-    if (!rel.some((r) => r === 'icon' || r.startsWith('apple-touch-icon'))) {
-      continue;
-    }
-    const href = absolute(attribute(tag, 'href'), base);
-    if (!href) continue;
+    const isIcon = rel.some(
+      (r) => r === 'icon' || r.startsWith('apple-touch-icon'),
+    );
+    const href = isIcon ? absolute(attribute(tag, 'href'), base) : undefined;
+    if (!isIcon || !href) continue;
     // An apple-touch-icon with no sizes is the 180px one by convention.
     const size =
       largest(attribute(tag, 'sizes')) ||
       (rel.some((r) => r.startsWith('apple-touch-icon')) ? 180 : 16);
     found.push({ href, size });
   }
-  return found.sort((a, b) => b.size - a.size).map((d) => d.href);
+  return found.toSorted((a, b) => b.size - a.size).map((d) => d.href);
 }
 
 /** The address of a page's web app manifest, if it links one. */
@@ -90,7 +88,7 @@ export function manifestIcons(json: string, base: string): string[] {
           ? [{ href, size: largest(typeof sizes === 'string' ? sizes : '') }]
           : [];
       })
-      .sort((a, b) => b.size - a.size)
+      .toSorted((a, b) => b.size - a.size)
       .map((d) => d.href);
   } catch {
     return [];
@@ -130,12 +128,11 @@ export async function firstWorkingIcon(
       const response = await fetcher(url);
       const type = response.headers.get('content-type') ?? '';
       await response.body?.cancel();
-      if (
-        response.ok &&
-        (type.startsWith('image/') ||
-          type.includes('icon') ||
-          (!type && /\.ico(\?|$)/i.test(url)))
-      ) {
+      const isImage =
+        type.startsWith('image/') ||
+        type.includes('icon') ||
+        (!type && /\.ico(\?|$)/i.test(url));
+      if (response.ok && isImage) {
         return url;
       }
     } catch {

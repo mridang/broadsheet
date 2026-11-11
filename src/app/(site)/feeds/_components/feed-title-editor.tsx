@@ -4,9 +4,9 @@ import {
   useEffect,
   useRef,
   useState,
-  type FormEvent,
   type KeyboardEvent,
   type ReactElement,
+  type SubmitEvent,
 } from 'react';
 
 import { editFeed } from '@/app/(site)/feeds/_components/feed-requests';
@@ -57,7 +57,7 @@ export function FeedTitleEditor({
       </span>
     );
   }
-  const submit = (event: FormEvent<HTMLFormElement>): void => {
+  const submit = (event: SubmitEvent<HTMLFormElement>): void => {
     event.preventDefault();
     const typed = String(new FormData(event.currentTarget).get('title') ?? '');
     void run(
@@ -65,7 +65,7 @@ export function FeedTitleEditor({
       'Could not rename that feed.',
     );
   };
-  const escape = (event: KeyboardEvent<HTMLInputElement>): void => {
+  const handleEscape = (event: KeyboardEvent<HTMLInputElement>): void => {
     if (event.key === 'Escape') setEditing(false);
   };
   return (
@@ -78,7 +78,7 @@ export function FeedTitleEditor({
           defaultValue={title || name}
           maxLength={200}
           ref={field}
-          onKeyDown={escape}
+          onKeyDown={handleEscape}
           className="min-w-0 flex-1"
         />
         <button

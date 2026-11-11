@@ -54,7 +54,7 @@ export interface ServeApp {
 export interface ServeDeps {
   readonly app: ServeApp;
   /** The edge cache, or undefined where there is none (plain Node). */
-  readonly cache?: Cache | undefined;
+  readonly cache?: Cache;
   /** What is rate limited, and how; the app's own unless a test supplies another. */
   readonly limits?: EdgeLimits;
   /** The pages the edge may keep a copy of; the app's own unless a test supplies others. */

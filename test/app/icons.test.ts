@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
-import { readFileSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { BRAND_NAME } from '@/app/_brand';
@@ -10,8 +10,8 @@ const app = (name: string) => path.join(process.cwd(), 'src/app', name);
 // The icon and social-image files under src/app are binaries, so one group
 // checks them all.
 describe('the icon and social images in src/app', () => {
-  it('has a favicon.ico holding 16, 32 and 48 pixel images', () => {
-    const ico = readFileSync(app('favicon.ico'));
+  it('has a favicon.ico holding 16, 32 and 48 pixel images', async () => {
+    const ico = await readFile(app('favicon.ico'));
     expect(ico.subarray(0, 6).toString('hex')).toBe('000001000300');
     const entries = [0, 1, 2].map((i) => {
       const at = 6 + i * 16;
@@ -30,7 +30,7 @@ describe('the icon and social images in src/app', () => {
       [48, 48],
     ]);
     expect(entries.map((e) => e.isPng)).toEqual(
-      Array.from({ length: 3 }).fill('89504e470d0a1a0a'),
+      Array.from({ length: 3 }, () => '89504e470d0a1a0a'),
     );
     expect(entries.at(-1)?.end).toBe(ico.length);
   });
@@ -47,20 +47,20 @@ describe('the icon and social images in src/app', () => {
     },
   );
 
-  it('describes the card in the alt text of both social images, which name the app', () => {
+  it('describes the card in the alt text of both social images, which name the app', async () => {
     for (const name of ['opengraph-image.alt.txt', 'twitter-image.alt.txt']) {
-      expect(readFileSync(app(name), 'utf8')).toContain(BRAND_NAME);
+      expect(await readFile(app(name), 'utf8')).toContain(BRAND_NAME);
     }
   });
 
-  it('has the same alt text for both social images, as they are the same card', () => {
-    expect(readFileSync(app('twitter-image.alt.txt'), 'utf8')).toBe(
-      readFileSync(app('opengraph-image.alt.txt'), 'utf8'),
+  it('has the same alt text for both social images, as they are the same card', async () => {
+    expect(await readFile(app('twitter-image.alt.txt'), 'utf8')).toBe(
+      await readFile(app('opengraph-image.alt.txt'), 'utf8'),
     );
   });
 
-  it('has a scalable icon', () => {
-    expect(readFileSync(app('icon.svg'), 'utf8')).toMatch(
+  it('has a scalable icon', async () => {
+    expect(await readFile(app('icon.svg'), 'utf8')).toMatch(
       /^<svg [^>]*viewBox=/,
     );
   });

@@ -58,7 +58,7 @@ async function searchPage(
   const items: ArticleSummary[] = rows.slice(0, query.limit);
   const last = items.at(-1);
   return {
-    items: items.map(articleResource),
+    items: items.map((item) => articleResource(item)),
     ...(rows.length > query.limit && last
       ? { next: { key: String(last.id), id: String(last.id) } }
       : {}),
@@ -227,13 +227,13 @@ export function createSimilarArticles(
       const repo = new Repository(getDatabase());
       const article = await repo.getArticle(uid, id);
       if (!article) return undefined;
-      return scope === 'all'
-        ? (
-            (await repo.discoverArticles(uid, article.id, MAX_DISCOVERED)) ?? []
-          ).map(discoveredArticleResource)
-        : (await repo.similarArticles(uid, article, SIMILAR)).map(
-            articleResource,
-          );
+      if (scope === 'all') {
+        const discovered =
+          (await repo.discoverArticles(uid, article.id, MAX_DISCOVERED)) ?? [];
+        return discovered.map((item) => discoveredArticleResource(item));
+      }
+      const similar = await repo.similarArticles(uid, article, SIMILAR);
+      return similar.map((item) => articleResource(item));
     },
     encode: (items) =>
       items

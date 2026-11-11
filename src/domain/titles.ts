@@ -50,12 +50,16 @@ export function significantWords(
   title: string | null,
   feedTitle: string | null = null,
 ): Set<string> {
-  const own = new Set(normaliseTitle(feedTitle).split(' ').map(stem));
+  const own = new Set(
+    normaliseTitle(feedTitle)
+      .split(' ')
+      .map((w) => stem(w)),
+  );
   return new Set(
     normaliseTitle(title)
       .split(' ')
       .filter((w) => w.length > 1 && !/^\d+$/.test(w) && !STOPWORDS.has(w))
-      .map(stem)
+      .map((w) => stem(w))
       .filter((w) => !own.has(w)),
   );
 }

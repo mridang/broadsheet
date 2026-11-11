@@ -104,9 +104,13 @@ export function createSharesCollection(
         : { items };
     },
     encode: (slice) =>
-      page(slice.items.map(shareResource), slice.next, {
-        'Cache-Control': 'no-store',
-      }),
+      page(
+        slice.items.map((share) => shareResource(share)),
+        slice.next,
+        {
+          'Cache-Control': 'no-store',
+        },
+      ),
   });
 }
 

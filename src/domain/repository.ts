@@ -266,6 +266,8 @@ export function searchTerms(q: string): SearchTerms {
     if (!field) words.push(token);
     else if (value) {
       (field.toLowerCase() === 'author' ? authors : tags).push(value);
+    } else {
+      // A field with no value is not a term, so it is left out.
     }
   }
   return { words, authors, tags };
@@ -293,7 +295,7 @@ function ftsMatch(
   withTags = true,
 ): string {
   return [
-    ...words.map(phrase),
+    ...words.map((w) => phrase(w)),
     ...authors.map((a) => `author : ${phrase(a)}`),
     ...(withTags ? tags.map((t) => `tags : ${phrase(t)}`) : []),
   ].join(' ');
@@ -397,6 +399,8 @@ export interface Clusterable {
   /** The source's own title, whose words say nothing about the story. */
   readonly feed_title: string | null;
 }
+type BriefingFrequency = 'daily' | 'twice_daily' | 'thrice_daily' | 'weekly';
+
 /** What a person chose about clustering and the editor's note. */
 export interface Preferences {
   readonly story_clustering: boolean;
@@ -414,8 +418,7 @@ export interface Preferences {
   readonly mark_read_on_open: boolean;
   /** Days after which stories count as read when no feed or section says; 0 never. */
   readonly auto_mark_read_days: number;
-  readonly briefing_frequency:
-    'daily' | 'twice_daily' | 'thrice_daily' | 'weekly';
+  readonly briefing_frequency: BriefingFrequency;
   /** `auto`, `morning`, `afternoon`, `evening`, or a time written HH:MM. */
   readonly briefing_time: string;
   /** The weekday a weekly briefing comes: `sun` to `sat`. */
@@ -772,11 +775,10 @@ function savedAnnotation(
   highlights: string,
 ): { annotation?: string } {
   const marked = tagsOf(highlights);
+  const quotedHighlights = marked.map((h) => `"${h}"`).join('; ');
   const parts = [
     notes ? `Note: ${notes}` : '',
-    marked.length > 0
-      ? `Highlights: ${marked.map((h) => `"${h}"`).join('; ')}`
-      : '',
+    marked.length > 0 ? `Highlights: ${quotedHighlights}` : '',
   ].filter(Boolean);
   return parts.length > 0 ? { annotation: parts.join('\n') } : {};
 }
@@ -792,14 +794,8 @@ export function conversationTitle(question: string): string {
 
 /** A stored citation list, or none when it is not a JSON array of numbers. */
 function citationsOf(stored: string): number[] {
-  try {
-    const parsed: unknown = JSON.parse(stored);
-    return Array.isArray(parsed)
-      ? parsed.filter((n): n is number => Number.isInteger(n))
-      : [];
-  } catch {
-    return [];
-  }
+  // Citations are stored in the same JSON-array form as the id lists.
+  return idsOf(stored);
 }
 
 /** What is known about a person from their Google account. */
@@ -912,7 +908,7 @@ export class Repository {
         asc(subscriptions.created_at),
         asc(subscriptions.id),
       );
-    return rows.map(feedOf);
+    return rows.map((row) => feedOf(row));
   }
 
   /** The person's feed with this id, or undefined when it is not theirs. */
@@ -1147,12 +1143,13 @@ export class Repository {
             },
       )
       .where(eq(sources.id, sourceId));
-    await this.#db.insert(fetchHistory).values({
+    const history = this.#db.insert(fetchHistory).values({
       source_id: sourceId,
       ok: error ? 0 : 1,
       message: error ?? null,
       duration_ms: durationMs ?? null,
     });
+    await history;
     // Keep the newest FETCH_HISTORY_LIMIT rows: find the id of the oldest one
     // kept (one index position) and delete the rows older than it by range.
     await this.#db.run(
@@ -1337,11 +1334,13 @@ export class Repository {
     position?: number,
     parentId: number | null = null,
   ): Promise<Section> {
-    const at =
-      position ??
-      (await this.listSections(userId))
+    let at = position;
+    if (at === undefined) {
+      const existing = await this.listSections(userId);
+      at = existing
         .filter((s) => s.parent_id === parentId)
         .reduce((last, s) => Math.max(last, s.position + 1), 0);
+    }
     const rows = await this.#db
       .insert(sections)
       .values({ user_id: userId, name, position: at, parent_id: parentId })
@@ -1523,26 +1522,29 @@ export class Repository {
     // on the id to search). A fetch that races this one may see the rows a
     // moment later than this read; the worst case is a rename left for the
     // next fetch.
-    const renames = (await this.#renamedStories(sourceId, edition, items)).map(
-      (a) =>
-        this.#db
-          .update(articles)
-          .set({ url: a.url })
-          .where(
-            and(
-              eq(articles.source_id, sourceId),
-              eq(articles.edition, edition),
-              eq(articles.guid, a.guid!),
-              ne(articles.url, a.url),
-              // Leave it when the new address already has its own row.
-              sql`not exists (select 1 from articles as taken where taken.source_id = ${sourceId} and taken.edition = ${edition} and taken.url = ${a.url})`,
-            ),
+    const renamed = await this.#renamedStories(sourceId, edition, items);
+    const renames = renamed.map((a) =>
+      this.#db
+        .update(articles)
+        .set({ url: a.url })
+        .where(
+          and(
+            eq(articles.source_id, sourceId),
+            eq(articles.edition, edition),
+            eq(articles.guid, a.guid!),
+            ne(articles.url, a.url),
+            // Leave it when the new address already has its own row.
+            sql`not exists (select 1 from articles as taken where taken.source_id = ${sourceId} and taken.edition = ${edition} and taken.url = ${a.url})`,
           ),
+        ),
     );
     const writes = [...renames, ...upserts];
     const [first, ...rest] = writes;
     if (prune) await this.#db.batch([stale, ...writes]);
     else if (first) await this.#db.batch([first, ...rest]);
+    else {
+      // Nothing to write: no renames and no new rows.
+    }
   }
 
   /**
@@ -1658,17 +1660,24 @@ export class Repository {
     const host = domain
       ?.trim()
       .toLowerCase()
+      // eslint-disable-next-line sonarjs/super-linear-regex -- the host comes from a short search term, so the dot runs are short and the scan stays cheap
       .replaceAll(/^\.+|\.+$/g, '');
     const match = ftsQuery(q);
+    const hostLike = (pattern: string) =>
+      sql`lower(${articles.url}) like ${pattern}`;
     const published = sql`julianday(coalesce(nullif(${articles.published_at}, ''), ${articles.fetched_at}))`;
-    const cursor =
-      before === undefined
-        ? undefined
-        : byDate
-          ? sql`(${published}, ${articles.id}) ${oldest ? sql`>` : sql`<`} (select julianday(coalesce(nullif(c.published_at, ''), c.fetched_at)), c.id from articles as c where c.id = ${before})`
-          : oldest
-            ? gt(articles.id, before)
-            : lt(articles.id, before);
+    const direction = oldest ? asc : desc;
+    const cursorOp = oldest ? sql`>` : sql`<`;
+    let cursor: SQL | undefined;
+    if (before === undefined) {
+      // No cursor: the first page.
+    } else if (byDate) {
+      cursor = sql`(${published}, ${articles.id}) ${cursorOp} (select julianday(coalesce(nullif(c.published_at, ''), c.fetched_at)), c.id from articles as c where c.id = ${before})`;
+    } else if (oldest) {
+      cursor = gt(articles.id, before);
+    } else {
+      cursor = lt(articles.id, before);
+    }
     const newest = this.#db
       .select({ id: sql<number>`max(${articles.id})` })
       .from(articles)
@@ -1713,9 +1722,9 @@ export class Repository {
               ),
           host
             ? or(
-                sql`lower(${articles.url}) like ${`%://${host}/%`}`,
-                sql`lower(${articles.url}) like ${`%://${host}`}`,
-                sql`lower(${articles.url}) like ${`%.${host}/%`}`,
+                hostLike(`%://${host}/%`),
+                hostLike(`%://${host}`),
+                hostLike(`%.${host}/%`),
               )
             : undefined,
           from === undefined ? undefined : sql`${articles.edition} >= ${from}`,
@@ -1725,10 +1734,8 @@ export class Repository {
       )
       .orderBy(
         ...(byDate
-          ? oldest
-            ? [asc(published), asc(articles.id)]
-            : [desc(published), desc(articles.id)]
-          : [oldest ? asc(articles.id) : desc(articles.id)]),
+          ? [direction(published), direction(articles.id)]
+          : [direction(articles.id)]),
       )
       .limit(limit + 1);
   }
@@ -1967,10 +1974,10 @@ export class Repository {
           match
             ? sql`${articles.id} IN (SELECT rowid FROM articles_fts WHERE articles_fts MATCH ${match})`
             : undefined,
-          ...terms.tags.map(
-            (t) =>
-              sql`(exists (select 1 from json_each(${saves.tags}) where lower(json_each.value) = lower(${t})) OR ${articles.id} IN (SELECT rowid FROM articles_fts WHERE articles_fts MATCH ${`tags : ${phrase(t)}`}))`,
-          ),
+          ...terms.tags.map((t) => {
+            const tagMatch = `tags : ${phrase(t)}`;
+            return sql`(exists (select 1 from json_each(${saves.tags}) where lower(json_each.value) = lower(${t})) OR ${articles.id} IN (SELECT rowid FROM articles_fts WHERE articles_fts MATCH ${tagMatch}))`;
+          }),
         ),
       )
       .orderBy(desc(saves.created_at), desc(saves.article_id));
@@ -2188,7 +2195,7 @@ export class Repository {
           title: f.title ?? f.url,
           articles: counts.get(f.source_id) ?? 0,
         }))
-        .sort((a, b) => b.articles - a.articles || a.feed_id - b.feed_id),
+        .toSorted((a, b) => b.articles - a.articles || a.feed_id - b.feed_id),
     };
   }
 
@@ -2224,7 +2231,7 @@ export class Repository {
       .flatMap((r) =>
         r.edition === null ? [] : [{ date: r.edition, count: Number(r.count) }],
       )
-      .toSorted((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+      .toSorted((a, b) => (a.date < b.date ? 1 : -Number(a.date > b.date)));
     const rows = dated.slice(0, days);
     const byMonth = new Map<string, number>();
     const weekdays = new Map<string, number>();
@@ -2258,7 +2265,9 @@ export class Repository {
       total: perEdition.reduce((n, r) => n + Number(r.count), 0),
       recent: perEdition.reduce(
         (n, r) =>
-          r.edition !== null && r.edition >= r.cutoff ? n + Number(r.count) : n,
+          r.edition !== null && Date.parse(r.edition) >= Date.parse(r.cutoff)
+            ? n + Number(r.count)
+            : n,
         0,
       ),
       archived: byHour.reduce((n, r) => n + Number(r.archived), 0),
@@ -2504,7 +2513,7 @@ export class Repository {
       .from(editions)
       .where(eq(editions.user_id, userId))
       .orderBy(asc(editions.id));
-    return rows.map(editionOf);
+    return rows.map((row) => editionOf(row));
   }
 
   /** Every custom edition, for the daily run to lay out. */
@@ -2513,7 +2522,7 @@ export class Repository {
       .select()
       .from(editions)
       .orderBy(asc(editions.id));
-    return rows.map(editionOf);
+    return rows.map((row) => editionOf(row));
   }
 
   /** The person's custom edition with this id, or undefined if not theirs. */
@@ -3012,7 +3021,8 @@ export class Repository {
     since: string,
     sourceIds?: readonly number[],
   ): Promise<Article[]> {
-    const feeds = (await this.listFeeds(userId)).filter(
+    const allFeeds = await this.listFeeds(userId);
+    const feeds = allFeeds.filter(
       (f) =>
         !f.muted &&
         (sourceIds === undefined || sourceIds.includes(f.source_id)),
@@ -3034,7 +3044,7 @@ export class Repository {
           )),
       );
     }
-    return rows.sort((a, b) => b.id - a.id);
+    return rows.toSorted((a, b) => b.id - a.id);
   }
 
   /**
@@ -3073,7 +3083,7 @@ export class Repository {
     since: string,
     limit: number,
   ): Promise<{ readonly article: Article; readonly count: number }[]> {
-    const acts = order === 'reads' ? reads : order === 'saves' ? saves : shares;
+    const acts = { reads, saves, shares }[order];
     const count = sql<number>`count(*)`;
     const rows = await this.#db
       .select({ article: getTableColumns(articles), count })
@@ -3384,6 +3394,7 @@ export class Repository {
   ): Promise<Passage[]> {
     const match = anyWordQuery(question);
     if (!match) return [];
+    const sourcePattern = `%${source}%`;
     return this.#db
       .select(this.#passageColumns())
       .from(articles)
@@ -3395,7 +3406,7 @@ export class Repository {
           since ? sql`${this.#day()} >= ${since}` : undefined,
           until ? sql`${this.#day()} <= ${until}` : undefined,
           source
-            ? sql`(${articles.source} LIKE ${`%${source}%`} OR ${articles.url} LIKE ${`%${source}%`})`
+            ? sql`(${articles.source} LIKE ${sourcePattern} OR ${articles.url} LIKE ${sourcePattern})`
             : undefined,
         ),
       )
@@ -3479,10 +3490,13 @@ export class Repository {
       )
       .orderBy(desc(shares.created_at), desc(shares.id))
       .limit(limit);
-    return rows.map(({ sharer, comments, ...p }) => ({
-      ...p,
-      annotation: `Shared by ${sharer || 'a reader'}${comments ? `: ${comments}` : ''}`,
-    }));
+    return rows.map(({ sharer, comments, ...p }) => {
+      const note = comments ? `: ${comments}` : '';
+      return {
+        ...p,
+        annotation: `Shared by ${sharer || 'a reader'}${note}`,
+      };
+    });
   }
 
   /** The stories the person opened in the last `days` days, newest first. */
@@ -3491,6 +3505,7 @@ export class Repository {
     days: number,
     limit = 10,
   ): Promise<Passage[]> {
+    const span = `-${days} days`;
     return this.#db
       .select(this.#passageColumns())
       .from(reads)
@@ -3498,7 +3513,7 @@ export class Repository {
       .where(
         and(
           eq(reads.user_id, userId),
-          sql`${reads.created_at} >= datetime('now', ${`-${days} days`})`,
+          sql`${reads.created_at} >= datetime('now', ${span})`,
         ),
       )
       .orderBy(desc(reads.created_at), desc(reads.article_id))
@@ -3545,9 +3560,10 @@ export class Repository {
       .where(eq(saves.user_id, userId))
       .orderBy(desc(saves.created_at), desc(saves.article_id))
       .limit(5);
+    const archive = await this.archiveSummary(userId);
     return {
       saves: Number(total?.n ?? 0),
-      tags: (await this.archiveSummary(userId)).tags,
+      tags: archive.tags,
       top_sources: sourcesSaved.map((r) => ({
         source: r.source ?? '',
         count: Number(r.count),
@@ -3671,9 +3687,10 @@ export class Repository {
     kind: UsageKind,
     cached = false,
   ): Promise<void> {
-    await this.#db
+    const usage = this.#db
       .insert(ai_usage)
       .values({ user_id: userId, kind, cached: cached ? 1 : 0 });
+    await usage;
   }
 
   /** How many questions of `kind` the person asked of the model since `since` (stored time). */
@@ -3797,7 +3814,8 @@ export class Repository {
     if (!article) return undefined;
     const match = anyWordQuery(`${article.title ?? ''}`);
     if (!match) return [];
-    const followed = new Set((await this.#followed(userId)).map((r) => r.id));
+    const followedRows = await this.#followed(userId);
+    const followed = new Set(followedRows.map((r) => r.id));
     const rows = await this.#db
       .select({ article: summaryColumns, source_url: sources.url })
       .from(articles)
@@ -3829,7 +3847,7 @@ export class Repository {
     }
     return [...counts]
       .map(([tag, count]) => ({ tag, count }))
-      .sort((a, b) => compareText(a.tag, b.tag));
+      .toSorted((a, b) => compareText(a.tag, b.tag));
   }
 
   /**
@@ -3868,9 +3886,10 @@ export class Repository {
         ),
       );
     const updates = rows.map((row) => {
-      const tags = tagsOf(row.tags).flatMap((t) =>
-        t === from ? (to === undefined ? [] : [to]) : [t],
-      );
+      const tags = tagsOf(row.tags).flatMap((t) => {
+        if (t !== from) return [t];
+        return to === undefined ? [] : [to];
+      });
       return this.#db
         .update(saves)
         .set({ tags: JSON.stringify([...new Set(tags)]) })
@@ -3954,9 +3973,8 @@ export class Repository {
   ): Promise<
     { readonly classifier: Classifier; readonly stories: ArticleSummary[] }[]
   > {
-    const prompts = (await this.listClassifiers(userId)).filter(
-      (c) => c.kind === 'prompt',
-    );
+    const allClassifiers = await this.listClassifiers(userId);
+    const prompts = allClassifiers.filter((c) => c.kind === 'prompt');
     return Promise.all(
       prompts.map(async (classifier) => ({
         classifier,
@@ -4039,7 +4057,8 @@ export class Repository {
     limit: number,
     join?: { readonly table: SQL; readonly on: SQL },
   ): Promise<RankedSource[]> {
-    const followed = new Set((await this.#followed(userId)).map((r) => r.id));
+    const followedRows = await this.#followed(userId);
+    const followed = new Set(followedRows.map((r) => r.id));
     const base = this.#db
       .select({
         id: sources.id,
@@ -4078,7 +4097,8 @@ export class Repository {
     days: number,
     limit: number,
   ): Promise<RankedSource[]> {
-    const since = sql`datetime('now', ${`-${days} days`})`;
+    const span = `-${days} days`;
+    const since = sql`datetime('now', ${span})`;
     const followers = sql<number>`${sources.follower_count}`;
     switch (kind) {
       case 'popular': {
@@ -4141,7 +4161,8 @@ export class Repository {
     q: string,
     limit: number,
   ): Promise<RankedSource[]> {
-    const like = `%${q.replaceAll(/[%_\\]/g, (c) => `\\${c}`)}%`;
+    const escaped = q.replaceAll(/[%_\\]/g, (c) => `\\${c}`);
+    const like = `%${escaped}%`;
     return this.#ranked(
       userId,
       null,

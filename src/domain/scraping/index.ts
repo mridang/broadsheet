@@ -130,9 +130,15 @@ async function resolveNames(
     if (resp && typeof resp === 'object') {
       parsed = resp as { names?: Record<string, string> };
     } else if (typeof resp === 'string') {
-      const match = resp.match(/\{[\s\S]*\}/);
-      if (match)
-        parsed = JSON.parse(match[0]) as { names?: Record<string, string> };
+      // The first '{' through the last '}', as the pattern `\{[\s\S]*\}` matched.
+      const start = resp.indexOf('{');
+      const end = resp.lastIndexOf('}');
+      if (start !== -1 && end > start)
+        parsed = JSON.parse(resp.slice(start, end + 1)) as {
+          names?: Record<string, string>;
+        };
+    } else {
+      // Neither an object nor text: there are no names to read.
     }
     const names = parsed?.names ?? {};
     let applied = 0;
@@ -554,13 +560,13 @@ export async function withText<
   if (article.body_text !== null && !force) return article;
   const page = await get(article.url, 12_000);
   const text = articleText(page);
-  const body_text = text.length >= MIN_TEXT ? text : '';
+  const bodyText = text.length >= MIN_TEXT ? text : '';
   // The page's lead picture stands in for a story the feed gave none.
   const image = article.image
     ? undefined
     : ogImage(page, article.url) || undefined;
-  await new Repository(db).setBodyText(article.id, body_text, image);
-  return { ...article, body_text, ...(image ? { image } : {}) };
+  await new Repository(db).setBodyText(article.id, bodyText, image);
+  return { ...article, body_text: bodyText, ...(image ? { image } : {}) };
 }
 
 // ---- historical backfill via the HN Algolia API (hnrss only serves today) ----
@@ -579,7 +585,7 @@ interface AlgoliaHit {
 /** Top HN stories for a single day (UTC), ranked by popularity, via Algolia. */
 async function hnTopForDate(date: string): Promise<ScrapedItem[]> {
   const start = Math.floor(Date.parse(`${date}T00:00:00Z`) / 1000);
-  if (isNaN(start)) return [];
+  if (Number.isNaN(start)) return [];
   const end = start + 86_400;
   const url =
     `https://hn.algolia.com/api/v1/search?tags=story&hitsPerPage=25` +
@@ -621,7 +627,8 @@ export async function backfillRecent(
   days = 7,
 ): Promise<{ filled: number }> {
   const repo = new Repository(db);
-  const sources = (await repo.allSources()).filter((s) => isHnFeed(s.url));
+  const allSources = await repo.allSources();
+  const sources = allSources.filter((s) => isHnFeed(s.url));
   let filled = 0;
   for (const source of sources) {
     const have = new Set(await repo.editionsForSource(source.id));
@@ -629,8 +636,7 @@ export async function backfillRecent(
       const date = new Date(Date.now() - i * 86_400_000)
         .toISOString()
         .slice(0, 10);
-      if (have.has(date)) continue;
-      const items = await hnTopForDate(date);
+      const items = have.has(date) ? [] : await hnTopForDate(date);
       if (items.length === 0) continue;
       await enrich(items);
       await resolveNames(env, items);

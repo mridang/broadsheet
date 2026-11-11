@@ -57,9 +57,8 @@ describe('webhooks', () => {
     const save = await repo.addWebhook(1, 'https://h.test/1', ['save'], 's');
     await repo.addWebhook(1, 'https://h.test/2', ['like'], 's');
     expect(save.events).toEqual(['save']);
-    expect((await repo.webhooksFor(1, 'save')).map((h) => h.url)).toEqual([
-      'https://h.test/1',
-    ]);
+    const hooks = await repo.webhooksFor(1, 'save');
+    expect(hooks.map((h) => h.url)).toEqual(['https://h.test/1']);
     expect(await repo.webhooksFor(2, 'save')).toEqual([]);
   });
 
@@ -111,13 +110,10 @@ describe('editionStories', () => {
     await main.writeEdition(muted.source_id, '2026-10-02', [
       story({ url: 'https://x/m', points: 99 }),
     ]);
-    expect((await repo.editionStories(1)).map((s) => s.url)).toEqual([
-      'https://x/b',
-      'https://x/a',
-    ]);
-    expect(
-      (await repo.editionStories(1, section.id)).map((s) => s.url),
-    ).toEqual(['https://x/a']);
+    const newest = await repo.editionStories(1);
+    expect(newest.map((s) => s.url)).toEqual(['https://x/b', 'https://x/a']);
+    const sectionOnly = await repo.editionStories(1, section.id);
+    expect(sectionOnly.map((s) => s.url)).toEqual(['https://x/a']);
     expect(await repo.editionStories(2)).toEqual([]);
   });
 
@@ -136,10 +132,8 @@ describe('editionStories', () => {
     await main.writeEdition(both.source_id, '2026-10-02', [
       story({ url: 'https://x/b', points: 1 }),
     ]);
-    expect((await repo.editionStories(1, tech.id)).map((s) => s.url)).toEqual([
-      'https://x/a',
-      'https://x/b',
-    ]);
+    const techOnly = await repo.editionStories(1, tech.id);
+    expect(techOnly.map((s) => s.url)).toEqual(['https://x/a', 'https://x/b']);
   });
 
   it('lists a feed again once its timed mute has run out', async () => {
@@ -170,9 +164,8 @@ describe('bodies', () => {
         }),
       ),
     );
-    const ids = (await main.sourceArticles(feed.source_id, '2026-10-02')).map(
-      (a) => a.id,
-    );
+    const articles = await main.sourceArticles(feed.source_id, '2026-10-02');
+    const ids = articles.map((a) => a.id);
     const bodies = await repo.bodies(ids);
     expect(bodies.size).toBe(94);
     expect(await repo.bodies([])).toEqual(new Map());
@@ -181,12 +174,12 @@ describe('bodies', () => {
 
 describe('feed token filters', () => {
   it('keeps the filter, and reads every token as all by default', async () => {
-    expect(
-      (await repo.addFeedToken(1, 'h1', { scope: 'edition', filter: 'focus' }))
-        .filter,
-    ).toBe('focus');
-    expect(
-      (await repo.addFeedToken(1, 'h2', { scope: 'edition' })).filter,
-    ).toBe('all');
+    const focused = await repo.addFeedToken(1, 'h1', {
+      scope: 'edition',
+      filter: 'focus',
+    });
+    expect(focused.filter).toBe('focus');
+    const everything = await repo.addFeedToken(1, 'h2', { scope: 'edition' });
+    expect(everything.filter).toBe('all');
   });
 });

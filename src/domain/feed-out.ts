@@ -90,9 +90,8 @@ async function contentOf(
   const repo = new Repository(db);
   const outbound = new OutboundRepository(db);
   if (token.scope === 'saves') {
-    const saves = (
-      await repo.listSaves(token.user_id, token.tag ?? undefined)
-    ).slice(0, 100);
+    const listed = await repo.listSaves(token.user_id, token.tag ?? undefined);
+    const saves = listed.slice(0, 100);
     const bodies = await outbound.bodies(saves.map((s) => s.article.id));
     return {
       title: token.tag ? `Saved: ${token.tag}` : 'Saved stories',
@@ -108,9 +107,8 @@ async function contentOf(
     };
   }
   if (token.scope === 'highlights') {
-    const marked = (await repo.listSaves(token.user_id))
-      .filter((s) => s.highlights?.length)
-      .slice(0, 100);
+    const saved = await repo.listSaves(token.user_id);
+    const marked = saved.filter((s) => s.highlights?.length).slice(0, 100);
     return {
       title: 'Highlights',
       site: `${origin}/saved`,
@@ -124,13 +122,13 @@ async function contentOf(
   }
   if (token.scope === 'search') {
     const search =
-      token.search_id !== null
-        ? await repo.getSearch(token.user_id, token.search_id)
-        : undefined;
+      token.search_id === null
+        ? undefined
+        : await repo.getSearch(token.user_id, token.search_id);
     if (!search) return undefined;
     const found = await repo.searchArticles(token.user_id, {
       q: search.query,
-      ...(search.feed_id !== null ? { feed: search.feed_id } : {}),
+      ...(search.feed_id === null ? {} : { feed: search.feed_id }),
       limit: 100,
     });
     return {
@@ -143,20 +141,21 @@ async function contentOf(
   let title = 'Today’s edition';
   if (token.scope === 'section') {
     const section =
-      token.section_id !== null
-        ? await repo.getSection(token.user_id, token.section_id)
-        : undefined;
+      token.section_id === null
+        ? undefined
+        : await repo.getSection(token.user_id, token.section_id);
     if (!section) return undefined;
     title = section.name;
   }
   const training =
     token.filter === 'all' ? [] : await repo.listClassifiers(token.user_id);
-  const stories = (
-    await outbound.editionStories(
-      token.user_id,
-      token.scope === 'section' ? (token.section_id ?? undefined) : undefined,
-    )
-  ).filter((a) => keeps(token.filter, verdict(a, training)));
+  const edition = await outbound.editionStories(
+    token.user_id,
+    token.scope === 'section' ? (token.section_id ?? undefined) : undefined,
+  );
+  const stories = edition.filter((a) =>
+    keeps(token.filter, verdict(a, training)),
+  );
   const bodies = await outbound.bodies(stories.map((a) => a.id));
   return {
     title: token.filter === 'focus' ? `${title} (focus)` : title,
@@ -187,7 +186,7 @@ export async function serveFeed(
   const content = row ? await contentOf(db, row, origin, stamp) : undefined;
   if (!row || !content) return refuse(404, 'No such feed.');
   const updated = content.entries.reduce(
-    (latest, e) => (e.updated > latest ? e.updated : latest),
+    (latest, e) => (e.updated.localeCompare(latest) > 0 ? e.updated : latest),
     content.entries[0]?.updated ?? stamp,
   );
   return new Response(

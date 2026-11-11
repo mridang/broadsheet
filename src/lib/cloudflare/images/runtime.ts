@@ -64,9 +64,13 @@ export function imageCache(): ImageCache | undefined {
  * into an error. Outside a Workers request the promise simply runs on its own.
  */
 export function runInBackground(work: Promise<unknown>): void {
-  const guarded = work.catch((error: unknown) => {
-    console.error('image background task failed', error);
-  });
+  const guarded = (async () => {
+    try {
+      await work;
+    } catch (error: unknown) {
+      console.error('image background task failed', error);
+    }
+  })();
   try {
     getCloudflareContext().ctx.waitUntil(guarded);
   } catch {

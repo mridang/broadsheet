@@ -23,19 +23,21 @@ export const RESOURCES: readonly McpResource<ToolContext>[] = [
     name: 'feeds',
     uri: 'broadsheet://feeds',
     description: 'The feeds the person follows.',
-    read: async (_params, { uid, db }) => ({
-      feeds: (await new Repository(db).listFeeds(uid)).map(feedResource),
-    }),
+    read: async (_params, { uid, db }) => {
+      const feeds = await new Repository(db).listFeeds(uid);
+      return { feeds: feeds.map((feed) => feedResource(feed)) };
+    },
   },
   {
     name: 'sections',
     uri: 'broadsheet://sections',
     description: 'The sections the person groups feeds under.',
-    read: async (_params, { uid, db }) => ({
-      sections: (await new Repository(db).listSections(uid)).map(
-        sectionResource,
-      ),
-    }),
+    read: async (_params, { uid, db }) => {
+      const sections = await new Repository(db).listSections(uid);
+      return {
+        sections: sections.map((section) => sectionResource(section)),
+      };
+    },
   },
   {
     name: 'saved-tags',
@@ -49,7 +51,7 @@ export const RESOURCES: readonly McpResource<ToolContext>[] = [
       }
       return {
         tags: [...counts]
-          .sort(([a], [b]) => compareText(a, b))
+          .toSorted(([a], [b]) => compareText(a, b))
           .map(([tag, count]) => ({ tag, count })),
       };
     },
@@ -58,11 +60,14 @@ export const RESOURCES: readonly McpResource<ToolContext>[] = [
     name: 'classifiers',
     uri: 'broadsheet://classifiers',
     description: 'The likes and dislikes the person trained the paper with.',
-    read: async (_params, { uid, db }) => ({
-      classifiers: (await new Repository(db).listClassifiers(uid)).map(
-        classifierResource,
-      ),
-    }),
+    read: async (_params, { uid, db }) => {
+      const classifiers = await new Repository(db).listClassifiers(uid);
+      return {
+        classifiers: classifiers.map((classifier) =>
+          classifierResource(classifier),
+        ),
+      };
+    },
   },
   {
     name: 'profile',

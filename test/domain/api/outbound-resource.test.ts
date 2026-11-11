@@ -34,6 +34,7 @@ describe('parsePushSubscriptionInput', () => {
   it.each([
     [
       {
+        // eslint-disable-next-line unicorn/prefer-https -- test fixture
         endpoint: 'http://push.example.com/x',
         keys: { p256dh: P256DH, auth: AUTH },
       },
@@ -103,6 +104,7 @@ describe('parseWebhookInput', () => {
 
   it.each([
     [
+      // eslint-disable-next-line unicorn/prefer-https -- test fixture
       { url: 'http://hooks.example.com/a', events: ['save'] },
       'url: must be a public https address.',
     ],

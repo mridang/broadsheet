@@ -16,12 +16,8 @@ beforeEach(() => {
   db = databaseFrom(sqliteD1(...APP_MIGRATIONS).d1);
 });
 
-const story = (
-  url: string,
-  title: string,
-  body_text?: string,
-): ScrapedItem => ({
-  ...(body_text ? { body_text } : {}),
+const story = (url: string, title: string, bodyText?: string): ScrapedItem => ({
+  ...(bodyText ? { body_text: bodyText } : {}),
   url,
   title,
   source: 'Src',
@@ -82,20 +78,18 @@ describe('serveFeed', () => {
 
   it('serves one section', async () => {
     const { sectionId } = await paper();
-    const xml = await (
-      await fetchFeed(
-        `?token=${await token({ scope: 'section', section_id: sectionId })}`,
-      )
-    ).text();
+    const res = await fetchFeed(
+      `?token=${await token({ scope: 'section', section_id: sectionId })}`,
+    );
+    const xml = await res.text();
     expect(xml).toContain('<title>Alpha</title>');
     expect(xml).not.toContain('<title>Beta</title>');
   });
 
   it('serves the whole edition', async () => {
     await paper();
-    const xml = await (
-      await fetchFeed(`?token=${await token({ scope: 'edition' })}`)
-    ).text();
+    const res = await fetchFeed(`?token=${await token({ scope: 'edition' })}`);
+    const xml = await res.text();
     expect(xml).toContain('<title>Alpha</title>');
     expect(xml).toContain('<title>Beta</title>');
     expect(xml).toContain('<updated>2026-10-02T00:00:00Z</updated>');
@@ -111,9 +105,10 @@ describe('serveFeed', () => {
       highlights: ['Alpha body'],
       notes: 'Worth it',
     });
-    const xml = await (
-      await fetchFeed(`?token=${await token({ scope: 'highlights' })}`)
-    ).text();
+    const res = await fetchFeed(
+      `?token=${await token({ scope: 'highlights' })}`,
+    );
+    const xml = await res.text();
     expect(xml).toContain(': Highlights</title>');
     expect(xml).toContain('<title>Alpha</title>');
     expect(xml).not.toContain('<title>Beta</title>');
@@ -127,17 +122,17 @@ describe('serveFeed', () => {
   });
 
   it('answers 404 for an unknown token', async () => {
-    expect((await fetchFeed('?token=nope')).status).toBe(404);
+    const res = await fetchFeed('?token=nope');
+    expect(res.status).toBe(404);
   });
 
   it('serves what a saved search finds', async () => {
     await paper();
     const { search } = await new Repository(db).addSearch(1, 'alpha', null);
-    const xml = await (
-      await fetchFeed(
-        `?token=${await token({ scope: 'search', search_id: search.id })}`,
-      )
-    ).text();
+    const res = await fetchFeed(
+      `?token=${await token({ scope: 'search', search_id: search.id })}`,
+    );
+    const xml = await res.text();
     expect(xml).toContain('Search: alpha');
     expect(xml).toContain('<title>Alpha</title>');
     expect(xml).not.toContain('<title>Beta</title>');
@@ -147,14 +142,16 @@ describe('serveFeed', () => {
     const { search } = await new Repository(db).addSearch(1, 'alpha', null);
     const t = await token({ scope: 'search', search_id: search.id });
     await new Repository(db).removeSearch(1, search.id);
-    expect((await fetchFeed(`?token=${t}`)).status).toBe(404);
+    const res = await fetchFeed(`?token=${t}`);
+    expect(res.status).toBe(404);
   });
 
   it('answers 404 when the section has gone', async () => {
     const { sectionId } = await paper();
     const t = await token({ scope: 'section', section_id: sectionId });
     await new Repository(db).removeSection(1, sectionId);
-    expect((await fetchFeed(`?token=${t}`)).status).toBe(404);
+    const res = await fetchFeed(`?token=${t}`);
+    expect(res.status).toBe(404);
   });
 });
 
@@ -186,9 +183,8 @@ describe('serveFeed filters and content', () => {
   it('carries each story’s kept text and a saved story’s tags', async () => {
     const { articleId } = await paper();
     await new Repository(db).saveArticle(1, articleId, ['rust', 'go']);
-    const xml = await (
-      await fetchFeed(`?token=${await token({ scope: 'saves' })}`)
-    ).text();
+    const res = await fetchFeed(`?token=${await token({ scope: 'saves' })}`);
+    const xml = await res.text();
     expect(xml).toContain('<content type="text">Alpha body.</content>');
     expect(xml).toContain('<category term="rust"/>');
   });
@@ -200,11 +196,10 @@ describe('serveFeed filters and content', () => {
       value: 'beta',
       score: -1,
     });
-    const xml = await (
-      await fetchFeed(
-        `?token=${await token({ scope: 'edition', filter: 'unread' })}`,
-      )
-    ).text();
+    const res = await fetchFeed(
+      `?token=${await token({ scope: 'edition', filter: 'unread' })}`,
+    );
+    const xml = await res.text();
     expect(xml).toContain('<title>Alpha</title>');
     expect(xml).not.toContain('<title>Beta</title>');
   });
@@ -216,11 +211,10 @@ describe('serveFeed filters and content', () => {
       value: 'beta',
       score: 1,
     });
-    const xml = await (
-      await fetchFeed(
-        `?token=${await token({ scope: 'edition', filter: 'focus' })}`,
-      )
-    ).text();
+    const res = await fetchFeed(
+      `?token=${await token({ scope: 'edition', filter: 'focus' })}`,
+    );
+    const xml = await res.text();
     expect(xml).toContain('(focus)');
     expect(xml).toContain('<title>Beta</title>');
     expect(xml).not.toContain('<title>Alpha</title>');
@@ -229,9 +223,10 @@ describe('serveFeed filters and content', () => {
 
 describe('serveFeed links', () => {
   it('links a saves feed to its page on the site', async () => {
-    const xml = await (
-      await fetchFeed(`?token=${await token({ scope: 'saves', tag: 'a b' })}`)
-    ).text();
+    const res = await fetchFeed(
+      `?token=${await token({ scope: 'saves', tag: 'a b' })}`,
+    );
+    const xml = await res.text();
     expect(xml).toContain(
       '<link rel="alternate" href="https://paper.test/saved?tag=a%20b"/>',
     );

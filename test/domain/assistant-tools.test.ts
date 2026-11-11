@@ -37,8 +37,10 @@ beforeEach(async () => {
   await repo.writeEdition(b.source_id, '2026-10-21', [
     story({ url: 'https://x/2', title: 'Secret', body_text: 'rust private' }),
   ]);
-  rust = (await repo.sourceArticles(a.source_id, '2026-10-20'))[0]!.id;
-  other = (await repo.sourceArticles(b.source_id, '2026-10-21'))[0]!.id;
+  const rustArticles = await repo.sourceArticles(a.source_id, '2026-10-20');
+  rust = rustArticles[0]!.id;
+  const otherArticles = await repo.sourceArticles(b.source_id, '2026-10-21');
+  other = otherArticles[0]!.id;
   await repo.saveArticle(1, rust, ['lang']);
 });
 

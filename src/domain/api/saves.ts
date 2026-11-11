@@ -122,9 +122,13 @@ export function createSavesCollection(
         paging,
       ),
     encode: (slice) =>
-      page(slice.items.map(saveResource), slice.next, {
-        'Cache-Control': 'no-store',
-      }),
+      page(
+        slice.items.map((item) => saveResource(item)),
+        slice.next,
+        {
+          'Cache-Control': 'no-store',
+        },
+      ),
   });
 }
 
@@ -226,11 +230,13 @@ export function createSaveTagsCollection(
     }),
   }).on<null, readonly SaveTagResource[]>({
     method: 'GET',
-    handle: async (_input, { uid }) =>
-      (await new Repository(getDatabase()).savedTagCounts(uid)).map((t) => ({
+    handle: async (_input, { uid }) => {
+      const counts = await new Repository(getDatabase()).savedTagCounts(uid);
+      return counts.map((t) => ({
         name: t.tag,
         count: t.count,
-      })),
+      }));
+    },
     encode: (items) =>
       ok({ items }, { headers: { 'Cache-Control': 'no-store' } }),
   });
@@ -287,9 +293,8 @@ export function createSaveTagItem(
         if (!(await repo.retagSaves(uid, tagOf(request), name))) {
           return undefined;
         }
-        const tag = (await repo.savedTagCounts(uid)).find(
-          (t) => t.tag === name,
-        );
+        const counts = await repo.savedTagCounts(uid);
+        const tag = counts.find((t) => t.tag === name);
         return tag ? { name, count: tag.count } : undefined;
       },
       encode: (tag) =>

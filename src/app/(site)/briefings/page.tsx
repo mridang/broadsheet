@@ -33,12 +33,13 @@ function beforeOf(raw: string | undefined): number | undefined {
  */
 export default async function BriefingsPage({
   searchParams,
-}: {
+}: Readonly<{
   searchParams: Promise<{ before?: string }>;
-}) {
+}>) {
   const user = await getCurrentUser();
   if (!user) redirect('/login');
-  const before = beforeOf((await searchParams).before);
+  const query = await searchParams;
+  const before = beforeOf(query.before);
   const rows = await new Repository(getDatabase()).listBriefings(
     user.id,
     PAGE + 1,
@@ -82,7 +83,8 @@ export default async function BriefingsPage({
                   <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-muted">
                     {opening}
                   </p>
-                ) : failed && b.error ? (
+                ) : null}
+                {!opening && failed && b.error ? (
                   <p className="mt-1 text-sm text-muted">{b.error}</p>
                 ) : null}
               </li>

@@ -96,24 +96,28 @@ describe('GET /img', () => {
 
   it('answers 403, without fetching, for a wrong or missing signature', async () => {
     const bad = `https://app.test/img?url=${encodeURIComponent(PHOTO)}&w=${WIDTH}&sig=nope`;
-    expect((await GET(new Request(bad))).status).toBe(403);
+    const badReply = await GET(new Request(bad));
+    expect(badReply.status).toBe(403);
     const none = `https://app.test/img?url=${encodeURIComponent(PHOTO)}&w=${WIDTH}`;
-    expect((await GET(new Request(none))).status).toBe(403);
+    const noneReply = await GET(new Request(none));
+    expect(noneReply.status).toBe(403);
     expect(fetched).toEqual([]);
   });
 
   it('answers 403 when the Worker has no secret to check signatures with', async () => {
     context.env = {};
-    expect((await ask()).status).toBe(403);
+    const reply = await ask();
+    expect(reply.status).toBe(403);
     expect(fetched).toEqual([]);
   });
 
   it('answers 400 for an address that is not a public image, and for none', async () => {
-    expect((await ask('http://127.0.0.1/x.png')).status).toBe(400);
-    expect((await ask('file:///etc/passwd')).status).toBe(400);
-    expect((await GET(new Request('https://app.test/img?w=640'))).status).toBe(
-      400,
-    );
+    const local = await ask('http://127.0.0.1/x.png');
+    expect(local.status).toBe(400);
+    const file = await ask('file:///etc/passwd');
+    expect(file.status).toBe(400);
+    const small = await GET(new Request('https://app.test/img?w=640'));
+    expect(small.status).toBe(400);
     expect(fetched).toEqual([]);
   });
 
@@ -167,7 +171,8 @@ describe('GET /img', () => {
     );
     const res = await ask();
     expect(res.headers.get('content-type')).toBe('image/jpeg');
-    expect((await res.arrayBuffer()).byteLength).toBe(100_000);
+    const body = await res.arrayBuffer();
+    expect(body.byteLength).toBe(100_000);
   });
 
   describe('with an edge cache', () => {
@@ -199,7 +204,8 @@ describe('GET /img', () => {
 
     it('keeps a copy of a picture it fetched, after the response is sent', async () => {
       const puts = installCache();
-      expect((await ask()).status).toBe(200);
+      const reply = await ask();
+      expect(reply.status).toBe(200);
       await Promise.all(context.waiting);
       expect(puts).toEqual([
         `https://images.invalid/${WIDTH}/${encodeURIComponent(PHOTO)}`,

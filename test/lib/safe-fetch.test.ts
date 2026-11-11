@@ -11,6 +11,7 @@ import {
 describe('isPublicWebUrl', () => {
   it.each([
     'https://thewoksoflife.com/wp-content/uploads/a.jpg',
+    // eslint-disable-next-line sonarjs/no-clear-text-protocols, unicorn/prefer-https -- test fixture
     'http://www.site.co.uk/a.png',
     'https://cdn.example-food.com:443/a.webp',
     'https://a.com:80/x',
@@ -21,17 +22,22 @@ describe('isPublicWebUrl', () => {
 
   it.each([
     'file:///etc/passwd',
+    // eslint-disable-next-line sonarjs/no-clear-text-protocols -- test fixture
     'ftp://a.com/x.jpg',
     'javascript:alert(1)',
     'data:text/html,<p>x</p>',
     'https://localhost/x.jpg',
     'https://localhost./x.jpg',
     'http://127.0.0.1/x.jpg',
+    // eslint-disable-next-line sonarjs/no-clear-text-protocols -- test fixture
     'http://10.0.0.5/x.jpg',
+    // eslint-disable-next-line sonarjs/no-clear-text-protocols -- test fixture
     'http://192.168.1.1/x.jpg',
+    // eslint-disable-next-line sonarjs/no-clear-text-protocols -- test fixture
     'http://172.20.0.1/x.jpg',
     'http://169.254.169.254/latest/meta-data',
     'http://[::1]/x.jpg',
+    // eslint-disable-next-line sonarjs/no-clear-text-protocols -- test fixture
     'http://[fe80::1]/x.jpg',
     'http://2130706433/x.jpg',
     'http://0x7f.1/x.jpg',
@@ -242,6 +248,7 @@ describe('fetchCapped', () => {
     });
 
     it('refuses a redirect that points nowhere', async () => {
+      // eslint-disable-next-line sonarjs/no-clear-text-protocols -- test fixture
       const { fetcher } = serving(redirect(null), redirect('http://['));
       expect(
         await fetchCapped('https://a.com/0', { ...OPTIONS, fetcher }),

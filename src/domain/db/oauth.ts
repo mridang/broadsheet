@@ -72,15 +72,16 @@ export class D1OAuthStore implements OAuthStore {
   }
 
   async saveClient(client: OAuthClient): Promise<void> {
-    await this.#db.insert(oauth_clients).values({
+    const insert = this.#db.insert(oauth_clients).values({
       client_id: client.clientId,
       client_name: client.name,
       redirect_uris: JSON.stringify(client.redirectUris),
     });
+    await insert;
   }
 
   async saveCode(code: StoredCode): Promise<void> {
-    await this.#db.insert(oauth_codes).values({
+    const insert = this.#db.insert(oauth_codes).values({
       code_hash: code.codeHash,
       client_id: code.clientId,
       user_id: code.userId,
@@ -90,6 +91,7 @@ export class D1OAuthStore implements OAuthStore {
       resource: code.resource,
       expires_at: code.expiresAt,
     });
+    await insert;
   }
 
   async takeCode(codeHash: string): Promise<StoredCode | undefined> {
@@ -112,13 +114,14 @@ export class D1OAuthStore implements OAuthStore {
   }
 
   async saveGrant(grant: Omit<StoredGrant, 'revoked'>): Promise<void> {
-    await this.#db.insert(oauth_grants).values({
+    const insert = this.#db.insert(oauth_grants).values({
       id: grant.id,
       user_id: grant.userId,
       client_id: grant.clientId,
       scope: grant.scope.join(' '),
       resource: grant.resource,
     });
+    await insert;
   }
 
   async findGrant(id: string): Promise<StoredGrant | undefined> {
@@ -148,12 +151,13 @@ export class D1OAuthStore implements OAuthStore {
   }
 
   async saveToken(token: StoredToken): Promise<void> {
-    await this.#db.insert(oauth_tokens).values({
+    const insert = this.#db.insert(oauth_tokens).values({
       token_hash: token.tokenHash,
       kind: token.kind,
       grant_id: token.grantId,
       expires_at: token.expiresAt,
     });
+    await insert;
   }
 
   async findToken(tokenHash: string): Promise<StoredToken | undefined> {

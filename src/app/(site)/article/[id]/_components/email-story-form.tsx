@@ -1,7 +1,7 @@
 'use client';
 
 import { ROW_LINK } from '@/components/stories/story-row';
-import { useState, type FormEvent, type ReactElement } from 'react';
+import { useState, type SubmitEvent, type ReactElement } from 'react';
 
 import { problemError } from '@/components/api/problem-message';
 import { useApiAction } from '@/components/api/use-api-action';
@@ -37,7 +37,7 @@ export function EmailStoryForm({
 }: Readonly<{ articleId: number; mailto: string }>): ReactElement {
   const [sent, setSent] = useState(false);
   const { busy, error, run } = useApiAction(() => setSent(true));
-  const submit = (event: FormEvent<HTMLFormElement>): void => {
+  const submit = (event: SubmitEvent<HTMLFormElement>): void => {
     event.preventDefault();
     const body = emailRequest(new FormData(event.currentTarget));
     void run(async () => {

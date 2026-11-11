@@ -4,6 +4,7 @@ import { inflateSync } from 'node:zlib';
 
 /** The width and height a PNG file declares in its IHDR header chunk. */
 export function pngSize(file: string): { width: number; height: number } {
+  // eslint-disable-next-line n/no-sync -- sync is fine in a test helper
   const bytes = readFileSync(file);
   // 8-byte signature, then the IHDR chunk: 4 length, 4 type, 4 width, 4 height.
   expect(bytes.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a');
@@ -28,7 +29,36 @@ function imageData(bytes: Buffer): Buffer {
 function paeth(a: number, b: number, c: number): number {
   const p = a + b - c;
   const [pa, pb, pc] = [Math.abs(p - a), Math.abs(p - b), Math.abs(p - c)];
-  return pa <= pb && pa <= pc ? a : pb <= pc ? b : c;
+  if (pa <= pb && pa <= pc) {
+    return a;
+  }
+  return pb <= pc ? b : c;
+}
+
+/** The byte a row's filter type predicts for one position. */
+function predictor(
+  filter: number | undefined,
+  left: number,
+  up: number,
+  upLeft: number,
+): number {
+  switch (filter) {
+    case 1: {
+      return left;
+    }
+    case 2: {
+      return up;
+    }
+    case 3: {
+      return (left + up) >> 1;
+    }
+    case 4: {
+      return paeth(left, up, upLeft);
+    }
+    default: {
+      return 0;
+    }
+  }
 }
 
 /**
@@ -38,8 +68,11 @@ function paeth(a: number, b: number, c: number): number {
  * app's icons are, and fails on anything else rather than guess.
  */
 export function pngIsOpaque(file: string): boolean {
+  // eslint-disable-next-line n/no-sync -- sync is fine in a test helper
   const bytes = readFileSync(file);
-  const [depth, colorType, , , interlace] = bytes.subarray(24, 29);
+  const depth = bytes[24];
+  const colorType = bytes[25];
+  const interlace = bytes[28];
   if (depth !== 8 || interlace !== 0 || (colorType !== 2 && colorType !== 6)) {
     throw new Error('Only 8-bit RGB and RGBA PNG files, not interlaced.');
   }
@@ -47,6 +80,7 @@ export function pngIsOpaque(file: string): boolean {
     return true;
   }
   const { width, height } = pngSize(file);
+  // eslint-disable-next-line n/no-sync -- sync is fine in a test helper
   const raw = inflateSync(imageData(bytes));
   const stride = width * 4;
   let above = Buffer.alloc(stride);
@@ -58,16 +92,7 @@ export function pngIsOpaque(file: string): boolean {
       const left = i >= 4 ? (row[i - 4] ?? 0) : 0;
       const up = above[i] ?? 0;
       const upLeft = i >= 4 ? (above[i - 4] ?? 0) : 0;
-      const predicted =
-        filter === 1
-          ? left
-          : filter === 2
-            ? up
-            : filter === 3
-              ? (left + up) >> 1
-              : filter === 4
-                ? paeth(left, up, upLeft)
-                : 0;
+      const predicted = predictor(filter, left, up, upLeft);
       row[i] = ((row[i] ?? 0) + predicted) & 255;
       if (i % 4 === 3 && row[i] !== 255) {
         return false;

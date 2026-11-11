@@ -204,14 +204,12 @@ export function briefingTitle(
   frequency: Preferences['briefing_frequency'],
   localDate: string,
 ): string {
-  const part =
-    slot === 'custom'
-      ? at >= SLOTS.evening
-        ? 'evening'
-        : at >= SLOTS.afternoon
-          ? 'afternoon'
-          : 'morning'
-      : slot;
+  let part: string = slot;
+  if (slot === 'custom') {
+    if (at >= SLOTS.evening) part = 'evening';
+    else if (at >= SLOTS.afternoon) part = 'afternoon';
+    else part = 'morning';
+  }
   const kind = frequency === 'weekly' ? 'Weekly' : 'Daily';
   return `${part[0]?.toUpperCase()}${part.slice(1)} ${kind} Briefing — ${formatEdition(localDate)}`;
 }
@@ -303,7 +301,11 @@ export function clusterEntries(list: readonly Article[]): Entry[] {
     return {
       article,
       coverage: Math.max(1, new Set(group.map((a) => a.source_id)).size),
-      also: [...new Set(group.filter((a) => a.id !== article.id).map(name))],
+      also: [
+        ...new Set(
+          group.filter((a) => a.id !== article.id).map((a) => name(a)),
+        ),
+      ],
     };
   });
 }
@@ -317,7 +319,8 @@ export async function coveredUrls(
     parseBriefedStories(s ?? null).map((b) => b.id),
   );
   if (ids.length === 0) return new Set();
-  return new Set((await repo.articlesByIds(ids)).map((a) => a.url));
+  const articles = await repo.articlesByIds(ids);
+  return new Set(articles.map((a) => a.url));
 }
 
 /** The source ids a briefing reads: all, or one section's and its nested ones'. */
@@ -330,7 +333,8 @@ async function sourcesFor(
   if (!m) return undefined;
   const sections = await repo.listSections(userId);
   const ids = sectionAndDescendants(sections, Number(m[1]));
-  return (await repo.listFeeds(userId))
+  const feeds = await repo.listFeeds(userId);
+  return feeds
     .filter((f) => f.section_id !== null && ids.has(f.section_id))
     .map((f) => f.source_id);
 }
@@ -357,7 +361,7 @@ async function extraSections(
     extra.set(key, found);
   }
   const want = (key: GlobalSection) => sectionOn(key, prefs);
-  const any = GLOBAL_SECTIONS.some(want);
+  const any = GLOBAL_SECTIONS.some((key) => want(key));
   const [read, saved, shared] = await Promise.all([
     any ? repo.popularArticles('reads', since, 12) : [],
     any ? repo.popularArticles('saves', since, 12) : [],
@@ -392,7 +396,7 @@ async function extraSections(
 
 /** What writing a briefing did. */
 export interface Written {
-  readonly briefing: StoredBriefing | undefined;
+  readonly briefing?: StoredBriefing;
   /** Whether it replaced one already stored for the slot and day. */
   readonly replaced: boolean;
   /** Why none was written, when none was. */
@@ -456,7 +460,6 @@ export async function writeScheduledBriefing(
   const picks = selectStories(candidates, prefs, extra, minimum);
   if (picks.length === 0) {
     return {
-      briefing: undefined,
       replaced: false,
       skipped: 'Too few stories.',
     };

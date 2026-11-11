@@ -57,7 +57,8 @@ let sourceId: number;
 beforeEach(async () => {
   db = databaseFrom(sqliteD1(...APP_MIGRATIONS).d1);
   repo = new Repository(db);
-  uid = (await repo.upsertUser({ sub: 'g', email: 'a@b.c' })).id;
+  const user = await repo.upsertUser({ sub: 'g', email: 'a@b.c' });
+  uid = user.id;
   const feed = await repo.addFeed(uid, 'https://x.test/rss', 'X');
   sourceId = feed!.source_id;
   await repo.writeEdition(sourceId, DAY, [item(1), item(2)]);
@@ -69,7 +70,8 @@ describe('composeLayout copies from other days', () => {
     await repo.writeEdition(other!.source_id, '2026-10-31', [
       item(1, { url: 'https://y.test/1', source: 'Y' }),
     ]);
-    const ids = (await repo.windowArticles('2026-10-31', DAY))
+    const windowRows = await repo.windowArticles('2026-10-31', DAY);
+    const ids = windowRows
       .filter((a) => a.title === 'Story 1')
       .map((a) => a.id);
     await repo.writeWindowClusters('2026-10-31', DAY, [ids]);
@@ -87,7 +89,8 @@ describe('composeLayout', () => {
     await repo.writeEdition(other!.source_id, DAY, [
       item(1, { url: 'https://y.test/1' }),
     ]);
-    const ids = (await repo.editionArticles(DAY))
+    const editionRows = await repo.editionArticles(DAY);
+    const ids = editionRows
       .filter((a) => a.title === 'Story 1')
       .map((a) => a.id);
     await repo.writeClusters(DAY, [ids]);
@@ -104,7 +107,8 @@ describe('composeLayout', () => {
   it('leaves out a muted feed', async () => {
     const [feed] = await repo.listFeeds(uid);
     await repo.updateFeed(uid, feed!.id, { muted: true });
-    expect((await composeLayout(repo, uid, DAY)).groups).toEqual([]);
+    const layout = await composeLayout(repo, uid, DAY);
+    expect(layout.groups).toEqual([]);
   });
 
   it('leaves out a story the reader read in another edition', async () => {
@@ -204,16 +208,16 @@ describe('publishIssue', () => {
     });
     const env = envWith('yes');
     await publishIssue(db, env, uid, DAY);
-    expect((await repo.promptMatches(uid)).size).toBe(3);
-    expect(
-      [...(await repo.promptMatches(uid)).values()][0]?.has(classifier.id),
-    ).toBe(true);
+    const matches = await repo.promptMatches(uid);
+    expect(matches.size).toBe(3);
+    expect([...matches.values()][0]?.has(classifier.id)).toBe(true);
   });
 
   it('replaces the day’s issue when run again', async () => {
     await publishIssue(db, envWith('First.'), uid, DAY);
     await publishIssue(db, envWith('Second.'), uid, DAY);
-    expect((await storedIssue(repo, uid, DAY))?.briefing).toBe('Second.');
+    const issue = await storedIssue(repo, uid, DAY);
+    expect(issue?.briefing).toBe('Second.');
   });
 
   it('asks the model nothing when the reader turned the note off', async () => {
@@ -243,9 +247,8 @@ describe('publishIssue', () => {
     // One source gives at most three, whatever the count.
     await repo.updatePreferences(uid, { briefing_story_count: 10 });
     await publishIssue(db, envWith('Note.'), uid, DAY);
-    expect((await storedIssue(repo, uid, DAY))?.briefing_stories).toHaveLength(
-      3,
-    );
+    const issue = await storedIssue(repo, uid, DAY);
+    expect(issue?.briefing_stories).toHaveLength(3);
   });
 });
 
@@ -284,18 +287,15 @@ describe('briefingFor', () => {
   it('stores no stories when the model wrote no note', async () => {
     await repo.writeEdition(sourceId, DAY, [item(1), item(2), item(3)]);
     const layout = await composeLayout(repo, uid, DAY, uid);
-    expect(
-      (
-        await briefingFor(
-          repo,
-          envWith(''),
-          uid,
-          layout,
-          DAY,
-          DEFAULT_PREFERENCES,
-        )
-      ).briefed,
-    ).toEqual([]);
+    const { briefed } = await briefingFor(
+      repo,
+      envWith(''),
+      uid,
+      layout,
+      DAY,
+      DEFAULT_PREFERENCES,
+    );
+    expect(briefed).toEqual([]);
   });
 });
 
@@ -374,7 +374,8 @@ describe('custom editions', () => {
     );
     const ids = storyIds(layout);
     expect(ids).toHaveLength(1);
-    expect((await repo.articlesByIds(ids))[0]?.title).toBe('Story 2');
+    const [found] = await repo.articlesByIds(ids);
+    expect(found?.title).toBe('Story 2');
   });
 
   it('keeps only the stories saved under its tag', async () => {

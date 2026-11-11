@@ -122,9 +122,9 @@ export function imageHeaders(type: string, etag: string): Headers {
 /** The first 16 bytes of the SHA-256 of `bytes` as a quoted entity tag. */
 async function etagOf(bytes: ArrayBuffer): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', bytes);
-  const hex = [...new Uint8Array(digest).slice(0, 16)]
-    .map((byte) => byte.toString(16).padStart(2, '0'))
-    .join('');
+  const hex = Array.from(new Uint8Array(digest).slice(0, 16), (byte) =>
+    byte.toString(16).padStart(2, '0'),
+  ).join('');
   return `"${hex}"`;
 }
 
@@ -179,7 +179,7 @@ export async function serveImage(
   request: Request,
   deps: ImageServiceDeps,
 ): Promise<Response> {
-  const { access, cache } = deps;
+  const { access, cache, images, fetcher } = deps;
   const early = await access.authenticate(request);
   if (early) {
     return early;
@@ -207,8 +207,8 @@ export async function serveImage(
     return refuse(403, 'That image is not available to you.');
   }
   const result = await fetchImage(url, width, {
-    images: deps.images,
-    fetcher: deps.fetcher,
+    images,
+    fetcher,
     userAgent: `${SITE_NAME.toLowerCase()}/1.0 (+${SITE_URL})`,
   });
   if (!result.ok) {

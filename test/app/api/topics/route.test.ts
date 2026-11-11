@@ -72,7 +72,8 @@ describe('GET /api/topics', () => {
 
 describe('GET /api/topics descriptions', () => {
   it('describes every topic', async () => {
-    const body = (await (await get()).json()) as {
+    const res = await get();
+    const body = (await res.json()) as {
       items: { description: string }[];
     };
     expect(body.items.every((t) => t.description.length > 0)).toBe(true);

@@ -164,6 +164,8 @@ export function parseNotificationRuleInput(
     errors.push('is_regex: must be true or false.');
   } else if (isRegex && !(REGEX_KINDS as readonly unknown[]).includes(kind)) {
     errors.push(`is_regex: only for ${REGEX_KINDS.join(', ')}.`);
+  } else {
+    // A regex flag on a kind that accepts one needs no error.
   }
   if (
     typeof value !== 'string' ||
@@ -176,6 +178,8 @@ export function parseNotificationRuleInput(
   } else if (isRegex === true) {
     const problem = regexProblem(value);
     if (problem) errors.push(`value: ${problem}.`);
+  } else {
+    // A value that is not a regex, or a valid one, needs no error here.
   }
   if (!(RULE_SCOPES as readonly unknown[]).includes(scope)) {
     errors.push(`scope: must be one of ${RULE_SCOPES.join(', ')}.`);
@@ -187,11 +191,15 @@ export function parseNotificationRuleInput(
     errors.push('feed_id: must name one of your feeds.');
   } else if (scope !== 'feed' && feedId !== undefined) {
     errors.push('feed_id: only for a feed rule.');
+  } else {
+    // A feed the rule names, or none, is already checked above.
   }
   if (scope === 'section' && section === undefined) {
     errors.push('section_id: must name one of your sections.');
   } else if (scope !== 'section' && sectionId !== undefined) {
     errors.push('section_id: only for a section rule.');
+  } else {
+    // A section the rule names, or none, is already checked above.
   }
   errors.push(...channelErrors(channels));
   return errors.length > 0

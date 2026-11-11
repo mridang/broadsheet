@@ -57,13 +57,12 @@ afterEach(() => restore());
 let mine: number;
 
 beforeEach(async () => {
-  mine = (
-    await new Repository(db).addClassifier(7, {
-      kind: 'source',
-      value: 'x',
-      score: 1,
-    })
-  ).classifier.id;
+  const added = await new Repository(db).addClassifier(7, {
+    kind: 'source',
+    value: 'x',
+    score: 1,
+  });
+  mine = added.classifier.id;
 });
 
 const remove = (id: string | number) =>
@@ -79,7 +78,8 @@ const classifiers = () => new Repository(db).listClassifiers(7);
 
 describe('DELETE /api/users/self/classifiers/:id', () => {
   it('answers 204 and the classifier is gone', async () => {
-    expect((await remove(mine)).status).toBe(204);
+    const res = await remove(mine);
+    expect(res.status).toBe(204);
     expect(await classifiers()).toEqual([]);
   });
 
@@ -93,18 +93,21 @@ describe('DELETE /api/users/self/classifiers/:id', () => {
   it.each(['abc', '0', '-1'])(
     'answers 404 for %j, which cannot name a classifier',
     async (id) => {
-      expect((await remove(id)).status).toBe(404);
+      const res = await remove(id);
+      expect(res.status).toBe(404);
     },
   );
 
   it('answers 404, removing nothing, for another person’s classifier', async () => {
     auth = await cookieFor(8);
-    expect((await remove(mine)).status).toBe(404);
+    const res = await remove(mine);
+    expect(res.status).toBe(404);
     expect(await classifiers()).toHaveLength(1);
   });
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await remove(mine)).status).toBe(401);
+    const res = await remove(mine);
+    expect(res.status).toBe(401);
   });
 });

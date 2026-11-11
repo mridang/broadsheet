@@ -52,12 +52,14 @@ describe('POST /api/conversations', () => {
   });
 
   it('answers 403 for a request from another site', async () => {
-    expect((await start({ 'Sec-Fetch-Site': 'cross-site' })).status).toBe(403);
+    const res = await start({ 'Sec-Fetch-Site': 'cross-site' });
+    expect(res.status).toBe(403);
   });
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await start()).status).toBe(401);
+    const res = await start();
+    expect(res.status).toBe(401);
   });
 });
 
@@ -70,8 +72,10 @@ const list = (query = '') =>
 
 describe('GET /api/conversations', () => {
   it('answers 200 with the person’s conversations, newest first', async () => {
-    const first = (await (await start()).json()) as { id: string };
-    const second = (await (await start()).json()) as { id: string };
+    const firstRes = await start();
+    const first = (await firstRes.json()) as { id: string };
+    const secondRes = await start();
+    const second = (await secondRes.json()) as { id: string };
     const res = await list();
     expect(res.status).toBe(200);
     const body = (await res.json()) as { items: { id: string }[] };
@@ -81,7 +85,8 @@ describe('GET /api/conversations', () => {
   it('pages with a cursor', async () => {
     await start();
     await start();
-    const body = (await (await list('?limit=1')).json()) as { next?: string };
+    const res = await list('?limit=1');
+    const body = (await res.json()) as { next?: string };
     expect(body.next).toMatch(/cursor=/);
   });
 
@@ -93,6 +98,7 @@ describe('GET /api/conversations', () => {
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await list()).status).toBe(401);
+    const res = await list();
+    expect(res.status).toBe(401);
   });
 });

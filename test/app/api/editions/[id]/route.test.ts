@@ -35,7 +35,10 @@ beforeEach(async () => {
     )
     .run('g7', 'a@b.com', 'g8', 'b@b.com');
   db = databaseFrom(made.d1);
-  mine = (await new Repository(db).addCustomEdition(7, { name: 'Weekend' })).id;
+  const created = await new Repository(db).addCustomEdition(7, {
+    name: 'Weekend',
+  });
+  mine = created.id;
   auth = await cookieFor(7);
 });
 
@@ -70,19 +73,23 @@ describe('PATCH /api/editions/:id', () => {
   });
 
   it('answers 400 for a section that is not the caller’s', async () => {
-    const theirs = (await new Repository(db).addSection(8, 'Theirs')).id;
+    const section = await new Repository(db).addSection(8, 'Theirs');
+    const theirs = section.id;
     const res = await patch(
       mine,
       JSON.stringify({ section_ids: [`${theirs}`] }),
     );
     expect(res.status).toBe(400);
-    expect((await edition())?.section_ids).toEqual([]);
+    const saved = await edition();
+    expect(saved?.section_ids).toEqual([]);
   });
 
   it('answers 404 for another person’s edition, changing nothing', async () => {
     auth = await cookieFor(8);
-    expect((await patch(mine, '{"name":"Taken"}')).status).toBe(404);
-    expect((await edition())?.name).toBe('Weekend');
+    const res = await patch(mine, '{"name":"Taken"}');
+    expect(res.status).toBe(404);
+    const saved = await edition();
+    expect(saved?.name).toBe('Weekend');
   });
 
   it('answers 404 for self, which no custom edition can be', async () => {
@@ -93,23 +100,27 @@ describe('PATCH /api/editions/:id', () => {
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await patch(mine, '{"name":"x"}')).status).toBe(401);
+    const res = await patch(mine, '{"name":"x"}');
+    expect(res.status).toBe(401);
   });
 });
 
 describe('DELETE /api/editions/:id', () => {
   it('answers 204 and removes the edition', async () => {
-    expect((await remove(mine)).status).toBe(204);
+    const res = await remove(mine);
+    expect(res.status).toBe(204);
     expect(await edition()).toBeUndefined();
   });
 
   it('answers 404 for another person’s edition, keeping it', async () => {
     auth = await cookieFor(8);
-    expect((await remove(mine)).status).toBe(404);
+    const res = await remove(mine);
+    expect(res.status).toBe(404);
     expect(await edition()).toBeDefined();
   });
 
   it('answers 404 for self', async () => {
-    expect((await remove('self')).status).toBe(404);
+    const res = await remove('self');
+    expect(res.status).toBe(404);
   });
 });

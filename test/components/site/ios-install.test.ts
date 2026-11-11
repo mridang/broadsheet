@@ -130,7 +130,9 @@ function host(
       options.storage ??
       (() => ({
         getItem: (key) => store.get(key) ?? null,
-        setItem: (key, value) => void store.set(key, value),
+        setItem: (key, value) => {
+          store.set(key, value);
+        },
       })),
   };
 }
@@ -185,7 +187,9 @@ describe('rememberDismissed', () => {
     const shared = host({
       storage: () => ({
         getItem: (key) => stored.get(key) ?? null,
-        setItem: (key, value) => void stored.set(key, value),
+        setItem: (key, value) => {
+          stored.set(key, value);
+        },
       }),
     });
     rememberDismissed(shared);

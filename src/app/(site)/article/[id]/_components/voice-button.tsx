@@ -40,6 +40,7 @@ export function VoiceButton({
   );
   if (!supported) return null;
   const start = async (): Promise<void> => {
+    // eslint-disable-next-line n/no-unsupported-features/node-builtins -- browser navigator in a client component, not Node's experimental global
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     const chunks: Blob[] = [];
     const rec = new MediaRecorder(stream);
@@ -64,6 +65,11 @@ export function VoiceButton({
       void start().catch(() => setRecording(false));
     }
   };
+  const label = (): string => {
+    if (recording) return 'Stop';
+    if (busy) return 'Listening…';
+    return 'Speak';
+  };
   return (
     <>
       <button
@@ -73,7 +79,7 @@ export function VoiceButton({
         aria-pressed={recording}
         onClick={toggle}
       >
-        {recording ? 'Stop' : busy ? 'Listening…' : 'Speak'}
+        {label()}
       </button>
       {error ? <ErrorText>{error}</ErrorText> : null}
     </>

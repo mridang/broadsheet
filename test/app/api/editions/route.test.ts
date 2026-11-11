@@ -26,7 +26,8 @@ beforeEach(async () => {
     )
     .run('g7', 'a@b.com', 'g8', 'b@b.com');
   db = databaseFrom(made.d1);
-  theirs = (await new Repository(db).addSection(8, 'Theirs')).id;
+  const section = await new Repository(db).addSection(8, 'Theirs');
+  theirs = section.id;
   auth = {
     cookie: `${SESSION_COOKIE}=${await tokenFor({ id: 7 }, { ep: 0 })}`,
   };
@@ -47,7 +48,8 @@ const editions = () => new Repository(db).listCustomEditions(7);
 
 describe('POST /api/editions', () => {
   it('answers 201 with the new edition and where to find it', async () => {
-    const mine = (await new Repository(db).addSection(7, 'Tech')).id;
+    const section = await new Repository(db).addSection(7, 'Tech');
+    const mine = section.id;
     const res = await post(
       JSON.stringify({
         name: 'Weekend',
@@ -88,14 +90,14 @@ describe('POST /api/editions', () => {
   });
 
   it('answers 415 for a body that is not JSON', async () => {
-    expect(
-      (await post('name=x', { 'Content-Type': 'text/plain' })).status,
-    ).toBe(415);
+    const res = await post('name=x', { 'Content-Type': 'text/plain' });
+    expect(res.status).toBe(415);
   });
 
   it('answers 401 when nobody is signed in, storing nothing', async () => {
     auth = {};
-    expect((await post('{"name":"Weekend"}')).status).toBe(401);
+    const res = await post('{"name":"Weekend"}');
+    expect(res.status).toBe(401);
     expect(await editions()).toHaveLength(0);
   });
 });

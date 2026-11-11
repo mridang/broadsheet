@@ -32,9 +32,9 @@ const PAGE = 20;
  */
 export default async function SharedPage({
   searchParams,
-}: {
+}: Readonly<{
   searchParams: Promise<{ user?: string; before?: string }>;
-}) {
+}>) {
   const user = await getCurrentUser();
   if (!user) redirect('/login');
   const query = await searchParams;

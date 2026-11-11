@@ -48,7 +48,8 @@ beforeEach(async () => {
       points: 0,
     },
   ]);
-  story = (await repo.sourceArticles(source_id, '2026-10-20'))[0]!.id;
+  const articles = await repo.sourceArticles(source_id, '2026-10-20');
+  story = articles[0]!.id;
   auth = await cookieFor(7);
 });
 
@@ -66,14 +67,16 @@ describe('GET /api/shares', () => {
 
   it('lists everyone’s shares to anyone signed in', async () => {
     auth = await cookieFor(8);
-    const body = (await (await list()).json()) as { items: unknown[] };
+    const res = await list();
+    const body = (await res.json()) as { items: unknown[] };
     expect(body.items).toEqual([
       expect.objectContaining({ comments: 'Good', sharer: { id: '7' } }),
     ]);
   });
 
   it('lists only the people named', async () => {
-    const body = (await (await list('?user_id=8')).json()) as {
+    const res = await list('?user_id=8');
+    const body = (await res.json()) as {
       items: unknown[];
     };
     expect(body.items).toEqual([]);
@@ -81,12 +84,14 @@ describe('GET /api/shares', () => {
 
   it('pages newest first with a cursor', async () => {
     await new ShareRepository(db).share(8, story, 'Later');
-    const first = (await (await list('?limit=1')).json()) as {
+    const firstRes = await list('?limit=1');
+    const first = (await firstRes.json()) as {
       next: string;
       items: { comments: string }[];
     };
     const cursor = new URL(first.next).searchParams.get('cursor');
-    const second = (await (await list(`?limit=1&cursor=${cursor}`)).json()) as {
+    const secondRes = await list(`?limit=1&cursor=${cursor}`);
+    const second = (await secondRes.json()) as {
       next?: string;
       items: { comments: string }[];
     };
@@ -108,6 +113,7 @@ describe('GET /api/shares', () => {
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await list()).status).toBe(401);
+    const res = await list();
+    expect(res.status).toBe(401);
   });
 });

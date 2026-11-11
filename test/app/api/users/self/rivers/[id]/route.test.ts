@@ -56,7 +56,8 @@ const remove = (id: string | number) =>
 
 describe('DELETE /api/users/self/rivers/:id', () => {
   it('answers 204 and moves the river below it up', async () => {
-    expect((await remove(mine)).status).toBe(204);
+    const res = await remove(mine);
+    expect(res.status).toBe(204);
     expect(await new RiverRepository(db).list(7)).toMatchObject([
       { river_id: 'saves', position: 0 },
     ]);
@@ -64,16 +65,19 @@ describe('DELETE /api/users/self/rivers/:id', () => {
 
   it('answers 404 for another person’s river, keeping it', async () => {
     auth = await cookieFor(8);
-    expect((await remove(mine)).status).toBe(404);
+    const res = await remove(mine);
+    expect(res.status).toBe(404);
     expect(await new RiverRepository(db).list(7)).toHaveLength(2);
   });
 
   it('answers 404 for an id that cannot name a river', async () => {
-    expect((await remove('self')).status).toBe(404);
+    const res = await remove('self');
+    expect(res.status).toBe(404);
   });
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await remove(mine)).status).toBe(401);
+    const res = await remove(mine);
+    expect(res.status).toBe(401);
   });
 });

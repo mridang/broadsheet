@@ -167,7 +167,8 @@ describe('importTopics', () => {
 describe('fetchOpml', () => {
   it('asks the feeds collection for OPML', async () => {
     const spy = answer(new Response('<opml/>'));
-    expect(await (await fetchOpml()).text()).toBe('<opml/>');
+    const response = await fetchOpml();
+    expect(await response.text()).toBe('<opml/>');
     expect(spy.mock.calls[0]).toEqual([
       '/api/feeds',
       { headers: { Accept: 'text/x-opml' } },

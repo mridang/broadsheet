@@ -75,7 +75,8 @@ describe('matchesRule', () => {
   });
 
   it('matches nothing on a story without the field', () => {
-    const bare = { ...story, title: null, author: null, tags: undefined };
+    const bare = { ...story, title: null, author: null };
+    delete bare.tags;
     expect(matchesRule(rule({ kind: 'title' }), bare)).toBe(false);
     expect(matchesRule(rule({ kind: 'author', value: 'Ferris' }), bare)).toBe(
       false,

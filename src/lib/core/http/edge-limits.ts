@@ -221,7 +221,8 @@ async function allowed(
     return true;
   }
   try {
-    return (await candidate.limit({ key })).success;
+    const outcome = await candidate.limit({ key });
+    return outcome.success;
   } catch (error) {
     logError({
       event: 'edge-limit.counter-failed',

@@ -18,21 +18,23 @@ export function StoryChanges({
         data-part=""
         className="mt-2 rounded-control border border-line bg-surface p-3 leading-relaxed text-muted"
       >
-        {storyChanges(original, current).map((c, i) =>
-          c.op === 'same' ? (
-            <span key={i}>{`${c.text} `}</span>
-          ) : c.op === 'del' ? (
-            <del
-              key={i}
-              className="bg-danger/10 text-danger line-through"
-            >{`${c.text} `}</del>
-          ) : (
+        {storyChanges(original, current).map((c, i) => {
+          if (c.op === 'same') return <span key={i}>{`${c.text} `}</span>;
+          if (c.op === 'del') {
+            return (
+              <del
+                key={i}
+                className="bg-danger/10 text-danger line-through"
+              >{`${c.text} `}</del>
+            );
+          }
+          return (
             <ins
               key={i}
               className="bg-success/10 text-success no-underline"
             >{`${c.text} `}</ins>
-          ),
-        )}
+          );
+        })}
       </p>
     </details>
   );

@@ -69,6 +69,7 @@ describe('registerWhenLoaded', () => {
   });
 
   it('does nothing in a browser without service workers', () => {
+    // eslint-disable-next-line sonarjs/no-undefined-assignment -- the test models a browser without service workers
     const env = browser({ serviceWorker: undefined, readyState: 'complete' });
     expect(registerWhenLoaded(env)).toBeUndefined();
     expect(env.register).not.toHaveBeenCalled();

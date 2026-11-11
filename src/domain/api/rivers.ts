@@ -75,7 +75,11 @@ async function checkOwned(
 
 /** The person's rivers as one page; there are never more than a page. */
 const listPage = (rivers: readonly River[]) =>
-  page(rivers.map(riverResource), undefined, { 'Cache-Control': 'no-store' });
+  page(
+    rivers.map((river) => riverResource(river)),
+    undefined,
+    { 'Cache-Control': 'no-store' },
+  );
 
 /**
  * `GET /api/users/self/rivers`: the person's rivers, the left column then the

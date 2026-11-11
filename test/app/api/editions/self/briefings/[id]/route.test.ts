@@ -20,8 +20,8 @@ let auth: Record<string, string>;
 let mine: number;
 let theirs: number;
 
-const briefing = (user_id: number) => ({
-  user_id,
+const briefing = (userId: number) => ({
+  user_id: userId,
   slot: 'morning',
   local_date: '2026-11-01',
   frequency: 'daily',
@@ -46,8 +46,10 @@ beforeEach(async () => {
     )
     .run('g7', 'a@b.com', 'g8', 'b@b.com');
   const repo = new Repository(databaseFrom(made.d1));
-  mine = (await repo.saveBriefing(briefing(7))).id;
-  theirs = (await repo.saveBriefing(briefing(8))).id;
+  const savedMine = await repo.saveBriefing(briefing(7));
+  mine = savedMine.id;
+  const savedTheirs = await repo.saveBriefing(briefing(8));
+  theirs = savedTheirs.id;
   auth = {
     cookie: `${SESSION_COOKIE}=${await tokenFor({ id: 7 }, { ep: 0 })}`,
   };
@@ -82,6 +84,7 @@ describe('GET /api/editions/self/briefings/:id', () => {
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await get(mine)).status).toBe(401);
+    const res = await get(mine);
+    expect(res.status).toBe(401);
   });
 });

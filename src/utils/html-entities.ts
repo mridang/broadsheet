@@ -40,6 +40,7 @@ export function decodeEntities(s: string): string {
       if (name) return NAMED[name.toLowerCase()] ?? whole;
       const n =
         dec === undefined ? Number.parseInt(hex ?? '', 16) : Number(dec);
+      // eslint-disable-next-line unicorn/number-literal-case -- conflicts with Prettier formatting
       return n > 0 && n <= 0x10_ff_ff ? String.fromCodePoint(n) : whole;
     },
   );

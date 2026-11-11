@@ -38,6 +38,7 @@ export function comparable(address: string | null | undefined): string {
   if (!address) return '';
   try {
     const url = new URL(address.trim());
+    // eslint-disable-next-line sonarjs/super-linear-regex -- a parsed URL path is short, so the scan stays cheap
     const path = url.pathname.replace(/\/+$/, '');
     return `${url.hostname.replace(/^www\./, '')}${url.port}${path}${url.search}`.toLowerCase();
   } catch {
@@ -80,7 +81,8 @@ export async function importFeeds(
       const key = `${parent ?? ''}/${name.toLowerCase()}`;
       let id = sectionIds.get(key);
       if (id === undefined) {
-        id = (await repo.addSection(uid, name, undefined, parent)).id;
+        const section = await repo.addSection(uid, name, undefined, parent);
+        id = section.id;
         sectionIds.set(key, id);
         sectionsAdded += 1;
       }
@@ -88,6 +90,7 @@ export async function importFeeds(
     }
     return parent;
   };
+  // eslint-disable-next-line sonarjs/too-many-break-or-continue-in-loop -- each entry leaves the loop at its own early exit (rejected, already filed, or skipped), and one exit would need a large rewrite
   for (const entry of entries) {
     const checked = parseFeedInput({ url: entry.url });
     if (!checked.ok) {
@@ -115,9 +118,10 @@ export async function importFeeds(
       continue;
     }
     const name = entry.title?.trim().toLowerCase() ?? '';
+    const knownFeed =
+      addresses.has(address) || (site !== '' && sites.has(site));
     if (
-      addresses.has(address) ||
-      (site !== '' && sites.has(site)) ||
+      knownFeed ||
       (name !== '' && titles.has(name)) ||
       (await repo.getFeedByUrl(uid, checked.url))
     ) {

@@ -80,44 +80,42 @@ describe('POST /api/transcriptions', () => {
   });
 
   it('answers 413 for a recording over 10 MB', async () => {
-    expect(
-      (
-        await send(new Uint8Array(1), 'audio/webm', {
-          'Content-Length': String(11 * 1024 * 1024),
-        })
-      ).status,
-    ).toBe(413);
+    const res = await send(new Uint8Array(1), 'audio/webm', {
+      'Content-Length': String(11 * 1024 * 1024),
+    });
+    expect(res.status).toBe(413);
   });
 
   it('answers 400 for an empty recording', async () => {
-    expect((await send(new Uint8Array(0))).status).toBe(400);
+    const res = await send(new Uint8Array(0));
+    expect(res.status).toBe(400);
   });
 
   it('answers 502 when nothing could be heard', async () => {
     run.mockResolvedValue({ text: '' });
-    expect((await send(new Uint8Array([1]))).status).toBe(502);
+    const res = await send(new Uint8Array([1]));
+    expect(res.status).toBe(502);
   });
 
   it('answers 429 once today’s budget is used up', async () => {
     for (let i = 0; i < DAILY_LIMITS.transcription; i++) {
       await repo.recordUsage(7, 'transcription');
     }
-    expect((await send(new Uint8Array([1]))).status).toBe(429);
+    const res = await send(new Uint8Array([1]));
+    expect(res.status).toBe(429);
     expect(run).not.toHaveBeenCalled();
   });
 
   it('answers 403 for a request from another site', async () => {
-    expect(
-      (
-        await send(new Uint8Array([1]), 'audio/webm', {
-          'Sec-Fetch-Site': 'cross-site',
-        })
-      ).status,
-    ).toBe(403);
+    const res = await send(new Uint8Array([1]), 'audio/webm', {
+      'Sec-Fetch-Site': 'cross-site',
+    });
+    expect(res.status).toBe(403);
   });
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await send(new Uint8Array([1]))).status).toBe(401);
+    const res = await send(new Uint8Array([1]));
+    expect(res.status).toBe(401);
   });
 });

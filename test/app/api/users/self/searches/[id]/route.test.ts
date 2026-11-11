@@ -26,8 +26,12 @@ beforeEach(async () => {
       'INSERT INTO users (id, google_sub, email, session_epoch) VALUES (7, ?, ?, 0), (8, ?, ?, 0)',
     )
     .run('g7', 'a@b.com', 'g8', 'b@b.com');
-  id = (await new Repository(databaseFrom(made.d1)).addSearch(7, 'rust', null))
-    .search.id;
+  const { search } = await new Repository(databaseFrom(made.d1)).addSearch(
+    7,
+    'rust',
+    null,
+  );
+  id = search.id;
 });
 
 afterEach(() => restore());
@@ -47,8 +51,10 @@ const remove = async (path: string, uid?: number) =>
 
 describe('DELETE /api/users/self/searches/:id', () => {
   it('forgets the search, then answers 404', async () => {
-    expect((await remove(String(id), 7)).status).toBe(204);
-    expect((await remove(String(id), 7)).status).toBe(404);
+    const removed = await remove(String(id), 7);
+    expect(removed.status).toBe(204);
+    const gone = await remove(String(id), 7);
+    expect(gone.status).toBe(404);
   });
 
   it.each([
@@ -61,6 +67,7 @@ describe('DELETE /api/users/self/searches/:id', () => {
   });
 
   it('answers 401 when nobody is signed in', async () => {
-    expect((await remove(String(id))).status).toBe(401);
+    const res = await remove(String(id));
+    expect(res.status).toBe(401);
   });
 });

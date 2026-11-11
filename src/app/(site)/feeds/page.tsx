@@ -42,13 +42,13 @@ const TRENDING_FEEDS = 5;
 
 export default async function FeedsPage({
   searchParams,
-}: {
+}: Readonly<{
   searchParams: Promise<{
     added?: string;
     skipped?: string;
     rejected?: string;
   }>;
-}) {
+}>) {
   const imported = await searchParams;
   const user = await getCurrentUser();
   if (!user) redirect('/login');
@@ -62,17 +62,16 @@ export default async function FeedsPage({
   const trendingQuery = parseSourceQuery(
     new URLSearchParams({ order: 'reads' }),
   );
-  const trending = trendingQuery.ok
-    ? (
-        await repo.trendingSources({
-          ...trendingQuery.query,
-          limit: TRENDING_FEEDS + feeds.length,
-        })
-      )
-        .filter((s) => !followed.has(s.url))
-        .slice(0, TRENDING_FEEDS)
-        .map((s) => ({ url: s.url, title: s.title, readers: s.count }))
+  const ranked = trendingQuery.ok
+    ? await repo.trendingSources({
+        ...trendingQuery.query,
+        limit: TRENDING_FEEDS + feeds.length,
+      })
     : [];
+  const trending = ranked
+    .filter((s) => !followed.has(s.url))
+    .slice(0, TRENDING_FEEDS)
+    .map((s) => ({ url: s.url, title: s.title, readers: s.count }));
   const stats = new Map(
     await Promise.all(
       feeds.map(

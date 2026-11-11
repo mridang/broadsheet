@@ -37,7 +37,9 @@ export async function generateMetadata({
  * A back issue: the paper as it was stored for that day, or the day laid out
  * live when the daily run stored none. 404 for a day with no edition.
  */
-export default async function Edition({ params }: { params: Params }) {
+export default async function Edition({
+  params,
+}: Readonly<{ params: Params }>) {
   const { date } = await params;
   if (!isIssueDate(date)) notFound();
   const user = await getCurrentUser();

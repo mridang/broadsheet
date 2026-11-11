@@ -239,7 +239,7 @@ export function Popover({
     const panelElement = panel.current;
     const rootElement = root.current;
     if (!panelElement || !rootElement) {
-      return;
+      return undefined;
     }
     const onPanelClick = (event: MouseEvent) => {
       if (

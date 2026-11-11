@@ -247,7 +247,7 @@ export function sectionOn(
 ): boolean {
   if (key === 'top_stories') return true;
   const custom = CUSTOM_SECTIONS.indexOf(key as CustomSection);
-  if (custom >= 0 && !prefs.briefing_prompts[custom]?.trim()) return false;
+  if (custom !== -1 && !prefs.briefing_prompts[custom]?.trim()) return false;
   return prefs.briefing_sections[key] !== false;
 }
 
@@ -258,7 +258,9 @@ export function sectionOrder(
   const chosen = (prefs.briefing_section_order ?? []).filter(
     (k): k is Category => CATEGORIES.includes(k as Category),
   );
-  return [...new Set([...chosen, ...DEFAULT_SECTION_ORDER])];
+  const sections = new Set(chosen);
+  for (const key of DEFAULT_SECTION_ORDER) sections.add(key);
+  return [...sections];
 }
 
 /**
@@ -337,9 +339,10 @@ export function selectStories(
   )) {
     if (ranked.length >= prefs.briefing_story_count * 3) break;
     const n = perSource.get(c.article.source_id) ?? 0;
-    if (n >= PER_SOURCE) continue;
-    perSource.set(c.article.source_id, n + 1);
-    ranked.push(c);
+    if (n < PER_SOURCE) {
+      perSource.set(c.article.source_id, n + 1);
+      ranked.push(c);
+    }
   }
   const used = new Set<number>();
   const filed = ranked.map((candidate) => {
@@ -372,10 +375,9 @@ export function selectStories(
   const taken = new Set(chosen.map((c) => c.candidate.article.id));
   const urls = new Set(chosen.map((c) => c.candidate.article.url));
   for (const key of order) {
-    if (!sectionOn(key, prefs)) continue;
     const isCustom = (CUSTOM_SECTIONS as readonly string[]).includes(key);
     const isGlobal = (GLOBAL_SECTIONS as readonly string[]).includes(key);
-    if (!isCustom && !isGlobal) continue;
+    if (!sectionOn(key, prefs) || (!isCustom && !isGlobal)) continue;
     const pick = (extra.get(key as CustomSection | GlobalSection) ?? [])
       .filter(
         (c) =>
@@ -393,12 +395,15 @@ export function selectStories(
   return order.flatMap((key) => chosen.filter((c) => c.category === key));
 }
 
+/** Preferences that keep the default section order. */
+const DEFAULT_PREFERENCES: Pick<Preferences, 'briefing_section_order'> = {
+  briefing_section_order: null,
+};
+
 /** The sections a note has, in the reader's order. */
 export function sectionsOf(
   picks: readonly Choice[],
-  prefs: Pick<Preferences, 'briefing_section_order'> = {
-    briefing_section_order: null,
-  },
+  prefs: Pick<Preferences, 'briefing_section_order'> = DEFAULT_PREFERENCES,
 ): Category[] {
   return sectionOrder(prefs).filter((k) => picks.some((p) => p.category === k));
 }
@@ -409,7 +414,7 @@ function sectionLine(
   prompts: readonly string[],
 ): readonly [string, string] {
   const custom = CUSTOM_SECTIONS.indexOf(key as CustomSection);
-  if (custom >= 0) {
+  if (custom !== -1) {
     return [
       `A heading you write from these keywords: ${prompts[custom] ?? ''}`,
       'Stories found by the reader’s own keywords. Use only stories whose CATEGORY is this section.',
@@ -461,8 +466,10 @@ export function userPrompt(picks: readonly Choice[], date: string): string {
           `WORD_COUNT: ${wordCount(a)}`,
           `EXCERPT: ${(a.summary || a.body_text || '').slice(0, 300)}`,
         ];
-        if (c.matches.length) lines.push(`MATCHES: ${c.matches.join(', ')}`);
-        if (c.also.length) {
+        if (c.matches.length > 0) {
+          lines.push(`MATCHES: ${c.matches.join(', ')}`);
+        }
+        if (c.also.length > 0) {
           lines.push(
             `CLUSTER: Also covered by: ${c.also.slice(0, 5).join(', ')}`,
           );
@@ -519,7 +526,7 @@ export async function composeBriefing(
     tokens,
     seconds: (Date.now() - started) / 1000,
   });
-  if (!picks.length) return done(null, null);
+  if (picks.length === 0) return done(null, null);
   for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
     try {
       const out = await env.AI.run(model as typeof BRIEFING_MODEL, {
@@ -558,7 +565,8 @@ export async function writeBriefing(
   date: string,
   wait: (ms: number) => Promise<void> = pause,
 ): Promise<string | null> {
-  return (await composeBriefing(env, picks, prefs, date, wait)).text;
+  const composed = await composeBriefing(env, picks, prefs, date, wait);
+  return composed.text;
 }
 
 /** What a stored note keeps about the stories it covers. */

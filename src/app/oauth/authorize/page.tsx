@@ -85,9 +85,8 @@ export default async function AuthorizePage({
         (entry): entry is [string, string] => entry[1] !== undefined,
       ),
     ).toString();
-    redirect(
-      `/auth/login?returnTo=${encodeURIComponent(`/oauth/authorize?${query}`)}`,
-    );
+    const returnTo = `/oauth/authorize?${query}`;
+    redirect(`/auth/login?returnTo=${encodeURIComponent(returnTo)}`);
   }
 
   const { client, redirectUri, scope } = check.request;

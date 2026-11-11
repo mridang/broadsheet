@@ -49,6 +49,7 @@ describe('parseConversion', () => {
     [{}, 'url or google_news: send exactly one.'],
     [{ url: 'a', google_news: {} }, 'url or google_news: send exactly one.'],
     [{ url: 'x', more: 1 }, 'more: not a member of this request.'],
+    // eslint-disable-next-line sonarjs/no-clear-text-protocols -- test fixture
     [{ url: 'ftp://x' }, 'url: not an address a feed can be found for.'],
     [{ url: 3 }, 'url: not an address a feed can be found for.'],
     [{ google_news: 'x' }, expect.stringMatching(/^google_news:/)],

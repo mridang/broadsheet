@@ -26,7 +26,7 @@ export function Toast({
   const shown = message && expired !== key ? message : undefined;
 
   useEffect(() => {
-    if (!message) return;
+    if (!message) return undefined;
     const timer = setTimeout(() => setExpired(key), SHOW_FOR);
     return () => clearTimeout(timer);
   }, [message, key]);

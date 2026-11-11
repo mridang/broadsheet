@@ -93,7 +93,7 @@ export async function StoryCard({
   clusterExpanded = false,
   personal = false,
   feedId,
-}: {
+}: Readonly<{
   article: Article;
   tier: Exclude<Tier, 'brief'>;
   also?: readonly string[];
@@ -105,7 +105,7 @@ export async function StoryCard({
   clusterExpanded?: boolean;
   personal?: boolean;
   feedId?: number;
-}) {
+}>) {
   const [, budget] = TIER[tier];
   const ex = budget ? excerpt(article.summary, budget) : '';
   const signer = imageSigner();
@@ -198,18 +198,19 @@ export async function StoryCard({
             {ex}
           </p>
         ) : null}
-        {siblings.length > 0 ? (
+        {siblings.length > 0 && (
           <ClusterPreview
             siblings={siblings}
             expanded={clusterExpanded}
             pictures={previews}
             {...(readIds ? { read: readIds } : {})}
           />
-        ) : also.length > 0 ? (
+        )}
+        {siblings.length === 0 && also.length > 0 && (
           <p data-part="" className={cn('mt-2 text-xs text-subtle', DIM)}>
             Also covered by: {also.join(', ')}
           </p>
-        ) : null}
+        )}
         {hasChanges(article.original_summary, article.summary) ? (
           <StoryChanges
             original={article.original_summary!}
@@ -266,6 +267,7 @@ export function StoryMenuItems({
   source: string;
   personal: boolean;
   shared: boolean;
+  // eslint-disable-next-line sonarjs/no-redundant-optional -- callers pass undefined explicitly under exactOptionalPropertyTypes
   feedId?: number | undefined;
 }>) {
   const ex = excerpt;

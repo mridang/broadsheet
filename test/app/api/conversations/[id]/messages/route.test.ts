@@ -65,8 +65,10 @@ beforeEach(async () => {
       body_text: 'Rust is memory safe.',
     },
   ]);
-  story = (await repo.sourceArticles(source_id, '2026-10-20'))[0]!.id;
-  conversation = (await repo.addConversation(7)).id;
+  const sourced = await repo.sourceArticles(source_id, '2026-10-20');
+  story = sourced[0]!.id;
+  const added = await repo.addConversation(7);
+  conversation = added.id;
   auth = await cookieFor(7);
 });
 
@@ -106,7 +108,8 @@ describe('POST /api/conversations/:id/messages', () => {
 
   it('keeps the question and the answer', async () => {
     await send(conversation, '{"content":"Is rust safe?"}');
-    expect((await turns()).map((t) => t.role)).toEqual(['user', 'assistant']);
+    const kept = await turns();
+    expect(kept.map((t) => t.role)).toEqual(['user', 'assistant']);
   });
 
   it('gives the model the retrieved story', async () => {
@@ -116,9 +119,8 @@ describe('POST /api/conversations/:id/messages', () => {
 
   it('titles the conversation by its first question', async () => {
     await send(conversation, '{"content":"Is rust safe?"}');
-    expect(
-      (await new Repository(db).getConversation(7, conversation))?.title,
-    ).toBe('Is rust safe?');
+    const saved = await new Repository(db).getConversation(7, conversation);
+    expect(saved?.title).toBe('Is rust safe?');
   });
 
   it('runs the tools the model calls and cites what they found', async () => {
@@ -155,12 +157,14 @@ describe('POST /api/conversations/:id/messages', () => {
   });
 
   it.each(['999', 'abc'])('answers 404 for conversation %j', async (id) => {
-    expect((await send(id, '{"content":"Q"}')).status).toBe(404);
+    const res = await send(id, '{"content":"Q"}');
+    expect(res.status).toBe(404);
   });
 
   it('answers 404 to another person', async () => {
     auth = await cookieFor(8);
-    expect((await send(conversation, '{"content":"Q"}')).status).toBe(404);
+    const res = await send(conversation, '{"content":"Q"}');
+    expect(res.status).toBe(404);
   });
 
   it('answers 502, keeping nothing, when the model fails', async () => {
@@ -179,6 +183,7 @@ describe('POST /api/conversations/:id/messages', () => {
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await send(conversation, '{"content":"Q"}')).status).toBe(401);
+    const res = await send(conversation, '{"content":"Q"}');
+    expect(res.status).toBe(401);
   });
 });

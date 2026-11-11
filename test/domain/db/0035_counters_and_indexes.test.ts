@@ -1,6 +1,7 @@
-import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { readFile } from 'node:fs/promises';
 import { beforeEach, describe, expect, it } from '@jest/globals';
+// eslint-disable-next-line n/no-unsupported-features/node-builtins -- experimental API used on purpose
 import type { DatabaseSync } from 'node:sqlite';
 
 import { APP_MIGRATIONS } from '../../lib/core/db/migrations';
@@ -26,8 +27,10 @@ function counters(raw: DatabaseSync, id: number) {
 }
 
 describe('0035_counters_and_indexes.sql backfill', () => {
-  it('fills the counters of the sources that already have rows', () => {
-    const raw = sqliteD1(...APP_MIGRATIONS.filter((f) => f < FILE)).raw;
+  it('fills the counters of the sources that already have rows', async () => {
+    const raw = sqliteD1(
+      ...APP_MIGRATIONS.filter((f) => f.localeCompare(FILE) < 0),
+    ).raw;
     raw.exec(
       `INSERT INTO sources (id, url) VALUES (1, 'a'), (2, 'b');
        INSERT INTO subscriptions (user_id, source_id) VALUES (1, 1), (2, 1);
@@ -35,7 +38,7 @@ describe('0035_counters_and_indexes.sql backfill', () => {
          (1, 'u1', '2026-10-01'), (1, 'u1', '2026-10-02'), (1, 'u2', '2026-10-02');`,
     );
     raw.exec(
-      readFileSync(path.join(process.cwd(), 'migrations', FILE), 'utf8'),
+      await readFile(path.join(process.cwd(), 'migrations', FILE), 'utf8'),
     );
     expect(counters(raw, 1).held).toEqual({ f: 2, s: 2 });
     expect(counters(raw, 2).held).toEqual({ f: 0, s: 0 });
@@ -77,12 +80,15 @@ describe('the counters of a source', () => {
 
   it('stay equal to the rows through a mixed run of writes', () => {
     let seed = 7;
-    const next = (n: number) => (seed = (seed * 48_271) % 2_147_483_647) % n;
+    const draw = (n: number) => {
+      seed = (seed * 48_271) % 2_147_483_647;
+      return seed % n;
+    };
     for (let i = 0; i < 400; i += 1) {
-      const source = 1 + next(2);
-      const url = `u${next(6)}`;
-      const edition = `2026-10-0${1 + next(3)}`;
-      const action = next(5);
+      const source = 1 + draw(2);
+      const url = `u${draw(6)}`;
+      const edition = `2026-10-0${1 + draw(3)}`;
+      const action = draw(5);
       if (action < 2) {
         raw.exec(
           `INSERT OR IGNORE INTO articles (source_id, url, edition) VALUES (${source}, '${url}', '${edition}')`,
@@ -93,14 +99,14 @@ describe('the counters of a source', () => {
         );
       } else if (action === 3) {
         raw.exec(
-          `UPDATE OR IGNORE articles SET url = 'r${next(3)}' WHERE source_id = ${source} AND url = '${url}' AND edition = '${edition}'`,
+          `UPDATE OR IGNORE articles SET url = 'r${draw(3)}' WHERE source_id = ${source} AND url = '${url}' AND edition = '${edition}'`,
         );
       } else {
         raw.exec(
-          `INSERT OR IGNORE INTO subscriptions (user_id, source_id) VALUES (${next(5)}, ${source})`,
+          `INSERT OR IGNORE INTO subscriptions (user_id, source_id) VALUES (${draw(5)}, ${source})`,
         );
         raw.exec(
-          `UPDATE OR IGNORE subscriptions SET source_id = ${source} WHERE user_id = ${next(5)} AND source_id = ${3 - source}`,
+          `UPDATE OR IGNORE subscriptions SET source_id = ${source} WHERE user_id = ${draw(5)} AND source_id = ${3 - source}`,
         );
       }
     }

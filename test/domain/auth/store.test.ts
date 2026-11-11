@@ -58,7 +58,8 @@ describe('upsertGoogleUser', () => {
 describe('getUserById, getSessionEpoch and bumpSessionEpoch', () => {
   it('find the person, read their epoch and move it on', async () => {
     const { id } = await upsertGoogleUser({ sub: 'g1', email: 'a@b.com' });
-    expect((await getUserById(id))?.email).toBe('a@b.com');
+    const found = await getUserById(id);
+    expect(found?.email).toBe('a@b.com');
     expect(await getSessionEpoch(id)).toBe(0);
     await bumpSessionEpoch(id);
     expect(await getSessionEpoch(id)).toBe(1);

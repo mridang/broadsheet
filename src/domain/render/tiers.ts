@@ -184,18 +184,33 @@ function inScope(story: Classifiable, c: Training): boolean {
  * Worker cannot stop a slow match.
  */
 function regexMatches(story: Classifiable, c: Training): boolean {
-  const text =
-    c.kind === 'title'
-      ? story.title
-      : c.kind === 'author'
-        ? story.author
-        : c.kind === 'url'
-          ? story.url
-          : c.kind === 'text'
-            ? [story.summary, story.body_text].filter(Boolean).join(' ')
-            : undefined;
+  const text = regexSubject(story, c.kind);
   if (!text || regexProblem(c.value)) return false;
   return new RegExp(c.value, 'i').test(text.slice(0, MAX_REGEX_TEXT));
+}
+
+/** The part of a story that a classifier of `kind` reads, if any. */
+function regexSubject(
+  story: Classifiable,
+  kind: Training['kind'],
+): string | null | undefined {
+  switch (kind) {
+    case 'title': {
+      return story.title;
+    }
+    case 'author': {
+      return story.author;
+    }
+    case 'url': {
+      return story.url;
+    }
+    case 'text': {
+      return [story.summary, story.body_text].filter(Boolean).join(' ');
+    }
+    default: {
+      return undefined;
+    }
+  }
 }
 
 /** The most text a regular-expression classifier runs over. */
@@ -268,7 +283,7 @@ export function rank<T extends Article & Classifiable>(
       w: weight(a) + coverageBoost(covered(a)),
     }))
     .filter((x) => shows(x.v, level))
-    .sort((x, y) => y.v - x.v || y.w - x.w)
+    .toSorted((x, y) => y.v - x.v || y.w - x.w)
     .map((x) => x.a);
 }
 

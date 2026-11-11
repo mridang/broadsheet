@@ -52,7 +52,8 @@ beforeEach(async () => {
       points: 0,
     },
   ]);
-  story = (await repo.sourceArticles(feed.source_id, '2026-10-20'))[0]!.id;
+  const articles = await repo.sourceArticles(feed.source_id, '2026-10-20');
+  story = articles[0]!.id;
   auth = await cookieFor(7);
 });
 
@@ -69,17 +70,20 @@ const list = () =>
 describe('GET /api/users/self/saves/feeds', () => {
   it('answers 200 with each feed’s count of saves', async () => {
     await new Repository(db).saveArticle(7, story, []);
-    expect(await (await list()).json()).toEqual({
+    const res = await list();
+    expect(await res.json()).toEqual({
       items: [{ feed_id: String(feedId), count: 1 }],
     });
   });
 
   it('leaves out feeds with no saves', async () => {
-    expect(await (await list()).json()).toEqual({ items: [] });
+    const res = await list();
+    expect(await res.json()).toEqual({ items: [] });
   });
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await list()).status).toBe(401);
+    const res = await list();
+    expect(res.status).toBe(401);
   });
 });

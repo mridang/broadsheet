@@ -3,7 +3,7 @@
 import { Chip } from '@/components/ui/badge';
 import { TextLink, buttonClass } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useState, type FormEvent, type ReactElement } from 'react';
+import { useState, type SubmitEvent, type ReactElement } from 'react';
 
 import {
   sendMessage,
@@ -83,7 +83,7 @@ export function AssistantChat({
       form?.reset();
     }, 'The assistant could not answer.');
   };
-  const submit = (event: FormEvent<HTMLFormElement>): void => {
+  const submit = (event: SubmitEvent<HTMLFormElement>): void => {
     event.preventDefault();
     const form = event.currentTarget;
     const content = String(new FormData(form).get('content') ?? '').trim();

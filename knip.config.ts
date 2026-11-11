@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs';
 
 /** The globs, only for a folder this app has, so knip finds nothing to hint about. */
 const whenPresent = (folder: string, glob: string) =>
+  // eslint-disable-next-line n/no-sync -- sync is fine in a script or bootstrap
   existsSync(folder) ? [glob] : [];
 
 export default {

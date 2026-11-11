@@ -75,9 +75,13 @@ export function createClassifiersCollection(
           paging,
         ),
       encode: (slice) =>
-        page(slice.items.map(classifierResource), slice.next, {
-          'Cache-Control': 'no-store',
-        }),
+        page(
+          slice.items.map((classifier) => classifierResource(classifier)),
+          slice.next,
+          {
+            'Cache-Control': 'no-store',
+          },
+        ),
     })
     .on<ClassifierInput, { classifier: Classifier; created: boolean }>({
       method: 'POST',

@@ -79,8 +79,10 @@ afterEach(() => {
   requests.length = 0;
 });
 
-const source = async () =>
-  (await new Repository(db).allSources()).find((s) => s.id === sourceId)!;
+const source = async () => {
+  const sources = await new Repository(db).allSources();
+  return sources.find((s) => s.id === sourceId)!;
+};
 
 describe('scrapeSource', () => {
   it('stores the edition with the text of each story and records the fetch', async () => {
@@ -117,9 +119,10 @@ describe('scrapeSource', () => {
     await scrapeSource(db, env, { id: sourceId, url: 'https://a.test/f' });
     serve({});
     await refreshSource(db, env, { id: sourceId, url: 'https://a.test/f' });
-    const feed = (await new Repository(db).listFeeds(1))[0]!;
-    const history = (await new Repository(db).feedStatistics(1, feed.id))!
-      .fetch_history;
+    const feeds = await new Repository(db).listFeeds(1);
+    const feed = feeds[0]!;
+    const statistics = await new Repository(db).feedStatistics(1, feed.id);
+    const history = statistics!.fetch_history;
     expect(history.map((h) => [h.ok, typeof h.duration_ms])).toEqual([
       [false, 'number'],
       [true, 'number'],
@@ -131,7 +134,8 @@ describe('scrapeSource', () => {
     await expect(
       scrapeSource(db, env, { id: sourceId, url: 'https://a.test/f' }),
     ).rejects.toThrow(FETCH_FAILED);
-    expect((await source()).fail_count).toBe(0);
+    const failed = await source();
+    expect(failed.fail_count).toBe(0);
   });
 });
 
@@ -208,7 +212,8 @@ describe('scrapeSource answers', () => {
     expect(
       await scrapeSource(db, env, { id: sourceId, url: 'https://a.test/f' }),
     ).toEqual({ articles: 1 });
-    expect((await source()).url).toBe('https://b.test/f');
+    const moved = await source();
+    expect(moved.url).toBe('https://b.test/f');
   });
 
   it('keeps the address through a temporary redirect', async () => {
@@ -218,7 +223,8 @@ describe('scrapeSource answers', () => {
       'https://a.test/story': PAGE,
     });
     await scrapeSource(db, env, { id: sourceId, url: 'https://a.test/f' });
-    expect((await source()).url).toBe('https://a.test/f');
+    const kept = await source();
+    expect(kept.url).toBe('https://a.test/f');
   });
 
   it.each([
@@ -244,9 +250,8 @@ describe('scrapeSource answers', () => {
         new Response(null, { status: 429, headers: { 'retry-after': '7200' } }),
     });
     await scrapeSource(db, env, { id: sourceId, url: 'https://a.test/f' });
-    const next = Date.parse(
-      `${(await source()).next_fetch_at!.replace(' ', 'T')}Z`,
-    );
+    const current = await source();
+    const next = Date.parse(`${current.next_fetch_at!.replace(' ', 'T')}Z`);
     expect(next - Date.now()).toBeGreaterThan(110 * 60 * 1000);
   });
 
@@ -255,7 +260,8 @@ describe('scrapeSource answers', () => {
     await expect(
       scrapeSource(db, env, { id: sourceId, url: 'https://a.test/f' }),
     ).rejects.toThrow('The feed answered HTTP 502.');
-    expect((await source()).fail_count).toBe(0);
+    const failed = await source();
+    expect(failed.fail_count).toBe(0);
   });
 
   it('records a page that is not a feed', async () => {
@@ -318,7 +324,8 @@ describe('scrapeSource fetching', () => {
         url: 'https://a.test/old.xml',
       }),
     ).toEqual({ articles: 1 });
-    expect((await source()).url).toBe('https://a.test/new.xml');
+    const pushed = await source();
+    expect(pushed.url).toBe('https://a.test/new.xml');
   });
 
   it('does not look again for a feed that has worked before', async () => {
@@ -336,7 +343,8 @@ describe('scrapeSource fetching', () => {
 
   /** Minutes from now until the source is due again. */
   const minutesAway = async () => {
-    const next = (await source()).next_fetch_at!;
+    const current = await source();
+    const next = current.next_fetch_at!;
     return (Date.parse(`${next.replace(' ', 'T')}Z`) - Date.now()) / 60_000;
   };
 
@@ -431,7 +439,8 @@ describe('WebSub', () => {
     <item><title>New</title><link>https://a.test/new</link></item>
   </channel></rss>`;
   const signed = async (body: string) => {
-    const secret = (await source()).websub_secret!;
+    const current = await source();
+    const secret = current.websub_secret!;
     return `sha1=${createHmac('sha1', secret).update(body).digest('hex')}`;
   };
 
@@ -454,9 +463,11 @@ describe('WebSub', () => {
         '2026-11-01',
       ),
     ).toBe('accepted');
-    const urls = (
-      await new Repository(db).sourceArticles(sourceId, '2026-11-01')
-    ).map((a) => a.url);
+    const articles = await new Repository(db).sourceArticles(
+      sourceId,
+      '2026-11-01',
+    );
+    const urls = articles.map((a) => a.url);
     expect(urls.toSorted((a, b) => a.localeCompare(b))).toEqual([
       'https://a.test/new',
       'https://a.test/story',
@@ -489,15 +500,15 @@ describe('WebSub', () => {
 
 describe('notified feeds', () => {
   it('are due again within 30 minutes', async () => {
-    const feed = (await new Repository(db).listFeeds(1))[0]!;
+    const feeds = await new Repository(db).listFeeds(1);
+    const feed = feeds[0]!;
     await db.run(
       sql`INSERT INTO feed_notifications (user_id, subscription_id) VALUES (1, ${feed.id})`,
     );
     serve({ 'https://a.test/f': FEED, 'https://a.test/story': PAGE });
     await scrapeSource(db, env, { id: sourceId, url: 'https://a.test/f' });
-    const next = Date.parse(
-      `${(await source()).next_fetch_at!.replace(' ', 'T')}Z`,
-    );
+    const current = await source();
+    const next = Date.parse(`${current.next_fetch_at!.replace(' ', 'T')}Z`);
     expect(next - Date.now()).toBeLessThanOrEqual(30 * 60 * 1000);
   });
 });
@@ -516,7 +527,8 @@ describe('fetchFeed', () => {
       'https://b.test/f': redirect(307, 'https://c.test/f'),
       'https://c.test/f': FEED,
     });
-    expect((await fetchFeed('https://a.test/f')).movedTo).toBeUndefined();
+    const fetched = await fetchFeed('https://a.test/f');
+    expect(fetched.movedTo).toBeUndefined();
   });
 });
 
@@ -595,7 +607,8 @@ describe('withText', () => {
     const row = await stored();
     expect(row.body_text).toBeNull();
     serve({ 'https://a.test/story': PAGE });
-    expect((await withText(db, row)).body_text).toBe(TEXT);
+    const withBody = await withText(db, row);
+    expect(withBody.body_text).toBe(TEXT);
     const [again] = await new Repository(db).sourceArticles(
       sourceId,
       '2026-11-01',
@@ -608,21 +621,22 @@ describe('withText', () => {
     serve({
       'https://a.test/story': `<html><head><meta property="og:image" content="/lead.jpg"></head><body><p>${TEXT}</p></body></html>`,
     });
-    expect((await withText(db, row)).image).toBe('https://a.test/lead.jpg');
+    const withImage = await withText(db, row);
+    expect(withImage.image).toBe('https://a.test/lead.jpg');
   });
 
   it('fetches the text again when forced', async () => {
     const row = await stored();
     serve({ 'https://a.test/story': PAGE });
-    expect(
-      (await withText(db, { ...row, body_text: 'Old.' }, true)).body_text,
-    ).toBe(TEXT);
+    const refetched = await withText(db, { ...row, body_text: 'Old.' }, true);
+    expect(refetched.body_text).toBe(TEXT);
   });
 
   it('remembers a page with too little text as having none', async () => {
     const row = await stored();
     serve({ 'https://a.test/story': '<p>Far too short to count.</p>' });
-    expect((await withText(db, row)).body_text).toBe('');
+    const shortText = await withText(db, row);
+    expect(shortText.body_text).toBe('');
   });
 });
 

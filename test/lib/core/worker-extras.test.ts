@@ -121,8 +121,7 @@ jest.unstable_mockModule('@/domain/briefings', () => ({
   ) => {
     calls.push(`brief:${user}:${slot}:${date}`);
     if (failingBriefings.has(user)) throw new Error('model down');
-    if (thinBriefings.has(user))
-      return { briefing: undefined, replaced: false };
+    if (thinBriefings.has(user)) return { replaced: false };
     return {
       briefing: { id: 40, title: 'Morning', status: 'complete' },
       replaced: false,
@@ -516,11 +515,8 @@ describe('dueBriefings', () => {
 
   it('leaves out a slot already written', async () => {
     written.add('7:morning:2026-11-01');
-    expect(
-      (await dueBriefings(new Repository('db' as never), new Date())).map(
-        (d) => d.slot,
-      ),
-    ).toEqual(['evening']);
+    const due = await dueBriefings(new Repository('db' as never), new Date());
+    expect(due.map((d) => d.slot)).toEqual(['evening']);
   });
 });
 

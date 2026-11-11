@@ -33,7 +33,8 @@ beforeEach(async () => {
   db = databaseFrom(made.d1);
   const repo = new Repository(db);
   mine = (await repo.addFeed(7, 'https://a.test/f'))!.id;
-  theirs = (await repo.addSection(8, 'Theirs')).id;
+  const section = await repo.addSection(8, 'Theirs');
+  theirs = section.id;
   auth = {
     cookie: `${SESSION_COOKIE}=${await tokenFor({ id: 7 }, { ep: 0 })}`,
   };
@@ -73,7 +74,8 @@ describe('POST /api/users/self/rivers', () => {
       '{"river_id":"saves","side":"left","position":0}',
     );
     expect(res.status).toBe(200);
-    expect((await rivers()).map((r) => r.river_id)).toEqual(['saves']);
+    const list = await rivers();
+    expect(list.map((r) => r.river_id)).toEqual(['saves']);
   });
 
   it('answers 400 for a river listing another person’s section', async () => {
@@ -102,17 +104,17 @@ describe('POST /api/users/self/rivers', () => {
   });
 
   it('answers 415 for a body that is not JSON', async () => {
-    expect(
-      (await send('POST', 'x', { 'Content-Type': 'text/plain' })).status,
-    ).toBe(415);
+    const res = await send('POST', 'x', { 'Content-Type': 'text/plain' });
+    expect(res.status).toBe(415);
   });
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect(
-      (await send('POST', '{"river_id":"all","side":"left","position":0}'))
-        .status,
-    ).toBe(401);
+    const res = await send(
+      'POST',
+      '{"river_id":"all","side":"left","position":0}',
+    );
+    expect(res.status).toBe(401);
   });
 });
 
@@ -145,7 +147,8 @@ describe('PUT /api/users/self/rivers', () => {
       }),
     );
     expect(res.status).toBe(400);
-    expect((await rivers()).map((r) => r.river_id)).toEqual(['all']);
+    const list = await rivers();
+    expect(list.map((r) => r.river_id)).toEqual(['all']);
   });
 });
 
@@ -168,14 +171,11 @@ describe('GET /api/users/self/rivers', () => {
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect(
-      (
-        await GET(
-          new Request('https://app.test/api/users/self/rivers', {
-            headers: auth,
-          }),
-        )
-      ).status,
-    ).toBe(401);
+    const res = await GET(
+      new Request('https://app.test/api/users/self/rivers', {
+        headers: auth,
+      }),
+    );
+    expect(res.status).toBe(401);
   });
 });

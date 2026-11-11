@@ -15,7 +15,7 @@ export function b64uDecode(input: string): Uint8Array {
   const bin = atob(padded);
   const out = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i += 1) {
-    out[i] = bin.charCodeAt(i);
+    out[i] = bin.codePointAt(i) ?? 0;
   }
   return out;
 }
@@ -24,9 +24,12 @@ export function b64uDecode(input: string): Uint8Array {
 export function b64uEncode(bytes: Uint8Array): string {
   let s = '';
   for (const byte of bytes) {
-    s += String.fromCharCode(byte!);
+    s += String.fromCodePoint(byte!);
   }
-  return btoa(s).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '');
+  return btoa(s)
+    .replaceAll('+', '-')
+    .replaceAll('/', '_')
+    .replace(/={1,2}$/, '');
 }
 
 /** Concatenate any number of byte arrays in order. @public */

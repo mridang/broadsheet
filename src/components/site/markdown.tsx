@@ -19,13 +19,15 @@ function safeHref(href: string): boolean {
 /** The inline marks of one line of text, as elements. */
 export function inline(text: string, keyPrefix = ''): ReactNode[] {
   const pattern =
+    // eslint-disable-next-line sonarjs/super-linear-regex, sonarjs/regex-complexity -- the alternatives are mutually exclusive and each match is one line of text
     /\[#(\d+)\]|\[([^\]]+)\]\(([^)\s]+)\)|\*\*([^*]+)\*\*|\*([^*\s][^*]*)\*|`([^`]+)`/g;
   const out: ReactNode[] = [];
   let last = 0;
   let n = 0;
   for (const m of text.matchAll(pattern)) {
     if (m.index > last) out.push(text.slice(last, m.index));
-    const key = `${keyPrefix}${n++}`;
+    const key = `${keyPrefix}${n}`;
+    n += 1;
     const [whole, cite, label, href, bold, em, code] = m;
     if (cite) {
       out.push(
@@ -46,6 +48,9 @@ export function inline(text: string, keyPrefix = ''): ReactNode[] {
     } else if (bold) out.push(<strong key={key}>{bold}</strong>);
     else if (em) out.push(<em key={key}>{em}</em>);
     else if (code) out.push(<code key={key}>{code}</code>);
+    else {
+      // Every match is one of the forms above, so there is nothing more to emit.
+    }
     last = m.index + whole.length;
   }
   if (last < text.length) out.push(text.slice(last));
@@ -63,10 +68,13 @@ export function blocks(markdown: string): Block[] {
   for (const raw of markdown.split('\n')) {
     const line = raw.trim();
     if (!line) continue;
+    // eslint-disable-next-line sonarjs/super-linear-regex -- the line is trimmed and the capture runs to the end, so there is no backtracking
     const bullet = /^[-*]\s+(.*)$/.exec(line);
+    // eslint-disable-next-line sonarjs/super-linear-regex -- the line is trimmed and the capture runs to the end, so there is no backtracking
     const numbered = /^\d+[.)]\s+(.*)$/.exec(line);
+    // eslint-disable-next-line sonarjs/super-linear-regex -- the line is trimmed and the capture runs to the end, so there is no backtracking
     const heading = /^#{1,6}\s+(.*)$/.exec(line);
-    const kind = bullet ? 'ul' : numbered ? 'ol' : undefined;
+    const kind = bullet ? 'ul' : numbered && 'ol';
     const prev = out.at(-1);
     if (kind) {
       const item = (bullet ?? numbered)![1]!;

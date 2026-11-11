@@ -14,14 +14,16 @@ const MAX_PER_FEED = 100;
 
 export const decode = (s = ''): string =>
   decodeEntities(s.replaceAll(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1'))
+    // eslint-disable-next-line sonarjs/super-linear-regex -- the stripped text must match what the feed holds; a linear pattern would remove different markup
     .replaceAll(/<[^>]+>/g, '')
     .replaceAll(/\s+/g, ' ')
     .trim();
 
 function tag(block: string, name: string): string {
-  const m = block.match(
-    new RegExp(String.raw`<${name}[^>]*>([\s\S]*?)</${name}>`, 'i'),
-  );
+  const m = new RegExp(
+    String.raw`<${name}[^>]*>([\s\S]*?)</${name}>`,
+    'i',
+  ).exec(block);
   return m?.[1] ? decode(m[1]) : '';
 }
 
@@ -94,18 +96,14 @@ export function domainClean(host: string): string {
 
 function metaContent(html: string, prop: string): string {
   const m =
-    html.match(
-      new RegExp(
-        `<meta[^>]+(?:property|name)=["']${prop}["'][^>]+content=["']([^"']+)["']`,
-        'i',
-      ),
-    ) ??
-    html.match(
-      new RegExp(
-        `<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${prop}["']`,
-        'i',
-      ),
-    );
+    new RegExp(
+      `<meta[^>]+(?:property|name)=["']${prop}["'][^>]+content=["']([^"']+)["']`,
+      'i',
+    ).exec(html) ??
+    new RegExp(
+      `<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${prop}["']`,
+      'i',
+    ).exec(html);
   return m?.[1] ?? '';
 }
 
@@ -128,9 +126,10 @@ export function pageDescription(html: string): string {
     metaContent(html, 'og:description') ||
     metaContent(html, 'twitter:description');
   if (og) return decode(og);
-  const m = html.match(
-    /<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i,
-  );
+  const m =
+    /<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i.exec(
+      html,
+    );
   return m?.[1] ? decode(m[1]) : '';
 }
 
@@ -148,7 +147,7 @@ export const isBoilerplate = (s: string): boolean =>
 
 /** Pull the HN score out of an hnrss description ("... Points: 374 ..."). */
 export function extractPoints(s: string): number {
-  const m = s.match(/Points:\s*(\d+)/i);
+  const m = /Points:\s*(\d+)/i.exec(s);
   return m?.[1] ? Number(m[1]) : 0;
 }
 
@@ -167,6 +166,7 @@ function xmlText(raw: string): string {
       const n = /^x/i.test(code)
         ? Number.parseInt(code.slice(1), 16)
         : Number(code);
+      // eslint-disable-next-line unicorn/number-literal-case -- conflicts with Prettier formatting
       return n > 0 && n <= 0x10_ff_ff ? String.fromCodePoint(n) : whole;
     })
     .replaceAll('&lt;', '<')
@@ -201,15 +201,14 @@ export function feedHeader(xml: string): FeedElement[] {
   const stack: Open[] = [root];
   let count = 0;
   const token =
+    // eslint-disable-next-line sonarjs/regex-complexity -- one token pattern reads all feed markup; splitting it would change how malformed tags are read
     /<!\[CDATA\[([\s\S]*?)\]\]>|<(\/?)([\w:.-]+)((?:\s+[\w:.-]+\s*=\s*(?:"[^"]*"|'[^']*'))*)\s*(\/?)>|([^<]+)/g;
   for (const m of source.matchAll(token)) {
     const top = stack.at(-1)!;
+    const name = m[3] ?? '';
     if (m[1] !== undefined || m[6] !== undefined) {
       top.text += m[1] ?? xmlText(m[6] ?? '');
-      continue;
-    }
-    const name = m[3] ?? '';
-    if (m[2]) {
+    } else if (m[2]) {
       if (stack.length > 1 && top.name === name) {
         stack.pop();
         stack.at(-1)!.children.push({
@@ -219,20 +218,22 @@ export function feedHeader(xml: string): FeedElement[] {
           children: top.children,
         });
       }
-      continue;
-    }
-    if (++count > MAX_HEADER_ELEMENTS * 50) break;
-    const attributes: Record<string, string> = {};
-    for (const a of (m[4] ?? '').matchAll(
-      /([\w:.-]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g,
-    )) {
-      attributes[a[1] ?? ''] = xmlText(a[2] ?? a[3] ?? '');
-    }
-    const open: Open = { name, attributes, text: '', children: [] };
-    if (m[5]) {
-      top.children.push({ ...open, children: [] });
     } else {
-      stack.push(open);
+      count += 1;
+      if (count > MAX_HEADER_ELEMENTS * 50) break;
+      const attributes: Record<string, string> = {};
+      for (const a of (m[4] ?? '').matchAll(
+        // eslint-disable-next-line sonarjs/super-linear-regex -- the attribute text was already matched by the token pattern, so the scan stays short
+        /([\w:.-]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g,
+      )) {
+        attributes[a[1] ?? ''] = xmlText(a[2] ?? a[3] ?? '');
+      }
+      const open: Open = { name, attributes, text: '', children: [] };
+      if (m[5]) {
+        top.children.push({ ...open, children: [] });
+      } else {
+        stack.push(open);
+      }
     }
   }
   while (stack.length > 1) {
@@ -244,7 +245,7 @@ export function feedHeader(xml: string): FeedElement[] {
       children: top.children,
     });
   }
-  const document = root.children[0];
+  const [document] = root.children;
   const container =
     document?.name === 'feed'
       ? document
@@ -291,6 +292,14 @@ function absolute(href: string, base: string): string {
   }
 }
 
+/** The format a feed's markup declares, or undefined when it declares none. */
+function feedFormatOf(xml: string): FeedFormat | undefined {
+  if (/<rdf:RDF[\s>]/i.test(xml)) return 'rdf';
+  if (/<rss[\s>]/i.test(xml)) return 'rss';
+  if (/<feed[\s>]/i.test(xml)) return 'atom';
+  return undefined;
+}
+
 /**
  * Read a feed's header: its format, title, site, description, language, when
  * it last changed, how often it says it changes (`sy:updatePeriod` and
@@ -298,22 +307,16 @@ function absolute(href: string, base: string): string {
  * `<logo>`).
  */
 export function feedDetails(xml: string, feedUrl: string): FeedDetails {
-  const format: FeedFormat | undefined = /<rdf:RDF[\s>]/i.test(xml)
-    ? 'rdf'
-    : /<rss[\s>]/i.test(xml)
-      ? 'rss'
-      : /<feed[\s>]/i.test(xml)
-        ? 'atom'
-        : undefined;
+  const format = feedFormatOf(xml);
   const head = xml.split(/<(?:item|entry)[\s>]/i, 1)[0] ?? '';
   const withoutImage = head.replaceAll(/<image[\s>][\s\S]*?<\/image>/gi, '');
   const alternate =
-    head.match(
-      /<link\b(?=[^>]*\brel=["']alternate["'])[^>]*\bhref=["']([^"']+)["']/i,
+    /<link\b(?=[^>]*\brel=["']alternate["'])[^>]*\bhref=["']([^"']+)["']/i.exec(
+      head,
     )?.[1] ??
-    head.match(/<link\b(?![^>]*\brel=)[^>]*\bhref=["']([^"']+)["']/i)?.[1] ??
+    /<link\b(?![^>]*\brel=)[^>]*\bhref=["']([^"']+)["']/i.exec(head)?.[1] ??
     '';
-  const site_url = absolute(tag(withoutImage, 'link') || alternate, feedUrl);
+  const siteUrl = absolute(tag(withoutImage, 'link') || alternate, feedUrl);
   const changed =
     tag(head, 'lastBuildDate') ||
     tag(withoutImage, 'pubDate') ||
@@ -323,27 +326,24 @@ export function feedDetails(xml: string, feedUrl: string): FeedDetails {
   const period = PERIOD_MINUTES[tag(head, 'sy:updatePeriod').toLowerCase()];
   const frequency = Number(tag(head, 'sy:updateFrequency') || 1);
   const ttl = Number(tag(head, 'ttl'));
-  const update_minutes =
-    period && frequency > 0
-      ? Math.round(period / frequency)
-      : ttl > 0
-        ? ttl
-        : undefined;
+  const cadence =
+    period && frequency > 0 ? Math.round(period / frequency) : undefined;
+  const updateMinutes = cadence ?? (ttl > 0 ? ttl : undefined);
   const image =
-    head.match(/<image[\s>][\s\S]*?<url>([\s\S]*?)<\/url>/i)?.[1] ??
+    /<image[\s>][\s\S]*?<url>([\s\S]*?)<\/url>/i.exec(head)?.[1] ??
     (tag(head, 'icon') || tag(head, 'logo'));
   return {
     ...(format ? { format } : {}),
     title: tag(withoutImage, 'title'),
-    site_url,
+    site_url: siteUrl,
     description: (
       tag(withoutImage, 'description') || tag(head, 'subtitle')
     ).slice(0, 500),
     language:
       tag(head, 'language') ||
-      (head.match(/<feed\b[^>]*\bxml:lang=["']([^"']+)["']/i)?.[1] ?? ''),
+      (/<feed\b[^>]*\bxml:lang=["']([^"']+)["']/i.exec(head)?.[1] ?? ''),
     updated_at: date && !Number.isNaN(date.getTime()) ? date.toISOString() : '',
-    ...(update_minutes ? { update_minutes } : {}),
+    ...(updateMinutes ? { update_minutes: updateMinutes } : {}),
     icon: absolute(decode(image), feedUrl),
   };
 }
@@ -358,11 +358,12 @@ const MAX_TAGS = 20;
  * `<author>` (often `mail@x (Name)`, where the name in brackets is kept).
  */
 export function itemAuthor(block: string): string {
-  const atom = block.match(
-    /<author[^>]*>[\s\S]*?<name[^>]*>([\s\S]*?)<\/name>/i,
+  const atom = /<author[^>]*>[\s\S]*?<name[^>]*>([\s\S]*?)<\/name>/i.exec(
+    block,
   );
   const named = (raw: string): string =>
-    (raw.match(/^\S+@\S+\s*\((.+)\)$/)?.[1] ?? raw).trim();
+    // eslint-disable-next-line sonarjs/super-linear-regex -- one anchored match per author string; a linear rewrite would keep different bracketed names
+    (/^\S+@\S+\s*\((.+)\)$/.exec(raw)?.[1] ?? raw).trim();
   const many = (name: string): string[] =>
     [
       ...block.matchAll(
@@ -372,11 +373,8 @@ export function itemAuthor(block: string): string {
       .map((m) => named(decode(m[1] ?? '')))
       .filter(Boolean);
   const creators = many('dc:creator');
-  const names = atom?.[1]
-    ? [decode(atom[1])]
-    : creators.length > 0
-      ? creators
-      : many('author');
+  const fallback = creators.length > 0 ? creators : many('author');
+  const names = atom?.[1] ? [decode(atom[1])] : fallback;
   return [...new Set(names)].join(', ').slice(0, MAX_AUTHOR);
 }
 
@@ -397,9 +395,10 @@ export function itemTags(block: string): string[] {
 
 /** The attribute `name` of a tag's opening text, entity-decoded. */
 function attr(opening: string, name: string): string {
-  const m = opening.match(
-    new RegExp(String.raw`\b${name}\s*=\s*(?:"([^"]*)"|'([^']*)')`, 'i'),
-  );
+  const m = new RegExp(
+    String.raw`\b${name}\s*=\s*(?:"([^"]*)"|'([^']*)')`,
+    'i',
+  ).exec(opening);
   return xmlText(m?.[1] ?? m?.[2] ?? '').trim();
 }
 
@@ -454,7 +453,7 @@ export function parseFeed(
   for (const b of blocks) {
     let link = tag(b, 'link');
     if (!link) {
-      const m = b.match(/<link[^>]*href=["']([^"']+)["']/i);
+      const m = /<link[^>]*href=["']([^"']+)["']/i.exec(b);
       if (m?.[1]) link = m[1];
     }
     if (!link) continue;
@@ -480,7 +479,8 @@ export function parseFeed(
       title: tag(b, 'title') || link,
       url: link.trim(),
       summary,
-      published_at: date && !isNaN(date.getTime()) ? date.toISOString() : '',
+      published_at:
+        date && !Number.isNaN(date.getTime()) ? date.toISOString() : '',
       source: domainClean(hostOf(link)),
       favicon: faviconFor(link),
       image: itemImage(b, link.trim()),
@@ -500,12 +500,13 @@ const NOT_STORY =
   /<(script|style|noscript|svg|template|nav|header|footer|aside|form|iframe|button)\b[\s\S]*?<\/\1>/gi;
 
 /** The permalink glyph many sites put at either end of a heading (`#`, `¶`, `§`). */
+// eslint-disable-next-line sonarjs/super-linear-regex -- headings are short; the trailing glyph check runs once per heading
 const PERMALINK = /^[#¶§]+\s*|\s*[#¶§]+$/g;
 
 /** The inside of the first `<name>` element, or undefined when there is none. */
 function region(html: string, name: string): string | undefined {
-  return html.match(
-    new RegExp(String.raw`<${name}\b[^>]*>([\s\S]*)</${name}>`, 'i'),
+  return new RegExp(String.raw`<${name}\b[^>]*>([\s\S]*)</${name}>`, 'i').exec(
+    html,
   )?.[1];
 }
 

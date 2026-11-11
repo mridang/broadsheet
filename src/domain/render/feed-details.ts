@@ -71,13 +71,20 @@ export function updateFrequency(minutes: number): string {
 
 /** The name of a feed format as people know it. */
 export function formatName(format: string): string {
-  return format === 'rss'
-    ? 'RSS'
-    : format === 'atom'
-      ? 'Atom'
-      : format === 'rdf'
-        ? 'RSS 1.0 (RDF)'
-        : format;
+  switch (format) {
+    case 'rss': {
+      return 'RSS';
+    }
+    case 'atom': {
+      return 'Atom';
+    }
+    case 'rdf': {
+      return 'RSS 1.0 (RDF)';
+    }
+    default: {
+      return format;
+    }
+  }
 }
 
 /** An element of a feed's header, as {@link headerFacts} reads it. */
@@ -142,9 +149,9 @@ export function headerFacts(elements: readonly Element[]): HeaderFact[] {
   const facts = new Map<string, string[]>();
   for (const e of elements) {
     const local = e.name.replace(/^.*:/, '');
-    if (SHOWN.has(local) && !e.name.includes(':')) continue;
     const value = phrase(e);
-    if (!value) continue;
+    const isShown = SHOWN.has(local) && !e.name.includes(':');
+    if (isShown || !value) continue;
     const label = elementLabel(e.name);
     facts.set(label, [...(facts.get(label) ?? []), value]);
   }

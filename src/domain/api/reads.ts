@@ -40,7 +40,8 @@ export async function readCopies(
   uid: number,
   ids: readonly number[],
 ): Promise<void> {
-  if (!(await repo.getPreferences(uid)).cluster_mark_read) return;
+  const prefs = await repo.getPreferences(uid);
+  if (!prefs.cluster_mark_read) return;
   for (const id of ids) {
     for (const sibling of await repo.clusterSiblingIds(uid, id)) {
       await repo.markRead(uid, sibling);
@@ -326,17 +327,18 @@ export function createReadsCollection(
       if (errors.length > 0) {
         throw problems.badRequest('The read scope is not valid.', errors);
       }
+      const sectionId = scope.section_id;
       const filed =
-        scope.section_id === undefined
+        sectionId === undefined
           ? undefined
-          : feeds.filter((f) => f.section_id === scope.section_id);
+          : feeds.filter((f) => f.section_id === sectionId);
       const chosen = [named, filed].filter((list) => list !== undefined);
-      const sourceIds =
-        chosen.length > 0
-          ? chosen
-              .map((list) => new Set(list.map((f) => f!.source_id)))
-              .reduce((a, b) => a.intersection(b))
-          : undefined;
+      const [firstSources, ...otherSources] = chosen.map(
+        (list) => new Set(list.map((f) => f!.source_id)),
+      );
+      const sourceIds = firstSources
+        ? otherSources.reduce((a, b) => a.intersection(b), firstSources)
+        : undefined;
       const done = await repo.markAllRead(uid, {
         ...(sourceIds ? { sourceIds: [...sourceIds] } : {}),
         ...(scope.article_ids ? { articleIds: scope.article_ids } : {}),

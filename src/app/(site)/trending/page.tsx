@@ -40,9 +40,9 @@ const LISTS: readonly (readonly [TrendingOrder, string])[] = [
  */
 export default async function TrendingPage({
   searchParams,
-}: {
+}: Readonly<{
   searchParams: Promise<Record<string, string | undefined>>;
-}): Promise<ReactElement> {
+}>): Promise<ReactElement> {
   const given = await searchParams;
   const params = new URLSearchParams({ order: given['order'] ?? 'reads' });
   for (const key of ['window', 'read', 'sort', 'cursor'] as const) {
@@ -124,13 +124,12 @@ export default async function TrendingPage({
           Show
         </button>
       </form>
-      {input.ok ? (
-        items.length === 0 ? (
-          <div className="mt-8">
-            <EmptyState icon="trending" title="Nothing is trending here yet." />
-          </div>
-        ) : null
-      ) : (
+      {input.ok && items.length === 0 ? (
+        <div className="mt-8">
+          <EmptyState icon="trending" title="Nothing is trending here yet." />
+        </div>
+      ) : null}
+      {input.ok ? null : (
         <p className="mt-6 text-sm text-muted">That list could not be read.</p>
       )}
       {items.length > 0 ? (

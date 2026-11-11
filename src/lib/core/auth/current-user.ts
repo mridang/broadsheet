@@ -43,7 +43,8 @@ export async function getCurrentUser(): Promise<User | null> {
  * verify it with.
  */
 export async function getSession(): Promise<SessionPayload | null> {
-  const token = (await cookies()).get(SESSION_COOKIE)?.value;
+  const jar = await cookies();
+  const token = jar.get(SESSION_COOKIE)?.value;
   const secret = getEnv().SESSION_SECRET;
   if (!token || !secret) {
     return null;
@@ -63,7 +64,8 @@ export async function getSession(): Promise<SessionPayload | null> {
  * {@link getLiveSessionUid} for anything that changes data or hands out secrets.
  */
 export async function getSessionUid(): Promise<number | null> {
-  return (await getSession())?.uid ?? null;
+  const session = await getSession();
+  return session?.uid ?? null;
 }
 
 /**

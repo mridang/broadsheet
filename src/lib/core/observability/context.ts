@@ -47,10 +47,9 @@ let loaded: ContextTracing | null | undefined;
 function load(): Promise<ContextTracing | null> {
   return import(
     /* webpackIgnore: true */ /* turbopackIgnore: true */ 'cloudflare:workers'
-  ).then(
-    (workers) => (loaded = workers.tracing),
-    () => (loaded = null),
-  );
+  )
+    .then((workers) => (loaded = workers.tracing))
+    .catch(() => (loaded = null));
 }
 
 /**
@@ -74,7 +73,9 @@ function withActiveSpan(apply: (span: ContextSpan) => void): Promise<void> {
     run(loaded);
     return Promise.resolve();
   }
-  return load().then(run, () => undefined);
+  return load()
+    .then(run)
+    .catch(() => undefined);
 }
 
 /** The attributes worth keeping: defined, and a string, a finite number or a boolean. */
@@ -87,6 +88,8 @@ function accepted(attributes: ContextAttributes): [string, ContextValue][] {
       kept.push([key, value]);
     } else if (typeof value === 'number' && Number.isFinite(value)) {
       kept.push([key, value]);
+    } else {
+      // Anything else (undefined, objects, non-finite numbers) is dropped.
     }
   }
   return kept;

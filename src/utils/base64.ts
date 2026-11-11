@@ -11,12 +11,12 @@
 /** Encode raw bytes as standard (padded) base64. */
 export function bytesToBase64(bytes: Uint8Array): string {
   // btoa wants a "binary string": one character per byte.
-  return btoa(Array.from(bytes, (byte) => String.fromCharCode(byte)).join(''));
+  return btoa(Array.from(bytes, (byte) => String.fromCodePoint(byte)).join(''));
 }
 
 /** Decode standard base64 into raw bytes. Throws on malformed input. */
 export function base64ToBytes(base64: string): Uint8Array {
-  return Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
+  return Uint8Array.from(atob(base64), (char) => char.codePointAt(0) ?? 0);
 }
 
 /** Encode raw bytes as URL-safe base64 (`-` and `_`, no padding). */
@@ -24,7 +24,7 @@ export function bytesToBase64Url(bytes: Uint8Array): string {
   return bytesToBase64(bytes)
     .replaceAll('+', '-')
     .replaceAll('/', '_')
-    .replace(/=+$/, '');
+    .replaceAll('=', '');
 }
 
 /** Decode URL-safe base64, with or without padding, into raw bytes. Throws on malformed input. */

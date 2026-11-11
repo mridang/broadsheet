@@ -51,6 +51,7 @@ describe('registerClient', () => {
 
   it('refuses a redirect URI that is not safe', async () => {
     const result = await registerClient(
+      // eslint-disable-next-line unicorn/prefer-https -- test fixture
       { redirect_uris: ['http://evil.test/cb'] },
       new MemoryStore(),
       100,

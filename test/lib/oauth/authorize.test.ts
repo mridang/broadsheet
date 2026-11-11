@@ -37,6 +37,8 @@ const check = (p: AuthorizeParams) =>
   validateAuthorizeRequest(p, ORIGIN, (id) => store.findClient(id));
 
 describe('validateAuthorizeRequest', () => {
+  let unset: string | undefined;
+
   it('accepts a complete request, for this MCP server and every scope', async () => {
     const result = await check(params());
     expect(result.ok && result.request).toMatchObject({
@@ -48,7 +50,7 @@ describe('validateAuthorizeRequest', () => {
   });
 
   it('uses the only registered redirect URI when none is sent', async () => {
-    const result = await check(params({ redirect_uri: undefined }));
+    const result = await check(params({ redirect_uri: unset }));
     expect(result.ok && result.request.redirectUri).toBe(
       'https://claude.ai/cb',
     );
@@ -70,7 +72,7 @@ describe('validateAuthorizeRequest', () => {
 
   it.each([
     [{ response_type: 'token' }, 'unsupported_response_type'],
-    [{ code_challenge: undefined }, 'invalid_request'],
+    [{ code_challenge: unset }, 'invalid_request'],
     [{ code_challenge_method: 'plain' }, 'invalid_request'],
     [{ resource: 'https://other.test/mcp' }, 'invalid_target'],
   ])('reports %j to the app as %s', async (extra, error) => {
@@ -85,10 +87,9 @@ describe('validateAuthorizeRequest', () => {
 describe('authorizeParamsFrom', () => {
   it('reads only the authorization fields', () => {
     const form = new URLSearchParams('client_id=c1&decision=approve');
-    expect(authorizeParamsFrom(form)).toMatchObject({
-      client_id: 'c1',
-      state: undefined,
-    });
+    const parsed = authorizeParamsFrom(form);
+    expect(parsed).toMatchObject({ client_id: 'c1' });
+    expect(parsed['state']).toBeUndefined();
   });
 });
 

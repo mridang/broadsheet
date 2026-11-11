@@ -25,6 +25,7 @@ describe('base64', () => {
 
 describe('base64 URL-safe', () => {
   it('uses - and _ and leaves off the padding', () => {
+    // eslint-disable-next-line unicorn/number-literal-case -- conflicts with Prettier formatting
     const bytes = Uint8Array.from([0xfb, 0xff, 0xfe, 0x01]);
     expect(bytesToBase64(bytes)).toBe('+//+AQ==');
     expect(bytesToBase64Url(bytes)).toBe('-__-AQ');

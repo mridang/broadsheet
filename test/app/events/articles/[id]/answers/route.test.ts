@@ -63,7 +63,8 @@ beforeEach(async () => {
       body_text: 'All about rust.',
     },
   ]);
-  story = (await repo.sourceArticles(source_id, '2026-10-20'))[0]!.id;
+  const articles = await repo.sourceArticles(source_id, '2026-10-20');
+  story = articles[0]!.id;
   auth = await cookieFor(7);
 });
 

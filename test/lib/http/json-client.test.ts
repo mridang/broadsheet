@@ -74,7 +74,6 @@ describe('JsonClient.request', () => {
       ok: false,
       error: 'offline',
       raw: '',
-      status: undefined,
     });
   });
 });

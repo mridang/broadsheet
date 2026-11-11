@@ -99,12 +99,11 @@ describe('POST /api/feeds/imports', () => {
         },
       ],
     });
-    expect((await repo.listFeeds(7)).map((f) => [f.url, f.section_id])).toEqual(
-      [
-        ['https://a.test/old', null],
-        ['https://a.test/1', 1],
-      ],
-    );
+    const feeds = await repo.listFeeds(7);
+    expect(feeds.map((f) => [f.url, f.section_id])).toEqual([
+      ['https://a.test/old', null],
+      ['https://a.test/1', 1],
+    ]);
     await settleBackground();
     expect(refreshSource).toHaveBeenCalledTimes(1);
   });
@@ -116,7 +115,8 @@ describe('POST /api/feeds/imports', () => {
     );
     expect(res.status).toBe(201);
     expect(await res.json()).toMatchObject({ added: 2, sections_added: 1 });
-    expect((await repo.listSections(7)).map((s) => s.name)).toEqual(['Design']);
+    const sections = await repo.listSections(7);
+    expect(sections.map((s) => s.name)).toEqual(['Design']);
   });
 
   it.each([
@@ -134,10 +134,10 @@ describe('POST /api/feeds/imports', () => {
   });
 
   it('answers 400 for OPML that is not OPML, or declares entities', async () => {
-    expect((await post('<html/>', 'text/xml')).status).toBe(400);
-    expect(
-      (await post('<!DOCTYPE a><opml></opml>', 'application/xml')).status,
-    ).toBe(400);
+    const html = await post('<html/>', 'text/xml');
+    expect(html.status).toBe(400);
+    const doctype = await post('<!DOCTYPE a><opml></opml>', 'application/xml');
+    expect(doctype.status).toBe(400);
   });
 
   it('answers 400 for a truncated upload, importing nothing', async () => {
@@ -161,7 +161,8 @@ describe('POST /api/feeds/imports', () => {
       ['A', null],
       ['B', sections[0]!.id],
     ]);
-    expect((await repo.listFeeds(7))[0]?.section_id).toBe(sections[1]!.id);
+    const feeds = await repo.listFeeds(7);
+    expect(feeds[0]?.section_id).toBe(sections[1]!.id);
   });
 
   it('answers 400 for more than 500 feeds', async () => {
@@ -169,7 +170,8 @@ describe('POST /api/feeds/imports', () => {
       { length: 501 },
       (_, i) => `<outline xmlUrl="https://a.test/${i}"/>`,
     ).join('');
-    expect((await post(opml(many), 'text/x-opml')).status).toBe(400);
+    const res = await post(opml(many), 'text/x-opml');
+    expect(res.status).toBe(400);
     expect(await repo.listFeeds(7)).toEqual([]);
   });
 
@@ -212,7 +214,8 @@ describe('POST /api/feeds/imports', () => {
       (_, i) => `<outline xmlUrl="https://a.test/${i}"/>`,
     ).join('');
     jest.spyOn(console, 'error').mockImplementation(() => undefined);
-    expect((await post(opml(many), 'text/x-opml')).status).toBe(500);
+    const res = await post(opml(many), 'text/x-opml');
+    expect(res.status).toBe(500);
     expect(made.raw.prepare('SELECT status FROM feed_imports').all()).toEqual([
       { status: 'failed' },
     ]);
@@ -223,7 +226,8 @@ describe('POST /api/feeds/imports', () => {
       { length: 50 },
       (_, i) => `<outline xmlUrl="https://a.test/${i}"/>`,
     ).join('');
-    expect((await post(opml(many), 'text/x-opml')).status).toBe(201);
+    const res = await post(opml(many), 'text/x-opml');
+    expect(res.status).toBe(201);
     expect(create).not.toHaveBeenCalled();
   });
 
@@ -234,7 +238,8 @@ describe('POST /api/feeds/imports', () => {
   });
 
   it('answers 415 for another media type', async () => {
-    expect((await post('hi', 'text/plain')).status).toBe(415);
+    const res = await post('hi', 'text/plain');
+    expect(res.status).toBe(415);
   });
 
   it('answers 401 when nobody is signed in', async () => {

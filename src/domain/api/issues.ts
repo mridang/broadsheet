@@ -109,7 +109,7 @@ interface IssuePage {
 
 /** What laying an issue out did: the issue, and whether one existed before. */
 interface Published {
-  readonly issue: Issue | undefined;
+  readonly issue?: Issue;
   readonly replaced: boolean;
 }
 
@@ -156,7 +156,7 @@ export function createIssuesCollection(
       },
       encode: ({ items, last }) =>
         page(
-          items.map(issueSummaryResource),
+          items.map((item) => issueSummaryResource(item)),
           last ? { key: last.date, id: last.date } : undefined,
           { 'Cache-Control': 'private, no-cache' },
         ),
@@ -177,8 +177,9 @@ export function createIssuesCollection(
       },
       handle: async (date, { uid }) => {
         const repo = new Repository(getDatabase());
-        if (!(await repo.listEditions(uid)).includes(date)) {
-          return { issue: undefined, replaced: false };
+        const editions = await repo.listEditions(uid);
+        if (!editions.includes(date)) {
+          return { replaced: false };
         }
         const replaced = (await repo.getIssue(uid, date)) !== undefined;
         await publish(uid, date);

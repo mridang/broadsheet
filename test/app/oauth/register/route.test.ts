@@ -33,13 +33,15 @@ describe('POST /oauth/register', () => {
   });
 
   it('refuses a body that is not JSON', async () => {
-    expect(await (await register('{')).json()).toMatchObject({
+    const reply = await register('{');
+    expect(await reply.json()).toMatchObject({
       error: 'invalid_client_metadata',
     });
   });
 
   it('refuses an unsafe redirect URI', async () => {
     const response = await register(
+      // eslint-disable-next-line unicorn/prefer-https -- test fixture
       JSON.stringify({ redirect_uris: ['http://evil.test/cb'] }),
     );
     expect(await response.json()).toMatchObject({

@@ -59,7 +59,12 @@ export class FeedImportRuns {
   /** Record a new import of `total` entries for `uid`, returning its id. */
   async start(uid: number, total: number): Promise<ImportRun> {
     const id = crypto.randomUUID();
-    await this.#db.insert(feed_imports).values({ id, user_id: uid, total });
+    const insert = this.#db.insert(feed_imports).values({
+      id,
+      user_id: uid,
+      total,
+    });
+    await insert;
     return {
       id,
       status: 'running',

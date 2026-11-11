@@ -34,6 +34,7 @@ export function regexProblem(pattern: string): string | undefined {
     return 'not a valid regular expression';
   }
   if (/\\[1-9]|\\k</.test(pattern)) return 'back-references are not allowed';
+  // eslint-disable-next-line sonarjs/super-linear-regex -- the pattern is length-capped above, so the scan over it stays bounded
   if (/\([^)]*[+*}][^)]*\)\s*[+*{?]/.test(pattern)) {
     return 'a repeated group may not itself repeat';
   }
@@ -52,7 +53,8 @@ export type RuledStory = Pick<
 /** Whether the story is in the rule's feed, section or anywhere. */
 export function inScope(rule: NotificationRule, story: RuledStory): boolean {
   if (rule.scope === 'feed') return story.feed_id === rule.feed_id;
-  if (rule.scope === 'section') return story.section_id === rule.section_id;
+  if (rule.scope === 'section')
+    return story.section_id !== null && story.section_id === rule.section_id;
   return true;
 }
 

@@ -120,6 +120,7 @@ describe('refuse', () => {
   });
 });
 
+// eslint-disable-next-line sonarjs/max-lines-per-function -- logic rewrite that would be large
 describe('serveImage', () => {
   it('fetches the picture, keeps a copy at the edge in the background, and sends it', async () => {
     const { cache, stored } = fakeCache();
@@ -316,12 +317,13 @@ describe('serveImage', () => {
         },
       };
       const deps = { access, fetcher, background: () => undefined };
-      expect((await serveImage(ask(PHOTO, '&sig=bad'), deps)).status).toBe(403);
-      expect((await serveImage(ask(), deps)).status).toBe(403);
+      const badSignature = await serveImage(ask(PHOTO, '&sig=bad'), deps);
+      expect(badSignature.status).toBe(403);
+      const unsigned = await serveImage(ask(), deps);
+      expect(unsigned.status).toBe(403);
       expect(fetcher).not.toHaveBeenCalled();
-      expect((await serveImage(ask(PHOTO, '&sig=good'), deps)).status).toBe(
-        200,
-      );
+      const goodSignature = await serveImage(ask(PHOTO, '&sig=good'), deps);
+      expect(goodSignature.status).toBe(200);
       expect(checked).toEqual(['bad', null, 'good']);
     });
 
@@ -339,12 +341,14 @@ describe('serveImage', () => {
         '',
         `https://${HOST}/${'a'.repeat(3000)}`,
       ]) {
-        expect((await serveImage(ask(url), deps)).status).toBe(400);
+        const refused = await serveImage(ask(url), deps);
+        expect(refused.status).toBe(400);
       }
-      expect(
-        (await serveImage(new Request('https://app.test/img?w=640'), deps))
-          .status,
-      ).toBe(400);
+      const malformed = await serveImage(
+        new Request('https://app.test/img?w=640'),
+        deps,
+      );
+      expect(malformed.status).toBe(400);
       expect(mayFetch).not.toHaveBeenCalled();
       expect(signatureValid).not.toHaveBeenCalled();
     });

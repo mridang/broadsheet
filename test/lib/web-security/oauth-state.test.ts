@@ -49,18 +49,12 @@ describe('checkState', () => {
 
   it('stops when either side is missing', () => {
     const state = newState(SIGN_IN_PURPOSE);
-    expect(checkState(null, state, PURPOSES)).toEqual({
-      ok: false,
-      claimed: undefined,
-    });
+    expect(checkState(null, state, PURPOSES)).toEqual({ ok: false });
     expect(checkState(state, undefined, PURPOSES)).toEqual({
       ok: false,
       claimed: SIGN_IN_PURPOSE,
     });
-    expect(checkState('', '', PURPOSES)).toEqual({
-      ok: false,
-      claimed: undefined,
-    });
+    expect(checkState('', '', PURPOSES)).toEqual({ ok: false });
   });
 
   it('stops when the two differ, still reporting the label for the wording', () => {
@@ -76,7 +70,6 @@ describe('checkState', () => {
   it('stops for a matching state that is not one of the valid labels', () => {
     expect(checkState('admin.123', 'admin.123', PURPOSES)).toEqual({
       ok: false,
-      claimed: undefined,
     });
   });
 });

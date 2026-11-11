@@ -53,6 +53,7 @@ function unescapeXml(text: string): string {
           name[1] === 'x' || name[1] === 'X'
             ? Number.parseInt(name.slice(2), 16)
             : Number.parseInt(name.slice(1), 10);
+        // eslint-disable-next-line unicorn/number-literal-case -- conflicts with Prettier formatting
         return code > 0 && code <= 0x10_ff_ff
           ? String.fromCodePoint(code)
           : whole;
@@ -64,7 +65,9 @@ function unescapeXml(text: string): string {
 
 function attributes(text: string): Map<string, string> {
   const found = new Map<string, string>();
-  for (const m of text.matchAll(/([\w:.-]+)\s*=\s*("([^"]*)"|'([^']*)')/g)) {
+  for (const m of text.matchAll(
+    /(?<![\w:.-])([\w:.-]+)\s*=\s*("([^"]*)"|'([^']*)')/g,
+  )) {
     found.set((m[1] ?? '').toLowerCase(), unescapeXml(m[3] ?? m[4] ?? ''));
   }
   return found;
@@ -81,6 +84,8 @@ function tagEnd(text: string, from: number): number {
       quote = c;
     } else if (c === '>') {
       return i + 1;
+    } else {
+      // Any other character leaves the tag open.
     }
   }
   return -1;
@@ -149,12 +154,13 @@ export function parseOpml(text: string): OpmlParse {
             : {}),
         });
       }
-      if (!tag.trimEnd().endsWith('/')) {
-        const isFolder = !url && label !== '';
-        open.push(isFolder);
-        if (isFolder) folders.push(label);
-      }
+      const selfClosing = tag.trimEnd().endsWith('/');
+      const isFolder = !selfClosing && !url && label !== '';
+      if (!selfClosing) open.push(isFolder);
+      if (isFolder) folders.push(label);
       at = end - 1;
+    } else {
+      // Other markup, such as text or a closing tag of another kind, is skipped.
     }
     at = text.indexOf('<', at + 1);
   }
@@ -187,8 +193,10 @@ export function buildOpml(
   sections: readonly OpmlSection[],
   now: Date = new Date(),
 ): string {
-  const outline = (e: OpmlEntry, indent: string): string =>
-    `${indent}<outline type="rss" version="RSS" text="${escapeXml(e.title)}" title="${escapeXml(e.title)}" xmlUrl="${escapeXml(e.url)}"${e.site_url ? ` htmlUrl="${escapeXml(e.site_url)}"` : ''}/>`;
+  const outline = (e: OpmlEntry, indent: string): string => {
+    const site = e.site_url ? ` htmlUrl="${escapeXml(e.site_url)}"` : '';
+    return `${indent}<outline type="rss" version="RSS" text="${escapeXml(e.title)}" title="${escapeXml(e.title)}" xmlUrl="${escapeXml(e.url)}"${site}/>`;
+  };
   const known = new Set(sections.map((s) => s.id));
   const inside = (id: number | null): OpmlEntry[] =>
     entries.filter((e) =>

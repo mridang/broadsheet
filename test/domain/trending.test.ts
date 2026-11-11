@@ -158,9 +158,9 @@ describe('capSourceShare', () => {
 describe('decayWeight', () => {
   it('weighs follows by age as NewsBlur’s tables do', () => {
     expect(decayWeight(7, 0)).toBe(1);
-    expect(decayWeight(7, 6)).toBe(0.2);
+    expect(decayWeight(7, 6)).toBeCloseTo(0.2, 10);
     expect(decayWeight(7, 7)).toBe(0);
-    expect(decayWeight(30, 29)).toBe(0.03);
+    expect(decayWeight(30, 29)).toBeCloseTo(0.03, 10);
     expect(decayWeight(1, 0)).toBe(1);
     expect(decayWeight(14, 13)).toBeCloseTo(0.03);
     expect(decayWeight(14, 20)).toBe(0);

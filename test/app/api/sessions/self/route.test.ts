@@ -14,12 +14,10 @@ describe('DELETE /api/sessions/self', () => {
   });
 
   it('is idempotent: signing out when already signed out is fine', async () => {
-    expect(
-      (await DELETE(appRequest('DELETE', '/api/sessions/self'))).status,
-    ).toBe(204);
-    expect(
-      (await DELETE(appRequest('DELETE', '/api/sessions/self'))).status,
-    ).toBe(204);
+    const first = await DELETE(appRequest('DELETE', '/api/sessions/self'));
+    expect(first.status).toBe(204);
+    const second = await DELETE(appRequest('DELETE', '/api/sessions/self'));
+    expect(second.status).toBe(204);
   });
 
   it('answers 403 for a request from another site, and clears nothing', async () => {

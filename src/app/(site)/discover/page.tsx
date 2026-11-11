@@ -178,9 +178,9 @@ const ABOUT: Record<
  */
 export default async function DiscoverPage({
   searchParams,
-}: {
+}: Readonly<{
   searchParams: Promise<Record<string, string | undefined>>;
-}): Promise<ReactElement> {
+}>): Promise<ReactElement> {
   const given = await searchParams;
   const tab = tabOf(given['tab']);
   const kind = kindOf(given['kind']);
@@ -210,19 +210,26 @@ export default async function DiscoverPage({
     );
   }
 
-  const followed = new Set(
-    (await new Repository(getDatabase()).listFeeds(user.id)).map((f) => f.url),
-  );
-  const found: Found =
-    tab === 'sites'
-      ? await trendingSites(user.id, kind)
-      : tab === 'picks'
-        ? await recommended(followed)
-        : tab === 'podcasts'
-          ? q
-            ? await podcasts(q, followed)
-            : { feeds: [] }
-          : news(q, followed);
+  const feeds = await new Repository(getDatabase()).listFeeds(user.id);
+  const followed = new Set(feeds.map((f) => f.url));
+  let found: Found;
+  switch (tab) {
+    case 'sites': {
+      found = await trendingSites(user.id, kind);
+      break;
+    }
+    case 'picks': {
+      found = await recommended(followed);
+      break;
+    }
+    case 'podcasts': {
+      found = q ? await podcasts(q, followed) : { feeds: [] };
+      break;
+    }
+    default: {
+      found = news(q, followed);
+    }
+  }
 
   return (
     <div className="max-w-3xl">
@@ -257,9 +264,8 @@ export default async function DiscoverPage({
           : {})}
       >
         {found.failed ? <ErrorText>{found.failed}</ErrorText> : null}
-        {found.feeds.length > 0 ? (
-          <DiscoverList feeds={found.feeds} />
-        ) : found.failed ? null : (
+        {found.feeds.length > 0 ? <DiscoverList feeds={found.feeds} /> : null}
+        {found.feeds.length === 0 && !found.failed ? (
           <EmptyState
             icon="compass"
             title={
@@ -268,7 +274,7 @@ export default async function DiscoverPage({
                 : 'Nothing to show here yet.'
             }
           />
-        )}
+        ) : null}
       </PageSection>
     </div>
   );

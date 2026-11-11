@@ -17,15 +17,15 @@ export interface ReadClock {
 
 /** A clock that starts in view at `now` when `visible`. */
 export function readClock(visible: boolean, now: number): ReadClock {
-  let shown = visible ? now : undefined;
+  let shown = visible ? now : null;
   let spent = 0;
   return {
     show(at) {
       shown ??= at;
     },
     hide(at) {
-      if (shown !== undefined) spent += at - shown;
-      shown = undefined;
+      if (shown !== null) spent += at - shown;
+      shown = null;
       return Math.round(spent / 1000);
     },
   };

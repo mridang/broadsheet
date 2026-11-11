@@ -40,7 +40,7 @@ export function pageRequest(request: Request): PageRequest {
  * sorts as text) comes first, then a higher numeric id.
  */
 function newestFirst(a: CursorPosition, b: CursorPosition): number {
-  if (a.key !== b.key) return a.key < b.key ? 1 : -1;
+  if (a.key !== b.key) return a.key.localeCompare(b.key) < 0 ? 1 : -1;
   return Number(b.id) - Number(a.id);
 }
 

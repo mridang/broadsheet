@@ -67,7 +67,8 @@ async function checkSections(
   changes: EditionChanges,
 ): Promise<void> {
   if (!changes.section_ids?.length) return;
-  const own = new Set((await repo.listSections(uid)).map((s) => s.id));
+  const sections = await repo.listSections(uid);
+  const own = new Set(sections.map((s) => s.id));
   const foreign = changes.section_ids.filter((id) => !own.has(id));
   if (foreign.length > 0) {
     throw problems.badRequest(

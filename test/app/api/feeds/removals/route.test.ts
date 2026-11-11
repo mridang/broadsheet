@@ -84,16 +84,14 @@ describe('POST /api/feeds/removals', () => {
   });
 
   it('answers 415 for a body that is not JSON', async () => {
-    expect((await post('x', { 'Content-Type': 'text/plain' })).status).toBe(
-      415,
-    );
+    const res = await post('x', { 'Content-Type': 'text/plain' });
+    expect(res.status).toBe(415);
   });
 
   it('answers 401 when nobody is signed in, removing nothing', async () => {
     auth = {};
-    expect(
-      (await post(JSON.stringify({ feed_ids: [String(mine)] }))).status,
-    ).toBe(401);
+    const res = await post(JSON.stringify({ feed_ids: [String(mine)] }));
+    expect(res.status).toBe(401);
     expect(await repo.listFeeds(7)).toHaveLength(1);
   });
 });

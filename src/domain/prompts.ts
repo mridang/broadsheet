@@ -94,12 +94,14 @@ export async function scorePrompts(
   const pending = await repo.unscoredPrompts(userId, edition, PROMPT_BATCH);
   if (pending.length === 0) return 0;
   // NewsBlur stops classifying at the person's spending limit; so do we.
-  let left = (await budget(repo, userId, 'classifier')).remaining;
+  const quota = await budget(repo, userId, 'classifier');
+  let left = quota.remaining;
   const feeds = await repo.listFeeds(userId);
   const bySource = new Map(feeds.map((f) => [f.source_id, f]));
   let asked = 0;
   for (const { classifier, stories } of pending) {
     const answers = new Map<number, boolean>();
+    // eslint-disable-next-line sonarjs/too-many-break-or-continue-in-loop -- the loop short-circuits on its budget; a flag-based rewrite would obscure that
     for (const story of stories) {
       // Out of the prompt's scope never matches; kept so it is not asked.
       if (!reaches(classifier, bySource.get(story.source_id))) {
@@ -111,7 +113,7 @@ export async function scorePrompts(
       asked += 1;
       try {
         const matched = await askPrompt(env.AI, classifier.value, story);
-        if (matched !== undefined) answers.set(story.id, matched);
+        recordAnswer(answers, story.id, matched);
         await repo.recordUsage(userId, 'classifier');
       } catch (error) {
         logWarn({
@@ -123,4 +125,13 @@ export async function scorePrompts(
     await repo.savePromptScores(userId, classifier.id, answers);
   }
   return asked;
+}
+
+/** Records a prompt's answer, unless the model gave none. */
+function recordAnswer(
+  answers: Map<number, boolean>,
+  storyId: number,
+  matched: boolean | undefined = undefined,
+): void {
+  if (matched !== undefined) answers.set(storyId, matched);
 }

@@ -117,6 +117,7 @@ describe('counterKey', () => {
         new Headers({ 'cf-connecting-ip': '2001:db8:1:2::9' }),
         undefined,
       ),
+      // eslint-disable-next-line sonarjs/no-hardcoded-ip -- test fixture
     ).toBe('a:2001:db8:1:2::/64');
   });
 });
@@ -168,9 +169,8 @@ describe('edgeLimitRefusal', () => {
     const from = (ip: string) => get('/', { 'cf-connecting-ip': ip });
     expect(await edgeLimitRefusal(from('203.0.113.1'), env, limits)).toBeNull();
     expect(await edgeLimitRefusal(from('203.0.113.2'), env, limits)).toBeNull();
-    expect(
-      (await edgeLimitRefusal(from('203.0.113.1'), env, limits))?.status,
-    ).toBe(429);
+    const refused = await edgeLimitRefusal(from('203.0.113.1'), env, limits);
+    expect(refused?.status).toBe(429);
   });
 
   it('counts a person in their class and again in the overall bucket for their address', async () => {
@@ -196,7 +196,8 @@ describe('edgeLimitRefusal', () => {
         'cf-connecting-ip': '203.0.113.7',
       });
     expect(await edgeLimitRefusal(forged(1), env, limits)).toBeNull();
-    expect((await edgeLimitRefusal(forged(2), env, limits))?.status).toBe(429);
+    const refused = await edgeLimitRefusal(forged(2), env, limits);
+    expect(refused?.status).toBe(429);
   });
 });
 
@@ -241,6 +242,7 @@ describe('tooManyRequests', () => {
 describe('wrangler.jsonc', () => {
   const parsed = ts.parseConfigFileTextToJson(
     'wrangler.jsonc',
+    // eslint-disable-next-line n/no-sync -- sync is fine in a script or bootstrap
     readFileSync(path.join(process.cwd(), 'wrangler.jsonc'), 'utf8'),
   ).config as {
     ratelimits: {

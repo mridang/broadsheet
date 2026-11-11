@@ -27,14 +27,14 @@ describe('budget', () => {
       limit: DAILY_LIMITS.answer,
       remaining: DAILY_LIMITS.answer - 2,
     });
-    expect((await budget(repo, 1, 'answer', now)).resets_at).toBe(
-      '2099-01-02T00:00:00Z',
-    );
+    const resetting = await budget(repo, 1, 'answer', now);
+    expect(resetting.resets_at).toBe('2099-01-02T00:00:00Z');
   });
 
   it('counts each kind on its own', async () => {
     await asked(3, 'assistant');
-    expect((await budget(repo, 1, 'answer', new Date())).used).toBe(0);
+    const answer = await budget(repo, 1, 'answer', new Date());
+    expect(answer.used).toBe(0);
   });
 });
 

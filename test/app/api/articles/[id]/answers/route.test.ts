@@ -69,7 +69,8 @@ beforeEach(async () => {
       body_text: 'All about rust.',
     },
   ]);
-  story = (await repo.sourceArticles(source_id, '2026-10-20'))[0]!.id;
+  const sourced = await repo.sourceArticles(source_id, '2026-10-20');
+  story = sourced[0]!.id;
   auth = await cookieFor(7);
 });
 
@@ -171,7 +172,8 @@ describe('POST /api/articles/:id/answers', () => {
   });
 
   it('answers 400 as a problem for an unknown preset', async () => {
-    expect((await ask(story, '{"question_id":"nope"}')).status).toBe(400);
+    const res = await ask(story, '{"question_id":"nope"}');
+    expect(res.status).toBe(400);
   });
 
   it('asks the model with the story’s text', async () => {
@@ -191,12 +193,14 @@ describe('POST /api/articles/:id/answers', () => {
   });
 
   it.each(['999', 'abc'])('answers 404 for article %j', async (id) => {
-    expect((await ask(id, '{"question":"Q"}')).status).toBe(404);
+    const res = await ask(id, '{"question":"Q"}');
+    expect(res.status).toBe(404);
   });
 
   it('answers 404 to someone who does not follow the story’s source', async () => {
     auth = await cookieFor(8);
-    expect((await ask(story, '{"question":"Q"}')).status).toBe(404);
+    const res = await ask(story, '{"question":"Q"}');
+    expect(res.status).toBe(404);
     expect(run).not.toHaveBeenCalled();
   });
 
@@ -216,6 +220,7 @@ describe('POST /api/articles/:id/answers', () => {
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await ask(story, '{"question":"Q"}')).status).toBe(401);
+    const res = await ask(story, '{"question":"Q"}');
+    expect(res.status).toBe(401);
   });
 });

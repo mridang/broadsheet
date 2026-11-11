@@ -97,8 +97,13 @@ function timestamp(stored: string | null): string | undefined {
 /** The API's view of an issue. */
 export function issueResource(
   issue: Readonly<Issue>,
-  view: IssueView = { read: new Set(), training: [], expanded: false },
+  viewed?: IssueView,
 ): IssueResource {
+  const view: IssueView = viewed ?? {
+    read: new Set(),
+    training: [],
+    expanded: false,
+  };
   const created = timestamp(issue.created_at);
   return {
     date: issue.date,

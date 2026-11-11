@@ -24,7 +24,7 @@ export function FeedHealth({
   readonly id: number;
   readonly statistics: FeedStatistics | undefined;
   /** The feed's unread stories by verdict, when counted. */
-  readonly counts?: ClassifierCounts | undefined;
+  readonly counts?: ClassifierCounts;
 }): ReactElement | null {
   if (!statistics) return null;
   const fetched = statistics.last_fetched_at

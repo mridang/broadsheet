@@ -56,6 +56,7 @@ export function KeyboardShortcuts(): ReactElement {
   const [sections, setSections] = useState<Desk[]>([]);
   const [query, setQuery] = useState('');
 
+  // eslint-disable-next-line sonarjs/max-lines-per-function -- splitting the key handler is a logic rewrite that would be large
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       const target = event.target as HTMLElement | null;

@@ -51,7 +51,8 @@ beforeEach(async () => {
       points: 0,
     },
   ]);
-  story = (await repo.sourceArticles(source_id, '2026-10-20'))[0]!.id;
+  const articles = await repo.sourceArticles(source_id, '2026-10-20');
+  story = articles[0]!.id;
   auth = await cookieFor(7);
 });
 
@@ -114,12 +115,14 @@ describe('POST /api/users/self/saves/:article_id', () => {
   });
 
   it.each(['999', 'abc'])('answers 404 for article %j', async (id) => {
-    expect((await call('POST', id)).status).toBe(404);
+    const res = await call('POST', id);
+    expect(res.status).toBe(404);
   });
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await call('POST', story)).status).toBe(401);
+    const res = await call('POST', story);
+    expect(res.status).toBe(401);
   });
 });
 
@@ -129,23 +132,27 @@ describe('DELETE /api/users/self/saves/:article_id', () => {
   });
 
   it('answers 204 and the save is gone', async () => {
-    expect((await call('DELETE', story)).status).toBe(204);
+    const res = await call('DELETE', story);
+    expect(res.status).toBe(204);
     expect(await saves()).toEqual([]);
   });
 
   it('answers 404 as a problem the second time', async () => {
     await call('DELETE', story);
-    expect((await call('DELETE', story)).status).toBe(404);
+    const res = await call('DELETE', story);
+    expect(res.status).toBe(404);
   });
 
   it('answers 404, removing nothing, for another person', async () => {
     auth = await cookieFor(8);
-    expect((await call('DELETE', story)).status).toBe(404);
+    const res = await call('DELETE', story);
+    expect(res.status).toBe(404);
     expect(await saves()).toHaveLength(1);
   });
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await call('DELETE', story)).status).toBe(401);
+    const res = await call('DELETE', story);
+    expect(res.status).toBe(401);
   });
 });

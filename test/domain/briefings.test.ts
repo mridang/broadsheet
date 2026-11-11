@@ -186,12 +186,12 @@ describe('sqliteTime', () => {
 });
 
 describe('clusterEntries', () => {
-  const a = (id: number, source_id: number, cluster_id: number | null) =>
+  const a = (id: number, sourceId: number, clusterId: number | null) =>
     ({
       id,
-      source_id,
-      cluster_id,
-      source: `S${source_id}`,
+      source_id: sourceId,
+      cluster_id: clusterId,
+      source: `S${sourceId}`,
       url: 'u',
     }) as Article;
 
@@ -240,7 +240,8 @@ describe('writeScheduledBriefing', () => {
   beforeEach(async () => {
     db = databaseFrom(sqliteD1(...APP_MIGRATIONS).d1);
     repo = new Repository(db);
-    uid = (await repo.upsertUser({ sub: 'g', email: 'a@b.c' })).id;
+    const user = await repo.upsertUser({ sub: 'g', email: 'a@b.c' });
+    uid = user.id;
     sourceId = (await repo.addFeed(uid, 'https://x.test/rss', 'X'))!.source_id;
     await repo.writeEdition(sourceId, today, [item(1), item(2), item(3)]);
   });
@@ -285,9 +286,8 @@ describe('writeScheduledBriefing', () => {
       now,
     );
     expect(again.replaced).toBe(true);
-    expect((await repo.listBriefings(uid, 10)).map((b) => b.summary)).toEqual([
-      'Two.',
-    ]);
+    const briefings = await repo.listBriefings(uid, 10);
+    expect(briefings.map((b) => b.summary)).toEqual(['Two.']);
   });
 
   it('stores a briefing the model could not write as failed', async () => {
@@ -308,9 +308,16 @@ describe('writeScheduledBriefing', () => {
   it('writes nothing with too few stories, without asking the model', async () => {
     await repo.writeEdition(sourceId, today, [item(1)]);
     const { run, env } = envWith('Note.');
-    expect(
-      await writeScheduledBriefing(db, env, uid, 'morning', today, now),
-    ).toMatchObject({ briefing: undefined, skipped: 'Too few stories.' });
+    const result = await writeScheduledBriefing(
+      db,
+      env,
+      uid,
+      'morning',
+      today,
+      now,
+    );
+    expect(result.briefing).toBeUndefined();
+    expect(result.skipped).toBe('Too few stories.');
     expect(run).not.toHaveBeenCalled();
   });
 
@@ -338,10 +345,15 @@ describe('writeScheduledBriefing', () => {
       now,
     );
     const { run, env } = envWith('Two.');
-    expect(
-      (await writeScheduledBriefing(db, env, uid, 'evening', today, now))
-        .skipped,
-    ).toBe('Too few stories.');
+    const result = await writeScheduledBriefing(
+      db,
+      env,
+      uid,
+      'evening',
+      today,
+      now,
+    );
+    expect(result.skipped).toBe('Too few stories.');
     expect(run).not.toHaveBeenCalled();
   });
 
@@ -350,18 +362,15 @@ describe('writeScheduledBriefing', () => {
     await repo.updatePreferences(uid, {
       briefing_sources: `section:${section.id}`,
     });
-    expect(
-      (
-        await writeScheduledBriefing(
-          db,
-          envWith('Note.').env,
-          uid,
-          'morning',
-          today,
-          now,
-        )
-      ).skipped,
-    ).toBe('Too few stories.');
+    const result = await writeScheduledBriefing(
+      db,
+      envWith('Note.').env,
+      uid,
+      'morning',
+      today,
+      now,
+    );
+    expect(result.skipped).toBe('Too few stories.');
   });
 
   it('adds keyword stories under the reader’s own section', async () => {

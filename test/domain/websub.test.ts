@@ -124,7 +124,8 @@ describe('verifyIntent', () => {
         'hub.lease_seconds': '3600',
       }),
     ).toBe('abc');
-    expect((await source()).websub_expires_at).toBe('2026-11-01 01:00:00');
+    const current = await source();
+    expect(current.websub_expires_at).toBe('2026-11-01 01:00:00');
   });
 
   it('refuses a subscription to another topic', async () => {
@@ -159,7 +160,8 @@ describe('verifyIntent', () => {
 
   it('forgets a subscription the hub denies', async () => {
     await ask({ 'hub.mode': 'denied', 'hub.topic': LINKS.self });
-    expect((await source()).websub_hub).toBeNull();
+    const current = await source();
+    expect(current.websub_hub).toBeNull();
   });
 
   it('refuses a source that does not exist', async () => {

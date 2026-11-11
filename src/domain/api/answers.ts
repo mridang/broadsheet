@@ -189,7 +189,7 @@ export function createAnswersCollection(
     method: 'POST',
     decode: readAnswerRequest,
     handle: async (call, { request, uid }) => {
-      const { question, history } = call;
+      const { question, history, model, thinking } = call;
       const repo = new Repository(getDatabase());
       const id = parseFeedId(parentIdOf(request));
       const article =
@@ -203,16 +203,19 @@ export function createAnswersCollection(
       const answered = async (
         answer: string,
         cached: boolean,
-      ): Promise<AnswerResource> => ({
-        article_id: String(article.id),
-        ...(preset ? { question_id: preset.id } : {}),
-        question: text,
-        answer,
-        model: call.model,
-        thinking: call.thinking,
-        cached,
-        remaining: (await budget(repo, uid, 'answer')).remaining,
-      });
+      ): Promise<AnswerResource> => {
+        const { remaining } = await budget(repo, uid, 'answer');
+        return {
+          article_id: String(article.id),
+          ...(preset ? { question_id: preset.id } : {}),
+          question: text,
+          answer,
+          model,
+          thinking,
+          cached,
+          remaining,
+        };
+      };
       const key =
         preset && history.length === 0 ? cacheKey(preset.id, call) : undefined;
       const cached = key

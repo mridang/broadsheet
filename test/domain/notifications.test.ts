@@ -126,11 +126,12 @@ describe('undeliveredStories and claimDelivery', () => {
     );
     expect(await repo.claimDelivery(1, first!.id)).toBe(true);
     expect(await repo.claimDelivery(1, first!.id)).toBe(false);
-    expect(
-      (await repo.undeliveredStories(1, feed.source_id, '2026-10-02')).map(
-        (s) => s.id,
-      ),
-    ).toEqual([second!.id]);
+    const undelivered = await repo.undeliveredStories(
+      1,
+      feed.source_id,
+      '2026-10-02',
+    );
+    expect(undelivered.map((s) => s.id)).toEqual([second!.id]);
     expect(
       await repo.undeliveredStories(2, feed.source_id, '2026-10-02'),
     ).toHaveLength(2);

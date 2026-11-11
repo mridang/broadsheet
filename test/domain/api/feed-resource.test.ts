@@ -123,6 +123,7 @@ describe('parseFeedInput', () => {
       ok: true,
       url: 'https://a.test/f',
     });
+    // eslint-disable-next-line unicorn/prefer-https -- test fixture
     expect(parseFeedInput({ url: 'http://a.test/f' }).ok).toBe(true);
   });
 
@@ -197,6 +198,7 @@ describe('parseFeedChanges', () => {
     [{ muted: 'yes' }, 'muted: must be true or false.'],
     [{ section_id: 5 }, 'section_id: not a section id.'],
     [{ section_id: 'abc' }, 'section_id: not a section id.'],
+    // eslint-disable-next-line sonarjs/no-clear-text-protocols -- test fixture
     [{ url: 'ftp://x/f' }, 'url: must be an http or https address.'],
     [{ url: '' }, 'url: required.'],
     [{ color: 'red' }, 'color: not a member of a feed that can be changed.'],

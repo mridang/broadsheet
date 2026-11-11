@@ -74,7 +74,9 @@ export function parsePlayerInput(
   const raw = body['current'];
   if (raw === undefined) {
     errors.push('current: required, an object or null.');
-  } else if (raw !== null) {
+  } else if (raw === null) {
+    // A null current is the default, so there is nothing to check.
+  } else {
     const c = raw as Record<string, unknown>;
     const id =
       typeof c['article_id'] === 'string'

@@ -87,12 +87,14 @@ describe('POST /api/feeds/recommendations', () => {
   });
 
   it('answers 400 as a problem for a bad recommendation', async () => {
-    expect((await recommend('{"url":"x"}')).status).toBe(400);
+    const res = await recommend('{"url":"x"}');
+    expect(res.status).toBe(400);
   });
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await recommend(good)).status).toBe(401);
+    const res = await recommend(good);
+    expect(res.status).toBe(401);
   });
 });
 
@@ -115,23 +117,26 @@ describe('GET /api/feeds/recommendations', () => {
 
   it('lets a curator list pending ones', async () => {
     await repo.addRecommendation(8, { url: 'https://b', description: 'd' });
-    expect(
-      ((await (await list('?status=pending')).json()) as { items: unknown[] })
-        .items,
-    ).toHaveLength(1);
+    const listed = await list('?status=pending');
+    expect(((await listed.json()) as { items: unknown[] }).items).toHaveLength(
+      1,
+    );
   });
 
   it('answers 403 when someone else asks for pending ones', async () => {
     auth = await cookieFor(8);
-    expect((await list('?status=pending')).status).toBe(403);
+    const res = await list('?status=pending');
+    expect(res.status).toBe(403);
   });
 
   it('answers 400 for an unknown status', async () => {
-    expect((await list('?status=x')).status).toBe(400);
+    const res = await list('?status=x');
+    expect(res.status).toBe(400);
   });
 
   it('answers 401 when nobody is signed in', async () => {
     auth = {};
-    expect((await list()).status).toBe(401);
+    const res = await list();
+    expect(res.status).toBe(401);
   });
 });

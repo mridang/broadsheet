@@ -78,7 +78,7 @@ describe('parseArticleQuery', () => {
   it('narrows the list to one feed', () => {
     expect(parse('feed_id=7')).toEqual({
       ok: true,
-      query: { q: '', before: undefined, feed: 7, limit: 20 },
+      query: { q: '', feed: 7, limit: 20 },
     });
   });
 
@@ -97,14 +97,14 @@ describe('parseArticleQuery', () => {
     });
     expect(parse('')).toEqual({
       ok: true,
-      query: { q: '', before: undefined, limit: 20 },
+      query: { q: '', limit: 20 },
     });
   });
 
   it('takes order=oldest for an oldest-first search', () => {
     expect(parse('q=rust&order=oldest')).toEqual({
       ok: true,
-      query: { q: 'rust', before: undefined, oldest: true, limit: 20 },
+      query: { q: 'rust', oldest: true, limit: 20 },
     });
   });
 

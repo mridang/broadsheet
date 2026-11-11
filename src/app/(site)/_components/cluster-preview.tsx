@@ -18,6 +18,7 @@ export function ClusterBadge({
 }: Readonly<{ siblings: readonly Sibling[] }>) {
   const n = siblings.length;
   return (
+    // eslint-disable-next-line github/a11y-no-title-attribute -- the hover tooltip names the sibling sources and the badge text is the visible label
     <span title={`Also told by ${siblings.map((s) => s.source).join(', ')}`}>
       <Badge tone="accent">+{countOf(n, 'source')}</Badge>
     </span>

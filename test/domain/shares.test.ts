@@ -27,7 +27,8 @@ beforeEach(async () => {
       points: 0,
     },
   ]);
-  articleId = (await repo.searchArticles(1, { limit: 1 }))[0]!.id;
+  const found = await repo.searchArticles(1, { limit: 1 });
+  articleId = found[0]!.id;
 });
 
 describe('ShareRepository', () => {
@@ -56,9 +57,11 @@ describe('ShareRepository', () => {
     const shares = new ShareRepository(db);
     await shares.share(1, articleId, null);
     await shares.share(2, articleId, null);
+    const everyone = await shares.list({ limit: 10 });
+    const onlyTwo = await shares.list({ userIds: [2], limit: 10 });
     expect([
-      (await shares.list({ limit: 10 })).map((s) => s.sharer.id),
-      (await shares.list({ userIds: [2], limit: 10 })).map((s) => s.sharer.id),
+      everyone.map((s) => s.sharer.id),
+      onlyTwo.map((s) => s.sharer.id),
     ]).toEqual([[2, 1], [2]]);
   });
 
@@ -66,10 +69,9 @@ describe('ShareRepository', () => {
     const shares = new ShareRepository(db);
     await shares.share(1, articleId, null);
     const second = await shares.share(2, articleId, null);
-    expect([
-      (await shares.list({ limit: 1 })).length,
-      (await shares.list({ before: second.story.id, limit: 5 })).length,
-    ]).toEqual([2, 1]);
+    const firstPage = await shares.list({ limit: 1 });
+    const older = await shares.list({ before: second.story.id, limit: 5 });
+    expect([firstPage.length, older.length]).toEqual([2, 1]);
   });
 
   it('unshares, once', async () => {

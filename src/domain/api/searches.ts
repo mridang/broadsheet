@@ -71,9 +71,13 @@ export function createSearchesCollection(
           paging,
         ),
       encode: (slice) =>
-        page(slice.items.map(searchResource), slice.next, {
-          'Cache-Control': 'no-store',
-        }),
+        page(
+          slice.items.map((search) => searchResource(search)),
+          slice.next,
+          {
+            'Cache-Control': 'no-store',
+          },
+        ),
     })
     .on<SearchInput, { search: SavedSearch; created: boolean }>({
       method: 'POST',

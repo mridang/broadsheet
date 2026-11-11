@@ -33,7 +33,8 @@ const story = (n: number, title: string) => ({
 beforeEach(async () => {
   db = databaseFrom(sqliteD1(...APP_MIGRATIONS).d1);
   const repo = new Repository(db);
-  uid = (await repo.upsertUser({ sub: 'g', email: 'a@b.c' })).id;
+  const user = await repo.upsertUser({ sub: 'g', email: 'a@b.c' });
+  uid = user.id;
   const feed = (await repo.addFeed(uid, 'https://r.test/rss', 'R'))!;
   feedId = feed.id;
   await repo.writeEdition(feed.source_id, DAY, [
@@ -103,9 +104,8 @@ describe('RiverRepository', () => {
       { river_id: `feed:${feedId}`, side: 'right', position: 0 },
     ]);
     expect(await rivers.remove(uid, top!.id)).toBe(true);
-    expect(
-      (await rivers.list(uid)).map((r) => [r.river_id, r.side, r.position]),
-    ).toEqual([
+    const listed = await rivers.list(uid);
+    expect(listed.map((r) => [r.river_id, r.side, r.position])).toEqual([
       ['saves', 'left', 0],
       [`feed:${feedId}`, 'right', 0],
     ]);
@@ -135,8 +135,10 @@ describe('ownsTarget', () => {
 describe('riverStories', () => {
   it('lists a feed, a saved search and every feed, newest first', async () => {
     const { search } = await new Repository(db).addSearch(uid, 'rust', null);
-    const titles = async (riverId: string) =>
-      (await riverStories(db, uid, riverId, 5)).map((a) => a.title);
+    const titles = async (riverId: string) => {
+      const stories = await riverStories(db, uid, riverId, 5);
+      return stories.map((a) => a.title);
+    };
     expect(await titles(`feed:${feedId}`)).toEqual(['Go two', 'Rust one']);
     expect(await titles(`search:${search.id}`)).toEqual(['Rust one']);
     expect(await titles('all')).toEqual(['Go two', 'Rust one']);
@@ -151,9 +153,8 @@ describe('riverStories', () => {
     expect(
       await riverStories(db, uid, `section:${section.id}`, 1),
     ).toHaveLength(1);
-    expect((await riverStories(db, uid, 'saves', 5)).map((a) => a.id)).toEqual([
-      first!.id,
-    ]);
+    const saved = await riverStories(db, uid, 'saves', 5);
+    expect(saved.map((a) => a.id)).toEqual([first!.id]);
   });
 
   it('lists a custom edition’s stories', async () => {
@@ -161,11 +162,8 @@ describe('riverStories', () => {
       name: 'Rusty',
       query: 'rust',
     });
-    expect(
-      (await riverStories(db, uid, `edition:${edition.id}`, 5)).map(
-        (a) => a.title,
-      ),
-    ).toEqual(['Rust one']);
+    const stories = await riverStories(db, uid, `edition:${edition.id}`, 5);
+    expect(stories.map((a) => a.title)).toEqual(['Rust one']);
   });
 
   it('lists nothing for what is gone or not the person’s', async () => {
@@ -189,8 +187,9 @@ describe('frontPageRivers', () => {
     });
     const { rivers, options } = await frontPageRivers(db, uid);
     expect(rivers.map((r) => [r.label, r.stories.length])).toEqual([['R', 2]]);
+    const choices = await riverChoices(db, uid);
     expect(options.map((o) => o.river_id)).toEqual(
-      (await riverChoices(db, uid)).map((o) => o.river_id),
+      choices.map((o) => o.river_id),
     );
     expect(options.map((o) => o.river_id)).toContain('saves');
   });

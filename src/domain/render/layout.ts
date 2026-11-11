@@ -132,16 +132,16 @@ export function collapseClusters(
     if (a.cluster_id === null || printed.has(a.id)) continue;
     elsewhere.set(a.cluster_id, [...(elsewhere.get(a.cluster_id) ?? []), a]);
   }
-  for (const [cluster, group] of members) {
+  members.forEach((group, cluster) => {
     const extra = elsewhere.get(cluster) ?? [];
-    if (group.length + extra.length < 2) continue;
+    if (group.length + extra.length < 2) return;
     const [first, ...others] = group.toSorted(
       (x, y) =>
         verdict(y, training) - verdict(x, training) ||
         Number(printable?.has(y.id) ?? 0) - Number(printable?.has(x.id) ?? 0) ||
         weight(y) - weight(x),
     );
-    if (!first) continue;
+    if (!first) return;
     const kept = first;
     const rest = [...others, ...extra];
     const folded = rest
@@ -151,7 +151,7 @@ export function collapseClusters(
           tier === 'title' ||
           (options.mode !== 'title' && a.source_id !== kept.source_id),
       );
-    if (folded.length === 0) continue;
+    if (folded.length === 0) return;
     folded.forEach(({ a }) => {
       if (printed.has(a.id)) dropped.add(a.id);
     });
@@ -185,7 +185,7 @@ export function collapseClusters(
       cluster,
       new Set([kept, ...folded.map(({ a }) => a)].map((a) => a.source_id)).size,
     );
-  }
+  });
   return { dropped, also, siblings, coverage };
 }
 
@@ -300,50 +300,45 @@ const optionalStrings = (v: unknown, keys: readonly string[]): boolean =>
   });
 
 const isSibling = (v: unknown): v is Sibling => {
+  if (typeof v !== 'object' || v === null) return false;
   const s = v as Sibling;
-  return (
-    typeof s === 'object' &&
-    s !== null &&
+  const identity =
     Number.isInteger(s.id) &&
     typeof s.source === 'string' &&
-    typeof s.url === 'string' &&
-    (s.tier === 'title' || s.tier === 'related') &&
+    typeof s.url === 'string';
+  const tier = s.tier === 'title' || s.tier === 'related';
+  return (
+    identity &&
+    tier &&
     optionalStrings(v, ['title', 'published_at', 'image', 'excerpt'])
   );
 };
 
 const isStory = (v: unknown): v is LaidStory => {
+  if (typeof v !== 'object' || v === null) return false;
   const s = v as LaidStory;
-  return (
-    typeof s === 'object' &&
-    s !== null &&
-    Number.isInteger(s.id) &&
-    TIERS.has(s.tier) &&
-    Array.isArray(s.also) &&
-    s.also.every((n) => typeof n === 'string') &&
-    (s.siblings === undefined ||
-      (Array.isArray(s.siblings) && s.siblings.every(isSibling)))
-  );
+  const shape =
+    Number.isInteger(s.id) && TIERS.has(s.tier) && Array.isArray(s.also);
+  const siblings =
+    s.siblings === undefined ||
+    (Array.isArray(s.siblings) && s.siblings.every(isSibling));
+  return shape && s.also.every((n) => typeof n === 'string') && siblings;
 };
 
 const isDesk = (v: unknown): v is LaidDesk => {
+  if (typeof v !== 'object' || v === null) return false;
   const d = v as LaidDesk;
-  return (
-    typeof d === 'object' &&
-    d !== null &&
+  const shape =
     Number.isInteger(d.feed_id) &&
     typeof d.title === 'string' &&
-    typeof d.url === 'string' &&
-    Array.isArray(d.stories) &&
-    d.stories.every(isStory)
-  );
+    typeof d.url === 'string';
+  return shape && Array.isArray(d.stories) && d.stories.every(isStory);
 };
 
 const isGroup = (v: unknown): v is LaidGroup => {
+  if (typeof v !== 'object' || v === null) return false;
   const g = v as LaidGroup;
   return (
-    typeof g === 'object' &&
-    g !== null &&
     (g.name === null || typeof g.name === 'string') &&
     Array.isArray(g.desks) &&
     g.desks.every(isDesk)
@@ -353,12 +348,11 @@ const isGroup = (v: unknown): v is LaidGroup => {
 /** A stored layout read back, or undefined when it is not one. */
 export function parseLayout(stored: string): Layout | undefined {
   try {
-    const parsed = JSON.parse(stored) as Layout;
-    return typeof parsed === 'object' &&
-      parsed !== null &&
-      Array.isArray(parsed.groups) &&
-      parsed.groups.every(isGroup)
-      ? parsed
+    const parsed: unknown = JSON.parse(stored);
+    if (typeof parsed !== 'object' || parsed === null) return undefined;
+    const layout = parsed as Layout;
+    return Array.isArray(layout.groups) && layout.groups.every(isGroup)
+      ? layout
       : undefined;
   } catch {
     return undefined;

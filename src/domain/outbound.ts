@@ -87,11 +87,11 @@ export type FeedToken = Omit<
 /** What a new feed token shows. */
 export interface FeedTokenInput {
   readonly scope: FeedScope;
-  readonly tag?: string | undefined;
-  readonly section_id?: number | undefined;
+  readonly tag?: string;
+  readonly section_id?: number;
   /** The saved search a `search` feed follows. */
-  readonly search_id?: number | undefined;
-  readonly filter?: FeedFilter | undefined;
+  readonly search_id?: number;
+  readonly filter?: FeedFilter;
 }
 
 /** The events stored for a hook, keeping only the ones we know. */
@@ -228,14 +228,13 @@ export class OutboundRepository {
       .from(webhooks)
       .where(eq(webhooks.user_id, userId))
       .orderBy(desc(webhooks.id));
-    return rows.map(webhookOf);
+    return rows.map((row) => webhookOf(row));
   }
 
   /** The person's webhooks that want `event`. */
   async webhooksFor(userId: number, event: WebhookEvent): Promise<Webhook[]> {
-    return (await this.listWebhooks(userId)).filter((h) =>
-      h.events.includes(event),
-    );
+    const hooks = await this.listWebhooks(userId);
+    return hooks.filter((h) => h.events.includes(event));
   }
 
   /** Keep a feed token by its hash. */
@@ -275,7 +274,7 @@ export class OutboundRepository {
       .from(feed_tokens)
       .where(eq(feed_tokens.user_id, userId))
       .orderBy(desc(feed_tokens.id));
-    return rows.map(tokenOf);
+    return rows.map((row) => tokenOf(row));
   }
 
   /** The token with this hash, or undefined. */

@@ -48,9 +48,9 @@ const MOST_READ = 5;
 
 export default async function Home({
   searchParams,
-}: {
+}: Readonly<{
   searchParams: Promise<{ edition?: string }>;
-}) {
+}>) {
   const { edition: editionParam } = await searchParams;
   const user = await getCurrentUser();
   const repo = new Repository(getDatabase());
@@ -58,9 +58,11 @@ export default async function Home({
   const ownerId = user ? user.id : await ensurePublicUser();
 
   // Muted feeds stay followed but drop out of the paper.
-  const feeds = (await repo.listFeeds(ownerId)).filter((f) => !f.muted);
+  const allFeeds = await repo.listFeeds(ownerId);
+  const feeds = allFeeds.filter((f) => !f.muted);
   if (feeds.length === 0) {
-    if (user && (await repo.listFeeds(user.id)).length === 0) {
+    const userFeeds = user ? await repo.listFeeds(user.id) : undefined;
+    if (userFeeds?.length === 0) {
       return (
         <div className="max-w-3xl">
           <PageHeader title="Welcome" />
@@ -106,13 +108,15 @@ export default async function Home({
   const rivers = user
     ? await frontPageRivers(getDatabase(), user.id)
     : undefined;
-  const mostRead = (
-    await repo.trendingArticles(ownerId, {
-      order: 'reads',
-      since: sqliteSince(new Date(), WINDOWS.week),
-      limit: MOST_READ,
-    })
-  ).slice(0, MOST_READ);
+  const ranked = await repo.trendingArticles(ownerId, {
+    order: 'reads',
+    since: sqliteSince(new Date(), WINDOWS.week),
+    limit: MOST_READ,
+  });
+  const mostRead = ranked.slice(0, MOST_READ);
+  const mostReadPanel =
+    mostRead.length > 0 ? <MostRead stories={mostRead} /> : null;
+  const riversPanel = rivers ? <Rivers {...rivers} /> : null;
 
   return (
     <>
@@ -139,8 +143,8 @@ export default async function Home({
         side={
           mostRead.length > 0 || rivers ? (
             <>
-              {mostRead.length > 0 ? <MostRead stories={mostRead} /> : null}
-              {rivers ? <Rivers {...rivers} /> : null}
+              {mostReadPanel}
+              {riversPanel}
             </>
           ) : undefined
         }

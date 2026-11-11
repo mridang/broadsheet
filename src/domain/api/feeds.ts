@@ -153,10 +153,14 @@ function feedPage(
     after,
     limit,
   );
-  return page(slice.items.map(feedResource), slice.next, {
-    Vary: 'Accept',
-    'Cache-Control': 'private, no-cache',
-  });
+  return page(
+    slice.items.map((item) => feedResource(item)),
+    slice.next,
+    {
+      Vary: 'Accept',
+      'Cache-Control': 'private, no-cache',
+    },
+  );
 }
 
 /**
@@ -316,8 +320,8 @@ export function createFeedItem(
             );
           }
           if (address === current.url) {
-            const { url: _same, ...rest } = changes;
-            void _same;
+            const rest = { ...changes };
+            Reflect.deleteProperty(rest, 'url');
             return repo.updateFeed(uid, id, rest);
           }
         }
@@ -362,7 +366,8 @@ async function checkSections(
   uid: number,
   changes: FeedChanges,
 ): Promise<void> {
-  const mine = new Set((await repo.listSections(uid)).map((s) => s.id));
+  const sections = await repo.listSections(uid);
+  const mine = new Set(sections.map((s) => s.id));
   if (typeof changes.section_id === 'number' && !mine.has(changes.section_id)) {
     throw problems.badRequest('The change is not valid.', [
       'section_id: no such section.',
@@ -415,10 +420,9 @@ export function createFeedRefreshes(
       const feeds = await new Repository(db).listFeeds(uid);
       const outcomes = await Promise.all(
         feeds.map((feed) =>
-          refreshSource(db, env, sourceOf(feed)).then(
-            (result) => result.ok,
-            () => false,
-          ),
+          refreshSource(db, env, sourceOf(feed))
+            .then((result) => result.ok)
+            .catch(() => false),
         ),
       );
       const refreshed = outcomes.filter(Boolean).length;
@@ -527,14 +531,15 @@ export function statisticsResource(
     ...(stats.fetch_history[0]?.duration_ms == null
       ? {}
       : { last_load_time_ms: stats.fetch_history[0].duration_ms }),
-    fetch_history: stats.fetch_history.map((h) => ({
-      ...((h.fetched_at ? rfc3339(h.fetched_at) : undefined)
-        ? { fetched_at: rfc3339(h.fetched_at!) }
-        : {}),
-      ok: h.ok,
-      ...(h.message ? { message: h.message } : {}),
-      ...(h.duration_ms === null ? {} : { duration_ms: h.duration_ms }),
-    })),
+    fetch_history: stats.fetch_history.map((h) => {
+      const fetchedAt = h.fetched_at ? rfc3339(h.fetched_at) : undefined;
+      return {
+        ...(fetchedAt ? { fetched_at: fetchedAt } : {}),
+        ok: h.ok,
+        ...(h.message ? { message: h.message } : {}),
+        ...(h.duration_ms === null ? {} : { duration_ms: h.duration_ms }),
+      };
+    }),
   };
 }
 
@@ -771,10 +776,9 @@ function feedIdsOf(body: Readonly<Record<string, unknown>>): number[] | string {
   const ids = Array.isArray(raw)
     ? raw.map((r) => (typeof r === 'string' ? parseFeedId(r) : undefined))
     : undefined;
-  return ids &&
-    ids.length > 0 &&
-    ids.length <= MAX_BATCH &&
-    ids.every((id) => id !== undefined)
+  const inRange =
+    ids !== undefined && ids.length > 0 && ids.length <= MAX_BATCH;
+  return inRange && ids.every((id) => id !== undefined)
     ? (ids as number[])
     : `feed_ids: a list of 1 to ${MAX_BATCH} feed ids.`;
 }
