@@ -136,3 +136,15 @@ describe('comparable', () => {
     expect(summary.feeds[0]?.section_ids).toEqual([tech!.id, news!.id]);
   });
 });
+
+describe('comparable trailing slashes', () => {
+  it.each([
+    ['https://a.test', 'a.test'],
+    ['https://a.test/', 'a.test'],
+    ['https://a.test////', 'a.test'],
+    ['https://a.test/x///?q=1', 'a.test/x?q=1'],
+    ['https://a.test/x//y/', 'a.test/x//y'],
+  ])('reads %s as %s', (address, expected) => {
+    expect(comparable(address)).toBe(expected);
+  });
+});

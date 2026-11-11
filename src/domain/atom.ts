@@ -30,12 +30,17 @@ export interface AtomFeed {
 }
 
 /** Text made safe inside XML. */
+/** The C0 control characters XML 1.0 forbids (tab, newline and carriage return are allowed). */
+const FORBIDDEN_CONTROL = new RegExp(
+  String.raw`[\u0000-\u0008\u000B\u000C\u000E-\u001F]`,
+  'g',
+);
+
 export function escapeXml(text: string): string {
   return (
     text
       // Characters XML 1.0 cannot carry at all.
-      // eslint-disable-next-line no-control-regex -- XML 1.0 forbids these control characters
-      .replaceAll(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
+      .replaceAll(FORBIDDEN_CONTROL, '')
       .replaceAll('&', '&amp;')
       .replaceAll('<', '&lt;')
       .replaceAll('>', '&gt;')

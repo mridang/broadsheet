@@ -19,21 +19,35 @@ export const MAX_WORDS = 3000;
 
 /** A story's text without its markup, its entities read and its spaces folded. */
 export function plainText(html: string): string {
-  return (
+  const bare = stripTags(
     html
       .replaceAll(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, ' ')
-      .replaceAll(/<br\s*\/?>|<\/(p|div|li|h[1-6])>/gi, ' ')
-      // eslint-disable-next-line sonarjs/super-linear-regex -- a tag is a single '<' then non-'>' characters, so the match cannot backtrack
-      .replaceAll(/<[^>]*>/g, '')
-      .replaceAll('&nbsp;', ' ')
-      .replaceAll('&lt;', '<')
-      .replaceAll('&gt;', '>')
-      .replaceAll('&quot;', '"')
-      .replaceAll(/&#39;|&apos;/g, "'")
-      .replaceAll('&amp;', '&')
-      .replaceAll(/\s+/g, ' ')
-      .trim()
+      .replaceAll(/<br\s*\/?>|<\/(p|div|li|h[1-6])>/gi, ' '),
   );
+  return bare
+    .replaceAll('&nbsp;', ' ')
+    .replaceAll('&lt;', '<')
+    .replaceAll('&gt;', '>')
+    .replaceAll('&quot;', '"')
+    .replaceAll(/&#39;|&apos;/g, "'")
+    .replaceAll('&amp;', '&')
+    .replaceAll(/\s+/g, ' ')
+    .trim();
+}
+
+/** Removes every `<...>` run; same result as `replaceAll(/<[^>]*>/g, '')`, in linear time. */
+function stripTags(html: string): string {
+  let out = '';
+  let from = 0;
+  let open = html.indexOf('<');
+  while (open !== -1) {
+    const close = html.indexOf('>', open + 1);
+    if (close === -1) break;
+    out += html.slice(from, open);
+    from = close + 1;
+    open = html.indexOf('<', from);
+  }
+  return out + html.slice(from);
 }
 
 /** Whether the story's text changed since it was first seen. */

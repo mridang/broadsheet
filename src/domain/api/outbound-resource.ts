@@ -323,12 +323,7 @@ const MAX_COMMENT_LENGTH = 2048;
 
 /** Whether `value` looks like one email address. */
 function isAddress(value: unknown): value is string {
-  return (
-    typeof value === 'string' &&
-    value.length <= 254 &&
-    // eslint-disable-next-line sonarjs/super-linear-regex -- the value is capped at 254 characters by the check above
-    /^[^\s@<>,;"]+@[^\s@<>,;"]+\.[^\s@<>,;"]+$/.test(value)
-  );
+  return typeof value === 'string' && value.length <= 254 && isMailbox(value);
 }
 
 /** Whether `name` is a plain name an email may be sent under. */
@@ -395,4 +390,16 @@ export function parseEmailInput(
     copy_me: copyMe !== false,
     ...(typeof fromName === 'string' ? { from_name: fromName.trim() } : {}),
   }));
+}
+
+/** `local@domain.tld` with no space, `@`, `<`, `>`, `,`, `;` or `"` in any part. */
+function isMailbox(value: string): boolean {
+  const at = value.indexOf('@');
+  if (at < 1) return false;
+  const domain = value.slice(at + 1);
+  return (
+    /^[^\s@<>,;"]+$/.test(value.slice(0, at)) &&
+    /^[^\s@<>,;"]+$/.test(domain) &&
+    domain.slice(1, -1).includes('.')
+  );
 }

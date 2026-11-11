@@ -131,3 +131,13 @@ describe('podcastsFrom', () => {
     expect(podcastsFrom({ results: 'x' })).toEqual([]);
   });
 });
+
+describe('convertToFeed trailing slashes', () => {
+  it.each([
+    ['https://example.com/blog', 'https://example.com/blog/feed'],
+    ['https://example.com/blog///', 'https://example.com/blog/feed'],
+    ['https://example.com/a//b/', 'https://example.com/a//b/feed'],
+  ])('reads %s as %s', (address, feed) => {
+    expect(convertToFeed(address)?.feed_url).toBe(feed);
+  });
+});

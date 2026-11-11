@@ -38,8 +38,7 @@ export function comparable(address: string | null | undefined): string {
   if (!address) return '';
   try {
     const url = new URL(address.trim());
-    // eslint-disable-next-line sonarjs/super-linear-regex -- a parsed URL path is short, so the scan stays cheap
-    const path = url.pathname.replace(/\/+$/, '');
+    const path = trimTrailingSlashes(url.pathname);
     return `${url.hostname.replace(/^www\./, '')}${url.port}${path}${url.search}`.toLowerCase();
   } catch {
     return '';
@@ -157,4 +156,11 @@ export async function importFeeds(
     rejected,
     feeds,
   };
+}
+
+/** Drops the trailing slashes; same as `.replace(/\/+$/, '')`, in linear time. */
+function trimTrailingSlashes(text: string): string {
+  let end = text.length;
+  while (end > 0 && text[end - 1] === '/') end -= 1;
+  return text.slice(0, end);
 }

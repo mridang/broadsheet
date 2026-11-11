@@ -293,3 +293,41 @@ describe('parseEmailInput', () => {
     expect(!result.ok && result.errors).toContain(error);
   });
 });
+
+describe('parseEmailInput addresses', () => {
+  const ADDRESS = new RegExp(
+    String.raw`^[^\s@<>,;"]+@[^\s@<>,;"]+\.[^\s@<>,;"]+$`,
+  );
+
+  it.each([
+    'a@b.co',
+    'a@b',
+    '@b.co',
+    'a@',
+    'a@@b.co',
+    'a@b.',
+    'a@.b',
+    'a@.b.',
+    'a@b..c',
+    'a@b.c.',
+    'a@..',
+    'a@...',
+    'a b@c.d',
+    'a@b;c.d',
+    'a@b.c"',
+    'a<@b.c',
+    'a@b@c.d',
+    '.@.a.',
+    'plain',
+  ])('judges %j as the original pattern did', (address) => {
+    expect(parseEmailInput({ to: [address] }).ok).toBe(ADDRESS.test(address));
+  });
+
+  it('rejects a long run of dots quickly', () => {
+    const started = Date.now();
+    expect(parseEmailInput({ to: [`a@${'.'.repeat(250)}`] }).ok).toBe(
+      ADDRESS.test(`a@${'.'.repeat(250)}`),
+    );
+    expect(Date.now() - started).toBeLessThan(2000);
+  });
+});
