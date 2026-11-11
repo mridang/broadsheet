@@ -47,3 +47,42 @@ describe('Markdown', () => {
     );
   });
 });
+
+describe('blocks line forms', () => {
+  const BULLET = new RegExp(['^[-*]', String.raw`\s`, '+(.*)$'].join(''));
+
+  it.each([
+    '-',
+    '- ',
+    '-x',
+    '- x',
+    '-   x y',
+    '*\tx',
+    '- a\rb',
+    '-\r x',
+    '1. x',
+    '12) x',
+    '1.x',
+    '# x',
+    '###### x',
+    '####### x',
+    '#x',
+    '#   x',
+  ])('reads %j as before', (raw) => {
+    const [first] = blocks(raw);
+    const line = raw.trim();
+    const bullet = BULLET.exec(line);
+    if (bullet) {
+      expect(first).toEqual({ kind: 'ul', items: [bullet[1]] });
+    } else {
+      expect(first?.kind).not.toBe('ul');
+    }
+  });
+
+  it('reads a long line of spaces quickly', () => {
+    const started = Date.now();
+    blocks(`-${' '.repeat(100_000)}x`);
+    blocks(`#${' '.repeat(100_000)}`);
+    expect(Date.now() - started).toBeLessThan(2000);
+  });
+});

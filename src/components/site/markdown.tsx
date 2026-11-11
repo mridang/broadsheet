@@ -68,12 +68,9 @@ export function blocks(markdown: string): Block[] {
   for (const raw of markdown.split('\n')) {
     const line = raw.trim();
     if (!line) continue;
-    // eslint-disable-next-line sonarjs/super-linear-regex -- the line is trimmed and the capture runs to the end, so there is no backtracking
-    const bullet = /^[-*]\s+(.*)$/.exec(line);
-    // eslint-disable-next-line sonarjs/super-linear-regex -- the line is trimmed and the capture runs to the end, so there is no backtracking
-    const numbered = /^\d+[.)]\s+(.*)$/.exec(line);
-    // eslint-disable-next-line sonarjs/super-linear-regex -- the line is trimmed and the capture runs to the end, so there is no backtracking
-    const heading = /^#{1,6}\s+(.*)$/.exec(line);
+    const bullet = /^[-*]\s+(\S.*)$/.exec(line);
+    const numbered = /^\d+[.)]\s+(\S.*)$/.exec(line);
+    const heading = /^#{1,6}\s+(\S.*)$/.exec(line);
     const kind = bullet ? 'ul' : numbered && 'ol';
     const prev = out.at(-1);
     if (kind) {
