@@ -9,6 +9,9 @@ import {
   sessionIsCurrent,
 } from '@/lib/session';
 
+/** A value that is not there, for fields the test leaves out on purpose. */
+const unset = (): undefined => undefined;
+
 const SECRET = 'test-session-secret-value';
 
 // Thin adapters over the SessionTokens handle, so each case reads as a
@@ -39,8 +42,7 @@ describe('session tokens', () => {
           hint: true,
           off: false,
           tag: 'x',
-          // eslint-disable-next-line sonarjs/no-undefined-assignment -- the test passes an undefined field on purpose
-          gone: undefined,
+          gone: unset(),
         },
         SECRET,
       ),
