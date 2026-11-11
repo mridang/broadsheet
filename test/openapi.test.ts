@@ -568,6 +568,27 @@ describe('openapi.json', () => {
 describe('openapi.json members and security', () => {
   it('names JSON members in snake_case and times as RFC 3339', () => {
     const wrong: string[] = [];
+    const checkMembers = (members: object, at: string): void => {
+      for (const [name, schema] of Object.entries(members)) {
+        // The browser's own PushSubscription member, accepted next to expiration_time.
+        if (
+          !/^[a-z][a-z0-9]*(_[a-z0-9]+)*$/.test(name) &&
+          name !== 'expirationTime'
+        ) {
+          wrong.push(`${at}: ${name}`);
+        }
+        const type = (schema as Json)['type'];
+        const isString =
+          type === 'string' || (Array.isArray(type) && type.includes('string'));
+        if (
+          name.endsWith('_at') &&
+          isString &&
+          (schema as Json)['format'] !== 'date-time'
+        ) {
+          wrong.push(`${at}: ${name} is not date-time`);
+        }
+      }
+    };
     const walk = (node: unknown, at: string): void => {
       if (Array.isArray(node)) {
         node.forEach((n, i) => walk(n, `${at}[${i}]`));
@@ -577,27 +598,7 @@ describe('openapi.json members and security', () => {
             continue;
           }
           if (key === 'properties' && value && typeof value === 'object') {
-            // eslint-disable-next-line sonarjs/nested-control-flow -- extracting this walk would be a large logic rewrite
-            for (const [name, schema] of Object.entries(value)) {
-              // The browser's own PushSubscription member, accepted next to expiration_time.
-              if (
-                !/^[a-z][a-z0-9]*(_[a-z0-9]+)*$/.test(name) &&
-                name !== 'expirationTime'
-              ) {
-                wrong.push(`${at}: ${name}`);
-              }
-              const type = (schema as Json)['type'];
-              const isString =
-                type === 'string' ||
-                (Array.isArray(type) && type.includes('string'));
-              if (
-                name.endsWith('_at') &&
-                isString &&
-                (schema as Json)['format'] !== 'date-time'
-              ) {
-                wrong.push(`${at}: ${name} is not date-time`);
-              }
-            }
+            checkMembers(value, at);
           }
           walk(value, `${at}.${key}`);
         }
