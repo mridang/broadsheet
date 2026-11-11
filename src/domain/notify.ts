@@ -386,7 +386,6 @@ async function deliverStory(
  * and only once Email Sending is set up; webhooks get a `story` event. Nobody
  * away for more than {@link INACTIVE_DAYS} days is told anything.
  */
-// eslint-disable-next-line sonarjs/no-invariant-returns -- every path returns the totals object that the body fills in as it delivers; the rule cannot see the mutation
 export async function notifyNewStories(
   env: NotifyEnvironment,
   db: Database,
@@ -446,7 +445,7 @@ export async function notifyNewStories(
       }
     }
   }
-  return totals;
+  return delivery.totals;
 }
 
 /**

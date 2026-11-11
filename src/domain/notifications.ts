@@ -342,8 +342,8 @@ export class NotificationRepository {
   ): Promise<void> {
     await this.#db
       .insert(storyEmails)
-      // eslint-disable-next-line unicorn/no-unused-array-method-return -- drizzle's insert().values(), not Array#values
-      .values({ user_id: userId, article_id: articleId, recipients });
+      .values({ user_id: userId, article_id: articleId, recipients })
+      .run();
   }
 
   /** How many stories the person emailed to others in the last day. */
