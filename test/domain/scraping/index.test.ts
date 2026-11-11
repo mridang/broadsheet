@@ -337,7 +337,7 @@ describe('scrapeSource fetching', () => {
   /** Minutes from now until the source is due again. */
   const minutesAway = async () => {
     const next = (await source()).next_fetch_at!;
-    return (Date.parse(`${next.replace(' ', 'T')}Z`) - Date.now()) / 60000;
+    return (Date.parse(`${next.replace(' ', 'T')}Z`) - Date.now()) / 60_000;
   };
 
   it('schedules the next fetch from how busy the feed is', async () => {

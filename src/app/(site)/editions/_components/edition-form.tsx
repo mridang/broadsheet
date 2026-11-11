@@ -58,7 +58,7 @@ export function EditionForm({
   draft: EditionDraft;
   sections: readonly SectionOption[];
 }>): ReactElement {
-  const { busy, error, run } = useApiAction(() => window.location.reload());
+  const { busy, error, run } = useApiAction(() => globalThis.location.reload());
   const { id } = draft;
   const submit = (event: FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
@@ -80,7 +80,7 @@ export function EditionForm({
         required
         className="sm:col-span-2"
       />
-      {sections.length ? (
+      {sections.length > 0 ? (
         <fieldset className="flex flex-wrap gap-x-4 gap-y-2 sm:col-span-2">
           <legend className="mb-2 text-xs font-medium text-subtle">
             Sections (none for every feed)

@@ -13,7 +13,7 @@ const NON_ASCII = /[\u0080-￿]/;
 describe('public/llms.txt', () => {
   const text = read('llms.txt');
   /** The part before `## Optional`: what an assistant should read first. */
-  const main = text.split('\n## Optional')[0] ?? '';
+  const main = text.split('\n## Optional', 1)[0] ?? '';
 
   it('follows the llms.txt shape: a title, a summary and sections of links', () => {
     expect(text.startsWith(`# ${BRAND_NAME}\n`)).toBe(true);
@@ -30,7 +30,7 @@ describe('public/llms.txt', () => {
   });
 
   it('points to the security contact and policy, under Optional', () => {
-    const optional = text.split('\n## Optional')[1] ?? '';
+    const optional = text.split('\n## Optional', 2)[1] ?? '';
     expect(optional).toContain(`${BRAND_URL}/.well-known/security.txt`);
     expect(optional).toContain(`${BRAND_URL}/security-policy.txt`);
   });
@@ -68,16 +68,16 @@ describe('public/_headers', () => {
   const file = read('_headers');
 
   it('caches the security policy for a day and lets other sites fetch it', () => {
-    const block = file.split('\n/security-policy.txt\n')[1] ?? '';
+    const block = file.split('\n/security-policy.txt\n', 2)[1] ?? '';
     expect(block).toContain('Cache-Control: public, max-age=86400');
     expect(block).toContain('Cross-Origin-Resource-Policy: cross-origin');
   });
 
   it('lets other sites load the icons, and re-checks the service worker every time', () => {
-    expect(file.split('\n/icons/*\n')[1] ?? '').toContain(
+    expect(file.split('\n/icons/*\n', 2)[1] ?? '').toContain(
       'Cross-Origin-Resource-Policy: cross-origin',
     );
-    expect(file.split('\n/sw.js\n')[1] ?? '').toContain(
+    expect(file.split('\n/sw.js\n', 2)[1] ?? '').toContain(
       'Cache-Control: no-cache',
     );
   });

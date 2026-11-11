@@ -2,7 +2,7 @@
  * The caller's own session. Deleting it signs them out; it is idempotent, so
  * signing out twice (or when already signed out) is fine.
  *
- *   DELETE /api/sessions/self → 204
+ *   DELETE /api/sessions/self → 204.
  */
 
 import { NextResponse } from 'next/server';

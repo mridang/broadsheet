@@ -98,7 +98,7 @@ export function Section({
           personal ? <MarkFeedReadButton feedId={desk.feed_id} /> : undefined
         }
       />
-      {stories.length ? (
+      {stories.length > 0 ? (
         <div className="grid gap-6 sm:grid-cols-2">
           {main.map((s) => (
             <StoryCard
@@ -116,7 +116,7 @@ export function Section({
               clusterExpanded={personal?.clusterExpanded}
             />
           ))}
-          {briefs.length ? <BriefBlock items={briefs} /> : null}
+          {briefs.length > 0 ? <BriefBlock items={briefs} /> : null}
         </div>
       ) : (
         <EmptyState title="No stories yet">

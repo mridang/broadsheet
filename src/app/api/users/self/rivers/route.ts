@@ -3,7 +3,7 @@
  *
  *   GET  /api/users/self/rivers                              → 200
  *   POST /api/users/self/rivers {river_id, side, position}   → 201 + Location
- *   PUT  /api/users/self/rivers {items}                      → 200
+ *   PUT  /api/users/self/rivers {items}                      → 200.
  *
  * The behaviour lives in the `riversCollection` controller; this file only
  * mounts it.

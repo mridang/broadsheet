@@ -52,7 +52,7 @@ export default async function SearchPage({
   const older = last
     ? `/search?${new URLSearchParams({
         q: query.q ?? '',
-        ...(query.feed !== undefined ? { feed_id: String(query.feed) } : {}),
+        ...(query.feed === undefined ? {} : { feed_id: String(query.feed) }),
         cursor: encodeCursor({ key: String(last.id), id: String(last.id) }),
       })}`
     : undefined;
@@ -84,18 +84,20 @@ export default async function SearchPage({
       {user && input.ok && query.q ? (
         <SaveSearchButton
           query={query.q}
-          {...(query.feed !== undefined ? { feedId: String(query.feed) } : {})}
+          {...(query.feed === undefined ? {} : { feedId: String(query.feed) })}
         />
       ) : null}
-      {!input.ok ? (
+      {input.ok ? (
+        query.q && items.length === 0 ? (
+          <EmptyState
+            icon="search"
+            title="No stories hold every one of those words."
+          />
+        ) : null
+      ) : (
         <Notice tone="danger">That search could not be read.</Notice>
-      ) : query.q && !items.length ? (
-        <EmptyState
-          icon="search"
-          title="No stories hold every one of those words."
-        />
-      ) : null}
-      {items.length ? (
+      )}
+      {items.length > 0 ? (
         <ol className="divide-y divide-line border-y border-line">
           {items.map((a) => (
             <StoryRow

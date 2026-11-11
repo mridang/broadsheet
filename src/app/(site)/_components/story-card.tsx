@@ -174,7 +174,7 @@ export async function StoryCard({
           <span className="shrink-0">
             {article.points ? `▲ ${article.points}` : ago(article.published_at)}
           </span>
-          {siblings.length ? <ClusterBadge siblings={siblings} /> : null}
+          {siblings.length > 0 ? <ClusterBadge siblings={siblings} /> : null}
         </p>
         <h2
           className={cn(
@@ -198,14 +198,14 @@ export async function StoryCard({
             {ex}
           </p>
         ) : null}
-        {siblings.length ? (
+        {siblings.length > 0 ? (
           <ClusterPreview
             siblings={siblings}
             expanded={clusterExpanded}
             pictures={previews}
             {...(readIds ? { read: readIds } : {})}
           />
-        ) : also.length ? (
+        ) : also.length > 0 ? (
           <p data-part="" className={cn('mt-2 text-xs text-subtle', DIM)}>
             Also covered by: {also.join(', ')}
           </p>

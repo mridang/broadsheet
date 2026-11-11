@@ -51,7 +51,7 @@ function TrendingRow({ feed }: Readonly<{ feed: TrendingFeed }>): ReactElement {
 export function TrendingFeeds({
   feeds,
 }: Readonly<{ feeds: readonly TrendingFeed[] }>): ReactElement | null {
-  if (!feeds.length) return null;
+  if (feeds.length === 0) return null;
   return (
     <PageSection id="trending" title="Trending feeds">
       <List>

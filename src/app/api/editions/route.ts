@@ -1,7 +1,7 @@
 /**
  * The custom editions the signed-in person keeps beside their default one.
  *
- *   POST /api/editions {name, section_ids?, query?, tag?} → 201 + Location
+ *   POST /api/editions {name, section_ids?, query?, tag?} → 201 + Location.
  *
  * The behaviour lives in the `editionsCollection` controller; this file only
  * mounts it.

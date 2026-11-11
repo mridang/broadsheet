@@ -208,7 +208,7 @@ describe('tooManyRequests', () => {
     expect(await response.json()).toMatchObject({
       jsonrpc: '2.0',
       id: null,
-      error: { code: -32603, data: { retryAfterSeconds: 60 } },
+      error: { code: -32_603, data: { retryAfterSeconds: 60 } },
     });
   });
 

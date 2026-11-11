@@ -1,7 +1,7 @@
 /**
  * The security contact file (RFC 9116).
  *
- *   GET /.well-known/security.txt
+ *   GET /.well-known/security.txt.
  */
 
 import { securityTxt } from '@/app/_security-txt';

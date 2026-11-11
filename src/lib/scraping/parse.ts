@@ -13,14 +13,14 @@ import type { ScrapedItem } from './types';
 const MAX_PER_FEED = 100;
 
 export const decode = (s = ''): string =>
-  decodeEntities(s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1'))
-    .replace(/<[^>]+>/g, '')
-    .replace(/\s+/g, ' ')
+  decodeEntities(s.replaceAll(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1'))
+    .replaceAll(/<[^>]+>/g, '')
+    .replaceAll(/\s+/g, ' ')
     .trim();
 
 function tag(block: string, name: string): string {
   const m = block.match(
-    new RegExp(`<${name}[^>]*>([\\s\\S]*?)</${name}>`, 'i'),
+    new RegExp(String.raw`<${name}[^>]*>([\s\S]*?)</${name}>`, 'i'),
   );
   return m?.[1] ? decode(m[1]) : '';
 }
@@ -69,10 +69,10 @@ const STRIP_SUB = new Set([
 
 const titleize = (s: string): string =>
   s
-    .replace(/[-_]/g, ' ')
-    .replace(/\s+/g, ' ')
+    .replaceAll(/[-_]/g, ' ')
+    .replaceAll(/\s+/g, ' ')
     .trim()
-    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .replaceAll(/\b\w/g, (c) => c.toUpperCase())
     .slice(0, 40);
 
 export function domainClean(host: string): string {
@@ -82,13 +82,13 @@ export function domainClean(host: string): string {
   const labels = h.split('.');
   const reg2 = labels.slice(-2).join('.');
   if (BLOG_PLATFORMS.has(reg2) && labels.length >= 3) {
-    return titleize(labels[labels.length - 3] ?? h);
+    return titleize(labels.at(-3) ?? h);
   }
   const l = [...labels];
   while (l.length > 2 && STRIP_SUB.has(l[0] ?? '')) l.shift();
-  const penultimate = l[l.length - 2] ?? '';
+  const penultimate = l.at(-2) ?? '';
   const nameLabel =
-    l.length >= 3 && MULTI_TLD.has(penultimate) ? l[l.length - 3] : penultimate;
+    l.length >= 3 && MULTI_TLD.has(penultimate) ? l.at(-3) : penultimate;
   return titleize(nameLabel || h);
 }
 
@@ -163,15 +163,17 @@ export interface FeedElement {
 /** Decode the five XML entities and numeric references in a text or attribute. */
 function xmlText(raw: string): string {
   return raw
-    .replace(/&#(x[0-9a-f]+|\d+);/gi, (whole, code: string) => {
-      const n = /^x/i.test(code) ? parseInt(code.slice(1), 16) : Number(code);
-      return n > 0 && n <= 0x10ffff ? String.fromCodePoint(n) : whole;
+    .replaceAll(/&#(x[0-9a-f]+|\d+);/gi, (whole, code: string) => {
+      const n = /^x/i.test(code)
+        ? Number.parseInt(code.slice(1), 16)
+        : Number(code);
+      return n > 0 && n <= 0x10_FF_FF ? String.fromCodePoint(n) : whole;
     })
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
-    .replace(/&amp;/g, '&');
+    .replaceAll('&lt;', '<')
+    .replaceAll('&gt;', '>')
+    .replaceAll('&quot;', '"')
+    .replaceAll('&apos;', "'")
+    .replaceAll('&amp;', '&');
 }
 
 /** Most header elements kept, so a hostile feed cannot grow without bound. */
@@ -192,9 +194,9 @@ export function feedHeader(xml: string): FeedElement[] {
     children: FeedElement[];
   }
   const source = xml
-    .replace(/<!--[\s\S]*?-->/g, '')
-    .replace(/<\?[\s\S]*?\?>/g, '')
-    .replace(/<!DOCTYPE[^>]*>/gi, '');
+    .replaceAll(/<!--[\s\S]*?-->/g, '')
+    .replaceAll(/<\?[\s\S]*?\?>/g, '')
+    .replaceAll(/<!DOCTYPE[^>]*>/gi, '');
   const root: Open = { name: '', attributes: {}, text: '', children: [] };
   const stack: Open[] = [root];
   let count = 0;
@@ -213,7 +215,7 @@ export function feedHeader(xml: string): FeedElement[] {
         stack.at(-1)!.children.push({
           name: top.name,
           attributes: top.attributes,
-          text: top.text.replace(/\s+/g, ' ').trim(),
+          text: top.text.replaceAll(/\s+/g, ' ').trim(),
           children: top.children,
         });
       }
@@ -238,7 +240,7 @@ export function feedHeader(xml: string): FeedElement[] {
     stack.at(-1)!.children.push({
       name: top.name,
       attributes: top.attributes,
-      text: top.text.replace(/\s+/g, ' ').trim(),
+      text: top.text.replaceAll(/\s+/g, ' ').trim(),
       children: top.children,
     });
   }
@@ -275,9 +277,9 @@ export interface FeedDetails {
 const PERIOD_MINUTES: Readonly<Record<string, number>> = {
   hourly: 60,
   daily: 1440,
-  weekly: 10080,
-  monthly: 43200,
-  yearly: 525600,
+  weekly: 10_080,
+  monthly: 43_200,
+  yearly: 525_600,
 };
 
 /** An address made absolute against `base`, or blank when it is not one. */
@@ -303,8 +305,8 @@ export function feedDetails(xml: string, feedUrl: string): FeedDetails {
       : /<feed[\s>]/i.test(xml)
         ? 'atom'
         : undefined;
-  const head = xml.split(/<(?:item|entry)[\s>]/i)[0] ?? '';
-  const withoutImage = head.replace(/<image[\s>][\s\S]*?<\/image>/gi, '');
+  const head = xml.split(/<(?:item|entry)[\s>]/i, 1)[0] ?? '';
+  const withoutImage = head.replaceAll(/<image[\s>][\s\S]*?<\/image>/gi, '');
   const alternate =
     head.match(
       /<link\b(?=[^>]*\brel=["']alternate["'])[^>]*\bhref=["']([^"']+)["']/i,
@@ -364,7 +366,7 @@ export function itemAuthor(block: string): string {
   const many = (name: string): string[] =>
     [
       ...block.matchAll(
-        new RegExp(`<${name}[^>]*>([\\s\\S]*?)</${name}>`, 'gi'),
+        new RegExp(String.raw`<${name}[^>]*>([\s\S]*?)</${name}>`, 'gi'),
       ),
     ]
       .map((m) => named(decode(m[1] ?? '')))
@@ -372,9 +374,9 @@ export function itemAuthor(block: string): string {
   const creators = many('dc:creator');
   const names = atom?.[1]
     ? [decode(atom[1])]
-    : creators.length
+    : (creators.length > 0
       ? creators
-      : many('author');
+      : many('author'));
   return [...new Set(names)].join(', ').slice(0, MAX_AUTHOR);
 }
 
@@ -396,7 +398,7 @@ export function itemTags(block: string): string[] {
 /** The attribute `name` of a tag's opening text, entity-decoded. */
 function attr(opening: string, name: string): string {
   const m = opening.match(
-    new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`, 'i'),
+    new RegExp(String.raw`\b${name}\s*=\s*(?:"([^"]*)"|'([^']*)')`, 'i'),
   );
   return xmlText(m?.[1] ?? m?.[2] ?? '').trim();
 }
@@ -415,11 +417,11 @@ const isPicture = (opening: string): boolean => {
  */
 export function itemImage(block: string, base: string): string {
   const urls = (name: string, pictures: boolean): string[] =>
-    [...block.matchAll(new RegExp(`<${name}\\b([^>]*)>`, 'gi'))]
+    [...block.matchAll(new RegExp(String.raw`<${name}\b([^>]*)>`, 'gi'))]
       .map((m) => m[1] ?? '')
       .filter((o) => !pictures || isPicture(o))
       .map((o) => attr(o, 'url'));
-  const content = `${block}${xmlText(block)}`.replace(
+  const content = `${block}${xmlText(block)}`.replaceAll(
     /<!\[CDATA\[([\s\S]*?)\]\]>/g,
     '$1',
   );
@@ -503,7 +505,7 @@ const PERMALINK = /^[#¶§]+\s*|\s*[#¶§]+$/g;
 /** The inside of the first `<name>` element, or undefined when there is none. */
 function region(html: string, name: string): string | undefined {
   return html.match(
-    new RegExp(`<${name}\\b[^>]*>([\\s\\S]*)</${name}>`, 'i'),
+    new RegExp(String.raw`<${name}\b[^>]*>([\s\S]*)</${name}>`, 'i'),
   )?.[1];
 }
 
@@ -514,7 +516,9 @@ function region(html: string, name: string): string | undefined {
  * page furniture are dropped. Empty when the page has no paragraphs.
  */
 export function articleText(html: string): string {
-  const clean = html.replace(/<!--[\s\S]*?-->/g, '').replace(NOT_STORY, '');
+  const clean = html
+    .replaceAll(/<!--[\s\S]*?-->/g, '')
+    .replaceAll(NOT_STORY, '');
   const body =
     region(clean, 'article') ??
     region(clean, 'main') ??
@@ -526,7 +530,7 @@ export function articleText(html: string): string {
   )) {
     const heading = /^h/i.test(m[1] ?? '');
     const raw = decode(m[2] ?? '');
-    const text = heading ? raw.replace(PERMALINK, '').trim() : raw;
+    const text = heading ? raw.replaceAll(PERMALINK, '').trim() : raw;
     if (heading ? text : text.split(' ').length >= 4) blocks.push(text);
   }
   return blocks.join('\n\n').slice(0, MAX_BODY);

@@ -32,8 +32,8 @@ export interface Conversion {
 /** A name from an address segment: dashes to spaces, each word capitalised. */
 function titled(slug: string): string {
   return slug
-    .replace(/[-_]+/g, ' ')
-    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .replaceAll(/[-_]+/g, ' ')
+    .replaceAll(/\b\w/g, (c) => c.toUpperCase())
     .trim();
 }
 

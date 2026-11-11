@@ -68,7 +68,7 @@ export interface AnswerResource {
  * resource belongs to.
  */
 export function parentIdOf(request: Request): string {
-  return new URL(request.url).pathname.split('/')[3] ?? '';
+  return new URL(request.url).pathname.split('/', 4)[3] ?? '';
 }
 
 /** The 502 for a model that could not answer. */
@@ -193,7 +193,7 @@ export function createAnswersCollection(
       const repo = new Repository(getDatabase());
       const id = parseFeedId(parentIdOf(request));
       const article =
-        id !== undefined ? await repo.getArticle(uid, id) : undefined;
+        id === undefined ? undefined : await repo.getArticle(uid, id);
       if (!article) return problems.notFound('article');
       const preset = question.kind === 'preset' ? question.preset : undefined;
       const text =
@@ -214,7 +214,7 @@ export function createAnswersCollection(
         remaining: (await budget(repo, uid, 'answer')).remaining,
       });
       const key =
-        preset && !history.length ? cacheKey(preset.id, call) : undefined;
+        preset && history.length === 0 ? cacheKey(preset.id, call) : undefined;
       const cached = key
         ? await repo.cachedAnswer(uid, article.id, key)
         : undefined;

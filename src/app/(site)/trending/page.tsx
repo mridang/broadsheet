@@ -124,14 +124,16 @@ export default async function TrendingPage({
           Show
         </button>
       </form>
-      {!input.ok ? (
+      {input.ok ? (
+        items.length === 0 ? (
+          <div className="mt-8">
+            <EmptyState icon="trending" title="Nothing is trending here yet." />
+          </div>
+        ) : null
+      ) : (
         <p className="mt-6 text-sm text-muted">That list could not be read.</p>
-      ) : !items.length ? (
-        <div className="mt-8">
-          <EmptyState icon="trending" title="Nothing is trending here yet." />
-        </div>
-      ) : null}
-      {items.length ? (
+      )}
+      {items.length > 0 ? (
         <ol className="mt-8 divide-y divide-line border-y border-line">
           {items.map(({ article, count }) => (
             <StoryRow

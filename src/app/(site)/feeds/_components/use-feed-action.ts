@@ -10,5 +10,5 @@ export type FeedAction = ApiAction;
  * {@link useApiAction}, reloading the page on success so the change shows.
  */
 export function useFeedAction(): FeedAction {
-  return useApiAction(() => window.location.reload());
+  return useApiAction(() => globalThis.location.reload());
 }

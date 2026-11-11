@@ -90,7 +90,7 @@ export class ShareRepository {
       .where(
         and(
           userIds ? inArray(shares.user_id, [...userIds]) : undefined,
-          before !== undefined ? lt(shares.id, before) : undefined,
+          before === undefined ? undefined : lt(shares.id, before),
         ),
       )
       .orderBy(desc(shares.id))

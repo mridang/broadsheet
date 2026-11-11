@@ -92,6 +92,7 @@ export type DueSource = Pick<
 >;
 /** A heading a person groups their feeds under. */
 export type Section = typeof sections.$inferSelect;
+
 /**
  * A feed a person follows: their subscription (whose id it carries) joined to
  * its source. `title` is their own name for it, else the source's.
@@ -185,6 +186,7 @@ export interface FeedChanges {
   readonly custom_icon?: string | null;
   readonly auto_mark_read_days?: number | null;
 }
+
 /**
  * The parts of a section a person can change; a null parent is top level and
  * null days inherit.
@@ -271,7 +273,7 @@ export function searchTerms(q: string): SearchTerms {
 
 /** A value as an FTS5 phrase, its quotes doubled so nothing in it is run. */
 function phrase(value: string): string {
-  return `"${value.replace(/"/g, '""')}"`;
+  return `"${value.replaceAll('"', '""')}"`;
 }
 
 /**
@@ -329,6 +331,7 @@ const summaryColumns = Object.fromEntries(
 ) as Omit<ReturnType<typeof getTableColumns<typeof articles>>, 'body_text'>;
 /** A like or dislike a person trained the paper with. */
 export type Classifier = typeof classifiers.$inferSelect;
+
 /**
  * What a classifier matches on, whether it likes (1), dislikes (-1) or super
  * dislikes (-2), and where: one feed, one section, or (neither) everywhere.
@@ -771,11 +774,11 @@ function savedAnnotation(
   const marked = tagsOf(highlights);
   const parts = [
     notes ? `Note: ${notes}` : '',
-    marked.length
+    marked.length > 0
       ? `Highlights: ${marked.map((h) => `"${h}"`).join('; ')}`
       : '',
   ].filter(Boolean);
-  return parts.length ? { annotation: parts.join('\n') } : {};
+  return parts.length > 0 ? { annotation: parts.join('\n') } : {};
 }
 
 /** Longest conversation title, in characters. */
@@ -783,7 +786,7 @@ const TITLE_LENGTH = 50;
 
 /** A conversation's title from its first question: cut at {@link TITLE_LENGTH} with an ellipsis. */
 export function conversationTitle(question: string): string {
-  const text = question.trim().replace(/\s+/g, ' ');
+  const text = question.trim().replaceAll(/\s+/g, ' ');
   return text.length > TITLE_LENGTH ? `${text.slice(0, TITLE_LENGTH)}…` : text;
 }
 
@@ -1013,7 +1016,7 @@ export class Repository {
           .onConflictDoNothing();
       }
     }
-    if (Object.keys(set).length) {
+    if (Object.keys(set).length > 0) {
       await this.#db
         .update(subscriptions)
         .set(set)
@@ -1030,7 +1033,7 @@ export class Repository {
       .delete(subscriptions)
       .where(and(eq(subscriptions.id, id), eq(subscriptions.user_id, userId)))
       .returning({ id: subscriptions.id });
-    if (removed.length) {
+    if (removed.length > 0) {
       await this.#db
         .delete(subscription_sections)
         .where(eq(subscription_sections.subscription_id, id));
@@ -1137,10 +1140,10 @@ export class Repository {
                 nextFetch === undefined
                   ? null
                   : sql`datetime('now', '+' || ${nextFetch} || ' minutes')`,
-              ...(etag !== undefined ? { etag } : {}),
-              ...(lastModified !== undefined
-                ? { last_modified: lastModified }
-                : {}),
+              ...(etag === undefined ? {} : { etag }),
+              ...(lastModified === undefined
+                ? {}
+                : { last_modified: lastModified }),
             },
       )
       .where(eq(sources.id, sourceId));
@@ -1406,7 +1409,7 @@ export class Repository {
     const doomed = sectionAndDescendants(all, id);
     for (const feed of await this.listFeeds(userId)) {
       if (
-        feed.section_ids.length &&
+        feed.section_ids.length > 0 &&
         feed.section_ids.every((s) => doomed.has(s))
       ) {
         await this.removeFeed(userId, feed.id);
@@ -1429,7 +1432,7 @@ export class Repository {
       .delete(sections)
       .where(and(eq(sections.id, id), eq(sections.user_id, userId)))
       .returning({ parent_id: sections.parent_id });
-    if (!removed.length) return;
+    if (removed.length === 0) return;
     await this.#db
       .update(sections)
       .set({ parent_id: removed[0]!.parent_id })
@@ -1553,7 +1556,7 @@ export class Repository {
     items: readonly ScrapedItem[],
   ): Promise<ScrapedItem[]> {
     const listed = items.filter((a) => a.guid);
-    if (!listed.length) return [];
+    if (listed.length === 0) return [];
     const stored = await this.#db
       .select({ url: articles.url, guid: articles.guid })
       .from(articles)
@@ -1655,7 +1658,7 @@ export class Repository {
     const host = domain
       ?.trim()
       .toLowerCase()
-      .replace(/^\.+|\.+$/g, '');
+      .replaceAll(/^\.+|\.+$/g, '');
     const match = ftsQuery(q);
     const published = sql`julianday(coalesce(nullif(${articles.published_at}, ''), ${articles.fetched_at}))`;
     const cursor =
@@ -1680,8 +1683,9 @@ export class Repository {
             ? sql`${articles.id} IN (SELECT rowid FROM articles_fts WHERE articles_fts MATCH ${match})`
             : undefined,
           cursor,
-          feed !== undefined
-            ? eq(
+          feed === undefined
+            ? undefined
+            : eq(
                 articles.source_id,
                 this.#db
                   .select({ id: subscriptions.source_id })
@@ -1692,10 +1696,10 @@ export class Repository {
                       eq(subscriptions.user_id, userId),
                     ),
                   ),
-              )
-            : undefined,
-          feeds !== undefined
-            ? inArray(
+              ),
+          feeds === undefined
+            ? undefined
+            : inArray(
                 articles.source_id,
                 this.#db
                   .select({ id: subscriptions.source_id })
@@ -1706,8 +1710,7 @@ export class Repository {
                       eq(subscriptions.user_id, userId),
                     ),
                   ),
-              )
-            : undefined,
+              ),
           host
             ? or(
                 sql`lower(${articles.url}) like ${`%://${host}/%`}`,
@@ -1715,8 +1718,8 @@ export class Repository {
                 sql`lower(${articles.url}) like ${`%.${host}/%`}`,
               )
             : undefined,
-          from !== undefined ? sql`${articles.edition} >= ${from}` : undefined,
-          to !== undefined ? sql`${articles.edition} <= ${to}` : undefined,
+          from === undefined ? undefined : sql`${articles.edition} >= ${from}`,
+          to === undefined ? undefined : sql`${articles.edition} <= ${to}`,
           inArray(articles.id, newest),
         ),
       )
@@ -2021,7 +2024,7 @@ export class Repository {
     if (notes.highlights !== undefined) {
       set.highlights = JSON.stringify(notes.highlights);
     }
-    if (Object.keys(set).length) {
+    if (Object.keys(set).length > 0) {
       await this.#db
         .update(saves)
         .set(set)
@@ -2287,11 +2290,12 @@ export class Repository {
         count: Number(r.count),
       })),
       stories_per_month: months,
-      average_stories_per_month: months.length
-        ? Math.round(
-            (months.reduce((n, m) => n + m.count, 0) / months.length) * 10,
-          ) / 10
-        : 0,
+      average_stories_per_month:
+        months.length > 0
+          ? Math.round(
+              (months.reduce((n, m) => n + m.count, 0) / months.length) * 10,
+            ) / 10
+          : 0,
       stories_per_weekday: Object.fromEntries(weekdays),
       stories_per_hour: Object.fromEntries(hours),
       fetch_history: history.map((h) => ({
@@ -2551,7 +2555,7 @@ export class Repository {
       ...rest,
       ...(section_ids ? { section_ids: JSON.stringify(section_ids) } : {}),
     };
-    if (Object.keys(set).length) {
+    if (Object.keys(set).length > 0) {
       await this.#db
         .update(editions)
         .set(set)
@@ -2569,7 +2573,7 @@ export class Repository {
       .delete(editions)
       .where(and(eq(editions.id, id), eq(editions.user_id, userId)))
       .returning({ id: editions.id });
-    if (!removed.length) return false;
+    if (removed.length === 0) return false;
     await this.#db
       .delete(edition_issues)
       .where(eq(edition_issues.edition_id, id));
@@ -2732,7 +2736,7 @@ export class Repository {
     let start = 0;
     if (after) {
       const at = served.findIndex((c) => c.id === after.id);
-      start = (at >= 0 ? at : after.position) + 1;
+      start = (at === -1 ? after.position : at) + 1;
     }
     return served.slice(start, start + limit + 1).map((c, i) => ({
       article: byId.get(c.id)!.article,
@@ -2858,7 +2862,7 @@ export class Repository {
   async articleTitles(
     ids: readonly number[],
   ): Promise<Map<number, string | null>> {
-    if (!ids.length) return new Map();
+    if (ids.length === 0) return new Map();
     const rows = await this.#db
       .select({ id: articles.id, title: articles.title })
       .from(articles)
@@ -3135,7 +3139,7 @@ export class Repository {
     return this.#db
       .select()
       .from(briefings)
-      .where(where.length ? and(...where) : undefined)
+      .where(where.length > 0 ? and(...where) : undefined)
       .orderBy(desc(briefings.id))
       .limit(limit);
   }
@@ -3723,7 +3727,7 @@ export class Repository {
       .delete(conversations)
       .where(and(eq(conversations.id, id), eq(conversations.user_id, userId)))
       .returning({ id: conversations.id });
-    if (!removed.length) return false;
+    if (removed.length === 0) return false;
     await this.#db.delete(messages).where(eq(messages.conversation_id, id));
     return true;
   }
@@ -3835,14 +3839,13 @@ export class Repository {
   async savedSourceCounts(
     userId: number,
   ): Promise<{ readonly source_id: number; readonly count: number }[]> {
-    const rows = await this.#db
+    return await this.#db
       .select({ source_id: articles.source_id, count: sql<number>`count(*)` })
       .from(saves)
       .innerJoin(articles, eq(saves.article_id, articles.id))
       .where(eq(saves.user_id, userId))
       .groupBy(articles.source_id)
       .orderBy(asc(articles.source_id));
-    return rows;
   }
 
   /**
@@ -4078,9 +4081,10 @@ export class Repository {
     const since = sql`datetime('now', ${`-${days} days`})`;
     const followers = sql<number>`${sources.follower_count}`;
     switch (kind) {
-      case 'popular':
+      case 'popular': {
         return this.#ranked(userId, null, and(), limit);
-      case 'rising':
+      }
+      case 'rising': {
         // `group by +source_id` keeps the planner on the time index: grouped
         // by the bare column it scanned idx_subscriptions_source to avoid a sort.
         return this.#ranked(
@@ -4093,24 +4097,28 @@ export class Repository {
             on: sql`recent.source_id = ${sources.id}`,
           },
         );
-      case 'hidden':
+      }
+      case 'hidden': {
         return this.#ranked(
           userId,
           sql<number>`engaged.n * 1.0 / ${followers}`,
           and(sql`${followers} <= 50`),
           limit,
           {
-            table: sql`(select source_id, sum(n) as n from (
-              select a.source_id as source_id, count(*) as n from ${reads} r join ${articles} a on a.id = r.article_id
-                where r.created_at >= ${since} group by a.source_id
-              union all
-              select a.source_id as source_id, count(*) as n from ${saves} v join ${articles} a on a.id = v.article_id
-                where v.created_at >= ${since} group by a.source_id
-            ) group by source_id) as engaged`,
+            table: sql`
+              (select source_id, sum(n) as n from (
+                            select a.source_id as source_id, count(*) as n from ${reads} r join ${articles} a on a.id = r.article_id
+                              where r.created_at >= ${since} group by a.source_id
+                            union all
+                            select a.source_id as source_id, count(*) as n from ${saves} v join ${articles} a on a.id = v.article_id
+                              where v.created_at >= ${since} group by a.source_id
+                          ) group by source_id) as engaged
+            `,
             on: sql`engaged.source_id = ${sources.id}`,
           },
         );
-      case 'new':
+      }
+      case 'new': {
         return this.#ranked(
           userId,
           null,
@@ -4120,6 +4128,7 @@ export class Repository {
           ),
           limit,
         );
+      }
     }
   }
 
@@ -4132,7 +4141,7 @@ export class Repository {
     q: string,
     limit: number,
   ): Promise<RankedSource[]> {
-    const like = `%${q.replace(/[%_\\]/g, (c) => `\\${c}`)}%`;
+    const like = `%${q.replaceAll(/[%_\\]/g, (c) => `\\${c}`)}%`;
     return this.#ranked(
       userId,
       null,

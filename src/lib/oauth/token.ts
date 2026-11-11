@@ -150,15 +150,18 @@ export async function handleTokenRequest(
     return fail('invalid_request', 'Send client_id.');
   }
   switch (form.get('grant_type')) {
-    case 'authorization_code':
+    case 'authorization_code': {
       return redeemCode(form, store, origin, now);
-    case 'refresh_token':
+    }
+    case 'refresh_token': {
       return refresh(form, store, now);
-    default:
+    }
+    default: {
       return fail(
         'unsupported_grant_type',
         'Use authorization_code or refresh_token.',
       );
+    }
   }
 }
 

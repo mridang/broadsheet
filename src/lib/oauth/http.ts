@@ -85,14 +85,17 @@ export function formFailure(
   form: Exclude<OAuthForm, { readonly kind: 'ok' }>,
 ): Response {
   switch (form.kind) {
-    case 'wrong-type':
+    case 'wrong-type': {
       return oauthError(
         'invalid_request',
         'Send the request as application/x-www-form-urlencoded.',
       );
-    case 'too-large':
+    }
+    case 'too-large': {
       return oauthError('invalid_request', 'The request is too large.');
-    case 'unreadable':
+    }
+    case 'unreadable': {
       return oauthError('invalid_request', 'The request body is not readable.');
+    }
   }
 }

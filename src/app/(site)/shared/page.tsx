@@ -45,8 +45,8 @@ export default async function SharedPage({
   const [rows, mine] = await Promise.all([
     new ShareRepository(db).list({
       limit: PAGE,
-      ...(sharer !== undefined ? { userIds: [sharer] } : {}),
-      ...(before !== undefined ? { before } : {}),
+      ...(sharer === undefined ? {} : { userIds: [sharer] }),
+      ...(before === undefined ? {} : { before }),
     }),
     new Repository(db).sharedArticleIds(user.id),
   ]);
@@ -59,7 +59,7 @@ export default async function SharedPage({
       : undefined;
   const params = (extra: Record<string, string>) =>
     `/shared?${new URLSearchParams({
-      ...(who !== undefined ? { user: String(who) } : {}),
+      ...(who === undefined ? {} : { user: String(who) }),
       ...extra,
     })}`;
 
@@ -81,7 +81,7 @@ export default async function SharedPage({
           },
         ]}
       />
-      {shares.length ? (
+      {shares.length > 0 ? (
         <ul className="mt-8 divide-y divide-line border-y border-line">
           {shares.map((s) => (
             <StoryRow
@@ -140,11 +140,11 @@ export default async function SharedPage({
         </div>
       )}
       <div className="mt-6 flex gap-3 text-sm">
-        {before !== undefined ? (
+        {before === undefined ? null : (
           <TextLink tone="accent" className="font-medium" href={params({})}>
             ← Newest
           </TextLink>
-        ) : null}
+        )}
         {more ? (
           <TextLink
             tone="accent"

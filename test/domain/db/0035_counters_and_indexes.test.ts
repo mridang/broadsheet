@@ -77,7 +77,7 @@ describe('the counters of a source', () => {
 
   it('stay equal to the rows through a mixed run of writes', () => {
     let seed = 7;
-    const next = (n: number) => (seed = (seed * 48271) % 2147483647) % n;
+    const next = (n: number) => (seed = (seed * 48_271) % 2_147_483_647) % n;
     for (let i = 0; i < 400; i += 1) {
       const source = 1 + next(2);
       const url = `u${next(6)}`;

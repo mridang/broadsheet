@@ -37,7 +37,7 @@ export default async function AssistantPage({
   const repo = new Repository(getDatabase());
   const id = parseFeedId(String((await searchParams).c ?? ''));
   const open =
-    id !== undefined ? await repo.getConversation(user.id, id) : undefined;
+    id === undefined ? undefined : await repo.getConversation(user.id, id);
   const turns = open ? await repo.listMessages(open.id) : [];
   const current = open
     ? conversationResource(
@@ -71,7 +71,7 @@ export default async function AssistantPage({
           suggestions={current ? [] : starterQuestions(summary)}
         />
       </div>
-      {past.length ? (
+      {past.length > 0 ? (
         <PageSection id="past-conversations" title="Past conversations">
           <List>
             {past.map((c) => (

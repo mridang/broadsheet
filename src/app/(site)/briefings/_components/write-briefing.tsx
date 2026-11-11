@@ -69,7 +69,7 @@ export function WriteBriefing(): ReactElement {
         ? briefingPage(response.headers.get('location'))
         : undefined;
       if (page) {
-        window.location.assign(page);
+        globalThis.location.assign(page);
         return;
       }
       setError(
@@ -95,7 +95,7 @@ export function WriteBriefing(): ReactElement {
       >
         {started === null ? 'Write a briefing now' : 'Writing…'}
       </Button>
-      {started !== null ? (
+      {started === null ? null : (
         <div className="mt-3">
           <progress
             aria-label="Writing the briefing"
@@ -122,9 +122,9 @@ export function WriteBriefing(): ReactElement {
             ))}
           </ol>
         </div>
-      ) : null}
+      )}
       <p role="status" aria-live="polite" className="sr-only">
-        {started !== null ? `${STAGES[stage]}…` : ''}
+        {started === null ? '' : `${STAGES[stage]}…`}
       </p>
       {error ? <ErrorText>{error}</ErrorText> : null}
     </div>

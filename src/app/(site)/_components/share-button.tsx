@@ -43,8 +43,8 @@ export function ShareButton({
       await setShared(articleId, share, comments);
       setIsShared(share);
       if (panel.current) panel.current.open = false;
-    } catch (err) {
-      setError(problemText(err, 'Could not share.'));
+    } catch (error_) {
+      setError(problemText(error_, 'Could not share.'));
     } finally {
       setBusy(false);
     }

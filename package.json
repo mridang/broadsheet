@@ -3,22 +3,22 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "next dev --port 3737",
-    "typecheck": "tsc --noEmit",
     "build": "next build",
-    "start": "next start",
-    "migrate": "wrangler d1 migrations apply DB --local",
     "cf-typegen": "wrangler types && prettier --write worker-configuration.d.ts",
+    "cypress:open": "cypress open",
+    "cypress:run": "cypress run --browser chrome",
     "deploy": "wrangler d1 migrations apply DB --remote && opennextjs-cloudflare build && wrangler deploy",
-    "test": "jest --verbose --config=jest.config.mjs",
-    "test:watch": "npm run test -- --watch",
-    "test:debug": "jest --verbose --config=jest.config.mjs --detectOpenHandles",
+    "dev": "next dev --port 3737",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "npx eslint .",
     "lint:fix": "npx eslint . --fix",
-    "cypress:open": "cypress open",
-    "cypress:run": "cypress run --browser chrome"
+    "migrate": "wrangler d1 migrations apply DB --local",
+    "start": "next start",
+    "test": "jest --verbose --config=jest.config.mjs",
+    "test:debug": "jest --verbose --config=jest.config.mjs --detectOpenHandles",
+    "test:watch": "npm run test -- --watch",
+    "typecheck": "tsc --noEmit"
   },
   "keywords": [
     "cloudflare-d1",
@@ -81,14 +81,18 @@
     "wrangler": "^4.151.1"
   },
   "overrides": {
+    "@eslint/core": "1.2.1",
+    "@jest/reporters": {
+      "glob": "^14.0.4"
+    },
     "@node-minify/core": {
       "glob": "^14.0.4"
     },
     "@opennextjs/cloudflare": {
       "glob": "^14.0.4"
     },
-    "@jest/reporters": {
-      "glob": "^14.0.4"
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "^11.0.5"
     },
     "jest-config": {
       "glob": "^14.0.4"
@@ -96,12 +100,8 @@
     "jest-runtime": {
       "glob": "^14.0.4"
     },
-    "@typescript-eslint/typescript-estree": {
-      "minimatch": "^11.0.5"
-    },
     "test-exclude": {
       "glob": "^7.2.3"
-    },
-    "@eslint/core": "1.2.1"
+    }
   }
 }

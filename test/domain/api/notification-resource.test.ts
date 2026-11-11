@@ -69,7 +69,7 @@ describe('parseNotificationRuleInput', () => {
     [
       {
         kind: 'url',
-        value: '^https://a\\.',
+        value: String.raw`^https://a\.`,
         is_regex: true,
         scope: 'feed',
         feed_id: '3',
@@ -77,7 +77,7 @@ describe('parseNotificationRuleInput', () => {
       },
       {
         kind: 'url',
-        value: '^https://a\\.',
+        value: String.raw`^https://a\.`,
         is_regex: true,
         scope: 'feed',
         feed_id: 3,

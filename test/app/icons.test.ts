@@ -30,7 +30,7 @@ describe('the icon and social images in src/app', () => {
       [48, 48],
     ]);
     expect(entries.map((e) => e.isPng)).toEqual(
-      Array(3).fill('89504e470d0a1a0a'),
+      Array.from({ length: 3 }).fill('89504e470d0a1a0a'),
     );
     expect(entries.at(-1)?.end).toBe(ico.length);
   });

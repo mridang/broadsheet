@@ -45,6 +45,7 @@ export interface SessionPayload extends ExtraClaims {
   /** `users.id` primary key. */
   readonly uid: number;
   readonly email: string;
+
   /**
    * The Google display name and profile photo address, so the header can greet
    * the person without a database read. Absent on sessions issued before they
@@ -52,6 +53,7 @@ export interface SessionPayload extends ExtraClaims {
    */
   readonly name?: string;
   readonly picture?: string;
+
   /**
    * The session epoch the person had when this was issued (`users.session_epoch`).
    * The session is honoured only while the database still holds the same
@@ -97,7 +99,7 @@ export class SessionTokens {
 
   /**
    * Create a signed session token. `exp` defaults to now +
-   * {@link SESSION_TTL_SECONDS} but can be supplied (e.g. in tests).
+   * {@link SESSION_TTL_SECONDS} but can be supplied (e.g. In tests).
    */
   async create(payload: NewSession): Promise<string> {
     const { uid, email, name, picture, ep, exp, ...extra } = payload;
@@ -111,7 +113,7 @@ export class SessionTokens {
       // Kept short: the whole token travels in a cookie on every request.
       ...(name ? { name: name.slice(0, 80) } : {}),
       ...(picture && picture.length <= 400 ? { picture } : {}),
-      ...(ep !== undefined ? { ep } : {}),
+      ...(ep === undefined ? {} : { ep }),
       exp: exp ?? Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS,
     };
     const body = bytesToBase64Url(

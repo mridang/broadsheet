@@ -42,12 +42,12 @@ export function StoryActions({
   tags?: readonly string[];
   title?: string;
 }>): ReactElement {
-  const train = useApiAction(() => window.location.reload());
+  const train = useApiAction(() => globalThis.location.reload());
   const error = train.error;
   const targets: Target[] = [
-    ...(feedId !== undefined
-      ? [{ kind: 'feed' as const, value: String(feedId), label: 'This feed' }]
-      : []),
+    ...(feedId === undefined
+      ? []
+      : [{ kind: 'feed' as const, value: String(feedId), label: 'This feed' }]),
     ...(author
       ? [{ kind: 'author' as const, value: author, label: author }]
       : []),
@@ -63,9 +63,9 @@ export function StoryActions({
         aria-label={`${
           score === 'like'
             ? 'More'
-            : score === 'dislike'
+            : (score === 'dislike'
               ? 'Less'
-              : 'Never anything'
+              : 'Never anything')
         } like ${target.label}`}
         onClick={() =>
           void train.run(
@@ -74,7 +74,7 @@ export function StoryActions({
           )
         }
       >
-        {score === 'like' ? '👍' : score === 'dislike' ? '👎' : '🚫'}
+        {score === 'like' ? '👍' : (score === 'dislike' ? '👎' : '🚫')}
       </button>
     ));
 

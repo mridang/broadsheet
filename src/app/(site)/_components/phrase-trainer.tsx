@@ -42,7 +42,7 @@ export function PhraseTrainer({
   const [kind, setKind] = useState<TrainKind>('title');
   const [value, setValue] = useState(title);
   const [regex, setRegex] = useState(false);
-  const action = useApiAction(() => window.location.reload());
+  const action = useApiAction(() => globalThis.location.reload());
   const scores: ReadonlyArray<readonly [TrainScore, string]> =
     kind === 'prompt'
       ? [

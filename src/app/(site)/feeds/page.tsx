@@ -124,15 +124,15 @@ export default async function FeedsPage({
           </div>
           <ImportFeedsForm />
         </div>
-        {imported.added !== undefined ? (
+        {imported.added === undefined ? null : (
           <p role="status" className="mt-3 text-sm text-muted">
             Imported {Number(imported.added) || 0} feeds, skipped{' '}
             {Number(imported.skipped) || 0} already followed and rejected{' '}
             {Number(imported.rejected) || 0}.
           </p>
-        ) : null}
+        )}
       </div>
-      {feeds.length ? (
+      {feeds.length > 0 ? (
         <List label="Feeds you follow" className="mt-8">
           {feeds.map((f) => {
             const statistics = stats.get(f.id);
@@ -208,7 +208,7 @@ export default async function FeedsPage({
           })}
         </List>
       ) : null}
-      {feeds.length ? null : (
+      {feeds.length > 0 ? null : (
         <EmptyState icon="rss" title="No feeds yet">
           Add an RSS/Atom feed URL above.
         </EmptyState>
@@ -221,7 +221,7 @@ export default async function FeedsPage({
         description="Sections group feeds under their own headings on the front page."
       >
         <AddSectionForm sections={options} />
-        {options.length ? (
+        {options.length > 0 ? (
           <List label="Sections" className="mt-4">
             {options.map((s) => (
               <ListItem

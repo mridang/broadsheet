@@ -57,8 +57,8 @@ describe('session tokens', () => {
     const [, sig] = token.split('.');
     const forged = `${btoa('{"uid":999,"email":"evil@z.com","exp":9999999999}')
       .replace(/=+$/, '')
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')}.${sig}`;
+      .replaceAll('+', '-')
+      .replaceAll('/', '_')}.${sig}`;
     expect(await verifySessionToken(forged, SECRET)).toBeNull();
   });
 
@@ -198,7 +198,12 @@ describe('session epoch', () => {
   it('rejects a signed token whose epoch is not a number', async () => {
     const body = bytesToBase64Url(
       new TextEncoder().encode(
-        JSON.stringify({ uid: 1, email: 'a@b.com', ep: '3', exp: 9999999999 }),
+        JSON.stringify({
+          uid: 1,
+          email: 'a@b.com',
+          ep: '3',
+          exp: 9_999_999_999,
+        }),
       ),
     );
     const key = await crypto.subtle.importKey(

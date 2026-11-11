@@ -31,7 +31,7 @@ describe('updateFrequency', () => {
     [120, 'every 2 hours'],
     [1440, 'daily'],
     [2880, 'every 2 days'],
-    [10080, 'weekly'],
+    [10_080, 'weekly'],
   ])('words %i minutes as %s', (minutes, text) => {
     expect(updateFrequency(minutes)).toBe(text);
   });

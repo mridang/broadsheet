@@ -21,7 +21,7 @@ export function RiverPicker({
   options: readonly RiverOption[];
   next: Readonly<{ left: number; right: number }>;
 }>): ReactElement {
-  const { busy, error, run } = useApiAction(() => window.location.reload());
+  const { busy, error, run } = useApiAction(() => globalThis.location.reload());
   const submit = (event: FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -66,7 +66,7 @@ export function RiverPicker({
 export function UnpinRiverButton({
   id,
 }: Readonly<{ id: number }>): ReactElement {
-  const { busy, error, run } = useApiAction(() => window.location.reload());
+  const { busy, error, run } = useApiAction(() => globalThis.location.reload());
   return (
     <>
       <button

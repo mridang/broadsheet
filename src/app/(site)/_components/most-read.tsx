@@ -9,7 +9,7 @@ import { countOf } from '@/lib/intl';
 export function MostRead({
   stories,
 }: Readonly<{ stories: readonly TrendingArticle[] }>) {
-  if (!stories.length) return null;
+  if (stories.length === 0) return null;
   return (
     <aside
       className="rounded-card border border-line bg-surface p-5 print:hidden"

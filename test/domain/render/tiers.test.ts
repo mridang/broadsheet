@@ -359,10 +359,10 @@ describe('verdict with regular expressions and AI prompts', () => {
   });
 
   it.each<[string, string, Classifiable]>([
-    ['title', '^why\\s+rust', article({ title: 'Why  Rust wins' })],
-    ['author', '^ada\\b', { ...article({}), author: 'Ada Lovelace' }],
+    ['title', String.raw`^why\s+rust`, article({ title: 'Why  Rust wins' })],
+    ['author', String.raw`^ada\b`, { ...article({}), author: 'Ada Lovelace' }],
     ['text', 'borrow(ed|ing)', article({ summary: 'Borrowing rules' })],
-    ['url', '/rust/\\d+$', article({ url: 'https://x.test/rust/42' })],
+    ['url', String.raw`/rust/\d+$`, article({ url: 'https://x.test/rust/42' })],
   ])('matches a %s pattern %j, ignoring case', (kind, value, story) => {
     expect(verdict(story, [re(kind, value)])).toBe(1);
   });
@@ -406,7 +406,7 @@ describe('verdict with regular expressions and AI prompts', () => {
 
 describe('ago', () => {
   it('says how long ago in words', () => {
-    const threeHoursAgo = new Date(Date.now() - 3 * 3600_000).toISOString();
+    const threeHoursAgo = new Date(Date.now() - 3 * 3_600_000).toISOString();
     expect(ago(threeHoursAgo)).toBe('3 hours ago');
   });
 

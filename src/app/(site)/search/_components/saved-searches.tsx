@@ -14,7 +14,7 @@ export function searchHref(search: Pick<SavedSearch, 'query' | 'feed_id'>) {
 export function SavedSearches({
   searches,
 }: Readonly<{ searches: readonly SavedSearch[] }>) {
-  if (!searches.length) return null;
+  if (searches.length === 0) return null;
   return (
     <nav aria-label="Saved searches">
       <List>

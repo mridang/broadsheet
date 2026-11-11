@@ -70,15 +70,15 @@ export function classifierResource(
     score:
       classifier.score > 0
         ? 'like'
-        : classifier.score <= -2
+        : (classifier.score <= -2
           ? 'super_dislike'
-          : 'dislike',
-    ...(classifier.scope_feed_id !== null
-      ? { feed_id: String(classifier.scope_feed_id) }
-      : {}),
-    ...(classifier.scope_section_id !== null
-      ? { section_id: String(classifier.scope_section_id) }
-      : {}),
+          : 'dislike'),
+    ...(classifier.scope_feed_id === null
+      ? {}
+      : { feed_id: String(classifier.scope_feed_id) }),
+    ...(classifier.scope_section_id === null
+      ? {}
+      : { section_id: String(classifier.scope_section_id) }),
     is_regex: classifier.is_regex === 1,
     ...(created ? { created_at: created } : {}),
   };
@@ -148,7 +148,7 @@ export function parseClassifierInput(
   const sectionId = scope('section_id');
   if (feedId !== undefined && sectionId !== undefined)
     errors.push('section_id: a classifier is scoped to a feed or a section.');
-  return errors.length
+  return errors.length > 0
     ? { ok: false, errors }
     : {
         ok: true,
@@ -156,8 +156,8 @@ export function parseClassifierInput(
           kind: kind as string,
           value: (value as string).trim(),
           score: SCORES[score as Score],
-          ...(feedId !== undefined ? { scope_feed_id: feedId } : {}),
-          ...(sectionId !== undefined ? { scope_section_id: sectionId } : {}),
+          ...(feedId === undefined ? {} : { scope_feed_id: feedId }),
+          ...(sectionId === undefined ? {} : { scope_section_id: sectionId }),
           ...(regex ? { is_regex: true } : {}),
         },
       };

@@ -399,7 +399,7 @@ export async function notifyNewStories(
     notifications.feedNotifications(userId),
     notifications.rules(userId),
   ]);
-  if (!settings.length && !rules.length) return totals;
+  if (settings.length === 0 && rules.length === 0) return totals;
   if (!stillActive(await notifications.lastSeen(userId), edition))
     return totals;
   const repo = new Repository(db);
@@ -425,7 +425,7 @@ export async function notifyNewStories(
       await deliverStory(delivery, setting, setting.channels, story);
     }
   }
-  if (rules.length) {
+  if (rules.length > 0) {
     const followed = await notifications.undeliveredFollowedStories(
       userId,
       edition,

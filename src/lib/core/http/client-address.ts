@@ -17,7 +17,7 @@ export const UNKNOWN_ADDRESS = 'unknown';
  * is ignored.
  */
 function ipv6Groups(address: string): readonly number[] | undefined {
-  const bare = address.split('%')[0]?.toLowerCase() ?? '';
+  const bare = address.split('%', 1)[0]?.toLowerCase() ?? '';
   if (!bare.includes(':')) {
     return undefined;
   }
@@ -91,7 +91,7 @@ export function addressSubject(address: string): string {
  */
 export function clientSubject(headers: Headers): string {
   const cloudflare = headers.get('cf-connecting-ip')?.trim();
-  const forwarded = headers.get('x-forwarded-for')?.split(',')[0]?.trim();
+  const forwarded = headers.get('x-forwarded-for')?.split(',', 1)[0]?.trim();
   const address = cloudflare || forwarded;
   return address ? addressSubject(address) : UNKNOWN_ADDRESS;
 }

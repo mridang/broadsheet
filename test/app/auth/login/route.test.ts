@@ -85,7 +85,7 @@ describe('GET /auth/login', () => {
   it.each([
     'https://evil.example/',
     '//evil.example',
-    '/\\evil.example',
+    String.raw`/\evil.example`,
     'javascript:alert(1)',
     '/a\r\nb',
   ])('refuses to remember the returnTo %s', async (target) => {

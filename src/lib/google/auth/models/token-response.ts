@@ -6,7 +6,7 @@ import type { ApiModel } from '@/lib/http';
  * Tokens returned by the authorization-code exchange. `refresh_token` is
  * present only on the first consent (or with `prompt=consent`), and `scope`
  * is the scopes actually granted, which Google lets people narrow on the
- * consent screen. @public
+ * consent screen. @public.
  */
 export const TokenResponseSchema = z.object({
   access_token: z.string(),

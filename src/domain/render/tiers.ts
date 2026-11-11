@@ -15,7 +15,7 @@ import { foldText, relativeTime, truncate } from '@/lib/intl';
 
 export type Tier = 'lead' | 'feature' | 'standard' | 'brief';
 
-/** tier -> [lane span, excerpt char budget]. */
+/** Tier -> [lane span, excerpt char budget]. */
 export const TIER: Record<Tier, readonly [number, number]> = {
   lead: [3, 620],
   feature: [2, 340],
@@ -138,24 +138,33 @@ export function tagsOf(tags: Classifiable['tags']): readonly string[] {
 export function matches(story: Classifiable, c: Training): boolean {
   if (c.is_regex) return regexMatches(story, c);
   switch (c.kind) {
-    case 'prompt':
+    case 'prompt': {
       return c.id !== undefined && !!story.prompt_ids?.has(c.id);
-    case 'author':
+    }
+    case 'author': {
       return !!story.author && same(story.author, c.value);
-    case 'source':
+    }
+    case 'source': {
       return !!story.source && same(story.source, c.value);
-    case 'feed':
+    }
+    case 'feed': {
       return story.feed_id !== undefined && String(story.feed_id) === c.value;
-    case 'title':
+    }
+    case 'title': {
       return titleHas(story.title, c.value);
-    case 'url':
+    }
+    case 'url': {
       return has(story.url, c.value);
-    case 'text':
+    }
+    case 'text': {
       return has(story.summary, c.value) || has(story.body_text, c.value);
-    case 'tag':
+    }
+    case 'tag': {
       return tagsOf(story.tags).some((t) => same(t, c.value));
-    default:
+    }
+    default: {
       return false;
+    }
   }
 }
 

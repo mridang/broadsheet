@@ -1,7 +1,7 @@
 /**
  * One of the signed-in person's notification rules.
  *
- *   DELETE /api/users/self/notifications/rules/:id → 204
+ *   DELETE /api/users/self/notifications/rules/:id → 204.
  *
  * The behaviour lives in the `notificationRuleItem` controller; this file
  * only mounts it.

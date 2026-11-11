@@ -8,7 +8,7 @@ import {
 } from '@/components/api/problem-message';
 
 const refusal = (body: unknown, status = 409) =>
-  new Response(JSON.stringify(body), { status });
+  Response.json(body, { status });
 
 describe('problemMessage', () => {
   it('prefers the detail, then the title, and adds field messages', async () => {

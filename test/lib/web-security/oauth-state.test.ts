@@ -15,7 +15,7 @@ describe('newState', () => {
     'names its purpose (%s) and is different every time',
     (purpose) => {
       expect(newState(purpose)).toMatch(
-        new RegExp(`^${purpose}\\.[0-9a-f-]{36}$`),
+        new RegExp(String.raw`^${purpose}\.[0-9a-f-]{36}$`),
       );
       expect(newState(purpose)).not.toBe(newState(purpose));
     },

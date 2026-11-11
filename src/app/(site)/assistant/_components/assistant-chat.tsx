@@ -32,7 +32,7 @@ function TurnView({ turn }: Readonly<{ turn: Turn }>): ReactElement {
         {turn.role === 'user' ? 'You' : 'Assistant'}
       </strong>
       <Markdown text={turn.content} className="mt-1 space-y-2" />
-      {turn.citations.length ? (
+      {turn.citations.length > 0 ? (
         <ol className="mt-3 space-y-1 border-t border-line pt-3">
           {turn.citations.map((c) => (
             <li key={c.article_id}>
@@ -91,7 +91,7 @@ export function AssistantChat({
   };
   return (
     <>
-      {!turns.length && suggestions.length ? (
+      {turns.length === 0 && suggestions.length > 0 ? (
         <p className="mb-4 flex flex-wrap gap-2">
           {suggestions.map((question) => (
             <Chip key={question} disabled={busy} onClick={() => send(question)}>

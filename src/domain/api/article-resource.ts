@@ -102,9 +102,9 @@ export function articleDetailResource(
   return {
     ...articleResource(article),
     ...(article.body_text ? { body_text: article.body_text } : {}),
-    ...(article.original_summary !== null
-      ? { original_summary: article.original_summary }
-      : {}),
+    ...(article.original_summary === null
+      ? {}
+      : { original_summary: article.original_summary }),
   };
 }
 
@@ -233,14 +233,14 @@ export function parseArticleQuery(
       errors.push(`limit: must be a whole number from 1 to ${MAX_LIMIT}.`);
     }
   }
-  if (errors.length) return { ok: false, errors };
+  if (errors.length > 0) return { ok: false, errors };
   if (!ranked) {
     return {
       ok: true,
       query: {
         q,
         before,
-        ...(feed !== undefined ? { feed } : {}),
+        ...(feed === undefined ? {} : { feed }),
         ...(order === 'oldest' ? { oldest: true } : {}),
         limit,
       },

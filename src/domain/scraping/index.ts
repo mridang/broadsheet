@@ -57,7 +57,7 @@ const DISCOVERY_PROBES = 6; // candidate addresses tried when finding a page's f
 /** Shorter text than this is a failed extraction, not an article (NewsBlur's cut). */
 export const MIN_TEXT = 100;
 
-async function get(url: string, ms = 15000): Promise<string> {
+async function get(url: string, ms = 15_000): Promise<string> {
   const c = new AbortController();
   const t = setTimeout(() => c.abort(), ms);
   try {
@@ -92,7 +92,7 @@ async function siteIcon(
   feedUrl: string,
 ): Promise<string> {
   const site = details.site_url || new URL(feedUrl).origin + '/';
-  const page = await get(site, 10000);
+  const page = await get(site, 10_000);
   const manifest = manifestUrl(page, site);
   const candidates = iconCandidates({
     page: pageIcons(page, site),
@@ -110,7 +110,7 @@ async function resolveNames(
   env: CloudflareEnv,
   items: ScrapedItem[],
 ): Promise<void> {
-  if (!env.AI || !items.length) return;
+  if (!env.AI || items.length === 0) return;
   const list = items
     .map((it, i) => `${i}\t${hostOf(it.url)}\t${it.title}`)
     .join('\n');
@@ -144,10 +144,10 @@ async function resolveNames(
       }
     });
     logInfo({ event: 'ai.applied', applied, total: items.length });
-  } catch (err) {
+  } catch (error) {
     logWarn({
       event: 'ai.failed',
-      error: err instanceof Error ? err.message : String(err),
+      error: error instanceof Error ? error.message : String(error),
     });
   }
 }
@@ -159,7 +159,7 @@ async function resolveNames(
 async function enrich(items: ScrapedItem[]): Promise<void> {
   await Promise.all(
     items.slice(0, ENRICH).map(async (it) => {
-      const page = await get(it.url, 12000);
+      const page = await get(it.url, 12_000);
       if (!page) return;
       const img = ogImage(page, it.url);
       if (img && !it.image) it.image = img;
@@ -242,7 +242,7 @@ async function fetchOnce(
     const r = await fetch(at, {
       headers,
       redirect: 'manual',
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(15_000),
     });
     const location = r.headers.get('location');
     if (r.status >= 300 && r.status < 400 && r.status !== 304 && location) {
@@ -552,7 +552,7 @@ export async function withText<
   },
 >(db: Database, article: T, force = false): Promise<T> {
   if (article.body_text !== null && !force) return article;
-  const page = await get(article.url, 12000);
+  const page = await get(article.url, 12_000);
   const text = articleText(page);
   const body_text = text.length >= MIN_TEXT ? text : '';
   // The page's lead picture stands in for a story the feed gave none.
@@ -580,11 +580,11 @@ interface AlgoliaHit {
 async function hnTopForDate(date: string): Promise<ScrapedItem[]> {
   const start = Math.floor(Date.parse(`${date}T00:00:00Z`) / 1000);
   if (isNaN(start)) return [];
-  const end = start + 86400;
+  const end = start + 86_400;
   const url =
     `https://hn.algolia.com/api/v1/search?tags=story&hitsPerPage=25` +
     `&numericFilters=created_at_i>=${start},created_at_i<${end}`;
-  const txt = await get(url, 15000);
+  const txt = await get(url, 15_000);
   if (!txt) return [];
   let hits: AlgoliaHit[] = [];
   try {
@@ -626,12 +626,12 @@ export async function backfillRecent(
   for (const source of sources) {
     const have = new Set(await repo.editionsForSource(source.id));
     for (let i = 1; i <= days; i++) {
-      const date = new Date(Date.now() - i * 86400000)
+      const date = new Date(Date.now() - i * 86_400_000)
         .toISOString()
         .slice(0, 10);
       if (have.has(date)) continue;
       const items = await hnTopForDate(date);
-      if (!items.length) continue;
+      if (items.length === 0) continue;
       await enrich(items);
       await resolveNames(env, items);
       await repo.writeEdition(source.id, date, items);

@@ -4,7 +4,7 @@
  * contract, so it lives outside `/api` and answers plain text.
  *
  *   GET  /webhooks/sources/{id}?hub.mode&hub.topic&hub.challenge → 200 the challenge, 404 when the source does not want it
- *   POST /webhooks/sources/{id} (the feed, X-Hub-Signature)       → 202, 404 for a source with no subscription
+ *   POST /webhooks/sources/{id} (the feed, X-Hub-Signature)       → 202, 404 for a source with no subscription.
  *
  * The behaviour lives in `domain/websub` and `domain/scraping`.
  */

@@ -80,7 +80,7 @@ function params(
   const errors = [...new Set(query.keys())]
     .filter((key) => !allowed.includes(key) && key !== 'limit')
     .map((key) => `${key}: not a parameter of this list.`);
-  if (errors.length) {
+  if (errors.length > 0) {
     throw problems.badRequest('The request is not valid.', errors);
   }
   const limit = parseLimit(query.get('limit'), 10);
@@ -141,7 +141,7 @@ export function createTrendingFeeds(
           ? []
           : ['days: a whole number from 1 to 90.']),
       ];
-      if (errors.length) {
+      if (errors.length > 0) {
         throw problems.badRequest('The request is not valid.', errors);
       }
       return { kind, days, limit: p.limit };
@@ -245,7 +245,7 @@ export function parseConversion(
   if ('url' in body === 'google_news' in body) {
     errors.push('url or google_news: send exactly one.');
   }
-  if (errors.length) return { ok: false, errors };
+  if (errors.length > 0) return { ok: false, errors };
   if ('url' in body) {
     const found =
       typeof body['url'] === 'string' && body['url'].length <= 2000
@@ -407,7 +407,7 @@ export function parseRecommendation(
   ) {
     errors.push('description: from 1 to 1000 characters.');
   }
-  return errors.length
+  return errors.length > 0
     ? { ok: false, errors }
     : {
         ok: true,
@@ -530,7 +530,10 @@ export function createRecommendationItem(
       if (!body.ok) throw body.response;
       const status = body.value['status'];
       const extra = Object.keys(body.value).filter((k) => k !== 'status');
-      if ((status !== 'approved' && status !== 'declined') || extra.length) {
+      if (
+        (status !== 'approved' && status !== 'declined') ||
+        extra.length > 0
+      ) {
         throw problems.badRequest('The change is not valid.', [
           'status: approved or declined, and nothing else.',
         ]);

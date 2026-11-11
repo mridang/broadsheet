@@ -51,7 +51,7 @@ export async function readAudio(request: Request): Promise<Uint8Array> {
   }
   const audio = new Uint8Array(await request.arrayBuffer());
   if (audio.length > MAX_AUDIO_BYTES) throw tooLarge();
-  if (!audio.length) {
+  if (audio.length === 0) {
     throw problems.badRequest('The recording is empty.', ['body: empty.']);
   }
   return audio;

@@ -115,7 +115,7 @@ export default async function ArticlePage({
           </TextLink>
         ) : null}
       </div>
-      {paragraphs.length ? (
+      {paragraphs.length > 0 ? (
         <div className="mt-8 space-y-5 font-serif text-lg leading-8 text-ink/90">
           {paragraphs.map((text, i) => (
             <p key={i}>{text}</p>
@@ -127,7 +127,7 @@ export default async function ArticlePage({
         </p>
       )}
       {user ? <AskBox id={article.id} /> : null}
-      {similar.length ? (
+      {similar.length > 0 ? (
         <section aria-labelledby="similar" className="mt-12">
           <SectionHeader id="similar" title="Similar stories" />
           <ul className="mt-4 divide-y divide-line border-y border-line">

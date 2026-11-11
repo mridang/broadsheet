@@ -13,18 +13,17 @@ export type JsonParseResult<T> =
 
 /**
  * Parse `text` as JSON without throwing.
- *
  * @returns `{ ok: true, value }` on success, `{ ok: false, error }` with
- *   the parser's message otherwise.
+ * the parser's message otherwise.
  * @public
  */
 export function safeJsonParse<T>(text: string): JsonParseResult<T> {
   try {
     return { ok: true, value: JSON.parse(text) as T };
-  } catch (err) {
+  } catch (error) {
     return {
       ok: false,
-      error: err instanceof Error ? err.message : String(err),
+      error: error instanceof Error ? error.message : String(error),
     };
   }
 }

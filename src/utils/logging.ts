@@ -14,7 +14,6 @@ export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 /**
  * Required + extra fields for a structured log entry. `event` and
  * `level` are always set; any other fields you pass land verbatim.
- *
  * @public
  */
 export type LogFields = {

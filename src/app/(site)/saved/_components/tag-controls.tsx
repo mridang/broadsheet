@@ -19,7 +19,7 @@ const path = (tag: string) =>
 export function TagControls({ tag }: Readonly<{ tag: string }>): ReactElement {
   const [name, setName] = useState(tag);
   const action = useApiAction();
-  const go = (to: string) => window.location.assign(to);
+  const go = (to: string) => globalThis.location.assign(to);
 
   return (
     <form

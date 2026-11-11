@@ -79,9 +79,8 @@ async function feedSource(
 async function optionalObject(
   request: Request,
 ): Promise<Readonly<Record<string, unknown>>> {
-  if (!request.headers.has('content-type')) {
-    if (!(await request.clone().text())) return {};
-  }
+  if (!request.headers.has('content-type') && !(await request.clone().text()))
+    return {};
   const body = await readJsonObject(request, 'The save must be a JSON object.');
   if (!body.ok) throw body.response;
   return body.value;
@@ -170,12 +169,12 @@ export function createSaveItem(
         const id = parseFeedId(idOf(request));
         const repo = new Repository(getDatabase());
         const saved =
-          id !== undefined ? await repo.saveArticle(uid, id, tags) : undefined;
+          id === undefined ? undefined : await repo.saveArticle(uid, id, tags);
         const annotated =
           saved && (notes !== undefined || highlights !== undefined)
             ? await repo.annotateSave(uid, id!, {
-                ...(notes !== undefined ? { notes } : {}),
-                ...(highlights !== undefined ? { highlights } : {}),
+                ...(notes === undefined ? {} : { notes }),
+                ...(highlights === undefined ? {} : { highlights }),
               })
             : undefined;
         const result = saved && {
@@ -196,9 +195,9 @@ export function createSaveItem(
       method: 'DELETE',
       handle: async (_input, { request, uid }) => {
         const id = parseFeedId(idOf(request));
-        return id !== undefined
-          ? new Repository(getDatabase()).unsaveArticle(uid, id)
-          : false;
+        return id === undefined
+          ? false
+          : new Repository(getDatabase()).unsaveArticle(uid, id);
       },
       encode: (removed) => (removed ? noContent() : problems.notFound('save')),
     });

@@ -2,7 +2,7 @@
  * One feed's refreshes: the way out of a broken feed.
  *
  *   POST /api/feeds/:id/refreshes → 200 {statistics} once it fetched, 502
- *                                   when it failed again
+ *                                   when it failed again.
  *
  * The behaviour lives in the `feedRetries` controller; this file only mounts
  * it.

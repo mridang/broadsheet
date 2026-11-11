@@ -159,7 +159,7 @@ export const articleItem = createArticleItem();
 /** The `{id}` of `/api/articles/{id}/...`: the segment before the last. */
 function articleIdOf(request: Request): number | undefined {
   const segments = new URL(request.url).pathname.split('/');
-  return parseFeedId(segments[segments.length - 2] ?? '');
+  return parseFeedId(segments.at(-2) ?? '');
 }
 
 /** How many similar stories `/similar` lists. */
@@ -195,7 +195,7 @@ function similarScope(request: Request): SimilarScope {
   if (scope !== 'followed' && scope !== 'all') {
     errors.push('scope: followed or all.');
   }
-  if (errors.length) {
+  if (errors.length > 0) {
     throw problems.badRequest('The request is not valid.', errors);
   }
   return scope as SimilarScope;

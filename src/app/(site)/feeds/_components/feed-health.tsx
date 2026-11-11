@@ -46,9 +46,9 @@ export function FeedHealth({
       {` · ${countOf(stories, 'story', 'stories')} in the last 7 editions`}
       {` · ${statistics.average_stories_per_month} a month`}
       {` · ${countOf(statistics.subscribers, 'reader')}`}
-      {statistics.update_minutes !== null
-        ? ` · asks for ${countOf(statistics.update_minutes, 'minute')} between fetches`
-        : ''}
+      {statistics.update_minutes === null
+        ? ''
+        : ` · asks for ${countOf(statistics.update_minutes, 'minute')} between fetches`}
       {counts
         ? ` · unread ${counts.focus} focus, ${counts.neutral} neutral, ${counts.hidden} hidden`
         : ''}

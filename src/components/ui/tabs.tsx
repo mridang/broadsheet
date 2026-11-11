@@ -47,11 +47,11 @@ export function Tabs({
               )}
             >
               {tab.label}
-              {tab.count !== undefined ? (
+              {tab.count === undefined ? null : (
                 <span className="text-xs text-subtle tabular-nums">
                   {tab.count}
                 </span>
-              ) : null}
+              )}
             </TextLink>
           </li>
         ))}

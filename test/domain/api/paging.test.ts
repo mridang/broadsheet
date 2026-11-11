@@ -22,8 +22,8 @@ describe('pageRequest', () => {
     let thrown: unknown;
     try {
       pageRequest(request(query));
-    } catch (e) {
-      thrown = e;
+    } catch (error) {
+      thrown = error;
     }
     expect((thrown as Response).status).toBe(400);
   });

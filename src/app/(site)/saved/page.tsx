@@ -60,7 +60,7 @@ export default async function SavedPage({
           <TagControls tag={tag} />
         </div>
       ) : null}
-      {tags.length ? (
+      {tags.length > 0 ? (
         <nav aria-label="Tags" className="mt-6 flex flex-wrap gap-2">
           {tags.map((t) => (
             <TextLink
@@ -76,7 +76,7 @@ export default async function SavedPage({
           ))}
         </nav>
       ) : null}
-      {saves.length ? (
+      {saves.length > 0 ? (
         <ul className="mt-8 divide-y divide-line border-y border-line">
           {saves.map(({ article, tags }) => (
             <StoryRow

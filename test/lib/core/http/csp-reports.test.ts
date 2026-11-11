@@ -109,7 +109,7 @@ describe('summariseReports', () => {
     expect(report?.sample).toHaveLength(80);
     expect(report?.directive).toHaveLength(60);
     expect(report?.blocked).not.toMatch(/[\r\n]/);
-    expect(JSON.stringify(report)).not.toContain('\\n');
+    expect(JSON.stringify(report)).not.toContain(String.raw`\n`);
   });
 
   it.each([

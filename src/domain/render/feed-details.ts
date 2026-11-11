@@ -1,4 +1,5 @@
 import { countOf } from '@/lib/intl';
+
 /**
  * @packageDocumentation
  *
@@ -38,8 +39,8 @@ const PREFIXES: Readonly<Record<string, string>> = {
 /** `updatePeriod` → `Update period`, `last-modified` → `Last modified`. */
 function words(name: string): string {
   const spaced = name
-    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-    .replace(/[-_.]+/g, ' ')
+    .replaceAll(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replaceAll(/[-_.]+/g, ' ')
     .toLowerCase()
     .trim();
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
@@ -52,7 +53,7 @@ function words(name: string): string {
  */
 export function elementLabel(name: string): string {
   const colon = name.indexOf(':');
-  const local = colon >= 0 ? name.slice(colon + 1) : name;
+  const local = colon === -1 ? name : name.slice(colon + 1);
   const prefix = colon >= 0 ? name.slice(0, colon) : '';
   const label = LABELS[local] ?? words(local);
   return prefix ? `${label} (${PREFIXES[prefix] ?? prefix})` : label;
@@ -62,7 +63,7 @@ export function elementLabel(name: string): string {
 export function updateFrequency(minutes: number): string {
   if (minutes === 60) return 'hourly';
   if (minutes === 1440) return 'daily';
-  if (minutes === 10080) return 'weekly';
+  if (minutes === 10_080) return 'weekly';
   if (minutes % 1440 === 0) return `every ${minutes / 1440} days`;
   if (minutes % 60 === 0) return `every ${minutes / 60} hours`;
   return `every ${countOf(minutes, 'minute')}`;
@@ -106,7 +107,7 @@ function child(e: Element, name: string): string {
  * attributes (an RSS `<cloud>` or an Atom `<category term>`).
  */
 function phrase(e: Element): string {
-  if (e.text && !Object.keys(e.attributes).length) return e.text;
+  if (e.text && Object.keys(e.attributes).length === 0) return e.text;
   const parts = [
     e.text,
     ...e.children.map((c) => phrase(c)).filter(Boolean),

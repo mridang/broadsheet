@@ -128,9 +128,9 @@ export function createSearchItem(
     method: 'DELETE',
     handle: async (_input, { request, uid }) => {
       const id = parseFeedId(idOf(request));
-      return id !== undefined
-        ? new Repository(getDatabase()).removeSearch(uid, id)
-        : false;
+      return id === undefined
+        ? false
+        : new Repository(getDatabase()).removeSearch(uid, id);
     },
     encode: (removed) =>
       removed ? noContent() : problems.notFound('saved search'),

@@ -135,13 +135,14 @@ export async function importFeeds(
     if (site !== '') sites.add(site);
     const sectionId = await sectionFor(entry.sections ?? []);
     const changes = {
-      ...(sectionId !== null ? { section_id: sectionId } : {}),
+      ...(sectionId === null ? {} : { section_id: sectionId }),
       // The person's own name for a feed the source already names otherwise.
       ...(title && feed.title !== title ? { title } : {}),
     };
-    const filed = Object.keys(changes).length
-      ? ((await repo.updateFeed(uid, feed.id, changes)) ?? feed)
-      : feed;
+    const filed =
+      Object.keys(changes).length > 0
+        ? ((await repo.updateFeed(uid, feed.id, changes)) ?? feed)
+        : feed;
     feeds.push(filed);
     added.set(address, filed);
   }

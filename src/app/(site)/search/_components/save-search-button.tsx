@@ -12,7 +12,7 @@ export function SaveSearchButton({
   query,
   feedId,
 }: Readonly<{ query: string; feedId?: string }>): ReactElement {
-  const { busy, error, run } = useApiAction(() => window.location.reload());
+  const { busy, error, run } = useApiAction(() => globalThis.location.reload());
   return (
     <div>
       <button

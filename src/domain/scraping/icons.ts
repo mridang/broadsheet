@@ -41,7 +41,9 @@ function absolute(href: string, base: string): string | undefined {
 /** One attribute of a tag, or blank. */
 function attribute(tag: string, name: string): string {
   return (
-    tag.match(new RegExp(`\\b${name}\\s*=\\s*["']([^"']*)["']`, 'i'))?.[1] ?? ''
+    tag.match(
+      new RegExp(String.raw`\b${name}\s*=\s*["']([^"']*)["']`, 'i'),
+    )?.[1] ?? ''
   );
 }
 

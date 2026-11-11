@@ -1,7 +1,7 @@
 /**
  * The signed-in person's webhooks.
  *
- *   POST /api/users/self/webhooks {url, events} → 201 + Location
+ *   POST /api/users/self/webhooks {url, events} → 201 + Location.
  *
  * The behaviour lives in the `webhooksCollection` controller; this file only mounts it.
  */

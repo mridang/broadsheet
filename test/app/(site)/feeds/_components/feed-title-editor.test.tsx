@@ -12,7 +12,7 @@ describe('editedTitle', () => {
   });
 
   it('clears the title when left blank', () => {
-    expect(editedTitle('   ')).toBeNull();
+    expect(editedTitle(' '.repeat(3))).toBeNull();
   });
 });
 

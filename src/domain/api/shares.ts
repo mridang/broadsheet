@@ -51,9 +51,8 @@ interface ShareQuery extends PageRequest {
 async function optionalObject(
   request: Request,
 ): Promise<Readonly<Record<string, unknown>>> {
-  if (!request.headers.has('content-type')) {
-    if (!(await request.clone().text())) return {};
-  }
+  if (!request.headers.has('content-type') && !(await request.clone().text()))
+    return {};
   const body = await readJsonObject(
     request,
     'The share must be a JSON object.',
@@ -164,9 +163,9 @@ export function createShareItem(
       method: 'DELETE',
       handle: async (_input, { request, uid }) => {
         const id = parseFeedId(idOf(request));
-        return id !== undefined
-          ? new ShareRepository(getDatabase()).unshare(uid, id)
-          : false;
+        return id === undefined
+          ? false
+          : new ShareRepository(getDatabase()).unshare(uid, id);
       },
       encode: (removed) => (removed ? noContent() : problems.notFound('share')),
     });

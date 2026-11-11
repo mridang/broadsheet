@@ -72,22 +72,28 @@ export function matchesRule(
 ): boolean {
   if (!inScope(rule, story)) return false;
   switch (rule.kind) {
-    case 'title':
+    case 'title': {
       return found(rule, story.title ?? '');
-    case 'url':
+    }
+    case 'url': {
       return found(rule, story.url);
-    case 'text':
+    }
+    case 'text': {
       return found(
         rule,
         [story.summary, story.body_text].filter(Boolean).join(' '),
       );
-    case 'author':
+    }
+    case 'author': {
       return rule.is_regex
         ? found(rule, story.author ?? '')
         : !!story.author && story.author === rule.value;
-    case 'tag':
+    }
+    case 'tag': {
       return (story.tags ?? []).includes(rule.value);
-    case 'prompt':
+    }
+    case 'prompt': {
       return false;
+    }
   }
 }

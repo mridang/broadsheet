@@ -31,6 +31,7 @@ export interface VapidConfig {
 export interface WebPushSenderOptions {
   /** Injected fetch, so tests need no network. Defaults to `globalThis.fetch`. */
   readonly fetcher?: typeof fetch;
+
   /**
    * How long the push service may queue the message for an offline device.
    * One hour by default — sensible for a daily timely update, since the next
@@ -43,7 +44,6 @@ export interface WebPushSenderOptions {
  * Sends a single Web Push notification for a fixed VAPID identity. Build once,
  * reuse per delivery. Pure codec (VAPID + RFC 8291 encryption): it owns no
  * subscriptions.
- *
  * @public
  */
 export class WebPushSender {

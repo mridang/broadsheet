@@ -12,7 +12,7 @@ export function DeleteConversationButton({
   id,
 }: Readonly<{ id: string }>): ReactElement {
   const { busy, error, run } = useApiAction(() =>
-    window.location.assign('/assistant'),
+    globalThis.location.assign('/assistant'),
   );
   return (
     <div>

@@ -40,6 +40,7 @@ const NOT_SAFARI =
 export type InstallEnvironment = Readonly<{
   /** `navigator.userAgent`. */
   userAgent: string;
+
   /**
    * `navigator.maxTouchPoints`. An iPad in its default "desktop website" mode
    * calls itself a Mac; the touch screen is what tells it apart from one.

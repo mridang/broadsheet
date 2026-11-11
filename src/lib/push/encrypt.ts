@@ -31,7 +31,7 @@ export interface EncryptedPayload {
 /**
  * Encrypt `plaintext` for a single Web Push recipient. The shape matches
  * what browsers expect when the body is sent with
- * `Content-Encoding: aes128gcm`. @public
+ * `Content-Encoding: aes128gcm`. @public.
  */
 export async function encryptPayload(opts: {
   readonly plaintext: Uint8Array;

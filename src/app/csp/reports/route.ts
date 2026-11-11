@@ -4,7 +4,7 @@
  * the page just does not work, and nobody is told. Each report becomes one
  * structured log line, which the Worker's observability keeps.
  *
- *   POST /csp/reports   (application/reports+json or application/csp-report)
+ *   POST /csp/reports   (application/reports+json or application/csp-report).
  */
 
 import { NextResponse } from 'next/server';

@@ -38,22 +38,22 @@ const ENTITIES: Readonly<Record<string, string>> = {
 /** Escape text for an XML attribute value. */
 export function escapeXml(text: string): string {
   return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;');
 }
 
 function unescapeXml(text: string): string {
-  return text.replace(
+  return text.replaceAll(
     /&(#x[0-9a-f]+|#\d+|[a-z]+);/gi,
     (whole, name: string) => {
       if (name.startsWith('#')) {
         const code =
           name[1] === 'x' || name[1] === 'X'
-            ? parseInt(name.slice(2), 16)
-            : parseInt(name.slice(1), 10);
-        return code > 0 && code <= 0x10ffff
+            ? Number.parseInt(name.slice(2), 16)
+            : Number.parseInt(name.slice(1), 10);
+        return code > 0 && code <= 0x10_FF_FF
           ? String.fromCodePoint(code)
           : whole;
       }
@@ -95,7 +95,7 @@ function skipMarkup(text: string, at: number): number | undefined {
   ] as const) {
     if (text.startsWith(open, at)) {
       const end = text.indexOf(close, at + open.length);
-      return end < 0 ? -1 : end + close.length;
+      return end === -1 ? -1 : end + close.length;
     }
   }
   return undefined;
@@ -144,7 +144,7 @@ export function parseOpml(text: string): OpmlParse {
           url,
           ...(label ? { title: label } : {}),
           ...(site ? { site_url: site } : {}),
-          ...(folders.length
+          ...(folders.length > 0
             ? { sections: folders.slice(0, MAX_OPML_DEPTH) }
             : {}),
         });
@@ -210,7 +210,7 @@ export function buildOpml(
         .filter((s) => s.parent_id === section.id)
         .flatMap((s) => folder(s, depth + 1, path)),
     ];
-    return body.length
+    return body.length > 0
       ? [
           `${indent}<outline text="${escapeXml(section.name)}" title="${escapeXml(section.name)}">`,
           ...body,
@@ -224,7 +224,7 @@ export function buildOpml(
     '<opml version="2.0">',
     `  <head><title>${escapeXml(title)}</title><dateCreated>${stamp}</dateCreated><dateModified>${stamp}</dateModified></head>`,
     '  <body>',
-    ...inside(null).map((e) => outline(e, '    ')),
+    ...inside(null).map((e) => outline(e, ' '.repeat(4))),
     ...sections
       .filter((s) => s.parent_id === null || !known.has(s.parent_id))
       .flatMap((s) => folder(s, 2, new Set())),

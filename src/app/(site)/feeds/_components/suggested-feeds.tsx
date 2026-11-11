@@ -53,7 +53,7 @@ function SuggestionRow({
 export function SuggestedFeeds({
   feeds,
 }: Readonly<{ feeds: readonly SuggestedFeed[] }>): ReactElement | null {
-  if (!feeds.length) return null;
+  if (feeds.length === 0) return null;
   return (
     <PageSection id="suggested" title="You might also like">
       <List>

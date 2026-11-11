@@ -40,7 +40,7 @@ export function AddSectionForm({
           maxLength={200}
           required
         />
-        {sections.length ? (
+        {sections.length > 0 ? (
           <select name="parent_id" aria-label="Inside" defaultValue="">
             <option value="">Top level</option>
             {sections.map((s) => (

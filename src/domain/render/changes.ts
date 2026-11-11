@@ -20,16 +20,16 @@ export const MAX_WORDS = 3000;
 /** A story's text without its markup, its entities read and its spaces folded. */
 export function plainText(html: string): string {
   return html
-    .replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, ' ')
-    .replace(/<br\s*\/?>|<\/(p|div|li|h[1-6])>/gi, ' ')
-    .replace(/<[^>]*>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;|&apos;/g, "'")
-    .replace(/&amp;/g, '&')
-    .replace(/\s+/g, ' ')
+    .replaceAll(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, ' ')
+    .replaceAll(/<br\s*\/?>|<\/(p|div|li|h[1-6])>/gi, ' ')
+    .replaceAll(/<[^>]*>/g, '')
+    .replaceAll('&nbsp;', ' ')
+    .replaceAll('&lt;', '<')
+    .replaceAll('&gt;', '>')
+    .replaceAll('&quot;', '"')
+    .replaceAll(/&#39;|&apos;/g, "'")
+    .replaceAll('&amp;', '&')
+    .replaceAll(/\s+/g, ' ')
     .trim();
 }
 
@@ -61,8 +61,8 @@ export function storyChanges(original: string, current: string): Change[] {
   const b = plainText(current).split(' ').filter(Boolean);
   if (a.length > MAX_WORDS || b.length > MAX_WORDS) {
     return [
-      ...(a.length ? [{ op: 'del' as const, text: a.join(' ') }] : []),
-      ...(b.length ? [{ op: 'ins' as const, text: b.join(' ') }] : []),
+      ...(a.length > 0 ? [{ op: 'del' as const, text: a.join(' ') }] : []),
+      ...(b.length > 0 ? [{ op: 'ins' as const, text: b.join(' ') }] : []),
     ];
   }
   // lengths[i][j]: the longest common run of words of a[i..] and b[j..].

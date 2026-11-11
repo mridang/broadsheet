@@ -151,7 +151,7 @@ export function collapseClusters(
           tier === 'title' ||
           (options.mode !== 'title' && a.source_id !== kept.source_id),
       );
-    if (!folded.length) continue;
+    if (folded.length === 0) continue;
     folded.forEach(({ a }) => {
       if (printed.has(a.id)) dropped.add(a.id);
     });
@@ -283,7 +283,12 @@ export function topStories(layout: Layout, n: number): number[] {
     .map((s) => s.id);
 }
 
-const TIERS: readonly string[] = ['lead', 'feature', 'standard', 'brief'];
+const TIERS: ReadonlySet<string> = new Set([
+  'lead',
+  'feature',
+  'standard',
+  'brief',
+]);
 
 /** Whether each of `keys` on `v` is absent or a string. */
 const optionalStrings = (v: unknown, keys: readonly string[]): boolean =>
@@ -313,7 +318,7 @@ const isStory = (v: unknown): v is LaidStory => {
     typeof s === 'object' &&
     s !== null &&
     Number.isInteger(s.id) &&
-    TIERS.includes(s.tier) &&
+    TIERS.has(s.tier) &&
     Array.isArray(s.also) &&
     s.also.every((n) => typeof n === 'string') &&
     (s.siblings === undefined ||

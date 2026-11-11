@@ -1,7 +1,7 @@
 /**
  * All of the caller's sessions at once.
  *
- *   DELETE /api/sessions → 204
+ *   DELETE /api/sessions → 204.
  *
  * "Sign out everywhere": a session cookie is a signed token with no server-side
  * record, so it cannot be deleted one by one. Instead the account moves to the

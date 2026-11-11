@@ -32,6 +32,7 @@ export interface ImageAccess {
   authenticate(request: Request): Promise<Response | undefined>;
   /** Whether `signature` proves this server chose to show the picture at `url`. */
   signatureValid(url: string, signature: string | null): Promise<boolean>;
+
   /**
    * Whether the caller may have the proxy fetch `url`. Asked only when the
    * edge has no copy, since a copy costs nothing and is a public picture anyway.

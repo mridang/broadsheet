@@ -1,7 +1,7 @@
 /**
  * Minimal health endpoint for uptime monitors.
  *
- *   GET /health → 200 { ok, db, ts }, or 503 when the app's own check fails
+ *   GET /health → 200 { ok, db, ts }, or 503 when the app's own check fails.
  */
 
 import { appHealth } from '@/lib/core/health';

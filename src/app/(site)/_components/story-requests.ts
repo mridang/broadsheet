@@ -85,7 +85,7 @@ export function markUnread(articleId: number): void {
  * reported.
  */
 export function markManyRead(articleIds: readonly number[]): void {
-  if (!articleIds.length) return;
+  if (articleIds.length === 0) return;
   void fetch('/api/users/self/reads', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

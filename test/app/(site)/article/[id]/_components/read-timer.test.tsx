@@ -22,10 +22,10 @@ describe('readClock', () => {
 
   it('counts nothing while hidden, and a second hide adds nothing', () => {
     const clock = readClock(false, 0);
-    expect(clock.hide(5_000)).toBe(0);
-    clock.show(5_000);
-    clock.show(8_000);
-    expect(clock.hide(9_000)).toBe(4);
+    expect(clock.hide(5000)).toBe(0);
+    clock.show(5000);
+    clock.show(8000);
+    expect(clock.hide(9000)).toBe(4);
     expect(clock.hide(20_000)).toBe(4);
   });
 });

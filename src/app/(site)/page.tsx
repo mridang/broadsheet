@@ -59,8 +59,8 @@ export default async function Home({
 
   // Muted feeds stay followed but drop out of the paper.
   const feeds = (await repo.listFeeds(ownerId)).filter((f) => !f.muted);
-  if (!feeds.length) {
-    if (user && !(await repo.listFeeds(user.id)).length) {
+  if (feeds.length === 0) {
+    if (user && (await repo.listFeeds(user.id)).length === 0) {
       return (
         <div className="max-w-3xl">
           <PageHeader title="Welcome" />
@@ -137,9 +137,9 @@ export default async function Home({
           ) : null
         }
         side={
-          mostRead.length || rivers ? (
+          mostRead.length > 0 || rivers ? (
             <>
-              {mostRead.length ? <MostRead stories={mostRead} /> : null}
+              {mostRead.length > 0 ? <MostRead stories={mostRead} /> : null}
               {rivers ? <Rivers {...rivers} /> : null}
             </>
           ) : undefined

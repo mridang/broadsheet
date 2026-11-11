@@ -1,7 +1,7 @@
 /**
  * The signed-in person's push subscriptions.
  *
- *   POST /api/users/self/push/subscriptions {endpoint, keys} → 201 + Location
+ *   POST /api/users/self/push/subscriptions {endpoint, keys} → 201 + Location.
  *
  * The behaviour lives in the `pushSubscriptionsCollection` controller; this file only mounts it.
  */

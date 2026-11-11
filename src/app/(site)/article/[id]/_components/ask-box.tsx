@@ -96,7 +96,7 @@ export function AskBox({ id }: Readonly<{ id: number }>): ReactElement {
           name="question"
           type="text"
           placeholder={
-            turns.length
+            turns.length > 0
               ? 'Ask a follow-up question'
               : 'Ask a question about this story'
           }
@@ -143,11 +143,11 @@ export function AskBox({ id }: Readonly<{ id: number }>): ReactElement {
       </p>
       {busy ? <p className="mt-3 text-sm text-muted">Thinking…</p> : null}
       {error ? <ErrorText>{error}</ErrorText> : null}
-      {remaining !== undefined ? (
+      {remaining === undefined ? null : (
         <p className="mt-3 text-sm text-muted">
           {countOf(remaining, 'question')} left today.
         </p>
-      ) : null}
+      )}
     </section>
   );
 }

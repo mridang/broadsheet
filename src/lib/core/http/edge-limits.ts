@@ -256,42 +256,46 @@ export function tooManyRequests(
     'Access-Control-Expose-Headers': 'Retry-After',
   };
   switch (style) {
-    case 'jsonrpc':
+    case 'jsonrpc': {
       return Response.json(
         {
           jsonrpc: '2.0',
           id: null,
           error: {
-            code: -32603,
+            code: -32_603,
             message: TOO_MANY,
             data: { retryAfterSeconds },
           },
         },
         { status: 429, headers: { ...common, ...open } },
       );
-    case 'oauth':
+    }
+    case 'oauth': {
       return Response.json(
         { error: 'temporarily_unavailable', error_description: TOO_MANY },
         { status: 429, headers: { ...common, ...open, Pragma: 'no-cache' } },
       );
-    case 'problem':
-      return new Response(
-        JSON.stringify({
+    }
+    case 'problem': {
+      return Response.json(
+        {
           type: '/problems/rate-limited',
           title: 'Too many requests',
           status: 429,
           detail: TOO_MANY,
-        }),
+        },
         {
           status: 429,
           headers: { ...common, 'Content-Type': 'application/problem+json' },
         },
       );
-    case 'text':
+    }
+    case 'text': {
       return new Response(`${TOO_MANY}\n`, {
         status: 429,
         headers: { ...common, 'Content-Type': 'text/plain; charset=utf-8' },
       });
+    }
   }
 }
 

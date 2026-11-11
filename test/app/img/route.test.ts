@@ -34,13 +34,13 @@ const signer = new ImageSigner(SECRET);
 const PHOTO = `https://${ALLOWED_HOSTS?.[0] ?? 'photos.example.org'}/soup.jpg`;
 const WIDTH = ALLOWED_WIDTHS[0] ?? DEFAULT_WIDTH;
 
-const realFetch = global.fetch;
+const realFetch = globalThis.fetch;
 const realCaches = Reflect.get(globalThis, 'caches');
 let fetched: string[];
 
 /** Make every fetch answer with a fresh response from `respond`. */
 function serving(respond: () => Response): void {
-  global.fetch = (async (url: string) => {
+  globalThis.fetch = (async (url: string) => {
     fetched.push(String(url));
     return respond();
   }) as unknown as typeof fetch;
@@ -71,7 +71,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  global.fetch = realFetch;
+  globalThis.fetch = realFetch;
   Reflect.set(globalThis, 'caches', realCaches);
 });
 

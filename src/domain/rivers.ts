@@ -152,16 +152,21 @@ export async function ownsTarget(
   const repo = new Repository(db);
   switch (target.kind) {
     case 'all':
-    case 'saves':
+    case 'saves': {
       return true;
-    case 'feed':
+    }
+    case 'feed': {
       return !!(await repo.getFeed(userId, target.id));
-    case 'section':
+    }
+    case 'section': {
       return !!(await repo.getSection(userId, target.id));
-    case 'search':
+    }
+    case 'search': {
       return !!(await repo.getSearch(userId, target.id));
-    case 'edition':
+    }
+    case 'edition': {
       return !!(await repo.getCustomEdition(userId, target.id));
+    }
   }
 }
 
@@ -179,16 +184,19 @@ export async function riverStories(
   if (!target || !(await ownsTarget(db, userId, target))) return [];
   const repo = new Repository(db);
   switch (target.kind) {
-    case 'all':
+    case 'all': {
       return (await repo.searchArticles(userId, { limit })).slice(0, limit);
-    case 'saves':
+    }
+    case 'saves': {
       return (await repo.listSaves(userId))
         .slice(0, limit)
         .map((s) => s.article);
-    case 'feed':
+    }
+    case 'feed': {
       return (
         await repo.searchArticles(userId, { feed: target.id, limit })
       ).slice(0, limit);
+    }
     case 'section': {
       const feeds = (await repo.listFeeds(userId)).filter(
         (f) => f.section_id === target.id,
@@ -206,7 +214,7 @@ export async function riverStories(
       return (
         await repo.searchArticles(userId, {
           q: search!.query,
-          ...(search!.feed_id !== null ? { feed: search!.feed_id } : {}),
+          ...(search!.feed_id === null ? {} : { feed: search!.feed_id }),
           limit,
         })
       ).slice(0, limit);

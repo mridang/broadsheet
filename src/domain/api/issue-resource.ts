@@ -170,7 +170,7 @@ export function parseIssueRequest(
   if (typeof date !== 'string' || !isIssueDate(date)) {
     errors.push('date: must be a date written YYYY-MM-DD.');
   }
-  return errors.length || typeof date !== 'string'
+  return errors.length > 0 || typeof date !== 'string'
     ? { ok: false, errors }
     : { ok: true, date };
 }
@@ -215,7 +215,7 @@ export function parseIssueQuery(params: URLSearchParams): IssueQueryInput {
       errors.push(`limit: must be a whole number from 1 to ${MAX_LIMIT}.`);
     }
   }
-  return errors.length
+  return errors.length > 0
     ? { ok: false, errors }
     : { ok: true, query: { before, limit } };
 }

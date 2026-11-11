@@ -13,7 +13,6 @@ export type Database<
  * Wrap a raw D1 binding in a typed Drizzle client for the given schema. The
  * schema is passed in — the app binds its own (see `domain/db`) — so this
  * module stays free of any one app's tables.
- *
  * @public
  */
 export function createDatabase<S extends Record<string, unknown>>(

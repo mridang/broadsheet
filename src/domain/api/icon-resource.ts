@@ -94,7 +94,7 @@ export function parseIcon(raw: unknown, field: string): IconInput {
       `${field}.set: only for a preset icon, one of ${ICON_SETS.join(', ')}.`,
     );
   }
-  if (errors.length) return { ok: false, errors };
+  if (errors.length > 0) return { ok: false, errors };
   return {
     ok: true,
     icon: {

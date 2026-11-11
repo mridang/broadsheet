@@ -35,7 +35,7 @@ export interface PushEnvironment {
 export function applicationServerKey(
   base64url: string,
 ): Uint8Array<ArrayBuffer> {
-  const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+  const base64 = base64url.replaceAll('-', '+').replaceAll('_', '/');
   const binary = atob(base64 + '='.repeat((4 - (base64.length % 4)) % 4));
   return Uint8Array.from(binary, (c) => c.charCodeAt(0));
 }
@@ -106,7 +106,6 @@ export interface WorkerEnvironment {
  * loading, so registering never competes with the page's own load. Does nothing
  * in development (a worker would hold on to stale pages) or in a browser
  * without service workers.
- *
  * @returns A function that stops waiting for the load, if it was still waiting.
  */
 export function registerWhenLoaded(

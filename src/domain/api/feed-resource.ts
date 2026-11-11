@@ -114,12 +114,12 @@ export function feedResource(feed: Readonly<Feed>): FeedResource {
     ...(iconResource(feed.custom_icon)
       ? { custom_icon: iconResource(feed.custom_icon) }
       : {}),
-    ...(feed.auto_mark_read_days !== null
-      ? { auto_mark_read_days: feed.auto_mark_read_days }
-      : {}),
-    ...(feed.section_id !== null
-      ? { section_id: String(feed.section_id) }
-      : {}),
+    ...(feed.auto_mark_read_days === null
+      ? {}
+      : { auto_mark_read_days: feed.auto_mark_read_days }),
+    ...(feed.section_id === null
+      ? {}
+      : { section_id: String(feed.section_id) }),
     ...(created ? { created_at: created } : {}),
     ...(feed.format ? { format: feed.format } : {}),
     ...(feed.site_url ? { site_url: feed.site_url } : {}),
@@ -256,7 +256,7 @@ export function parseFeedChanges(
       errors.push('section_ids: send either section_id or section_ids.');
     } else if (
       !ids ||
-      ids.some((id) => id === undefined) ||
+      ids.includes(undefined) ||
       new Set(ids).size !== ids.length ||
       ids.length > MAX_FEED_SECTIONS
     ) {
@@ -267,8 +267,11 @@ export function parseFeedChanges(
   }
   if ('custom_icon' in body) {
     const icon = parseIcon(body['custom_icon'], 'custom_icon');
-    if (!icon.ok) errors.push(...icon.errors);
-    else changes.custom_icon = icon.icon && JSON.stringify(icon.icon);
+    if (icon.ok) {
+      changes.custom_icon = icon.icon && JSON.stringify(icon.icon);
+    } else {
+      errors.push(...icon.errors);
+    }
   }
   if ('auto_mark_read_days' in body) {
     const days = body['auto_mark_read_days'];
@@ -280,5 +283,5 @@ export function parseFeedChanges(
       );
     }
   }
-  return errors.length ? { ok: false, errors } : { ok: true, changes };
+  return errors.length > 0 ? { ok: false, errors } : { ok: true, changes };
 }

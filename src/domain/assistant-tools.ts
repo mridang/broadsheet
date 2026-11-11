@@ -184,7 +184,7 @@ export class ToolRunner {
   /** Note stories as shown, and set them out for the model. */
   show(passages: readonly Passage[]): string {
     for (const p of passages) this.#seen.set(p.id, p.title);
-    return passages.length
+    return passages.length > 0
       ? passages.map(passageBlock).join('\n\n')
       : 'No stories found.';
   }
@@ -205,7 +205,7 @@ export class ToolRunner {
           }),
         );
       }
-      case 'search_saved_stories':
+      case 'search_saved_stories': {
         return this.show(
           await this.#repo.savedPassages(this.#uid, {
             query: str(args['query']),
@@ -213,19 +213,21 @@ export class ToolRunner {
             limit: count(args['limit'], 10, MAX_RESULTS),
           }),
         );
+      }
       case 'saved_summary': {
         const summary = await this.#repo.savedSummary(this.#uid);
         for (const r of summary.recent) this.#seen.set(r.id, r.title);
         return JSON.stringify(summary);
       }
-      case 'search_shared_stories':
+      case 'search_shared_stories': {
         return this.show(
           await this.#repo.sharedPassages({
             query: str(args['query']),
             limit: count(args['limit'], 10, MAX_RESULTS),
           }),
         );
-      case 'recent_reads':
+      }
+      case 'recent_reads': {
         return this.show(
           await this.#repo.recentReadPassages(
             this.#uid,
@@ -233,6 +235,7 @@ export class ToolRunner {
             count(args['limit'], 10, MAX_RESULTS),
           ),
         );
+      }
       case 'get_story': {
         const id = count(args['id'], 0, Number.MAX_SAFE_INTEGER);
         const article = id
@@ -249,10 +252,12 @@ export class ToolRunner {
           `${article.title ?? ''} (${article.source ?? ''})\n${article.summary ?? ''}\n${(article.body_text ?? '').slice(0, STORY_LENGTH)}${annotation ? `\n${annotation}` : ''}`,
         );
       }
-      case 'archive_summary':
+      case 'archive_summary': {
         return JSON.stringify(await this.#repo.archiveSummary(this.#uid));
-      default:
+      }
+      default: {
         return `There is no tool called ${call.name}.`;
+      }
     }
   }
 }

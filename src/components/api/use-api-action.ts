@@ -9,6 +9,7 @@ export interface ApiAction {
   readonly busy: boolean;
   /** The sentence to show the person, or undefined when nothing went wrong. */
   readonly error: string | undefined;
+
   /**
    * Run `request`; on failure show the server's words (or `failure` for a
    * network error). `request` throws for a refused response (see `ensureOk`).
@@ -22,7 +23,7 @@ export interface ApiAction {
 /**
  * The shared behaviour of a control backed by one API call: a busy flag, the
  * error sentence, and a `run` that wires them. `onSuccess` runs after the
- * request resolves (e.g. reload the page to show what changed); on failure the
+ * request resolves (e.g. Reload the page to show what changed); on failure the
  * error is shown and the control is no longer busy.
  */
 export function useApiAction(onSuccess?: () => void): ApiAction {
@@ -34,8 +35,8 @@ export function useApiAction(onSuccess?: () => void): ApiAction {
     try {
       await request();
       onSuccess?.();
-    } catch (err) {
-      setError(problemText(err, failure));
+    } catch (error_) {
+      setError(problemText(error_, failure));
       setBusy(false);
     }
   };

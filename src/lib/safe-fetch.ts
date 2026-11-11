@@ -96,6 +96,7 @@ export interface CappedFetchOptions {
   readonly timeoutMs: number;
   /** The `Accept` header to send. */
   readonly accept: string;
+
   /**
    * Whether a response with this media type (lowercase, parameters removed, an
    * empty string when the site did not say) is wanted. Anything else is refused
@@ -104,6 +105,7 @@ export interface CappedFetchOptions {
   readonly acceptsType: (mediaType: string) => boolean;
   /** How many redirects to follow (default 3). */
   readonly maxRedirects?: number;
+
   /**
    * What to do with a body longer than `maxBytes`: refuse it (the default), or
    * keep its first `maxBytes` bytes. Truncating suits a page whose useful part

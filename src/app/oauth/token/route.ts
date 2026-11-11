@@ -2,7 +2,7 @@
  * The token endpoint: an authorization code (with its PKCE verifier) or a
  * refresh token, for a new access and refresh token.
  *
- *   POST /oauth/token (application/x-www-form-urlencoded)
+ *   POST /oauth/token (application/x-www-form-urlencoded).
  */
 
 import { D1OAuthStore } from '@/domain/db/oauth';

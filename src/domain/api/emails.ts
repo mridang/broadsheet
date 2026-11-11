@@ -54,7 +54,7 @@ interface UserContext {
 /** The article id in `/api/articles/:id/emails`. */
 function articleIdOf(request: Request): number | undefined {
   const segments = new URL(request.url).pathname.split('/');
-  return parseFeedId(segments[segments.length - 2] ?? '');
+  return parseFeedId(segments.at(-2) ?? '');
 }
 
 /** The parts of a story an email shows. */
@@ -109,7 +109,7 @@ export function storyEmail(
     '</body></html>',
   ].join('\n');
   return {
-    subject: title.replace(/\s+/g, ' '),
+    subject: title.replaceAll(/\s+/g, ' '),
     text: paragraphs.join('\n\n'),
     html,
   };
@@ -163,9 +163,9 @@ export function createArticleEmails(
       const db = getDatabase();
       const id = articleIdOf(request);
       const article =
-        id !== undefined
-          ? await new Repository(db).getArticle(user.id, id)
-          : undefined;
+        id === undefined
+          ? undefined
+          : await new Repository(db).getArticle(user.id, id);
       if (!article) return 'missing';
       const { EMAIL: mail, EMAIL_FROM: from } = environment();
       if (!mail || !from) return 'unavailable';
@@ -191,16 +191,19 @@ export function createArticleEmails(
     },
     encode: (outcome): ApiResponse<unknown> | Response => {
       switch (outcome) {
-        case 'sent':
+        case 'sent': {
           return { status: 202, body: { status: 'accepted' } };
-        case 'missing':
+        }
+        case 'missing': {
           return problems.notFound('article');
-        case 'quota':
+        }
+        case 'quota': {
           return problems.rateLimited(
             `You can email ${DAILY_STORY_EMAILS} stories a day.`,
-            86400,
+            86_400,
           );
-        case 'unavailable':
+        }
+        case 'unavailable': {
           return problem(
             503,
             '/problems/unavailable',
@@ -210,13 +213,15 @@ export function createArticleEmails(
               headers: { 'Retry-After': '86400' },
             },
           );
-        case 'failed':
+        }
+        case 'failed': {
           return problem(
             502,
             '/problems/upstream',
             'Bad gateway',
             'The mail service did not take the email.',
           );
+        }
       }
     },
   });

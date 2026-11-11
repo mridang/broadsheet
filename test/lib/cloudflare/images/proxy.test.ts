@@ -64,11 +64,11 @@ describe('fetchImage', () => {
       // The caller (the image service) snaps the width; the proxy uses it as given.
       const result = await fetchImage('https://a.com/x.jpg', 800, {
         fetcher: returning(big()),
-        images: images(new Uint8Array(9_000).buffer, seen),
+        images: images(new Uint8Array(9000).buffer, seen),
       });
       expect(seen.width).toBe(800);
       expect(result).toMatchObject({ ok: true, type: 'image/webp' });
-      expect(result.ok && result.bytes.byteLength).toBe(9_000);
+      expect(result.ok && result.bytes.byteLength).toBe(9000);
     });
 
     it('sends the original when scaling fails', async () => {

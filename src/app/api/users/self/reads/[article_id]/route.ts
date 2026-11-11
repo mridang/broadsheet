@@ -3,7 +3,7 @@
  *
  *   POST   /api/users/self/reads/:article_id           → 201 + Location
  *   PATCH  /api/users/self/reads/:article_id {seconds} → 200
- *   DELETE /api/users/self/reads/:article_id           → 204
+ *   DELETE /api/users/self/reads/:article_id           → 204.
  *
  * The behaviour lives in the `readItem` controller; this file only mounts
  * it.

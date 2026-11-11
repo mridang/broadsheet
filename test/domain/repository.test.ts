@@ -229,7 +229,7 @@ describe('recordFetch', () => {
   /** Minutes from now until the source may be fetched again. */
   const minutesAway = async (repo: Repository) => {
     const next = (await repo.allSources())[0]!.next_fetch_at!;
-    return (Date.parse(`${next.replace(' ', 'T')}Z`) - Date.now()) / 60000;
+    return (Date.parse(`${next.replace(' ', 'T')}Z`) - Date.now()) / 60_000;
   };
 
   it('backs a failing source off a day for each failure before, up to a week', async () => {
@@ -507,7 +507,7 @@ describe('ftsQuery', () => {
     expect(ftsQuery('  rust  "async" OR -x ')).toBe(
       '"rust" """async""" "OR" "-x"',
     );
-    expect(ftsQuery('   ')).toBe('');
+    expect(ftsQuery(' '.repeat(3))).toBe('');
   });
 
   it('limits author: and tag: terms to their column', () => {
@@ -1449,7 +1449,7 @@ describe('trendingArticles', () => {
     const repo = new Repository(db);
     const people: number[] = [];
     for (const name of ['a', 'b', 'c', 'd']) {
-      const id = (await upsertUser(db, { sub: name, email: `${name}@b.c` })).id;
+      const { id } = await upsertUser(db, { sub: name, email: `${name}@b.c` });
       await addFeed(db, id, 'https://t/rss');
       people.push(id);
     }

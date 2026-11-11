@@ -106,14 +106,14 @@ function bytesToBase64Url(bytes: Uint8Array): string {
     binary += String.fromCharCode(byte);
   }
   return btoa(binary)
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
+    .replaceAll('+', '-')
+    .replaceAll('/', '_')
     .replace(/=+$/, '');
 }
 
 /** Decode base64url bytes, the inverse of {@link bytesToBase64Url}. */
 function base64UrlToBytes(text: string): Uint8Array {
-  const base64 = text.replace(/-/g, '+').replace(/_/g, '/');
+  const base64 = text.replaceAll('-', '+').replaceAll('_', '/');
   const binary = atob(base64);
   return Uint8Array.from(binary, (char) => char.charCodeAt(0));
 }

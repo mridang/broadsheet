@@ -47,7 +47,7 @@ export function EmailStoryForm({
         body: JSON.stringify(body),
       });
       if (res.status === 503) {
-        window.location.href = mailto;
+        globalThis.location.href = mailto;
         return;
       }
       if (!res.ok) throw await problemError(res);

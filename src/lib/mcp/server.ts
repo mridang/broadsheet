@@ -251,7 +251,7 @@ export class McpServer<Ctx> {
     ctx: Ctx,
   ): Promise<object> {
     switch (method) {
-      case 'initialize':
+      case 'initialize': {
         return {
           protocolVersion: negotiateVersion(params['protocolVersion']),
           capabilities: {
@@ -262,13 +262,17 @@ export class McpServer<Ctx> {
           serverInfo: this.#info,
           instructions: this.#instructions,
         };
-      case 'ping':
+      }
+      case 'ping': {
         return {};
-      case 'tools/list':
+      }
+      case 'tools/list': {
         return this.#list();
-      case 'tools/call':
+      }
+      case 'tools/call': {
         return this.#call(params, ctx);
-      case 'resources/list':
+      }
+      case 'resources/list': {
         return {
           resources: this.#resources
             .filter((r) => r.uri)
@@ -279,7 +283,8 @@ export class McpServer<Ctx> {
               mimeType: 'application/json',
             })),
         };
-      case 'resources/templates/list':
+      }
+      case 'resources/templates/list': {
         return {
           resourceTemplates: this.#resources
             .filter((r) => r.uriTemplate)
@@ -290,9 +295,11 @@ export class McpServer<Ctx> {
               mimeType: 'application/json',
             })),
         };
-      case 'resources/read':
+      }
+      case 'resources/read': {
         return this.#readResource(params, ctx);
-      case 'prompts/list':
+      }
+      case 'prompts/list': {
         return {
           prompts: [...this.#prompts.values()].map((p) => ({
             name: p.name,
@@ -301,10 +308,13 @@ export class McpServer<Ctx> {
             arguments: p.arguments,
           })),
         };
-      case 'prompts/get':
+      }
+      case 'prompts/get': {
         return this.#getPrompt(params);
-      default:
+      }
+      default: {
         throw new RpcError(ERROR_METHOD_NOT_FOUND, 'Method not found');
+      }
     }
   }
 

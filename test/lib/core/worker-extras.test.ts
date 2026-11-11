@@ -449,7 +449,7 @@ describe('scheduled clean-up', () => {
       .mockImplementation(() => undefined);
     purgeFails = true;
     await fire();
-    expect(error.mock.calls.map(String).join()).toContain('purge.failed');
+    expect(error.mock.calls.map(String).join(',')).toContain('purge.failed');
   });
 });
 

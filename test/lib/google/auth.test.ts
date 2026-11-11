@@ -57,7 +57,7 @@ describe('authUrl', () => {
 function answerWith(body: unknown, status = 200) {
   return jest
     .spyOn(globalThis, 'fetch')
-    .mockResolvedValue(new Response(JSON.stringify(body), { status }));
+    .mockResolvedValue(Response.json(body, { status }));
 }
 
 afterEach(() => {

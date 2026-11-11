@@ -36,7 +36,7 @@ export const CLUSTER_TTL_DAYS = 14;
 
 /** `days` days before a YYYY-MM-DD date. */
 export function daysBefore(date: string, days: number): string {
-  return new Date(Date.parse(`${date}T00:00:00Z`) - days * 86400000)
+  return new Date(Date.parse(`${date}T00:00:00Z`) - days * 86_400_000)
     .toISOString()
     .slice(0, 10);
 }
@@ -197,7 +197,7 @@ async function storedVectors(
     // Vectorize's getByIds, not Testing Library's sync query of that name.
     // eslint-disable-next-line testing-library/no-await-sync-queries
     for (const v of await index.getByIds(part.map(String))) {
-      found.set(Number(v.id), Array.from(v.values));
+      found.set(Number(v.id), [...v.values]);
     }
   }
   return found;
@@ -220,7 +220,7 @@ async function embedAll(
       const values = data[i];
       return values ? [{ a, values }] : [];
     });
-    if (!vectors.length) continue;
+    if (vectors.length === 0) continue;
     await index.upsert(
       vectors.map(({ a, values }) => ({
         id: String(a.id),

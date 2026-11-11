@@ -305,7 +305,7 @@ describe('feedHeader', () => {
       'Ann',
       'a@b.test',
     ]);
-    expect(feedHeader(xml)[3]?.text).toBe('\u00a9 Ann');
+    expect(feedHeader(xml)[3]?.text).toBe('\u00A9 Ann');
   });
 
   it('is empty for something that is not a feed', () => {

@@ -33,9 +33,9 @@ const STOPWORDS = new Set(
 export function normaliseTitle(title: string | null): string {
   return (title ?? '')
     .toLowerCase()
-    .replace(/[-/]/g, ' ')
-    .replace(/[^\p{L}\p{N}\s]/gu, '')
-    .replace(/\s+/g, ' ')
+    .replaceAll(/[-/]/g, ' ')
+    .replaceAll(/[^\p{L}\p{N}\s]/gu, '')
+    .replaceAll(/\s+/g, ' ')
     .trim();
 }
 

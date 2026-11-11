@@ -22,14 +22,14 @@ export function base64ToBytes(base64: string): Uint8Array {
 /** Encode raw bytes as URL-safe base64 (`-` and `_`, no padding). */
 export function bytesToBase64Url(bytes: Uint8Array): string {
   return bytesToBase64(bytes)
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
+    .replaceAll('+', '-')
+    .replaceAll('/', '_')
     .replace(/=+$/, '');
 }
 
 /** Decode URL-safe base64, with or without padding, into raw bytes. Throws on malformed input. */
 export function base64UrlToBytes(text: string): Uint8Array {
-  const standard = text.replace(/-/g, '+').replace(/_/g, '/');
+  const standard = text.replaceAll('-', '+').replaceAll('_', '/');
   // Put back the padding that the URL-safe form leaves off.
   return base64ToBytes(standard + '==='.slice((standard.length + 3) % 4));
 }

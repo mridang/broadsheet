@@ -1,7 +1,7 @@
 /**
  * Asking the archive assistant a question in a conversation.
  *
- *   POST /api/conversations/:id/messages {content} → 201
+ *   POST /api/conversations/:id/messages {content} → 201.
  *
  * The behaviour lives in the `messagesCollection` controller; this file only
  * mounts it.

@@ -142,8 +142,8 @@ function ruleOf(row: typeof notification_rules.$inferSelect): NotificationRule {
     scope: (RULE_SCOPES as readonly string[]).includes(row.scope)
       ? (row.scope as RuleScope)
       : 'all',
-    ...(row.subscription_id !== null ? { feed_id: row.subscription_id } : {}),
-    ...(row.section_id !== null ? { section_id: row.section_id } : {}),
+    ...(row.subscription_id === null ? {} : { feed_id: row.subscription_id }),
+    ...(row.section_id === null ? {} : { section_id: row.section_id }),
     channels: channelsOf(row.channels),
     created_at: row.created_at,
   };

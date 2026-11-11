@@ -1,7 +1,7 @@
 /**
  * The archive of articles from the feeds the signed-in person follows.
  *
- *   GET /api/articles?q=&cursor=&limit= → 200 {self, next?, items}
+ *   GET /api/articles?q=&cursor=&limit= → 200 {self, next?, items}.
  *
  * The behaviour lives in the `articlesCollection` controller; this file only
  * mounts it.

@@ -71,11 +71,13 @@ export const sources = sqliteTable(
     websub_secret: text('websub_secret'),
     /** When the hub's lease runs out; null until the hub verifies it. */
     websub_expires_at: text('websub_expires_at'),
+
     /**
      * How many subscriptions follow it. Kept by triggers on `subscriptions`
      * (migration 0035), so no query counts them.
      */
     follower_count: integer('follower_count').notNull().default(0),
+
     /**
      * How many distinct story addresses it has kept, however many editions
      * carry each. Kept by triggers on `articles` (migration 0035).
@@ -513,7 +515,7 @@ export const feed_tokens = sqliteTable(
     section_id: integer('section_id'),
     search_id: integer('search_id'),
     created_at: text('created_at').default(sql`(datetime('now'))`),
-    /** all, unread (no disliked stories) or focus (only liked ones). */
+    /** All, unread (no disliked stories) or focus (only liked ones). */
     filter: text('filter').notNull().default('all'),
   },
   (table) => [index('idx_feed_tokens_user').on(table.user_id)],

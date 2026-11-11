@@ -14,15 +14,15 @@ const NAMED: Readonly<Record<string, string>> = {
   ldquo: '“',
   rdquo: '”',
   bull: '\u2022',
-  middot: '\u00b7',
-  laquo: '\u00ab',
-  raquo: '\u00bb',
-  copy: '\u00a9',
-  reg: '\u00ae',
+  middot: '\u00B7',
+  laquo: '\u00AB',
+  raquo: '\u00BB',
+  copy: '\u00A9',
+  reg: '\u00AE',
   trade: '\u2122',
-  times: '\u00d7',
-  deg: '\u00b0',
-  euro: '\u20ac',
+  times: '\u00D7',
+  deg: '\u00B0',
+  euro: '\u20AC',
   larr: '\u2190',
   rarr: '\u2192',
 };
@@ -34,12 +34,13 @@ const NAMED: Readonly<Record<string, string>> = {
  * `&#8211;`).
  */
 export function decodeEntities(s: string): string {
-  return s.replace(
+  return s.replaceAll(
     /&(?:#(\d+)|#x([0-9a-f]+)|([a-z]+));/gi,
     (whole, dec?: string, hex?: string, name?: string) => {
       if (name) return NAMED[name.toLowerCase()] ?? whole;
-      const n = dec !== undefined ? Number(dec) : parseInt(hex ?? '', 16);
-      return n > 0 && n <= 0x10ffff ? String.fromCodePoint(n) : whole;
+      const n =
+        dec === undefined ? Number.parseInt(hex ?? '', 16) : Number(dec);
+      return n > 0 && n <= 0x10_ff_ff ? String.fromCodePoint(n) : whole;
     },
   );
 }

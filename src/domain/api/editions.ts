@@ -69,7 +69,7 @@ async function checkSections(
   if (!changes.section_ids?.length) return;
   const own = new Set((await repo.listSections(uid)).map((s) => s.id));
   const foreign = changes.section_ids.filter((id) => !own.has(id));
-  if (foreign.length) {
+  if (foreign.length > 0) {
     throw problems.badRequest(
       'The edition is not valid.',
       foreign.map((id) => `section_ids: no section ${id}.`),
@@ -154,9 +154,9 @@ export function createEditionItem(
       method: 'DELETE',
       handle: async (_input, { request, uid }) => {
         const id = parseFeedId(idOf(request));
-        return id !== undefined
-          ? new Repository(getDatabase()).removeCustomEdition(uid, id)
-          : false;
+        return id === undefined
+          ? false
+          : new Repository(getDatabase()).removeCustomEdition(uid, id);
       },
       encode: (removed) =>
         removed ? noContent() : problems.notFound('edition'),

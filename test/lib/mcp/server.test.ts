@@ -156,19 +156,19 @@ describe('McpServer', () => {
   it('hides an unexpected failure behind a generic error', async () => {
     const reply = await call('tools/call', { name: 'crash' });
     expect(reply && 'error' in reply && reply.error).toEqual({
-      code: -32603,
+      code: -32_603,
       message: 'Something went wrong.',
     });
   });
 
   it('refuses an unknown tool', async () => {
     const reply = await call('tools/call', { name: 'nope' });
-    expect(reply && 'error' in reply && reply.error.code).toBe(-32602);
+    expect(reply && 'error' in reply && reply.error.code).toBe(-32_602);
   });
 
   it('refuses an unknown method', async () => {
     const reply = await call('completion/complete');
-    expect(reply && 'error' in reply && reply.error.code).toBe(-32601);
+    expect(reply && 'error' in reply && reply.error.code).toBe(-32_601);
   });
 
   it('does not answer a notification', async () => {
@@ -223,13 +223,13 @@ describe('McpServer resources', () => {
     'answers %s with resource not found',
     async (uri) => {
       const reply = await call('resources/read', { uri });
-      expect(reply && 'error' in reply && reply.error.code).toBe(-32002);
+      expect(reply && 'error' in reply && reply.error.code).toBe(-32_002);
     },
   );
 
   it('needs a uri', async () => {
     const reply = await call('resources/read');
-    expect(reply && 'error' in reply && reply.error.code).toBe(-32602);
+    expect(reply && 'error' in reply && reply.error.code).toBe(-32_602);
   });
 });
 
@@ -263,6 +263,6 @@ describe('McpServer prompts', () => {
 
   it('refuses an unknown prompt', async () => {
     const reply = await call('prompts/get', { name: 'nope' });
-    expect(reply && 'error' in reply && reply.error.code).toBe(-32602);
+    expect(reply && 'error' in reply && reply.error.code).toBe(-32_602);
   });
 });

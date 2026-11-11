@@ -123,7 +123,7 @@ export function createConversationItem(
         const repo = new Repository(getDatabase());
         const id = parseFeedId(idOf(request));
         const conversation =
-          id !== undefined ? await repo.getConversation(uid, id) : undefined;
+          id === undefined ? undefined : await repo.getConversation(uid, id);
         if (!conversation) return undefined;
         const turns = await repo.listMessages(conversation.id);
         return conversationResource(
@@ -141,9 +141,9 @@ export function createConversationItem(
       method: 'DELETE',
       handle: async (_input, { request, uid }) => {
         const id = parseFeedId(idOf(request));
-        return id !== undefined
-          ? new Repository(getDatabase()).removeConversation(uid, id)
-          : false;
+        return id === undefined
+          ? false
+          : new Repository(getDatabase()).removeConversation(uid, id);
       },
       encode: (removed) =>
         removed ? noContent() : problems.notFound('conversation'),
@@ -175,7 +175,7 @@ export function createMessagesCollection(
       const repo = new Repository(getDatabase());
       const id = parseFeedId(parentIdOf(request));
       const conversation =
-        id !== undefined ? await repo.getConversation(uid, id) : undefined;
+        id === undefined ? undefined : await repo.getConversation(uid, id);
       if (!conversation) return problems.notFound('conversation');
       const refusal = await overBudget(repo, uid, 'assistant');
       if (refusal) return refusal;

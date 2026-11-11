@@ -33,7 +33,9 @@ export type Checked<T> =
 
 /** The checked value, or the errors, from a list of errors. */
 function checked<T>(errors: readonly string[], value: () => T): Checked<T> {
-  return errors.length ? { ok: false, errors } : { ok: true, value: value() };
+  return errors.length > 0
+    ? { ok: false, errors }
+    : { ok: true, value: value() };
 }
 
 /** Errors for every member of `body` not in `allowed`. */
@@ -171,7 +173,7 @@ export function parseWebhookInput(
   }
   if (
     !Array.isArray(events) ||
-    !events.length ||
+    events.length === 0 ||
     !events.every((e) => (WEBHOOK_EVENTS as readonly unknown[]).includes(e))
   ) {
     errors.push(
@@ -209,8 +211,8 @@ export function feedTokenResource(
     id: String(row.id),
     scope: row.scope,
     ...(row.tag ? { tag: row.tag } : {}),
-    ...(row.section_id !== null ? { section_id: String(row.section_id) } : {}),
-    ...(row.search_id !== null ? { search_id: String(row.search_id) } : {}),
+    ...(row.section_id === null ? {} : { section_id: String(row.section_id) }),
+    ...(row.search_id === null ? {} : { search_id: String(row.search_id) }),
     filter: row.filter,
     ...(secret
       ? {
@@ -285,10 +287,10 @@ export function parseFeedTokenInput(
   }
   return checked(errors, () => ({
     scope: scope as FeedScope,
-    ...(filter !== undefined ? { filter: filter as FeedFilter } : {}),
+    ...(filter === undefined ? {} : { filter: filter as FeedFilter }),
     ...(typeof tag === 'string' ? { tag: tag.trim() } : {}),
-    ...(section !== undefined ? { section_id: section } : {}),
-    ...(search !== undefined ? { search_id: search } : {}),
+    ...(section === undefined ? {} : { section_id: section }),
+    ...(search === undefined ? {} : { search_id: search }),
   }));
 }
 

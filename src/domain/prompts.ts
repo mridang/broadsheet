@@ -92,7 +92,7 @@ export async function scorePrompts(
   edition: string,
 ): Promise<number> {
   const pending = await repo.unscoredPrompts(userId, edition, PROMPT_BATCH);
-  if (!pending.length) return 0;
+  if (pending.length === 0) return 0;
   // NewsBlur stops classifying at the person's spending limit; so do we.
   let left = (await budget(repo, userId, 'classifier')).remaining;
   const feeds = await repo.listFeeds(userId);

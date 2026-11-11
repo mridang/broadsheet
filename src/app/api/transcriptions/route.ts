@@ -1,7 +1,7 @@
 /**
  * Spoken questions turned into text.
  *
- *   POST /api/transcriptions (audio) → 200
+ *   POST /api/transcriptions (audio) → 200.
  *
  * The behaviour lives in the `transcriptionsCollection` controller; this file
  * only mounts it.

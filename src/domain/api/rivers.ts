@@ -68,7 +68,7 @@ async function checkOwned(
       errors.push(`river_id: no such ${river.river_id}.`);
     }
   }
-  if (errors.length) {
+  if (errors.length > 0) {
     throw problems.badRequest('The river is not valid.', errors);
   }
 }
@@ -165,9 +165,9 @@ export function createRiverItem(
     method: 'DELETE',
     handle: async (_input, { request, uid }) => {
       const id = parseFeedId(idOf(request));
-      return id !== undefined
-        ? new RiverRepository(getDatabase()).remove(uid, id)
-        : false;
+      return id === undefined
+        ? false
+        : new RiverRepository(getDatabase()).remove(uid, id);
     },
     encode: (removed) => (removed ? noContent() : problems.notFound('river')),
   });

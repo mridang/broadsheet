@@ -198,13 +198,13 @@ describe('regular expressions and prompts', () => {
       expect(
         parseClassifierInput({
           kind,
-          value: '^rust\\b',
+          value: String.raw`^rust\b`,
           score: 'like',
           is_regex: true,
         }),
       ).toEqual({
         ok: true,
-        input: { kind, value: '^rust\\b', score: 1, is_regex: true },
+        input: { kind, value: String.raw`^rust\b`, score: 1, is_regex: true },
       });
     },
   );

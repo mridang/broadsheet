@@ -17,7 +17,7 @@ describe('robots.txt', () => {
   const allowed = (target: string): boolean => {
     const matches = (pattern: string): boolean =>
       new RegExp(
-        `^${pattern.replace(/[.+?^{}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*')}`,
+        `^${pattern.replaceAll(/[.+?^{}()|[\]\\]/g, String.raw`\$&`).replaceAll('*', '.*')}`,
       ).test(target);
     const hit = (patterns: string[]): number =>
       Math.max(-1, ...patterns.filter(matches).map((p) => p.length));

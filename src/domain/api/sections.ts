@@ -112,7 +112,7 @@ export function createSectionsCollection(
         position,
         parent ?? null,
       );
-      return Object.keys(settings).length
+      return Object.keys(settings).length > 0
         ? ((await repo.updateSection(uid, section.id, settings)) ?? section)
         : section;
     },
@@ -176,13 +176,13 @@ export function createSectionItem(
       method: 'DELETE',
       handle: async (_input, { request, uid }) => {
         const id = parseFeedId(idOf(request));
-        return id !== undefined
-          ? new Repository(getDatabase()).removeSection(
+        return id === undefined
+          ? false
+          : new Repository(getDatabase()).removeSection(
               uid,
               id,
               unfollowsFeeds(request),
-            )
-          : false;
+            );
       },
       encode: (removed) =>
         removed ? noContent() : problems.notFound('section'),

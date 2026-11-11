@@ -30,13 +30,11 @@ export const BRAND_SHORT_NAME = 'Broadsheet';
 export const BRAND_TAGLINE = 'A personalised daily newspaper';
 
 /** The title of the home page, and of any page that does not set its own. */
-export const BRAND_TITLE = SITE_TITLE;
 
 /** What search results and social cards say about the app. */
 export const BRAND_DESCRIPTION = SITE_DESCRIPTION;
 
 /** The public address of the app, with no trailing slash. */
-export const BRAND_URL = SITE_URL;
 
 /** Where to report a security problem: published in `security.txt` and the security policy. */
 export const SECURITY_CONTACT = 'mailto:mridang.agarwalla@gmail.com';
@@ -57,7 +55,7 @@ export const COLOR_SCHEME = 'light dark';
  * Whether pages may be indexed unless they say otherwise. Only the front page
  * (the public Hacker News edition) and the privacy policy and terms are; the
  * sign-in and feed pages are not.
- * robots.txt and an `X-Robots-Tag` header (see `lib/core/http/headers.ts`) say the
+ * Robots.txt and an `X-Robots-Tag` header (see `lib/core/http/headers.ts`) say the
  * same thing.
  */
 export const INDEX_BY_DEFAULT = false;
@@ -115,3 +113,5 @@ export const NOT_FOUND_LINK: Readonly<{ href: string; label: string }> | null =
 /** The reassurance on the error pages, after "Something went wrong". */
 export const ERROR_REASSURANCE =
   'Try again in a moment, and your feeds and past editions will be here either way.';
+
+export { SITE_TITLE as BRAND_TITLE, SITE_URL as BRAND_URL } from '@/utils/site';

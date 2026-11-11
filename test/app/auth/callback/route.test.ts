@@ -108,8 +108,7 @@ function callback(query: string, cookies: Record<string, string> = trip()) {
   return GET(appRequest('GET', `/auth/callback?${query}`));
 }
 
-const json = (value: unknown, status = 200) =>
-  new Response(JSON.stringify(value), { status });
+const json = (value: unknown, status = 200) => Response.json(value, { status });
 
 /** Google answering a successful sign-in. */
 function googleSignsIn(email: string | null = 'ada@example.com') {

@@ -53,7 +53,7 @@ export function parseShareInput(
   body: Readonly<Record<string, unknown>>,
 ): ShareBody {
   const unknown = Object.keys(body).filter((k) => k !== 'comments');
-  if (unknown.length) {
+  if (unknown.length > 0) {
     return { ok: false, errors: unknown.map((k) => `${k}: not allowed.`) };
   }
   const { comments } = body;
@@ -80,11 +80,11 @@ export function parseSharerIds(
   raw: readonly string[],
 ): { ok: true; ids?: number[] } | { ok: false; errors: string[] } {
   const parts = raw.flatMap((r) => r.split(',')).filter(Boolean);
-  if (!parts.length) return { ok: true };
+  if (parts.length === 0) return { ok: true };
   if (parts.length > 100) {
     return { ok: false, errors: ['user_id: at most 100 people.'] };
   }
   const bad = parts.filter((p) => !/^[1-9][0-9]{0,14}$/.test(p));
-  if (bad.length) return { ok: false, errors: ['user_id: not an id.'] };
+  if (bad.length > 0) return { ok: false, errors: ['user_id: not an id.'] };
   return { ok: true, ids: [...new Set(parts.map(Number))] };
 }

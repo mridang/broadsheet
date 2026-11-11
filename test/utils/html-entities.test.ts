@@ -25,7 +25,7 @@ describe('decodeEntities', () => {
         '&copy; &reg; &trade; &euro; &rarr; &times; &laquo;&raquo; &bull; &middot; &deg;',
       ),
     ).toBe(
-      '\u00a9 \u00ae \u2122 \u20ac \u2192 \u00d7 \u00ab\u00bb \u2022 \u00b7 \u00b0',
+      '\u00A9 \u00AE \u2122 \u20AC \u2192 \u00D7 \u00AB\u00BB \u2022 \u00B7 \u00B0',
     );
   });
 

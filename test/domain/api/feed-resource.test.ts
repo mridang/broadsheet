@@ -129,7 +129,7 @@ describe('parseFeedInput', () => {
   it.each([
     [{}, 'url: required.'],
     [{ url: 5 }, 'url: required.'],
-    [{ url: '   ' }, 'url: required.'],
+    [{ url: ' '.repeat(3) }, 'url: required.'],
     [{ url: 'not a url' }, 'url: not a valid address.'],
     [{ url: 'ftp://a.test/f' }, 'url: must be an http or https address.'],
     [
@@ -166,7 +166,7 @@ describe('feedResource of a muted feed filed under a section', () => {
 describe('parseFeedChanges', () => {
   it.each([
     [{ title: '  Mine  ' }, { title: 'Mine' }],
-    [{ title: '   ' }, { title: null }],
+    [{ title: ' '.repeat(3) }, { title: null }],
     [{ title: null }, { title: null }],
     [{ muted: true }, { muted: true }],
     [{ section_id: '5' }, { section_id: 5 }],

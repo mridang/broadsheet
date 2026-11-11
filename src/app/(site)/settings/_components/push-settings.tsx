@@ -35,10 +35,11 @@ export function PushSettings({
   subscriptions: readonly { id: number; endpoint: string }[];
 }>): ReactElement {
   const [state, setState] = useState<PushState>('loading');
-  const { busy, error, run } = useApiAction(() => window.location.reload());
+  const { busy, error, run } = useApiAction(() => globalThis.location.reload());
 
   useEffect(() => {
-    const supported = 'serviceWorker' in navigator && 'PushManager' in window;
+    const supported =
+      'serviceWorker' in navigator && 'PushManager' in globalThis;
     void (supported ? environment() : Promise.reject(new Error('unsupported')))
       .then((env) => env.pushManager.getSubscription())
       .then((current) => {

@@ -8,7 +8,7 @@ describe('signatureHeaders', () => {
     const expected = createHmac('sha256', 's3cret')
       .update('1700000000.{"a":1}')
       .digest('hex');
-    expect(await signatureHeaders('s3cret', '{"a":1}', 1700000000)).toEqual({
+    expect(await signatureHeaders('s3cret', '{"a":1}', 1_700_000_000)).toEqual({
       'Webhook-Timestamp': '1700000000',
       'Webhook-Signature': `sha256=${expected}`,
     });

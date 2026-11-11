@@ -41,7 +41,7 @@ export function BarePage({
 /**
  * A full-page message with a headline and a way onward: what the not-found and
  * error pages say. `actions` are the buttons beneath the text. (For a short
- * note inside a page, use `Callout`.)
+ * note inside a page, use `Callout`.).
  */
 export function MessagePage({
   eyebrow,

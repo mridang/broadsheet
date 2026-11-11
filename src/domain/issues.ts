@@ -83,7 +83,7 @@ export async function composeLayout(
     ]),
   );
   const feeds = all.filter(
-    (f) => !f.muted && (!picked.size || filedIn(f, picked)),
+    (f) => !f.muted && (picked.size === 0 || filedIn(f, picked)),
   );
   const desks = await Promise.all(
     feeds.map(async (feed) => {
@@ -137,7 +137,7 @@ export async function composeLayout(
     articles.flatMap((a) => (a.cluster_id === null ? [] : [a.cluster_id])),
   );
   const outside =
-    prefs.story_clustering && clusterIds.length
+    prefs.story_clustering && clusterIds.length > 0
       ? await repo.clusterMembers(readerId ?? ownerId, clusterIds)
       : [];
   return layOut(
@@ -159,14 +159,14 @@ export async function issueArticles(
 
 /** The day before a YYYY-MM-DD date. */
 export function dayBefore(date: string): string {
-  return new Date(Date.parse(`${date}T00:00:00Z`) - 86400000)
+  return new Date(Date.parse(`${date}T00:00:00Z`) - 86_400_000)
     .toISOString()
     .slice(0, 10);
 }
 
 /** Thirty days before a YYYY-MM-DD date. */
 const monthBefore = (date: string): string =>
-  new Date(Date.parse(`${date}T00:00:00Z`) - 30 * 86400000)
+  new Date(Date.parse(`${date}T00:00:00Z`) - 30 * 86_400_000)
     .toISOString()
     .slice(0, 10);
 
@@ -210,7 +210,7 @@ async function briefedUrls(
   stored: string | null | undefined,
 ): Promise<Set<string>> {
   const ids = parseBriefedStories(stored ?? null).map((s) => s.id);
-  if (!ids.length) return new Set();
+  if (ids.length === 0) return new Set();
   return new Set((await repo.articlesByIds(ids)).map((a) => a.url));
 }
 
@@ -283,7 +283,7 @@ export async function publishIssue(
     date,
     JSON.stringify(layout),
     briefing,
-    briefed.length ? JSON.stringify(briefed) : null,
+    briefed.length > 0 ? JSON.stringify(briefed) : null,
   );
   return stories;
 }
@@ -306,7 +306,7 @@ export async function editionPick(
   const filters = sets.filter((set): set is Set<number> => set !== undefined);
   return {
     sectionIds: edition.section_ids,
-    ...(filters.length
+    ...(filters.length > 0
       ? { keep: (id: number) => filters.every((set) => set.has(id)) }
       : {}),
   };
@@ -345,7 +345,7 @@ export async function publishEditionIssue(
     date,
     JSON.stringify(layout),
     briefing,
-    briefed.length ? JSON.stringify(briefed) : null,
+    briefed.length > 0 ? JSON.stringify(briefed) : null,
   );
   return stories;
 }

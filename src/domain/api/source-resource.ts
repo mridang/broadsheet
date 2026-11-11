@@ -109,7 +109,7 @@ export function parseSourceQuery(
       errors.push(`limit: must be a whole number from 1 to ${MAX_LIMIT}.`);
     }
   }
-  if (errors.length) return { ok: false, errors };
+  if (errors.length > 0) return { ok: false, errors };
   const days = WINDOWS[window as TrendingWindow];
   return {
     ok: true,

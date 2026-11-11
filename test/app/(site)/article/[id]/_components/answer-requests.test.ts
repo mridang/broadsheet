@@ -37,10 +37,13 @@ describe('askArticle', () => {
 
   it('throws the server’s words when refused', async () => {
     jest.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ title: 'No', detail: 'Slow down.' }), {
-        status: 429,
-        headers: { 'Content-Type': 'application/problem+json' },
-      }),
+      Response.json(
+        { title: 'No', detail: 'Slow down.' },
+        {
+          status: 429,
+          headers: { 'Content-Type': 'application/problem+json' },
+        },
+      ),
     );
     await expect(askArticle(4, { question: 'Why?' })).rejects.toBeInstanceOf(
       ProblemError,
@@ -64,10 +67,13 @@ describe('transcribeAudio', () => {
 
   it('throws the server’s words when refused', async () => {
     jest.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ title: 'No', detail: 'Too long.' }), {
-        status: 413,
-        headers: { 'Content-Type': 'application/problem+json' },
-      }),
+      Response.json(
+        { title: 'No', detail: 'Too long.' },
+        {
+          status: 413,
+          headers: { 'Content-Type': 'application/problem+json' },
+        },
+      ),
     );
     await expect(transcribeAudio(new Blob([]))).rejects.toBeInstanceOf(
       ProblemError,

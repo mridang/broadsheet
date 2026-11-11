@@ -57,7 +57,7 @@ export function AddTokenForm({
         <button
           type="button"
           className={buttonClass({ className: 'mt-3' })}
-          onClick={() => window.location.reload()}
+          onClick={() => globalThis.location.reload()}
         >
           Done
         </button>

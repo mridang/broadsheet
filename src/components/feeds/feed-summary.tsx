@@ -166,7 +166,7 @@ export async function FeedSummary({
             ) : null}
           </figure>
         ) : null}
-        {heading && declared.length ? (
+        {heading && declared.length > 0 ? (
           <dl className="mt-6 grid gap-x-6 gap-y-3 rounded-card border border-line bg-surface p-5 text-sm sm:grid-cols-2">
             {declared.map((f) => (
               <div key={f.label} className="min-w-0">

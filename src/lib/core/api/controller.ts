@@ -37,12 +37,14 @@ export interface ApiResponse<Output> {
   readonly body?: Output;
   /** Extra response headers. */
   readonly headers?: Readonly<Record<string, string>>;
+
   /**
    * A path on this app; the controller makes it an absolute `Location` header
    * against the app's public origin. The status is whatever the result sets
    * (`created` makes it 201), so this header can ride a 200 too.
    */
   readonly location?: string;
+
   /**
    * One page of a list; the controller builds the `{ self, next?, items }` body
    * and its cursor links from the request, so no handler builds a paging URL.
@@ -144,7 +146,7 @@ function toResponse(
     headers.set('Location', `${appOrigin(request)}${result.location}`);
   }
   const body =
-    result.page !== undefined ? pageBody(request, result.page) : result.body;
+    result.page === undefined ? result.body : pageBody(request, result.page);
   const status = result.status ?? (body === undefined ? 204 : 200);
   if (body === undefined) {
     return new Response(null, { status, headers });

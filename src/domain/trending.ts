@@ -86,9 +86,9 @@ export function titleKey(title: string): string {
   return title
     .toLowerCase()
     .trim()
-    .replace(/[-/]/g, ' ')
-    .replace(/[^\p{L}\p{N}_\s]/gu, '')
-    .replace(/\s+/g, ' ');
+    .replaceAll(/[-/]/g, ' ')
+    .replaceAll(/[^\p{L}\p{N}_\s]/gu, '')
+    .replaceAll(/\s+/g, ' ');
 }
 
 /** The site a story or feed address is on, without `www.`. */
@@ -138,14 +138,16 @@ export function rank(order: ListOrder, a: Activity): Ranked | undefined {
   const second = (list: readonly number[]) =>
     list.toSorted((x, y) => y - x)[1] ?? 0;
   switch (order) {
-    case 'reads':
+    case 'reads': {
       return capped.length >= MIN_PEOPLE
         ? { id: a.id, count: capped.length, keys: [capped.length, sum(capped)] }
         : undefined;
-    case 'saves':
+    }
+    case 'saves': {
       return a.savers >= MIN_PEOPLE
         ? { id: a.id, count: a.savers, keys: [a.savers] }
         : undefined;
+    }
     case 'read_time': {
       const timed = capped.filter((s) => s >= MIN_READ_SECONDS);
       return timed.length >= MIN_PEOPLE
@@ -212,7 +214,7 @@ export function diversify<T extends Candidate>(
   const out: T[] = [];
   const clusters = new Set<number>();
   const titles = new Set<string>();
-  while (remaining.length) {
+  while (remaining.length > 0) {
     const block: T[] = [];
     const deferred: T[] = [];
     const sources = new Set<number>();
@@ -247,7 +249,7 @@ export function diversify<T extends Candidate>(
       if (c.cluster !== null) clusters.add(c.cluster);
       if (c.title) titles.add(c.title);
     }
-    if (!block.length) break;
+    if (block.length === 0) break;
     out.push(...block);
     remaining = deferred;
   }
@@ -292,10 +294,10 @@ export function capSourceShare<T extends Candidate>(list: readonly T[]): T[] {
 /** How much a follow `daysAgo` counts for, over a window of `days`. */
 export function decayWeight(days: number, daysAgo: number): number {
   const tables: Record<number, readonly number[]> = {
-    1: [1.0],
-    7: [1.0, 0.85, 0.7, 0.55, 0.4, 0.3, 0.2],
+    1: [1],
+    7: [1, 0.85, 0.7, 0.55, 0.4, 0.3, 0.2],
     30: [
-      1.0, 0.97, 0.93, 0.9, 0.87, 0.83, 0.8, 0.77, 0.73, 0.7, 0.67, 0.63, 0.6,
+      1, 0.97, 0.93, 0.9, 0.87, 0.83, 0.8, 0.77, 0.73, 0.7, 0.67, 0.63, 0.6,
       0.57, 0.53, 0.5, 0.47, 0.43, 0.4, 0.37, 0.33, 0.3, 0.27, 0.23, 0.2, 0.17,
       0.13, 0.1, 0.07, 0.03,
     ],

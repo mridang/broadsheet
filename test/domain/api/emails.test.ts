@@ -53,7 +53,7 @@ describe('mailtoLink', () => {
   it('opens a mail with the story filled in and no recipient', () => {
     const link = mailtoLink(article);
     expect(link.startsWith('mailto:?subject=A%20story&body=')).toBe(true);
-    expect(decodeURIComponent(link.split('body=')[1]!)).toContain(
+    expect(decodeURIComponent(link.split('body=', 2)[1]!)).toContain(
       'https://x/1',
     );
   });

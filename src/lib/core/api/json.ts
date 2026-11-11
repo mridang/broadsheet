@@ -55,15 +55,18 @@ export async function readJson(
   }
   const body = await readJsonBody(request, maxBytes);
   switch (body.kind) {
-    case 'ok':
+    case 'ok': {
       return { ok: true, value: body.value };
-    case 'too-large':
+    }
+    case 'too-large': {
       return { ok: false, response: tooLarge(maxBytes) };
-    case 'unparseable':
+    }
+    case 'unparseable': {
       return {
         ok: false,
         response: problems.badRequest('The request body is not valid JSON.'),
       };
+    }
   }
 }
 

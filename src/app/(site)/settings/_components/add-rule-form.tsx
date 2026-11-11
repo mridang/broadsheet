@@ -16,9 +16,9 @@ export function ruleRequest(form: FormData): RuleRequest {
   const where = String(form.get('where') ?? 'all');
   const scope = where.startsWith('feed:')
     ? { scope: 'feed', feed_id: where.slice('feed:'.length) }
-    : where.startsWith('section:')
+    : (where.startsWith('section:')
       ? { scope: 'section', section_id: where.slice('section:'.length) }
-      : { scope: 'all' };
+      : { scope: 'all' });
   return {
     kind: String(form.get('kind') ?? 'title'),
     value: String(form.get('value') ?? ''),
@@ -36,7 +36,7 @@ export function AddRuleForm({
   feeds: readonly { id: number; title: string }[];
   sections: readonly { id: number; name: string }[];
 }>): ReactElement {
-  const { busy, error, run } = useApiAction(() => window.location.reload());
+  const { busy, error, run } = useApiAction(() => globalThis.location.reload());
   const submit = (event: FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
     const request = ruleRequest(new FormData(event.currentTarget));
@@ -91,9 +91,9 @@ export function AddRuleForm({
               />{' '}
               {channel === 'web'
                 ? 'Push'
-                : channel === 'email'
+                : (channel === 'email'
                   ? 'Email'
-                  : 'Webhook'}
+                  : 'Webhook')}
             </label>
           ))}
           <button

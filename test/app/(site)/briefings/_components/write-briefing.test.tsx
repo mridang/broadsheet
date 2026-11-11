@@ -36,7 +36,7 @@ describe('briefingPage', () => {
 
 describe('failureOf', () => {
   const problem = (status: number, body: unknown) =>
-    new Response(JSON.stringify(body), {
+    Response.json(body, {
       status,
       headers: { 'Content-Type': 'application/problem+json' },
     });

@@ -52,7 +52,7 @@ function ids(value: unknown, field: string, errors: string[]): number[] {
   const parsed = value.map((v) =>
     typeof v === 'string' ? parseFeedId(v) : undefined,
   );
-  if (parsed.some((id) => id === undefined)) {
+  if (parsed.includes(undefined)) {
     errors.push(`${field}: each article id must be a string id.`);
     return [];
   }
@@ -91,7 +91,7 @@ export function parsePlayerInput(
   }
   const queue = ids(body['queue'], 'queue', errors);
   const history = ids(body['history'], 'history', errors);
-  return errors.length
+  return errors.length > 0
     ? { ok: false, errors }
     : {
         ok: true,

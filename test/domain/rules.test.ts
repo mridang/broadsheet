@@ -27,14 +27,17 @@ const rule = (over: Partial<NotificationRule>): NotificationRule => ({
 });
 
 describe('regexProblem', () => {
-  it.each(['^rust \\d', 'rust|go', '[a-z]+ released'])('accepts %s', (p) => {
-    expect(regexProblem(p)).toBeUndefined();
-  });
+  it.each([String.raw`^rust \d`, 'rust|go', '[a-z]+ released'])(
+    'accepts %s',
+    (p) => {
+      expect(regexProblem(p)).toBeUndefined();
+    },
+  );
 
   it.each([
     ['(a+)+', 'a repeated group may not itself repeat'],
     ['(x*)*y', 'a repeated group may not itself repeat'],
-    ['(a)\\1', 'back-references are not allowed'],
+    [String.raw`(a)\1`, 'back-references are not allowed'],
     ['(', 'not a valid regular expression'],
     ['a'.repeat(201), 'too long'],
   ])('refuses %s', (p, problem) => {
@@ -46,11 +49,11 @@ describe('matchesRule', () => {
   it.each([
     [{ kind: 'title', value: 'RUST' }, true],
     [{ kind: 'title', value: 'python' }, false],
-    [{ kind: 'title', value: '^rust \\d', is_regex: true }, true],
+    [{ kind: 'title', value: String.raw`^rust \d`, is_regex: true }, true],
     [{ kind: 'text', value: 'garbage collection' }, true],
     [{ kind: 'text', value: 'faster' }, true],
     [{ kind: 'url', value: 'blog.example' }, true],
-    [{ kind: 'url', value: 'rust-\\d$', is_regex: true }, true],
+    [{ kind: 'url', value: String.raw`rust-\d$`, is_regex: true }, true],
     [{ kind: 'author', value: 'Ferris' }, true],
     [{ kind: 'author', value: 'ferris' }, false],
     [{ kind: 'author', value: '^fer', is_regex: true }, true],

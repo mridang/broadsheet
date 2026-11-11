@@ -4,7 +4,7 @@ import type { ApiModel } from '@/lib/http';
 
 /**
  * Who the person is, from the OpenID userinfo endpoint. Only `sub` is always
- * there: a grant that carries just `openid` answers with nothing else. @public
+ * there: a grant that carries just `openid` answers with nothing else. @public.
  */
 export const GoogleUserResponseSchema = z.object({
   sub: z.string(),
