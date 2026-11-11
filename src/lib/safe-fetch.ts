@@ -1,12 +1,12 @@
 /**
  * @packageDocumentation
  *
- * Fetching things from other people's websites, safely. Feed discovery fetches
- * the pages people paste links to, and the image proxy fetches the photos those
- * articles point at. The address always comes from outside, so both go through
- * this one module, which makes three promises:
+ * Fetching things from other people's websites, safely. An address that came
+ * from outside — a link someone pasted, an image a page points at, an address a
+ * client registered — always goes through this one module, which makes three
+ * promises:
  *
- * - it only talks to public web addresses ({@link isPublicWebUrl}), and
+ *   - it only talks to public web addresses ({@link isPublicWebUrl}), and
  *     checks again at every redirect, so a public site cannot bounce us to a
  *     port, an IP address or an internal name;
  *   - it never holds more than the caller's byte limit, however the other side
