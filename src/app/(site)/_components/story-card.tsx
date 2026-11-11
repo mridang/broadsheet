@@ -267,8 +267,7 @@ export function StoryMenuItems({
   source: string;
   personal: boolean;
   shared: boolean;
-  // eslint-disable-next-line sonarjs/no-redundant-optional -- callers pass undefined explicitly under exactOptionalPropertyTypes
-  feedId?: number | undefined;
+  feedId?: number;
 }>) {
   const ex = excerpt;
   return (
