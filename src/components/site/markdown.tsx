@@ -16,11 +16,21 @@ function safeHref(href: string): boolean {
   return /^https?:\/\//i.test(href) || /^\/(?!\/)/.test(href);
 }
 
+/** The inline marks, one alternative each, in the order they are tried. */
+export const INLINE_MARKS = [
+  /\[#(\d+)\]/, // citation
+  // eslint-disable-next-line sonarjs/super-linear-regex -- tried: a `[` with no `]` after it rescans the rest of the line, and no regex form or string method gives the same links without that scan; a line is short text and the run is cut at the first `]`
+  /\[([^\]]+)\]\(([^)\s]+)\)/, // link
+  /\*{2}([^*]+)\*{2}/, // bold
+  /\*([^*\s][^*]*)\*/, // emphasis
+  /`([^`]+)`/, // code
+]
+  .map((mark) => mark.source)
+  .join('|');
+
 /** The inline marks of one line of text, as elements. */
 export function inline(text: string, keyPrefix = ''): ReactNode[] {
-  const pattern =
-    // eslint-disable-next-line sonarjs/super-linear-regex, sonarjs/regex-complexity -- the alternatives are mutually exclusive and each match is one line of text
-    /\[#(\d+)\]|\[([^\]]+)\]\(([^)\s]+)\)|\*\*([^*]+)\*\*|\*([^*\s][^*]*)\*|`([^`]+)`/g;
+  const pattern = new RegExp(INLINE_MARKS, 'g');
   const out: ReactNode[] = [];
   let last = 0;
   let n = 0;

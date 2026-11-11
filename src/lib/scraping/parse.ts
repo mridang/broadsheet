@@ -177,6 +177,19 @@ function xmlText(raw: string): string {
 /** Most header elements kept, so a hostile feed cannot grow without bound. */
 const MAX_HEADER_ELEMENTS = 500;
 
+/** One attribute of a tag, as `name="value"` or `name='value'`. */
+const FEED_ATTRIBUTE = String.raw`\s+[\w:.-]+\s*=\s*(?:"[^"]*"|'[^']*')`;
+
+/**
+ * One token of feed markup: a CDATA section, an opening, closing or
+ * self-closing tag, or a run of text.
+ */
+export const FEED_TOKEN = [
+  String.raw`<!\[CDATA\[([\s\S]*?)\]\]>`,
+  String.raw`<(\/?)([\w:.-]+)((?:${FEED_ATTRIBUTE})*)\s*(\/?)>`,
+  '([^<]+)',
+].join('|');
+
 /**
  * Every element of a feed's header, exactly as the feed gives it: the children
  * of the RSS or RDF `<channel>`, or of the Atom `<feed>`, except its items and
@@ -198,9 +211,7 @@ export function feedHeader(xml: string): FeedElement[] {
   const root: Open = { name: '', attributes: {}, text: '', children: [] };
   const stack: Open[] = [root];
   let count = 0;
-  const token =
-    // eslint-disable-next-line sonarjs/regex-complexity -- one token pattern reads all feed markup; splitting it would change how malformed tags are read
-    /<!\[CDATA\[([\s\S]*?)\]\]>|<(\/?)([\w:.-]+)((?:\s+[\w:.-]+\s*=\s*(?:"[^"]*"|'[^']*'))*)\s*(\/?)>|([^<]+)/g;
+  const token = new RegExp(FEED_TOKEN, 'g');
   for (const m of source.matchAll(token)) {
     const top = stack.at(-1)!;
     const name = m[3] ?? '';
@@ -351,6 +362,37 @@ const MAX_TAG = 60;
 const MAX_TAGS = 20;
 
 /**
+ * The name in brackets of an RSS author such as `mail@x (Name)`, else the
+ * text itself. Reads what `^\S+@\S+\s*\((.+)\)$` captures, without a regex:
+ * the opening bracket is the last one that follows an `@` in the first word
+ * (or starts the word after it), and the text must end in `)`.
+ */
+export function bracketedName(raw: string): string {
+  const word = raw.search(/\s/);
+  const end = word === -1 ? raw.length : word;
+  const at = raw.indexOf('@', 1);
+  const closed = raw.endsWith(')');
+  if (at === -1 || at + 2 > end || !closed) return raw.trim();
+  let gap = end;
+  while (gap < raw.length && /\s/.test(raw.charAt(gap))) gap += 1;
+  const opens = [
+    gap,
+    ...Array.from({ length: end - at - 2 }, (_, i) => end - 1 - i),
+  ];
+  for (const open of opens) {
+    const name = raw.slice(open + 1, -1);
+    if (
+      raw.charAt(open) === '(' &&
+      open + 2 < raw.length &&
+      !/[\n\r\u2028\u2029]/.test(name)
+    ) {
+      return name.trim();
+    }
+  }
+  return raw.trim();
+}
+
+/**
  * Who wrote an item: Atom's `<author><name>`, then `dc:creator`, then RSS
  * `<author>` (often `mail@x (Name)`, where the name in brackets is kept).
  */
@@ -358,9 +400,7 @@ export function itemAuthor(block: string): string {
   const atom = /<author[^>]*>[\s\S]*?<name[^>]*>([\s\S]*?)<\/name>/i.exec(
     block,
   );
-  const named = (raw: string): string =>
-    // eslint-disable-next-line sonarjs/super-linear-regex -- tried: the overlap between the \S runs and the parenthesis makes the chosen group depend on regex backtracking order, so no string-method rewrite keeps the same capture for every input
-    (/^\S+@\S+\s*\((.+)\)$/.exec(raw)?.[1] ?? raw).trim();
+  const named = bracketedName;
   const many = (name: string): string[] =>
     [
       ...block.matchAll(

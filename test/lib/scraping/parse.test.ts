@@ -14,6 +14,7 @@ import {
   parseFeed,
   siteName,
 } from '@/lib/scraping';
+import { bracketedName, FEED_TOKEN } from '@/lib/scraping/parse';
 
 describe('domainClean', () => {
   it('applies curated overrides', () => {
@@ -475,5 +476,108 @@ describe('feedHeader attribute names', () => {
     const started = Date.now();
     expect(feedHeader(xml)[0]?.attributes[name]).toBe('1');
     expect(Date.now() - started).toBeLessThan(2000);
+  });
+});
+
+/** A small seeded generator, so a failure replays exactly. */
+function seeded(seed: number): () => number {
+  let state = seed;
+  return () => {
+    state = (Math.imul(state, 1_664_525) + 1_013_904_223) >>> 0;
+    return state / 2 ** 32;
+  };
+}
+
+describe('bracketedName', () => {
+  const old = new RegExp(
+    [String.raw`^\S+@\S+`, String.raw`\s*`, String.raw`\((.+)\)$`].join(''),
+  );
+  const before = (raw: string): string => (old.exec(raw)?.[1] ?? raw).trim();
+
+  it.each([
+    ['mail@x.org (Ada Lovelace)', 'Ada Lovelace'],
+    ['mail@x.org(Ada)', 'Ada'],
+    ['mail@x.org (Ada (Countess))', 'Ada (Countess)'],
+    ['a@b(c)(d)', 'd'],
+    ['plain name', 'plain name'],
+    ['  padded  ', 'padded'],
+    ['mail@x.org ()', 'mail@x.org ()'],
+    ['mail@x.org (a\nb)', 'mail@x.org (a\nb)'],
+    ['', ''],
+  ])('reads %j like the old pattern', (raw, expected) => {
+    expect(bracketedName(raw)).toBe(expected);
+    expect(bracketedName(raw)).toBe(before(raw));
+  });
+
+  it('matches the old pattern on seeded random input', () => {
+    const random = seeded(7);
+    const alphabet = ['a', 'b', '@', '(', ')', ' ', ' ', '\n', '\u2028', 'x'];
+    for (let i = 0; i < 20_000; i += 1) {
+      const length = Math.floor(random() * 14);
+      let raw = '';
+      for (let j = 0; j < length; j += 1) {
+        raw += alphabet[Math.floor(random() * alphabet.length)];
+      }
+      expect({ raw, got: bracketedName(raw) }).toEqual({
+        raw,
+        got: before(raw),
+      });
+    }
+  });
+
+  it('stays fast on a long adversarial input', () => {
+    const raw = `a@${'(@'.repeat(50_000)} ${'('.repeat(50_000)}x`;
+    const started = Date.now();
+    expect(bracketedName(raw)).toBe(raw);
+    expect(Date.now() - started).toBeLessThan(1000);
+  });
+});
+
+describe('FEED_TOKEN', () => {
+  const old = [
+    String.raw`<!\[CDATA\[([\s\S]*?)\]\]>`,
+    String.raw`<(\/?)([\w:.-]+)((?:\s+[\w:.-]+\s*=\s*(?:"[^"]*"|'[^']*'))*)\s*(\/?)>`,
+    '([^<]+)',
+  ].join('|');
+  const tokens = (source: string, pattern: string): string[][] =>
+    [...source.matchAll(new RegExp(pattern, 'g'))].map((m) => [...m]);
+
+  it.each([
+    '<rss version="2.0"><channel><title>T</title></channel></rss>',
+    '<a x=\'1\' y="2"/><![CDATA[ <b> ]]>text <c/ >',
+    '<a x=1>broken</a><',
+    '',
+  ])('tokenizes %j like the old pattern', (source) => {
+    expect(tokens(source, FEED_TOKEN)).toEqual(tokens(source, old));
+  });
+
+  it('matches the old pattern on seeded random markup', () => {
+    const random = seeded(11);
+    const parts = [
+      '<',
+      '>',
+      '/',
+      'a',
+      ' ',
+      '=',
+      '"',
+      "'",
+      'b:c',
+      '<![CDATA[',
+      ']]>',
+      'x',
+    ];
+    for (let i = 0; i < 5000; i += 1) {
+      let source = '';
+      for (let j = 0; j < 20; j += 1) {
+        source += parts[Math.floor(random() * parts.length)];
+      }
+      expect(tokens(source, FEED_TOKEN)).toEqual(tokens(source, old));
+    }
+  });
+
+  it('agrees on a long adversarial input', () => {
+    const source = `<a ${'x="1" '.repeat(5000)}`;
+    expect(tokens(source, FEED_TOKEN)).toEqual(tokens(source, old));
   });
 });
