@@ -43,6 +43,11 @@ function desks(cards: readonly HTMLElement[]): Desk[] {
   );
 }
 
+/** Hands focus back to the page's main region, not to nothing. */
+function releaseFocus(): void {
+  document.querySelector<HTMLElement>('#main')?.focus({ preventScroll: true });
+}
+
 /**
  * NewsBlur's reading keys on the paper, listed in full by `?`. They move
  * between stories, sections and editions; open, expand, collapse, save, mark
@@ -142,7 +147,7 @@ export function KeyboardShortcuts(): ReactElement {
           return;
         }
         case 'deselect': {
-          if (current >= 0) (document.activeElement as HTMLElement).blur();
+          if (current >= 0) releaseFocus();
           return;
         }
         case 'open': {

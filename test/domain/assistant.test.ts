@@ -12,7 +12,7 @@ import {
   withoutThinking,
   ANSWER_MODEL,
   ASSISTANT_MODEL,
-  AnswerUnavailable,
+  AnswerUnavailableError,
   HISTORY_TURNS,
   MAX_QUESTION_LENGTH,
   MAX_TOOL_ROUNDS,
@@ -278,7 +278,7 @@ describe('complete', () => {
 
   it('is unavailable with no model bound', async () => {
     await expect(complete(undefined, [])).rejects.toBeInstanceOf(
-      AnswerUnavailable,
+      AnswerUnavailableError,
     );
   });
 
@@ -286,7 +286,7 @@ describe('complete', () => {
     'is unavailable when the model gives %j',
     async (reply) => {
       await expect(complete(model(reply), [])).rejects.toBeInstanceOf(
-        AnswerUnavailable,
+        AnswerUnavailableError,
       );
     },
   );
@@ -377,7 +377,7 @@ describe('converse', () => {
     });
     await expect(
       converse({ run }, [], tools, async () => 'r'),
-    ).rejects.toBeInstanceOf(AnswerUnavailable);
+    ).rejects.toBeInstanceOf(AnswerUnavailableError);
   });
 });
 
@@ -441,7 +441,7 @@ describe('complete with a model', () => {
       response: '<think>x</think>',
     }));
     await expect(complete({ run }, [])).rejects.toBeInstanceOf(
-      AnswerUnavailable,
+      AnswerUnavailableError,
     );
   });
 });
@@ -495,13 +495,13 @@ describe('streamAnswer', () => {
 
   it('is unavailable with no model, or when the model fails', async () => {
     await expect(collect(streamAnswer(undefined, []))).rejects.toBeInstanceOf(
-      AnswerUnavailable,
+      AnswerUnavailableError,
     );
     const run = jest.fn<AnswerModel['run']>(async () => {
       throw new Error('down');
     });
     await expect(collect(streamAnswer({ run }, []))).rejects.toBeInstanceOf(
-      AnswerUnavailable,
+      AnswerUnavailableError,
     );
   });
 });
@@ -519,6 +519,6 @@ describe('transcribe', () => {
     const run = jest.fn<AnswerModel['run']>(async () => ({ text: '' }));
     await expect(
       transcribe({ run }, new Uint8Array([1])),
-    ).rejects.toBeInstanceOf(AnswerUnavailable);
+    ).rejects.toBeInstanceOf(AnswerUnavailableError);
   });
 });

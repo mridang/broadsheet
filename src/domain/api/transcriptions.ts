@@ -9,7 +9,7 @@
  */
 
 import {
-  AnswerUnavailable,
+  AnswerUnavailableError,
   MAX_AUDIO_BYTES,
   transcribe,
 } from '@/domain/assistant';
@@ -80,7 +80,7 @@ export function createTranscriptionsCollection(
         await repo.recordUsage(uid, 'transcription');
         return { text };
       } catch (error) {
-        if (error instanceof AnswerUnavailable) {
+        if (error instanceof AnswerUnavailableError) {
           return assistantUnavailable(error);
         }
         throw error;

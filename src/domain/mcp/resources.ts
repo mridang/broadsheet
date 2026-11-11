@@ -10,7 +10,7 @@ import { classifierResource } from '@/domain/api/classifier-resource';
 import { feedResource } from '@/domain/api/feed-resource';
 import { sectionResource } from '@/domain/api/section-resource';
 import { Repository } from '@/domain/repository';
-import { ToolFailure, type McpResource } from '@/lib/mcp';
+import { ToolFailureError, type McpResource } from '@/lib/mcp';
 import type { ToolContext } from './tools';
 import { compareText } from '@/lib/intl';
 
@@ -75,7 +75,7 @@ export const RESOURCES: readonly McpResource<ToolContext>[] = [
     description: 'Who the person is.',
     read: async (_params, { uid, db }) => {
       const user = await new Repository(db).getUser(uid);
-      if (!user) throw new ToolFailure('There is no such account.');
+      if (!user) throw new ToolFailureError('There is no such account.');
       return { email: user.email, ...(user.name ? { name: user.name } : {}) };
     },
   },
@@ -89,7 +89,7 @@ export const RESOURCES: readonly McpResource<ToolContext>[] = [
     },
     read: async ({ feed_id }, { uid, db }) => {
       const feed = await new Repository(db).getFeed(uid, Number(feed_id));
-      if (!feed) throw new ToolFailure('There is no such feed.');
+      if (!feed) throw new ToolFailureError('There is no such feed.');
       return feedResource(feed);
     },
   },

@@ -138,50 +138,50 @@ export function convertToFeed(input: string): Conversion | undefined {
 export interface NewsTopic {
   readonly id: string;
   readonly name: string;
-  readonly token: string;
+  readonly topicKey: string;
 }
 
-/** Google News' own sections, with the tokens their topic feeds use. */
+/** Google News' own sections, with the keys their topic feeds use. */
 export const GOOGLE_NEWS_TOPICS: readonly NewsTopic[] = [
   {
     id: 'WORLD',
     name: 'World',
-    token: 'CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx1YlY4U0FtVnVHZ0pWVXlnQVAB',
+    topicKey: 'CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx1YlY4U0FtVnVHZ0pWVXlnQVAB',
   },
   {
     id: 'NATION',
     name: 'Nation',
-    token: 'CAAqIggKIhxDQkFTRHdvSkwyMHZNRFY2TVdZeUVnSmxiaWdBUAE',
+    topicKey: 'CAAqIggKIhxDQkFTRHdvSkwyMHZNRFY2TVdZeUVnSmxiaWdBUAE',
   },
   {
     id: 'BUSINESS',
     name: 'Business',
-    token: 'CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx6TVdZU0FtVnVHZ0pWVXlnQVAB',
+    topicKey: 'CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx6TVdZU0FtVnVHZ0pWVXlnQVAB',
   },
   {
     id: 'TECHNOLOGY',
     name: 'Technology',
-    token: 'CAAqJggKIiBDQkFTRWdvSUwyMHZNRGRqTVhZU0FtVnVHZ0pWVXlnQVAB',
+    topicKey: 'CAAqJggKIiBDQkFTRWdvSUwyMHZNRGRqTVhZU0FtVnVHZ0pWVXlnQVAB',
   },
   {
     id: 'ENTERTAINMENT',
     name: 'Entertainment',
-    token: 'CAAqJggKIiBDQkFTRWdvSUwyMHZNREpxYW5RU0FtVnVHZ0pWVXlnQVAB',
+    topicKey: 'CAAqJggKIiBDQkFTRWdvSUwyMHZNREpxYW5RU0FtVnVHZ0pWVXlnQVAB',
   },
   {
     id: 'SPORTS',
     name: 'Sports',
-    token: 'CAAqJggKIiBDQkFTRWdvSUwyMHZNRFp1ZEdvU0FtVnVHZ0pWVXlnQVAB',
+    topicKey: 'CAAqJggKIiBDQkFTRWdvSUwyMHZNRFp1ZEdvU0FtVnVHZ0pWVXlnQVAB',
   },
   {
     id: 'SCIENCE',
     name: 'Science',
-    token: 'CAAqJggKIiBDQkFTRWdvSUwyMHZNRFp0Y1RjU0FtVnVHZ0pWVXlnQVAB',
+    topicKey: 'CAAqJggKIiBDQkFTRWdvSUwyMHZNRFp0Y1RjU0FtVnVHZ0pWVXlnQVAB',
   },
   {
     id: 'HEALTH',
     name: 'Health',
-    token: 'CAAqIQgKIhtDQkFTRGdvSUwyMHZNR3QwTlRFU0FtVnVLQUFQAQ',
+    topicKey: 'CAAqIQgKIhtDQkFTRGdvSUwyMHZNR3QwTlRFU0FtVnVLQUFQAQ',
   },
 ];
 
@@ -215,7 +215,7 @@ export function googleNewsFeed(
   );
   if (topic) {
     return {
-      feed_url: `https://news.google.com/rss/topics/${topic.token}?${where}`,
+      feed_url: `https://news.google.com/rss/topics/${topic.topicKey}?${where}`,
       platform: 'google-news',
       title: `Google News - ${topic.name}`,
     };

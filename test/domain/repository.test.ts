@@ -45,6 +45,18 @@ const getFeedByUrl = (d: Database, userId: number, url: string) =>
 const removeFeed = (d: Database, userId: number, id: number) =>
   new Repository(d).removeFeed(userId, id);
 
+/** A minimal scraped story numbered `n`. */
+const storyNumbered = (n: number) => ({
+  url: `https://x/${n}`,
+  title: 'T',
+  source: '',
+  favicon: '',
+  summary: '',
+  image: '',
+  published_at: '',
+  points: 0,
+});
+
 let db: Database;
 
 beforeEach(() => {
@@ -980,22 +992,14 @@ describe('reads', () => {
 });
 
 describe('feedStatistics', () => {
-  const story = (n: number) => ({
-    url: `https://x/${n}`,
-    title: 'T',
-    source: '',
-    favicon: '',
-    summary: '',
-    image: '',
-    published_at: '',
-    points: 0,
-  });
-
   it('reports fetch health and stories per day, newest first', async () => {
     const repo = new Repository(db);
     const feed = (await addFeed(db, 1, 'https://a.test/f'))!;
-    await repo.writeEdition(feed.source_id, '2026-10-19', [story(1)]);
-    await repo.writeEdition(feed.source_id, '2026-10-20', [story(2), story(3)]);
+    await repo.writeEdition(feed.source_id, '2026-10-19', [storyNumbered(1)]);
+    await repo.writeEdition(feed.source_id, '2026-10-20', [
+      storyNumbered(2),
+      storyNumbered(3),
+    ]);
     await repo.recordFetch(feed.source_id, 'boom');
     expect(await repo.feedStatistics(1, feed.id)).toMatchObject({
       last_fetched_at: null,
@@ -1025,7 +1029,7 @@ describe('feedStatistics', () => {
       { muted: true },
     );
     const at = (n: number, publishedAt: string) => ({
-      ...story(n),
+      ...storyNumbered(n),
       published_at: publishedAt,
     });
     await repo.writeEdition(feed.source_id, '2026-09-14', [
@@ -1139,23 +1143,15 @@ describe('updateFeed with a new address', () => {
 });
 
 describe('storyCounts', () => {
-  const story = (n: number) => ({
-    url: `https://x/${n}`,
-    title: 'T',
-    source: '',
-    favicon: '',
-    summary: '',
-    image: '',
-    published_at: '',
-    points: 0,
-  });
-
   it('counts each feed’s stories once, for its owner only', async () => {
     const repo = new Repository(db);
     const feed = (await addFeed(db, 1, 'https://a.test/f'))!;
     await addFeed(db, 1, 'https://b.test/f');
-    await repo.writeEdition(feed.source_id, '2026-10-19', [story(1)]);
-    await repo.writeEdition(feed.source_id, '2026-10-20', [story(1), story(2)]);
+    await repo.writeEdition(feed.source_id, '2026-10-19', [storyNumbered(1)]);
+    await repo.writeEdition(feed.source_id, '2026-10-20', [
+      storyNumbered(1),
+      storyNumbered(2),
+    ]);
     expect(await repo.storyCounts(1)).toEqual(new Map([[feed.id, 2]]));
     expect(await repo.storyCounts(2)).toEqual(new Map());
   });

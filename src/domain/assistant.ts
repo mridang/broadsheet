@@ -453,9 +453,14 @@ export function citedIds(
 }
 
 /** Thrown when the model could not be asked or gave no answer. */
-export class AnswerUnavailable extends Error {}
+export class AnswerUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'AnswerUnavailableError';
+  }
+}
 
-/** Ask the model once; its raw reply, or {@link AnswerUnavailable}. */
+/** Ask the model once; its raw reply, or {@link AnswerUnavailableError}. */
 async function ask(
   model: AnswerModel | undefined,
   name: ModelId | typeof TRANSCRIPTION_MODEL,
@@ -465,7 +470,7 @@ async function ask(
   tool_calls?: unknown;
   text?: unknown;
 } | null> {
-  if (!model) throw new AnswerUnavailable('No model is bound.');
+  if (!model) throw new AnswerUnavailableError('No model is bound.');
   try {
     return (await model.run(name, input)) as {
       response?: unknown;
@@ -473,17 +478,17 @@ async function ask(
       text?: unknown;
     } | null;
   } catch (error) {
-    throw new AnswerUnavailable(
+    throw new AnswerUnavailableError(
       error instanceof Error ? error.message : String(error),
     );
   }
 }
 
-/** The text of a reply, or {@link AnswerUnavailable} when there is none. */
+/** The text of a reply, or {@link AnswerUnavailableError} when there is none. */
 function replyText(out: { response?: unknown } | null): string {
   const response = out?.response;
   if (typeof response !== 'string' || !response.trim()) {
-    throw new AnswerUnavailable('The model gave no answer.');
+    throw new AnswerUnavailableError('The model gave no answer.');
   }
   return response.trim();
 }
@@ -493,32 +498,32 @@ export function withoutThinking(text: string): string {
   return text.replaceAll(/<think>[\s\S]*?(<\/think>|$)/g, '').trim();
 }
 
-/** Ask the model (`fast` unless named); the text of its reply, or {@link AnswerUnavailable}. */
+/** Ask the model (`fast` unless named); the text of its reply, or {@link AnswerUnavailableError}. */
 export async function complete(
   model: AnswerModel | undefined,
   messages: ChatMessage[],
   name: ModelId = ANSWER_MODEL,
 ): Promise<string> {
   const text = withoutThinking(replyText(await ask(model, name, { messages })));
-  if (!text) throw new AnswerUnavailable('The model gave no answer.');
+  if (!text) throw new AnswerUnavailableError('The model gave no answer.');
   return text;
 }
 
 /**
  * Ask the model for a streamed reply: the pieces of its text as they come.
- * Throws {@link AnswerUnavailable} when the model cannot be asked.
+ * Throws {@link AnswerUnavailableError} when the model cannot be asked.
  */
 export async function* streamAnswer(
   model: AnswerModel | undefined,
   messages: ChatMessage[],
   name: ModelId = ANSWER_MODEL,
 ): AsyncGenerator<string> {
-  if (!model) throw new AnswerUnavailable('No model is bound.');
+  if (!model) throw new AnswerUnavailableError('No model is bound.');
   let out: unknown;
   try {
     out = await model.run(name, { messages, stream: true });
   } catch (error) {
-    throw new AnswerUnavailable(
+    throw new AnswerUnavailableError(
       error instanceof Error ? error.message : String(error),
     );
   }
@@ -571,7 +576,7 @@ function pieceOfLine(line: string): string | undefined {
 /** Largest recording accepted for a spoken question, in bytes. */
 export const MAX_AUDIO_BYTES = 10 * 1024 * 1024;
 
-/** Turn a spoken question into text with Whisper, or {@link AnswerUnavailable}. */
+/** Turn a spoken question into text with Whisper, or {@link AnswerUnavailableError}. */
 export async function transcribe(
   model: AnswerModel | undefined,
   audio: Uint8Array,
@@ -582,7 +587,7 @@ export async function transcribe(
   }
   const out = await ask(model, TRANSCRIPTION_MODEL, { audio: btoa(binary) });
   const text = typeof out?.text === 'string' ? out.text.trim() : '';
-  if (!text) throw new AnswerUnavailable('Nothing could be heard.');
+  if (!text) throw new AnswerUnavailableError('Nothing could be heard.');
   return text;
 }
 
@@ -643,7 +648,7 @@ export async function converse(
       thread.push({ role: 'tool', name: call.name, content });
     }
   }
-  throw new AnswerUnavailable('The assistant did not answer.');
+  throw new AnswerUnavailableError('The assistant did not answer.');
 }
 
 /** The UTC day `now` falls in, as stored timestamps write it, and the seconds until the next. */

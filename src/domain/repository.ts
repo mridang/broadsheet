@@ -30,7 +30,7 @@ import {
 
 import { type Database } from '@/domain/db/database';
 import {
-  ai_usage,
+  aiUsage,
   answers,
   articles,
   classifiers,
@@ -38,9 +38,9 @@ import {
   briefings,
   issues,
   preferences,
-  prompt_scores,
+  promptScores,
   conversations,
-  edition_issues,
+  editionIssues,
   editions,
   fetchHistory,
   messages,
@@ -48,13 +48,13 @@ import {
   saves,
   shares,
   savedSearches,
-  feed_recommendations,
+  feedRecommendations,
   sections,
   sources,
-  subscription_sections,
+  subscriptionSections,
   subscriptions,
   users,
-  feed_notifications,
+  feedNotifications,
 } from '@/domain/db/schema';
 import { alias } from 'drizzle-orm/sqlite-core';
 import {
@@ -516,7 +516,7 @@ export interface IssueListing {
 /** A person's stored paper for one day; `layout` is JSON. */
 export type StoredIssue = typeof issues.$inferSelect;
 /** A custom edition's stored paper for one day; `layout` is JSON. */
-export type StoredEditionIssue = typeof edition_issues.$inferSelect;
+export type StoredEditionIssue = typeof editionIssues.$inferSelect;
 
 /**
  * A named paper a person keeps beside their default one, with the rules that
@@ -710,7 +710,7 @@ export interface RankedSource {
   readonly followed: boolean;
 }
 /** A feed put forward for everyone. */
-export type FeedRecommendation = typeof feed_recommendations.$inferSelect;
+export type FeedRecommendation = typeof feedRecommendations.$inferSelect;
 /** The person's saves at a glance. */
 export interface SavedSummary {
   readonly saves: number;
@@ -882,7 +882,7 @@ export class Repository {
         position: subscriptions.position,
         extra_sections: sql<
           string | null
-        >`(select group_concat(${subscription_sections.section_id}) from ${subscription_sections} where ${subscription_sections.subscription_id} = ${subscriptions.id})`,
+        >`(select group_concat(${subscriptionSections.section_id}) from ${subscriptionSections} where ${subscriptionSections.subscription_id} = ${subscriptions.id})`,
         custom_icon: subscriptions.custom_icon,
         auto_mark_read_days: subscriptions.auto_mark_read_days,
         created_at: subscriptions.created_at,
@@ -1003,11 +1003,11 @@ export class Repository {
           (s, i) => i > 0 && s !== changes.section_id,
         );
       await this.#db
-        .delete(subscription_sections)
-        .where(eq(subscription_sections.subscription_id, id));
+        .delete(subscriptionSections)
+        .where(eq(subscriptionSections.subscription_id, id));
       for (const sectionId of new Set(extra)) {
         await this.#db
-          .insert(subscription_sections)
+          .insert(subscriptionSections)
           .values({ subscription_id: id, section_id: sectionId })
           .onConflictDoNothing();
       }
@@ -1031,8 +1031,8 @@ export class Repository {
       .returning({ id: subscriptions.id });
     if (removed.length > 0) {
       await this.#db
-        .delete(subscription_sections)
-        .where(eq(subscription_sections.subscription_id, id));
+        .delete(subscriptionSections)
+        .where(eq(subscriptionSections.subscription_id, id));
     }
     return removed.length > 0;
   }
@@ -1288,10 +1288,10 @@ export class Repository {
       .where(eq(sources.id, sourceId));
     const notifying = await this.#db
       .select({ one: sql`1` })
-      .from(feed_notifications)
+      .from(feedNotifications)
       .innerJoin(
         subscriptions,
-        eq(subscriptions.id, feed_notifications.subscription_id),
+        eq(subscriptions.id, feedNotifications.subscription_id),
       )
       .where(eq(subscriptions.source_id, sourceId))
       .limit(1);
@@ -2584,8 +2584,8 @@ export class Repository {
       .returning({ id: editions.id });
     if (removed.length === 0) return false;
     await this.#db
-      .delete(edition_issues)
-      .where(eq(edition_issues.edition_id, id));
+      .delete(editionIssues)
+      .where(eq(editionIssues.edition_id, id));
     return true;
   }
 
@@ -2598,7 +2598,7 @@ export class Repository {
     briefingStories: string | null = null,
   ): Promise<void> {
     await this.#db
-      .insert(edition_issues)
+      .insert(editionIssues)
       .values({
         edition_id: editionId,
         date,
@@ -2607,7 +2607,7 @@ export class Repository {
         briefing_stories: briefingStories,
       })
       .onConflictDoUpdate({
-        target: [edition_issues.edition_id, edition_issues.date],
+        target: [editionIssues.edition_id, editionIssues.date],
         set: {
           layout,
           briefing,
@@ -2622,10 +2622,10 @@ export class Repository {
     editionId: number,
     date: string,
   ): Promise<StoredEditionIssue | undefined> {
-    return this.#db.query.edition_issues.findFirst({
+    return this.#db.query.editionIssues.findFirst({
       where: and(
-        eq(edition_issues.edition_id, editionId),
-        eq(edition_issues.date, date),
+        eq(editionIssues.edition_id, editionId),
+        eq(editionIssues.date, date),
       ),
     });
   }
@@ -3688,7 +3688,7 @@ export class Repository {
     cached = false,
   ): Promise<void> {
     const usage = this.#db
-      .insert(ai_usage)
+      .insert(aiUsage)
       .values({ user_id: userId, kind, cached: cached ? 1 : 0 });
     await usage;
   }
@@ -3701,13 +3701,13 @@ export class Repository {
   ): Promise<number> {
     const [row] = await this.#db
       .select({ n: sql<number>`count(*)` })
-      .from(ai_usage)
+      .from(aiUsage)
       .where(
         and(
-          eq(ai_usage.user_id, userId),
-          eq(ai_usage.kind, kind),
-          eq(ai_usage.cached, 0),
-          sql`${ai_usage.created_at} >= ${since}`,
+          eq(aiUsage.user_id, userId),
+          eq(aiUsage.kind, kind),
+          eq(aiUsage.cached, 0),
+          sql`${aiUsage.created_at} >= ${since}`,
         ),
       );
     return Number(row?.n ?? 0);
@@ -3988,9 +3988,9 @@ export class Repository {
               notInArray(
                 articles.id,
                 this.#db
-                  .select({ id: prompt_scores.article_id })
-                  .from(prompt_scores)
-                  .where(eq(prompt_scores.classifier_id, classifier.id)),
+                  .select({ id: promptScores.article_id })
+                  .from(promptScores)
+                  .where(eq(promptScores.classifier_id, classifier.id)),
               ),
             ),
           )
@@ -4008,7 +4008,7 @@ export class Repository {
   ): Promise<void> {
     const inserts = [...answers].map(([articleId, matched]) =>
       this.#db
-        .insert(prompt_scores)
+        .insert(promptScores)
         .values({
           classifier_id: classifierId,
           article_id: articleId,
@@ -4025,12 +4025,12 @@ export class Repository {
   async promptMatches(userId: number): Promise<Map<number, Set<number>>> {
     const rows = await this.#db
       .select({
-        article_id: prompt_scores.article_id,
-        classifier_id: prompt_scores.classifier_id,
+        article_id: promptScores.article_id,
+        classifier_id: promptScores.classifier_id,
       })
-      .from(prompt_scores)
+      .from(promptScores)
       .where(
-        and(eq(prompt_scores.user_id, userId), eq(prompt_scores.matched, 1)),
+        and(eq(promptScores.user_id, userId), eq(promptScores.matched, 1)),
       );
     const out = new Map<number, Set<number>>();
     for (const r of rows) {
@@ -4182,7 +4182,7 @@ export class Repository {
     input: { url: string; title?: string; description: string },
   ): Promise<FeedRecommendation> {
     const [row] = await this.#db
-      .insert(feed_recommendations)
+      .insert(feedRecommendations)
       .values({
         user_id: userId,
         url: input.url,
@@ -4199,13 +4199,13 @@ export class Repository {
   ): Promise<FeedRecommendation[]> {
     return this.#db
       .select()
-      .from(feed_recommendations)
-      .where(eq(feed_recommendations.status, status))
+      .from(feedRecommendations)
+      .where(eq(feedRecommendations.status, status))
       .orderBy(
         desc(
-          sql`coalesce(${feed_recommendations.decided_at}, ${feed_recommendations.created_at})`,
+          sql`coalesce(${feedRecommendations.decided_at}, ${feedRecommendations.created_at})`,
         ),
-        desc(feed_recommendations.id),
+        desc(feedRecommendations.id),
       );
   }
 
@@ -4215,9 +4215,9 @@ export class Repository {
     status: 'approved' | 'declined',
   ): Promise<FeedRecommendation | undefined> {
     const [row] = await this.#db
-      .update(feed_recommendations)
+      .update(feedRecommendations)
       .set({ status, decided_at: sql`datetime('now')` })
-      .where(eq(feed_recommendations.id, id))
+      .where(eq(feedRecommendations.id, id))
       .returning();
     return row;
   }

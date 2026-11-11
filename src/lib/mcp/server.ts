@@ -53,10 +53,10 @@ export function tool<Ctx, Input extends z.ZodObject>(
  * A tool's outcome the assistant can read and act on: a refusal it can fix
  * (bad arguments, no such item) rather than a protocol failure.
  */
-export class ToolFailure extends Error {
+export class ToolFailureError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'ToolFailure';
+    this.name = 'ToolFailureError';
   }
 }
 
@@ -172,7 +172,7 @@ export class McpServer<Ctx> {
         ],
       };
     } catch (error) {
-      if (error instanceof ToolFailure) {
+      if (error instanceof ToolFailureError) {
         throw new RpcError(RESOURCE_NOT_FOUND, error.message, { uri });
       }
       throw error;
@@ -247,7 +247,7 @@ export class McpServer<Ctx> {
     try {
       return toolResult(await found.run(parsed.data, ctx));
     } catch (error) {
-      if (error instanceof ToolFailure) {
+      if (error instanceof ToolFailureError) {
         return toolError(error.message);
       }
       throw error;

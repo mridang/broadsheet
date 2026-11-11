@@ -29,5 +29,5 @@ export {
   type McpTool,
   type ServerInfo,
   tool,
-  ToolFailure,
+  ToolFailureError,
 } from './server';

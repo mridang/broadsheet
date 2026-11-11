@@ -1,3 +1,4 @@
+/* eslint-disable-line unicorn/filename-case -- the framework requires this dynamic route segment name */
 /**
  * The signed-in person's share of one story.
  *

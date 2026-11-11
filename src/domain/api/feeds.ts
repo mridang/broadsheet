@@ -707,7 +707,7 @@ export function createFeedImportItem(
     method: 'GET',
     handle: async (_input, { request, uid }) => {
       const id = new URL(request.url).pathname.split('/').at(-1) ?? '';
-      return new FeedImportRuns(getDatabase()).find(uid, id);
+      return new FeedImportRuns(getDatabase()).get(uid, id);
     },
     encode: (run) =>
       run

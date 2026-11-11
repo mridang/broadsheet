@@ -274,7 +274,7 @@ export interface AnsweredTurn {
  * search further with {@link ASSISTANT_TOOLS}, note the question against the
  * person's budget, and keep the question and the answer (citing only stories
  * it was shown) as turns, titling the conversation by its first question.
- * Throws {@link AnswerUnavailable} when the model fails, keeping nothing.
+ * Throws {@link AnswerUnavailableError} when the model fails, keeping nothing.
  */
 export async function answerTurn(
   repo: Repository,

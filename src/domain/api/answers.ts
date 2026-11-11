@@ -8,7 +8,7 @@
  */
 
 import {
-  AnswerUnavailable,
+  AnswerUnavailableError,
   articlePrompt,
   cacheKey,
   complete,
@@ -143,7 +143,8 @@ function streamed(
           send('chunk', { text: piece });
         }
         const answer = withoutThinking(text);
-        if (!answer) throw new AnswerUnavailable('The model gave no answer.');
+        if (!answer)
+          throw new AnswerUnavailableError('The model gave no answer.');
         send('complete', await finish(answer));
       } catch (error) {
         logWarn({
@@ -252,7 +253,7 @@ export function createAnswersCollection(
           await complete(answerModel(), prompt, modelFor(call)),
         );
       } catch (error) {
-        if (error instanceof AnswerUnavailable) {
+        if (error instanceof AnswerUnavailableError) {
           return assistantUnavailable(error);
         }
         throw error;

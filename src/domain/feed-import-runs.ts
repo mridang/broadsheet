@@ -10,7 +10,7 @@ import { and, eq, isNotNull, lt, sql } from 'drizzle-orm';
 
 import type { OpmlFeed } from '@/domain/api/opml';
 import type { Database } from '@/domain/db/database';
-import { feed_imports } from '@/domain/db/schema';
+import { feedImports } from '@/domain/db/schema';
 import { importFeeds } from '@/domain/feed-import';
 import { Repository } from '@/domain/repository';
 
@@ -59,7 +59,7 @@ export class FeedImportRuns {
   /** Record a new import of `total` entries for `uid`, returning its id. */
   async start(uid: number, total: number): Promise<ImportRun> {
     const id = crypto.randomUUID();
-    const insert = this.#db.insert(feed_imports).values({
+    const insert = this.#db.insert(feedImports).values({
       id,
       user_id: uid,
       total,
@@ -78,11 +78,11 @@ export class FeedImportRuns {
   }
 
   /** One of `uid`'s imports, or none. */
-  async find(uid: number, id: string): Promise<ImportRun | undefined> {
+  async get(uid: number, id: string): Promise<ImportRun | undefined> {
     const [row] = await this.#db
       .select()
-      .from(feed_imports)
-      .where(and(eq(feed_imports.id, id), eq(feed_imports.user_id, uid)))
+      .from(feedImports)
+      .where(and(eq(feedImports.id, id), eq(feedImports.user_id, uid)))
       .limit(1);
     return row
       ? {
@@ -109,46 +109,46 @@ export class FeedImportRuns {
   ): Promise<{ readonly id: number; readonly url: string }[]> {
     const summary = await importFeeds(new Repository(this.#db), uid, entries);
     const [row] = await this.#db
-      .select({ rejected: feed_imports.rejected })
-      .from(feed_imports)
-      .where(eq(feed_imports.id, id))
+      .select({ rejected: feedImports.rejected })
+      .from(feedImports)
+      .where(eq(feedImports.id, id))
       .limit(1);
     await this.#db
-      .update(feed_imports)
+      .update(feedImports)
       .set({
-        processed: sql`${feed_imports.processed} + ${entries.length}`,
-        added: sql`${feed_imports.added} + ${summary.added}`,
-        skipped: sql`${feed_imports.skipped} + ${summary.skipped}`,
-        sections_added: sql`${feed_imports.sections_added} + ${summary.sections_added}`,
+        processed: sql`${feedImports.processed} + ${entries.length}`,
+        added: sql`${feedImports.added} + ${summary.added}`,
+        skipped: sql`${feedImports.skipped} + ${summary.skipped}`,
+        sections_added: sql`${feedImports.sections_added} + ${summary.sections_added}`,
         rejected: JSON.stringify([
           ...rejectedOf(row?.rejected ?? '[]'),
           ...summary.rejected,
         ]),
       })
-      .where(eq(feed_imports.id, id));
+      .where(eq(feedImports.id, id));
     return summary.feeds.map((feed) => ({ id: feed.source_id, url: feed.url }));
   }
 
   /** Mark an import done, or failed. */
   async finish(id: string, status: Exclude<ImportStatus, 'running'>) {
     await this.#db
-      .update(feed_imports)
+      .update(feedImports)
       .set({ status, finished_at: sql`(datetime('now'))` })
-      .where(eq(feed_imports.id, id));
+      .where(eq(feedImports.id, id));
   }
 
   /** Delete the imports that finished before `before`, returning how many. */
   async purgeFinished(before: Date): Promise<number> {
     const stamp = before.toISOString().slice(0, 19).replace('T', ' ');
     const gone = await this.#db
-      .delete(feed_imports)
+      .delete(feedImports)
       .where(
         and(
-          isNotNull(feed_imports.finished_at),
-          lt(feed_imports.finished_at, stamp),
+          isNotNull(feedImports.finished_at),
+          lt(feedImports.finished_at, stamp),
         ),
       )
-      .returning({ id: feed_imports.id });
+      .returning({ id: feedImports.id });
     return gone.length;
   }
 }

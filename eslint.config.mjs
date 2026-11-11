@@ -79,4 +79,14 @@ export default [
       '@next/next/no-img-element': 'off',
     },
   },
+  {
+    // Large modules kept whole: src/domain/repository.ts (issue 20) and src/domain/mcp/tools.ts (issue 21) await a split; the two tests mirror a large source or hold large spec data.
+    files: [
+      'src/domain/repository.ts',
+      'src/domain/mcp/tools.ts',
+      'test/domain/repository.test.ts',
+      'test/openapi.test.ts',
+    ],
+    rules: { 'sonarjs/max-lines': 'off' },
+  },
 ];

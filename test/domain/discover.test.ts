@@ -78,7 +78,7 @@ describe('googleNewsFeed', () => {
     expect(
       googleNewsFeed({ topic: 'science', language: 'de', region: 'de' }),
     ).toEqual({
-      feed_url: `https://news.google.com/rss/topics/${GOOGLE_NEWS_TOPICS.find((t) => t.id === 'SCIENCE')!.token}?hl=de&gl=DE&ceid=DE:de`,
+      feed_url: `https://news.google.com/rss/topics/${GOOGLE_NEWS_TOPICS.find((t) => t.id === 'SCIENCE')!.topicKey}?hl=de&gl=DE&ceid=DE:de`,
       platform: 'google-news',
       title: 'Google News - Science',
     });

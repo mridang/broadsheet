@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 import {
   McpServer,
-  ToolFailure,
+  ToolFailureError,
   tool,
   type McpPrompt,
   type McpResource,
@@ -25,7 +25,7 @@ const resources: McpResource<{ readonly who: string }>[] = [
       return id ? { id } : undefined;
     },
     read: async ({ id }) => {
-      if (id === '0') throw new ToolFailure('No such item.');
+      if (id === '0') throw new ToolFailureError('No such item.');
       return { id };
     },
   },
@@ -60,7 +60,7 @@ const server = new McpServer<{ readonly who: string }>(
       input: z.object({}),
       readOnly: false,
       run: async () => {
-        throw new ToolFailure('No.');
+        throw new ToolFailureError('No.');
       },
     }),
     tool({

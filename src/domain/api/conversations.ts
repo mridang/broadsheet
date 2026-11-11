@@ -10,7 +10,7 @@
  * signed-in person; a conversation is only ever its owner's.
  */
 
-import { AnswerUnavailable, starterQuestions } from '@/domain/assistant';
+import { AnswerUnavailableError, starterQuestions } from '@/domain/assistant';
 import { answerTurn } from '@/domain/assistant-tools';
 import {
   answerModel,
@@ -196,7 +196,7 @@ export function createMessagesCollection(
           message: messageResource(reply, titles),
         };
       } catch (error) {
-        if (error instanceof AnswerUnavailable) {
+        if (error instanceof AnswerUnavailableError) {
           return assistantUnavailable(error);
         }
         throw error;

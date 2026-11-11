@@ -1,3 +1,4 @@
+/* eslint-disable-line unicorn/filename-case -- the framework requires this dynamic route segment name */
 import { afterEach, beforeEach, describe, expect, it } from '@jest/globals';
 
 import { databaseFrom, type Database } from '@/domain/db/database';

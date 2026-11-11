@@ -559,7 +559,9 @@ describe('openapi.json', () => {
     }
     expect(wrong).toEqual([]);
   });
+});
 
+describe('openapi.json members and security', () => {
   it('names JSON members in snake_case and times as RFC 3339', () => {
     const wrong: string[] = [];
     const walk = (node: unknown, at: string): void => {
@@ -1339,7 +1341,9 @@ describe('the controllers agree with openapi.json', () => {
       [],
     );
   });
+});
 
+describe('every operation agrees with openapi.json', () => {
   it.each([...operations.keys()])('%s', async (key) => {
     const op = operations.get(key)!;
     const w = await world();

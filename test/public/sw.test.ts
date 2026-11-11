@@ -86,6 +86,7 @@ function loadWorker(options: {
       return new Response('from the network');
     },
   });
+  // eslint-disable-next-line sonarjs/code-eval -- the test runs the repo's own public/sw.js in a sandboxed vm context
   vm.runInContext(
     // eslint-disable-next-line n/no-sync -- sync is fine in a test helper
     readFileSync(path.join(process.cwd(), 'public/sw.js'), 'utf8'),
