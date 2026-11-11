@@ -6,6 +6,7 @@ import {
   installCloudflareContext,
   sqliteD1,
 } from '../../../lib/core/db/sqlite-d1';
+import insecure from '../../../fixtures/insecure-urls.json';
 
 let restore: () => void;
 
@@ -41,8 +42,7 @@ describe('POST /oauth/register', () => {
 
   it('refuses an unsafe redirect URI', async () => {
     const response = await register(
-      // eslint-disable-next-line unicorn/prefer-https -- test fixture
-      JSON.stringify({ redirect_uris: ['http://evil.test/cb'] }),
+      JSON.stringify({ redirect_uris: [insecure.httpEvilCallback] }),
     );
     expect(await response.json()).toMatchObject({
       error: 'invalid_redirect_uri',

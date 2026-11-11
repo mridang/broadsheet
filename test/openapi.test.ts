@@ -7,7 +7,7 @@ import {
   it,
   jest,
 } from '@jest/globals';
-import { readdirSync, readFileSync } from 'node:fs';
+import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { SESSION_COOKIE } from '@/domain/auth/app';
@@ -56,8 +56,7 @@ interface Operation {
 }
 
 const spec = JSON.parse(
-  // eslint-disable-next-line n/no-sync -- sync is fine in a script or bootstrap
-  readFileSync(new URL('../openapi.json', import.meta.url), 'utf8'),
+  await readFile(new URL('../openapi.json', import.meta.url), 'utf8'),
 ) as Json & {
   openapi: string;
   info: Json;
@@ -103,14 +102,18 @@ for (const [path, item] of Object.entries(spec.paths)) {
 
 const API = path.join(process.cwd(), 'src/app/api');
 
-const routeFiles = (dir: string): string[] =>
-  // eslint-disable-next-line n/no-sync -- sync is fine in a test helper
-  readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-    if (entry.isDirectory()) {
-      return routeFiles(path.join(dir, entry.name));
-    }
-    return entry.name === 'route.ts' ? [path.join(dir, entry.name)] : [];
-  });
+const routeFiles = async (dir: string): Promise<string[]> => {
+  const entries = await readdir(dir, { withFileTypes: true });
+  const nested = await Promise.all(
+    entries.map(async (entry) => {
+      if (entry.isDirectory()) {
+        return routeFiles(path.join(dir, entry.name));
+      }
+      return entry.name === 'route.ts' ? [path.join(dir, entry.name)] : [];
+    }),
+  );
+  return nested.flat();
+};
 
 /** Every `METHOD /path` a route under src/app/api exports, with its handler. */
 const handlers = new Map<string, Handler>();
@@ -233,7 +236,8 @@ const ROUTES: Record<string, () => Promise<Record<string, unknown>>> = {
 };
 
 beforeAll(async () => {
-  const listed = routeFiles(API).map((file) =>
+  const files = await routeFiles(API);
+  const listed = files.map((file) =>
     path.relative(API, file).replace(/\.ts$/, ''),
   );
   expect(

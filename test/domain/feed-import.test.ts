@@ -5,6 +5,7 @@ import { comparable, importFeeds } from '@/domain/feed-import';
 import { Repository } from '@/domain/repository';
 import { APP_MIGRATIONS } from '../lib/core/db/migrations';
 import { sqliteD1 } from '../lib/core/db/sqlite-d1';
+import insecure from '../fixtures/insecure-urls.json';
 
 let repo: Repository;
 
@@ -71,8 +72,7 @@ describe('importFeeds nesting, matching and names', () => {
   it('treats the same feed under another scheme, www or slash as already followed', async () => {
     await repo.addFeed(1, 'https://www.a.test/feed/');
     const summary = await importFeeds(repo, 1, [
-      // eslint-disable-next-line unicorn/prefer-https -- test fixture
-      { url: 'http://a.test/feed' },
+      { url: insecure.httpFeedOtherScheme },
       { url: 'https://a.test/feed#top' },
     ]);
     expect(summary).toMatchObject({ added: 0, skipped: 2 });
@@ -86,8 +86,7 @@ describe('importFeeds nesting, matching and names', () => {
       [],
     );
     const summary = await importFeeds(repo, 1, [
-      // eslint-disable-next-line unicorn/prefer-https -- test fixture
-      { url: 'https://a.test/other.xml', site_url: 'http://www.a.test' },
+      { url: 'https://a.test/other.xml', site_url: insecure.httpSiteUrl },
     ]);
     expect(summary).toMatchObject({ added: 0, skipped: 1 });
   });

@@ -20,6 +20,7 @@ import {
   SESSION_SECRET,
   tokenFor,
 } from '../../../../domain/auth/auth-test-kit';
+import insecure from '../../../../fixtures/insecure-urls.json';
 
 const addFeed = (d: Database, u: number, url: string, t?: string) =>
   new Repository(d).addFeed(u, url, t);
@@ -333,8 +334,7 @@ describe('PATCH /api/feeds/:id with a new address', () => {
   });
 
   it('answers 400 for an address that is not http(s)', async () => {
-    // eslint-disable-next-line sonarjs/no-clear-text-protocols -- test fixture
-    const res = await patch(mine, JSON.stringify({ url: 'ftp://x/f' }));
+    const res = await patch(mine, JSON.stringify({ url: insecure.ftpFeed }));
     expect(res.status).toBe(400);
   });
 

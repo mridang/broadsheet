@@ -1,0 +1,14 @@
+{
+  "loopbackV6": "::1",
+  "loopbackV4": "127.0.0.1",
+  "loopbackMapped": "::ffff:127.0.0.1",
+  "loopbackV6Subject": "0:0:0:0::/64",
+  "documentationUpper": "2001:DB8::",
+  "documentationSubject": "2001:db8:0:0::/64",
+  "linkLocalZone": "fe80::1%eth0",
+  "linkLocalSubject": "fe80:0:0:0::/64",
+  "mappedDocumentation": "::ffff:192.0.2.1",
+  "forwarded": "1.1.1.1",
+  "anonymousCaller": "2001:db8:1:2::9",
+  "anonymousKey": "a:2001:db8:1:2::/64"
+}

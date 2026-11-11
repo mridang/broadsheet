@@ -7,6 +7,7 @@ import { Repository } from '@/domain/repository';
 import type { ScrapedItem } from '@/lib/scraping';
 import { APP_MIGRATIONS } from '../../lib/core/db/migrations';
 import { sqliteD1 } from '../../lib/core/db/sqlite-d1';
+import insecure from '../../fixtures/insecure-urls.json';
 
 let db: Database;
 let ctx: ToolContext;
@@ -107,8 +108,7 @@ describe('follow_feed', () => {
   });
 
   it('refuses an address that is not http', async () => {
-    // eslint-disable-next-line sonarjs/no-clear-text-protocols -- test fixture
-    await expect(run('follow_feed', { url: 'ftp://x' })).rejects.toThrow(
+    await expect(run('follow_feed', { url: insecure.ftpBare })).rejects.toThrow(
       'url: must be an http or https address.',
     );
   });

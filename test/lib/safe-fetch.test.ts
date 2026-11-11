@@ -7,12 +7,12 @@ import {
   type SafeFetcher,
   type SafeRequestInit,
 } from '@/lib/safe-fetch';
+import insecure from '../fixtures/insecure-urls.json';
 
 describe('isPublicWebUrl', () => {
   it.each([
     'https://thewoksoflife.com/wp-content/uploads/a.jpg',
-    // eslint-disable-next-line sonarjs/no-clear-text-protocols, unicorn/prefer-https -- test fixture
-    'http://www.site.co.uk/a.png',
+    insecure.httpPlainImage,
     'https://cdn.example-food.com:443/a.webp',
     'https://a.com:80/x',
     'https://a.com/x?y=1#z',
@@ -22,23 +22,18 @@ describe('isPublicWebUrl', () => {
 
   it.each([
     'file:///etc/passwd',
-    // eslint-disable-next-line sonarjs/no-clear-text-protocols -- test fixture
-    'ftp://a.com/x.jpg',
+    insecure.ftpImage,
     'javascript:alert(1)',
     'data:text/html,<p>x</p>',
     'https://localhost/x.jpg',
     'https://localhost./x.jpg',
     'http://127.0.0.1/x.jpg',
-    // eslint-disable-next-line sonarjs/no-clear-text-protocols -- test fixture
-    'http://10.0.0.5/x.jpg',
-    // eslint-disable-next-line sonarjs/no-clear-text-protocols -- test fixture
-    'http://192.168.1.1/x.jpg',
-    // eslint-disable-next-line sonarjs/no-clear-text-protocols -- test fixture
-    'http://172.20.0.1/x.jpg',
+    insecure.httpPrivate10,
+    insecure.httpPrivate192,
+    insecure.httpPrivate172,
     'http://169.254.169.254/latest/meta-data',
     'http://[::1]/x.jpg',
-    // eslint-disable-next-line sonarjs/no-clear-text-protocols -- test fixture
-    'http://[fe80::1]/x.jpg',
+    insecure.httpLinkLocalV6,
     'http://2130706433/x.jpg',
     'http://0x7f.1/x.jpg',
     'http://017700000001/x.jpg',
@@ -302,8 +297,10 @@ describe('fetchCapped redirects', () => {
   });
 
   it('refuses a redirect that points nowhere', async () => {
-    // eslint-disable-next-line sonarjs/no-clear-text-protocols -- test fixture
-    const { fetcher } = serving(redirect(null), redirect('http://['));
+    const { fetcher } = serving(
+      redirect(null),
+      redirect(insecure.httpBrokenRedirect),
+    );
     expect(
       await fetchCapped('https://a.com/0', { ...OPTIONS, fetcher }),
     ).toEqual({ ok: false, reason: 'redirects' });

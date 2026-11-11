@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { describe, expect, it, jest } from '@jest/globals';
@@ -16,6 +16,7 @@ import {
   type RateLimitBinding,
 } from '@/lib/core/http';
 import { DISCOVERY_PATHS, EDGE_LIMITS, STATIC_PREFIXES } from '@/lib/core/http';
+import ips from '../../../fixtures/ips.json';
 
 /** A static file under the app's own first static prefix. */
 const staticFile = `${STATIC_PREFIXES[0] ?? '/'}static/x.js`;
@@ -114,11 +115,10 @@ describe('counterKey', () => {
     expect(
       await counterKey(
         'token',
-        new Headers({ 'cf-connecting-ip': '2001:db8:1:2::9' }),
+        new Headers({ 'cf-connecting-ip': ips.anonymousCaller }),
         undefined,
       ),
-      // eslint-disable-next-line sonarjs/no-hardcoded-ip -- test fixture
-    ).toBe('a:2001:db8:1:2::/64');
+    ).toBe(ips.anonymousKey);
   });
 });
 
@@ -239,12 +239,14 @@ describe('tooManyRequests', () => {
   });
 });
 
+const wranglerText = await readFile(
+  path.join(process.cwd(), 'wrangler.jsonc'),
+  'utf8',
+);
+
 describe('wrangler.jsonc', () => {
-  const parsed = ts.parseConfigFileTextToJson(
-    'wrangler.jsonc',
-    // eslint-disable-next-line n/no-sync -- sync is fine in a script or bootstrap
-    readFileSync(path.join(process.cwd(), 'wrangler.jsonc'), 'utf8'),
-  ).config as {
+  const parsed = ts.parseConfigFileTextToJson('wrangler.jsonc', wranglerText)
+    .config as {
     ratelimits: {
       name: string;
       namespace_id: string;

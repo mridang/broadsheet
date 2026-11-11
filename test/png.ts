@@ -1,11 +1,13 @@
 import { expect } from '@jest/globals';
-import { readFileSync } from 'node:fs';
-import { inflateSync } from 'node:zlib';
+import { readFile } from 'node:fs/promises';
+
+import { inflateAsync } from './utils/zlib';
 
 /** The width and height a PNG file declares in its IHDR header chunk. */
-export function pngSize(file: string): { width: number; height: number } {
-  // eslint-disable-next-line n/no-sync -- sync is fine in a test helper
-  const bytes = readFileSync(file);
+export async function pngSize(
+  file: string,
+): Promise<{ width: number; height: number }> {
+  const bytes = await readFile(file);
   // 8-byte signature, then the IHDR chunk: 4 length, 4 type, 4 width, 4 height.
   expect(bytes.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a');
   return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
@@ -67,9 +69,8 @@ function predictor(
  * Reads 8-bit RGB and RGBA files that are not interlaced, which is what the
  * app's icons are, and fails on anything else rather than guess.
  */
-export function pngIsOpaque(file: string): boolean {
-  // eslint-disable-next-line n/no-sync -- sync is fine in a test helper
-  const bytes = readFileSync(file);
+export async function pngIsOpaque(file: string): Promise<boolean> {
+  const bytes = await readFile(file);
   const depth = bytes[24];
   const colorType = bytes[25];
   const interlace = bytes[28];
@@ -79,9 +80,8 @@ export function pngIsOpaque(file: string): boolean {
   if (colorType === 2) {
     return true;
   }
-  const { width, height } = pngSize(file);
-  // eslint-disable-next-line n/no-sync -- sync is fine in a test helper
-  const raw = inflateSync(imageData(bytes));
+  const { width, height } = await pngSize(file);
+  const raw = await inflateAsync(imageData(bytes));
   const stride = width * 4;
   let above = Buffer.alloc(stride);
   for (let y = 0; y < height; y++) {

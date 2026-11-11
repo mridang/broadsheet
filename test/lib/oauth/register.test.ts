@@ -2,6 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 
 import { registerClient } from '@/lib/oauth/register';
 import { MemoryStore } from './memory-store';
+import insecure from '../../fixtures/insecure-urls.json';
 
 describe('registerClient', () => {
   it('registers a public client and stores it', async () => {
@@ -51,8 +52,7 @@ describe('registerClient', () => {
 
   it('refuses a redirect URI that is not safe', async () => {
     const result = await registerClient(
-      // eslint-disable-next-line unicorn/prefer-https -- test fixture
-      { redirect_uris: ['http://evil.test/cb'] },
+      { redirect_uris: [insecure.httpEvilCallback] },
       new MemoryStore(),
       100,
     );

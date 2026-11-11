@@ -9,6 +9,7 @@ import {
   pushSubscriptionResource,
   webhookResource,
 } from '@/domain/api/outbound-resource';
+import insecure from '../../fixtures/insecure-urls.json';
 
 const P256DH = 'B'.repeat(87);
 const AUTH = 'A'.repeat(22);
@@ -34,8 +35,7 @@ describe('parsePushSubscriptionInput', () => {
   it.each([
     [
       {
-        // eslint-disable-next-line unicorn/prefer-https -- test fixture
-        endpoint: 'http://push.example.com/x',
+        endpoint: insecure.httpPushEndpoint,
         keys: { p256dh: P256DH, auth: AUTH },
       },
       'endpoint: must be a public https address.',
@@ -104,8 +104,7 @@ describe('parseWebhookInput', () => {
 
   it.each([
     [
-      // eslint-disable-next-line unicorn/prefer-https -- test fixture
-      { url: 'http://hooks.example.com/a', events: ['save'] },
+      { url: insecure.httpWebhook, events: ['save'] },
       'url: must be a public https address.',
     ],
     [

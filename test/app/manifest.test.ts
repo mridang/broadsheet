@@ -59,9 +59,9 @@ describe('web app manifest', () => {
     }
   });
 
-  it('declares each icon at the size the file really has', () => {
+  it('declares each icon at the size the file really has', async () => {
     for (const icon of m.icons ?? []) {
-      const { width, height } = pngSize(
+      const { width, height } = await pngSize(
         path.join(process.cwd(), 'public', icon.src),
       );
       expect(icon.sizes).toBe(`${width}x${height}`);
@@ -96,10 +96,10 @@ describe('web app manifest', () => {
 
   // Chrome only shows the rich install dialog when a screenshot of each form
   // factor exists; whatever is declared must be a real, correctly sized file.
-  it('declares screenshots Chrome will accept, if any', () => {
+  it('declares screenshots Chrome will accept, if any', async () => {
     const shots = m.screenshots ?? [];
     for (const shot of shots) {
-      const { width, height } = pngSize(
+      const { width, height } = await pngSize(
         path.join(process.cwd(), 'public', shot.src),
       );
       expect(shot.sizes).toBe(`${width}x${height}`);
@@ -136,11 +136,11 @@ describe('web app manifest', () => {
     }
   });
 
-  it('gives every shortcut an icon that exists, at the size the file really has', () => {
+  it('gives every shortcut an icon that exists, at the size the file really has', async () => {
     for (const shortcut of m.shortcuts ?? []) {
       expect(shortcut.icons).toHaveLength(1);
       for (const icon of shortcut.icons ?? []) {
-        const { width, height } = pngSize(
+        const { width, height } = await pngSize(
           path.join(process.cwd(), 'public', icon.src),
         );
         expect(icon.sizes).toBe(`${width}x${height}`);

@@ -10,6 +10,7 @@ import {
   EDGE_CACHED_PAGES,
   EDGE_TTL_SECONDS,
 } from '@/lib/core/http';
+import ips from '../../../fixtures/ips.json';
 
 /** The pages these tests let the edge keep a copy of. */
 const pages: ReadonlySet<string> = new Set(['/', '/privacy']);
@@ -140,8 +141,7 @@ describe('isEdgeCacheable - the query string', () => {
   });
 
   it('never keeps a page for a caller on a loopback address, whatever address it was reached on', () => {
-    // eslint-disable-next-line sonarjs/no-hardcoded-ip -- test fixture
-    for (const ip of ['::1', '127.0.0.1', '::ffff:127.0.0.1']) {
+    for (const ip of [ips.loopbackV6, ips.loopbackV4, ips.loopbackMapped]) {
       expect(
         isEdgeCacheable(
           get('/?alpha=1', { 'cf-connecting-ip': ip }),
