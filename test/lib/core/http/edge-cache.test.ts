@@ -11,6 +11,7 @@ import {
   EDGE_TTL_SECONDS,
 } from '@/lib/core/http';
 import ips from '../../../fixtures/ips.json';
+import { SITE_NAME } from '@/utils/site';
 
 /** The pages these tests let the edge keep a copy of. */
 const pages: ReadonlySet<string> = new Set(['/', '/privacy']);
@@ -180,9 +181,11 @@ describe('edgeCacheKey', () => {
     expect(a).not.toBe(b);
   });
 
-  it('keeps the host lowercase', () => {
-    expect(new URL(edgeCacheKey(get('/'), 'v1').url).hostname).toBe(
-      'edge.broadsheet.invalid',
+  it('lives on a lower-case internal host, whatever the name looks like on screen', () => {
+    expect(edgeCacheKey(get('/'), 'v1').url).toMatch(
+      new RegExp(
+        String.raw`^https://edge\.${SITE_NAME.toLowerCase()}\.invalid/`,
+      ),
     );
   });
 

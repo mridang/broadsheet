@@ -24,7 +24,7 @@ function ShareGlyph(): ReactElement {
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
-      className="size-4.5 shrink-0 text-ink"
+      className="size-[18px] shrink-0 text-ink"
     >
       <path d="M12 15V4M8 8l4-4 4 4M5 13v6a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-6" />
     </svg>
