@@ -5,7 +5,7 @@ export default {
       'ts-jest',
       {
         useESM: true,
-        tsconfig: 'tsconfig.jest.json',
+        tsconfig: '<rootDir>/tsconfig.jest.json',
       },
     ],
   },
@@ -25,7 +25,7 @@ export default {
     '/node_modules/',
     '/frontend/',
     '/dist/',
-    '/packages/',
+    '<rootDir>/packages/',
   ],
   resetModules: false,
   globalSetup: './test/setup.ts',
