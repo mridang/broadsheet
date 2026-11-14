@@ -25,7 +25,7 @@ import {
   writeScheduledBriefing,
   type Written,
 } from '@/domain/briefings';
-import { getDatabase } from '@/domain/db/database';
+import { getDatabase } from '@/domain/db/client';
 import {
   Repository,
   type Article,

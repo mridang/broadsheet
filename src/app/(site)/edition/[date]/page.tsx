@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 
 import { ensurePublicUser } from '@/domain/account';
 import { getCurrentUser } from '@/lib/core/auth';
-import { getDatabase } from '@/domain/db/database';
+import { getDatabase } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
 import {
   issueArticles,

@@ -20,7 +20,7 @@ import {
   type EmailInput,
 } from '@/domain/api/outbound-resource';
 import { escapeXml } from '@/domain/atom';
-import { getDatabase } from '@/domain/db/database';
+import { getDatabase } from '@/domain/db/client';
 import { NotificationRepository } from '@/domain/notifications';
 import { Repository, type Article, type User } from '@/domain/repository';
 import { BRAND_NAME } from '@/app/_brand';

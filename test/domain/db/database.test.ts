@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from '@jest/globals';
 
-import { databaseFrom, getDatabase } from '@/domain/db/database';
+import { databaseFrom, getDatabase } from '@/domain/db/client';
 import {
   installCloudflareContext,
   sqliteD1,

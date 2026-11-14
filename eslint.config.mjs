@@ -80,10 +80,11 @@ export default [
     },
   },
   {
-    // Large modules kept whole: src/domain/repository.ts (issue 20) and src/domain/mcp/tools.ts (issue 21) await a split; the two tests mirror a large source or hold large spec data.
+    // Large modules kept whole: src/domain/repository.ts (issue 20) awaits a split; the tests mirror a large source or hold large spec data.
     files: [
       'src/domain/repository.ts',
-      'src/domain/mcp/tools.ts',
+      'test/domain/db/oauth.test.ts',
+      'test/domain/mcp/tools.test.ts',
       'test/domain/repository.test.ts',
       'test/openapi.test.ts',
     ],

@@ -28,7 +28,7 @@ import {
   type SQL,
 } from 'drizzle-orm';
 
-import { type Database } from '@/domain/db/database';
+import { type Database } from '@/domain/db/client';
 import {
   aiUsage,
   answers,

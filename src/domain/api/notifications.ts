@@ -18,7 +18,7 @@ import {
   parseNotificationInput,
   parseNotificationRuleInput,
 } from '@/domain/api/notification-resource';
-import { getDatabase } from '@/domain/db/database';
+import { getDatabase } from '@/domain/db/client';
 import {
   NotificationRepository,
   type NotificationRule,

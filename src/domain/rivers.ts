@@ -10,7 +10,7 @@
 
 import { and, asc, eq } from 'drizzle-orm';
 
-import { type Database } from '@/domain/db/database';
+import { type Database } from '@/domain/db/client';
 import { rivers } from '@/domain/db/schema';
 import { editionIssueFor } from '@/domain/issues';
 import { storyIds } from '@/domain/render/layout';

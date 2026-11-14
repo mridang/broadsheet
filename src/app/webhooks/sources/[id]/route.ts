@@ -9,7 +9,7 @@
  * The behaviour lives in `domain/websub` and `domain/scraping`.
  */
 
-import { getDatabase } from '@/domain/db/database';
+import { getDatabase } from '@/domain/db/client';
 import { acceptPush } from '@/domain/scraping/index';
 import { verifyIntent } from '@/domain/websub';
 import { getEnv } from '@/lib/core/runtime';

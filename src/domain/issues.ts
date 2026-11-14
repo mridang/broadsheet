@@ -6,7 +6,7 @@
  * stores one per reader, and the paper reads the stored issue back, laying a
  * day out live only when none was stored.
  */
-import type { Database } from '@/domain/db/database';
+import type { Database } from '@/domain/db/client';
 import {
   Repository,
   type Article,

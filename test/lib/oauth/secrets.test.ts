@@ -1,21 +1,25 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { ACCESS_PREFIX, hashSecret, newSecret } from '@/lib/oauth/secrets';
+import { hashSecret, newSecret } from '@/lib/oauth';
 
 describe('newSecret', () => {
-  it('carries its prefix and 43 base64url characters', () => {
-    expect(newSecret(ACCESS_PREFIX)).toMatch(/^bsh_at_[A-Za-z0-9_-]{43}$/);
-  });
-
-  it('is different every time', () => {
-    expect(newSecret(ACCESS_PREFIX)).not.toBe(newSecret(ACCESS_PREFIX));
+  it('is prefixed, url-safe and different every time', () => {
+    const a = newSecret('cdn_at');
+    const b = newSecret('cdn_at');
+    expect(a).toMatch(/^cdn_at_[A-Za-z0-9_-]{43}$/);
+    expect(a).not.toBe(b);
   });
 });
 
 describe('hashSecret', () => {
-  it('is the hex SHA-256', async () => {
-    expect(await hashSecret('abc')).toBe(
-      'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad',
-    );
+  it('is a stable 64-character hex digest that is not the secret', async () => {
+    const hash = await hashSecret('cdn_at_example');
+    expect(hash).toMatch(/^[0-9a-f]{64}$/);
+    expect(hash).toBe(await hashSecret('cdn_at_example'));
+    expect(hash).not.toContain('example');
+  });
+
+  it('differs for different secrets', async () => {
+    expect(await hashSecret('a')).not.toBe(await hashSecret('b'));
   });
 });

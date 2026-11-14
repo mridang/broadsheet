@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import { ensurePublicUser } from '@/domain/account';
 import { getCurrentUser } from '@/lib/core/auth';
 import { jsonLdText, landingJsonLd } from '@/lib/core/seo';
-import { getDatabase } from '@/domain/db/database';
+import { getDatabase } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
 import { todayEdition } from '@/domain/scraping/index';
 import { sqliteSince, WINDOWS } from '@/domain/api/article-resource';

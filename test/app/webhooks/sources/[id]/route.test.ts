@@ -9,7 +9,7 @@ import {
   jest,
 } from '@jest/globals';
 
-import { databaseFrom } from '@/domain/db/database';
+import { databaseFrom } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
 import { subscribeToHub } from '@/domain/websub';
 import { APP_MIGRATIONS } from '../../../../lib/core/db/migrations';

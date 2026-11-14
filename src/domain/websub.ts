@@ -10,7 +10,7 @@
 
 import { eq } from 'drizzle-orm';
 
-import { type Database } from '@/domain/db/database';
+import { type Database } from '@/domain/db/client';
 import { sources } from '@/domain/db/schema';
 import type { Source } from '@/domain/repository';
 import { LEASE_SECONDS, type WebSubLinks } from '@/lib/scraping';

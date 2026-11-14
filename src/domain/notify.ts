@@ -13,7 +13,7 @@
  */
 
 import { BRAND_NAME, BRAND_SHORT_NAME, BRAND_URL } from '@/app/_brand';
-import { getDatabase, type Database } from '@/domain/db/database';
+import { getDatabase, type Database } from '@/domain/db/client';
 import { storyEmail, type EmailEnvironment } from '@/domain/api/emails';
 import {
   NotificationRepository,

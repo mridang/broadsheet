@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 
 import { getCurrentUser } from '@/lib/core/auth';
-import { getDatabase } from '@/domain/db/database';
+import { getDatabase } from '@/domain/db/client';
 import { NotificationRepository } from '@/domain/notifications';
 import { OutboundRepository } from '@/domain/outbound';
 import { hostOf } from '@/domain/render/tiers';

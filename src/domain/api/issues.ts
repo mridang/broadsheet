@@ -31,7 +31,7 @@ import {
   readJsonObject,
 } from '@/lib/core/api';
 import { Repository, type IssueListing } from '@/domain/repository';
-import { getDatabase } from '@/domain/db/database';
+import { getDatabase } from '@/domain/db/client';
 import {
   isIssueDate,
   publishIssue,

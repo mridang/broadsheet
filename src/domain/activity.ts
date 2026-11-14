@@ -7,7 +7,7 @@
  * each Worker isolate, so reading the paper does not cost a write a request.
  */
 
-import { getDatabase, type Database } from '@/domain/db/database';
+import { getDatabase, type Database } from '@/domain/db/client';
 import { NotificationRepository } from '@/domain/notifications';
 import { runInBackground } from '@/lib/core/runtime';
 

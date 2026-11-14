@@ -4,7 +4,7 @@ import { sql } from 'drizzle-orm';
 import type { DatabaseSync } from 'node:sqlite';
 
 import { ShareRepository } from '@/domain/shares';
-import { databaseFrom, type Database } from '@/domain/db/database';
+import { databaseFrom, type Database } from '@/domain/db/client';
 import {
   anyWordQuery,
   FETCH_HISTORY_LIMIT,

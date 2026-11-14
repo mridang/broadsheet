@@ -19,7 +19,7 @@ import { parentIdOf } from '@/domain/api/answers';
 import { parseFeedId } from '@/domain/api/feed-resource';
 import { ApiController, page, problems } from '@/lib/core/api';
 import { pageRequest, type PageRequest } from '@/domain/api/paging';
-import { getDatabase } from '@/domain/db/database';
+import { getDatabase } from '@/domain/db/client';
 import {
   Repository,
   type SimilarSource,

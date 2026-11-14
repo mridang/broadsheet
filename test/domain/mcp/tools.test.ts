@@ -1,8 +1,16 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import { DAILY_LIMITS } from '@/domain/assistant';
-import { databaseFrom, type Database } from '@/domain/db/database';
-import { collect, TOOLS, type ToolContext } from '@/domain/mcp/tools';
+import { databaseFrom, type Database } from '@/domain/db/client';
+import { ToolFailureError } from '@/domain/mcp/tool-failure';
+import { collect } from '@/domain/mcp/tools/support';
+import { TOOL_REGISTRY } from '@/domain/mcp/tools';
+import { JsonTool } from '@/domain/mcp/tools/json-tool';
+import { TOOL_INVOKER } from '@/domain/mcp/tool-catalogue';
+import type { ToolContext } from '@/domain/mcp/tool-context';
+import type { ToolServices } from '@/domain/mcp/tool-services';
+import type { User } from '@/domain/db/users';
+import type { AnswerModel } from '@/domain/assistant';
 import { Repository } from '@/domain/repository';
 import type { ScrapedItem } from '@/lib/scraping';
 import { APP_MIGRATIONS } from '../../lib/core/db/migrations';
@@ -11,7 +19,13 @@ import insecure from '../../fixtures/insecure-urls.json';
 
 let db: Database;
 let ctx: ToolContext;
-let refresh: jest.Mock<ToolContext['refresh']>;
+let refresh: jest.Mock<ToolServices['refresh']>;
+
+/** The context of a call by this person, with this model bound when there is one. */
+const asCaller = (uid: number, model?: AnswerModel): ToolContext => ({
+  user: { id: uid } as User,
+  services: { openDatabase: () => db, refresh, ...(model && { model }) },
+});
 
 /** A scraped story. */
 const item = (url: string, title: string): ScrapedItem => ({
@@ -31,14 +45,17 @@ beforeEach(async () => {
   const repo = new Repository(db);
   await repo.upsertUser({ sub: 'g1', email: 'a@b.com' });
   await repo.upsertUser({ sub: 'g2', email: 'c@d.com' });
-  refresh = jest.fn<ToolContext['refresh']>();
-  ctx = { uid: 1, db, refresh };
+  refresh = jest.fn<ToolServices['refresh']>();
+  ctx = asCaller(1);
 });
 
 /** Run a tool by name with arguments parsed as `tools/call` would. */
 async function run(name: string, args: Record<string, unknown> = {}) {
-  const found = TOOLS.find((t) => t.name === name)!;
-  return found.run(found.input.parse(args), ctx);
+  const result = await TOOL_INVOKER.invoke({ name, arguments: args }, ctx);
+  if (result.isError) {
+    throw new ToolFailureError(result.content[0]?.text ?? '');
+  }
+  return result.structuredContent;
 }
 
 /** Follow a feed for person 1 with one edition of stories. */
@@ -55,9 +72,9 @@ async function seed(): Promise<{ feedId: number; articleId: number }> {
 
 describe('the tool catalogue', () => {
   /** The tools that say they may destroy something. */
-  const destructive = TOOLS.filter((t) => t.destructive === true).map(
-    (t) => t.name,
-  );
+  const destructive = TOOL_REGISTRY.all
+    .filter((tool) => tool.annotations.destructiveHint)
+    .map((tool) => tool.name);
 
   it('warns about exactly the tools that remove something for good', () => {
     expect(destructive.toSorted((a, b) => a.localeCompare(b))).toEqual([
@@ -71,8 +88,10 @@ describe('the tool catalogue', () => {
   });
 
   it('never calls a read-only tool destructive', () => {
-    for (const t of TOOLS.filter((t) => t.readOnly)) {
-      expect(t.destructive).not.toBe(true);
+    for (const tool of TOOL_REGISTRY.all.filter(
+      (candidate) => candidate.annotations.readOnlyHint,
+    )) {
+      expect(tool.annotations.destructiveHint).toBe(false);
     }
   });
 });
@@ -222,7 +241,7 @@ describe('search_articles', () => {
 
   it('finds nothing from feeds others follow', async () => {
     await seed();
-    ctx = { ...ctx, uid: 2 };
+    ctx = asCaller(2);
     expect(await run('search_articles', { query: 'Rust' })).toEqual({
       articles: [],
     });
@@ -240,7 +259,7 @@ describe('get_article', () => {
 
   it('refuses an article from a feed the caller does not follow', async () => {
     const { articleId } = await seed();
-    ctx = { ...ctx, uid: 2 };
+    ctx = asCaller(2);
     await expect(run('get_article', { article_id: articleId })).rejects.toThrow(
       'There is no such article.',
     );
@@ -335,9 +354,16 @@ describe('classifiers', () => {
   });
 });
 
+/** Every tool, as the zod-backed class it is, so a test can read its schema. */
+const ZOD_TOOLS = TOOL_REGISTRY.all as readonly JsonTool<string>[];
+
+/** The tool with this name, as the zod-backed class it is. */
+const zodTool = (name: string): JsonTool<string> =>
+  ZOD_TOOLS.find((tool) => tool.name === name)!;
+
 describe('TOOLS', () => {
   it('describes every input in plain words', () => {
-    for (const t of TOOLS) {
+    for (const t of ZOD_TOOLS) {
       for (const field of Object.values(t.input.shape)) {
         expect((field as { description?: string }).description).toBeTruthy();
       }
@@ -583,7 +609,7 @@ describe('get_trending', () => {
   });
 
   it('refuses a list NewsBlur does not have', () => {
-    const found = TOOLS.find((t) => t.name === 'get_trending')!;
+    const found = zodTool('get_trending');
     expect(found.input.safeParse({ order: 'hot' }).success).toBe(false);
     expect(found.input.safeParse({ order: 'long_reads' }).success).toBe(true);
   });
@@ -609,7 +635,7 @@ describe('ask_archive', () => {
 
   it('answers in a new conversation and keeps both turns', async () => {
     await seed();
-    ctx = { ...ctx, model: answering('Rust shipped.') };
+    ctx = asCaller(1, answering('Rust shipped.'));
     const result = (await run('ask_archive', {
       question: 'What shipped?',
     })) as {
@@ -627,7 +653,7 @@ describe('ask_archive', () => {
 
   it("refuses another person's conversation", async () => {
     const theirs = await new Repository(db).addConversation(2);
-    ctx = { ...ctx, model: answering('x') };
+    ctx = asCaller(1, answering('x'));
     await expect(
       run('ask_archive', { question: 'Hi', conversation_id: theirs.id }),
     ).rejects.toThrow('There is no such conversation.');
@@ -636,9 +662,9 @@ describe('ask_archive', () => {
   it('refuses once today’s assistant budget is used up', async () => {
     const repo = new Repository(db);
     for (let i = 0; i < DAILY_LIMITS.assistant; i++) {
-      await repo.recordUsage(ctx.uid, 'assistant');
+      await repo.recordUsage(ctx.user.id, 'assistant');
     }
-    ctx = { ...ctx, model: answering('x') };
+    ctx = asCaller(1, answering('x'));
     await expect(run('ask_archive', { question: 'Hi' })).rejects.toThrow(
       'You have used all your assistant questions for today.',
     );
@@ -704,7 +730,7 @@ describe('search_articles filters', () => {
   });
 
   it('refuses a domain with other characters', async () => {
-    const found = TOOLS.find((t) => t.name === 'search_articles')!;
+    const found = zodTool('search_articles');
     expect(found.input.safeParse({ domain: "x' or 1" }).success).toBe(false);
   });
 
@@ -716,7 +742,7 @@ describe('search_articles filters', () => {
   });
 
   it('refuses a day that is not on the calendar', () => {
-    const found = TOOLS.find((t) => t.name === 'search_articles')!;
+    const found = zodTool('search_articles');
     expect(found.input.safeParse({ date_from: '2026-02-31' }).success).toBe(
       false,
     );
@@ -974,7 +1000,7 @@ describe('sharing', () => {
 
   it('refuses an article the caller cannot see', async () => {
     const { articleId } = await seed();
-    ctx = { ...ctx, uid: 2 };
+    ctx = asCaller(2);
     await expect(run('share_story', { article_id: articleId })).rejects.toThrow(
       'There is no such article.',
     );
@@ -983,7 +1009,7 @@ describe('sharing', () => {
   it('lists everyone’s shares, or chosen people’s', async () => {
     const { articleId } = await seed();
     await run('share_story', { article_id: articleId });
-    ctx = { ...ctx, uid: 2 };
+    ctx = asCaller(2);
     expect(await run('get_shared_stories')).toMatchObject({
       shares: [{ sharer: { id: '1' } }],
     });

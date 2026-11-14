@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 
 import { getCurrentUser } from '@/lib/core/auth';
-import { getDatabase } from '@/domain/db/database';
+import { getDatabase } from '@/domain/db/client';
 import { parseFeedId } from '@/domain/api/feed-resource';
 import { Repository } from '@/domain/repository';
 import { ShareRepository } from '@/domain/shares';

@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it } from '@jest/globals';
 
-import { databaseFrom, type Database } from '@/domain/db/database';
+import { databaseFrom, type Database } from '@/domain/db/client';
 import { RESOURCES } from '@/domain/mcp/resources';
-import type { ToolContext } from '@/domain/mcp/tools';
+import type { ToolContext } from '@/domain/mcp/tool-context';
+import type { User } from '@/domain/db/users';
 import { Repository } from '@/domain/repository';
 import { APP_MIGRATIONS } from '../../lib/core/db/migrations';
 import { sqliteD1 } from '../../lib/core/db/sqlite-d1';
@@ -15,7 +16,10 @@ beforeEach(async () => {
   const repo = new Repository(db);
   await repo.upsertUser({ sub: 'g1', email: 'a@b.com', name: 'A' });
   await repo.upsertUser({ sub: 'g2', email: 'c@d.com' });
-  ctx = { uid: 1, db, refresh: () => undefined };
+  ctx = {
+    user: { id: 1 } as User,
+    services: { openDatabase: () => db, refresh: () => undefined },
+  };
 });
 
 /** Read a resource by its URI the way the engine finds it. */

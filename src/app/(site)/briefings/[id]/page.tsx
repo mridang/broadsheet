@@ -3,7 +3,7 @@ import { TextLink } from '@/components/ui/button';
 import { notFound, redirect } from 'next/navigation';
 
 import { getCurrentUser } from '@/lib/core/auth';
-import { getDatabase } from '@/domain/db/database';
+import { getDatabase } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
 import { parseBriefedStories } from '@/domain/briefing';
 import { briefingResource } from '@/domain/api/briefing-resource';

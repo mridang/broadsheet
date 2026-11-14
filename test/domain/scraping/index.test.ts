@@ -7,7 +7,7 @@ import {
   jest,
 } from '@jest/globals';
 
-import { databaseFrom, type Database } from '@/domain/db/database';
+import { databaseFrom, type Database } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
 import { createHmac } from 'node:crypto';
 

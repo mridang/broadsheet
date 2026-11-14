@@ -8,7 +8,7 @@
  */
 
 import { Repository, type Profile, type User } from '@/domain/repository';
-import { getDatabase } from '@/domain/db/database';
+import { getDatabase } from '@/domain/db/client';
 
 /** What Google tells us about a person who has just signed in. */
 export type GoogleProfile = Profile;

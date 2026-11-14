@@ -1,10 +1,10 @@
 import { describe, expect, it } from '@jest/globals';
 
 import { PROMPTS } from '@/domain/mcp/prompts';
-import { TOOLS } from '@/domain/mcp/tools';
+import { TOOL_REGISTRY } from '@/domain/mcp/tools';
 
 const prompt = (name: string) => PROMPTS.find((p) => p.name === name)!;
-const toolNames = new Set(TOOLS.map((t) => t.name));
+const toolNames: ReadonlySet<string> = new Set<string>(TOOL_REGISTRY.names);
 
 describe('PROMPTS', () => {
   it.each(PROMPTS.map((p) => [p.name, p] as const))(

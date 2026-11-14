@@ -11,7 +11,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { SESSION_COOKIE } from '@/domain/auth/app';
-import { databaseFrom } from '@/domain/db/database';
+import { databaseFrom } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
 import { APP_MIGRATIONS } from './lib/core/db/migrations';
 import { installCloudflareContext, sqliteD1 } from './lib/core/db/sqlite-d1';

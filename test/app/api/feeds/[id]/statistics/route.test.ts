@@ -9,7 +9,7 @@ import {
 
 import { SESSION_COOKIE } from '@/domain/auth/app';
 import { Repository } from '@/domain/repository';
-import { databaseFrom } from '@/domain/db/database';
+import { databaseFrom } from '@/domain/db/client';
 import { APP_MIGRATIONS } from '../../../../../lib/core/db/migrations';
 import {
   installCloudflareContext,

@@ -5,7 +5,7 @@ import type { ReactElement } from 'react';
 import { FeedMetadata } from '@/components/feeds/feed-metadata';
 import { FeedSummary } from '@/components/feeds/feed-summary';
 import { feedResource, parseFeedId } from '@/domain/api/feed-resource';
-import { getDatabase } from '@/domain/db/database';
+import { getDatabase } from '@/domain/db/client';
 import { ago, hostOf } from '@/domain/render/tiers';
 import { Repository } from '@/domain/repository';
 import { getCurrentUser } from '@/lib/core/auth';

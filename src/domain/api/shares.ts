@@ -31,7 +31,7 @@ import {
 } from '@/lib/core/api';
 import { Repository } from '@/domain/repository';
 import { ShareRepository, type SharedStory } from '@/domain/shares';
-import { getDatabase } from '@/domain/db/database';
+import { getDatabase } from '@/domain/db/client';
 
 /** The signed-in caller's id and the request, for a share endpoint. */
 interface UidContext {

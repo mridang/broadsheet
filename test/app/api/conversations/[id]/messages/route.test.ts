@@ -8,7 +8,7 @@ import {
 } from '@jest/globals';
 
 import { DAILY_LIMITS } from '@/domain/assistant';
-import { databaseFrom, type Database } from '@/domain/db/database';
+import { databaseFrom, type Database } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
 import { SESSION_COOKIE } from '@/domain/auth/app';
 import { APP_MIGRATIONS } from '../../../../../lib/core/db/migrations';

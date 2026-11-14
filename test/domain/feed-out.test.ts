@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from '@jest/globals';
 
-import { databaseFrom, type Database } from '@/domain/db/database';
+import { databaseFrom, type Database } from '@/domain/db/client';
 import { highlightsText, keeps, serveFeed } from '@/domain/feed-out';
 import { OutboundRepository, type FeedTokenInput } from '@/domain/outbound';
 import { Repository } from '@/domain/repository';

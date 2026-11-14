@@ -408,16 +408,46 @@ export const aiUsage = sqliteTable(
  * An assistant that registered itself to connect to `/mcp`. `redirect_uris`
  * is a JSON array; clients are public and prove themselves with PKCE.
  */
-export const oauthClients = sqliteTable('oauth_clients', {
-  client_id: text('client_id').primaryKey(),
-  client_name: text('client_name').notNull(),
-  redirect_uris: text('redirect_uris').notNull(),
-  created_at: text('created_at')
-    .notNull()
-    .default(sql`(datetime('now'))`),
-});
+export const oauthClients = sqliteTable(
+  'oauth_clients',
+  {
+    client_id: text('client_id').primaryKey(),
+    kind: text('kind').notNull(),
+    client_name: text('client_name').notNull(),
+    redirect_uris: text('redirect_uris').notNull(),
+    created_at: text('created_at').notNull(),
+    fetched_at: text('fetched_at'),
+    /** Until when a fetched document may be reused (from its cache headers); null for older rows and registered clients. */
+    expires_at: text('expires_at'),
+    /** How the client proves itself at the token endpoint: `none` (PKCE only) or `private_key_jwt`. */
+    auth_method: text('auth_method').notNull().default('none'),
+    /** Where the client publishes the keys it signs assertions with; set only for `private_key_jwt`. */
+    jwks_uri: text('jwks_uri'),
+    /** The picture the client publishes for itself; set only for a client fetched from its metadata document. */
+    logo_uri: text('logo_uri'),
+  },
+  (table) => [
+    // The background sweep finds unused clients by kind and age (migration 0019).
+    index('idx_oauth_clients_kind_created').on(table.kind, table.created_at),
+    index('idx_oauth_clients_kind_fetched').on(table.kind, table.fetched_at),
+  ],
+);
 
-/** One person's approval of one client; revoking it ends its tokens. */
+/** Client assertions already accepted (by `jti`), kept until they expire so none is used twice. */
+export const oauthAssertions = sqliteTable(
+  'oauth_assertions',
+  {
+    client_id: text('client_id').notNull(),
+    jti: text('jti').notNull(),
+    expires_at: integer('expires_at').notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.client_id, table.jti] }),
+    index('idx_oauth_assertions_expires').on(table.expires_at),
+  ],
+);
+
+/** One user's approval of one client; revoking it revokes all its tokens. */
 export const oauthGrants = sqliteTable(
   'oauth_grants',
   {
@@ -426,15 +456,23 @@ export const oauthGrants = sqliteTable(
     client_id: text('client_id').notNull(),
     scope: text('scope').notNull(),
     resource: text('resource').notNull(),
-    created_at: text('created_at')
-      .notNull()
-      .default(sql`(datetime('now'))`),
+    created_at: text('created_at').notNull(),
+    last_used_at: text('last_used_at'),
     revoked_at: text('revoked_at'),
   },
-  (table) => [index('idx_oauth_grants_user').on(table.user_id)],
+  (table) => [
+    index('idx_oauth_grants_user_client').on(table.user_id, table.client_id),
+    index('idx_oauth_grants_client').on(table.client_id),
+    // The idle and revoked sweeps (migration 0019); the expression matches the
+    // one in the sweep's query so the planner can use it.
+    index('idx_oauth_grants_revoked_used').on(
+      table.revoked_at,
+      sql`coalesce(${table.last_used_at}, ${table.created_at})`,
+    ),
+  ],
 );
 
-/** A single-use authorization code, stored as its hash. */
+/** Single-use authorization codes (hashed). `grant_id` is set once redeemed. */
 export const oauthCodes = sqliteTable(
   'oauth_codes',
   {
@@ -442,15 +480,20 @@ export const oauthCodes = sqliteTable(
     client_id: text('client_id').notNull(),
     user_id: integer('user_id').notNull(),
     redirect_uri: text('redirect_uri').notNull(),
+    /** Whether the authorization request carried `redirect_uri` (the token request must then repeat it). */
+    redirect_uri_sent: integer('redirect_uri_sent', { mode: 'boolean' })
+      .notNull()
+      .default(true),
     code_challenge: text('code_challenge').notNull(),
     scope: text('scope').notNull(),
     resource: text('resource').notNull(),
     expires_at: integer('expires_at').notNull(),
+    grant_id: text('grant_id'),
   },
   (table) => [index('idx_oauth_codes_expires').on(table.expires_at)],
 );
 
-/** An access or refresh token, stored as its hash; `kind` says which. */
+/** Access and refresh tokens, stored only as SHA-256 hashes. */
 export const oauthTokens = sqliteTable(
   'oauth_tokens',
   {
@@ -458,6 +501,7 @@ export const oauthTokens = sqliteTable(
     kind: text('kind').notNull(),
     grant_id: text('grant_id').notNull(),
     expires_at: integer('expires_at').notNull(),
+    used_at: integer('used_at'),
   },
   (table) => [
     index('idx_oauth_tokens_grant').on(table.grant_id),

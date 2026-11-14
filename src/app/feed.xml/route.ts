@@ -6,7 +6,7 @@
  * A protocol endpoint outside `/api`; the behaviour lives in `serveFeed`.
  */
 
-import { getDatabase } from '@/domain/db/database';
+import { getDatabase } from '@/domain/db/client';
 import { serveFeed } from '@/domain/feed-out';
 import { appOrigin } from '@/lib/core/origin';
 

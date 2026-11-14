@@ -5,29 +5,44 @@ import {
   OPTIONS,
 } from '@/app/.well-known/oauth-protected-resource/[[...path]]/route';
 
-const get = (path?: string[]) =>
-  GET(new Request('https://app.test/x'), {
-    params: Promise.resolve(path ? { path } : {}),
-  });
-
-describe('/.well-known/oauth-protected-resource', () => {
-  it.each([[undefined], [['mcp']]])(
-    'describes the MCP endpoint at %j',
-    async (path) => {
-      const response = await get(path);
-      expect(await response.json()).toMatchObject({
-        resource: 'https://app.test/mcp',
-        authorization_servers: ['https://app.test'],
-      });
-    },
+const get = (path?: readonly string[]) =>
+  GET(
+    new Request(
+      `https://app.test/.well-known/oauth-protected-resource/${(path ?? []).join('/')}`,
+    ),
+    { params: Promise.resolve({ path }) },
   );
 
-  it('has nothing at another path', async () => {
-    const res = await get(['api']);
-    expect(res.status).toBe(404);
+describe('GET /.well-known/oauth-protected-resource', () => {
+  it('describes the MCP endpoint at the bare path', async () => {
+    const res = await get();
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({
+      resource: 'https://app.test/mcp',
+      authorization_servers: ['https://app.test'],
+    });
   });
 
-  it('answers the preflight', () => {
+  it('describes the MCP endpoint at its own path', async () => {
+    const res = await get(['mcp']);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({
+      resource: 'https://app.test/mcp',
+    });
+  });
+
+  it.each([['anything'], ['api'], ['api', 'other'], ['mcp', 'x']])(
+    'answers 404 for the path /%s',
+    async (...path) => {
+      const res = await get(path);
+      expect(res.status).toBe(404);
+      expect(await res.json()).toMatchObject({ error: 'not_found' });
+    },
+  );
+});
+
+describe('OPTIONS /.well-known/oauth-protected-resource', () => {
+  it('answers the CORS preflight with 204', () => {
     expect(OPTIONS().status).toBe(204);
   });
 });

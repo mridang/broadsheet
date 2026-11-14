@@ -3,7 +3,7 @@ import type { ReactElement } from 'react';
 
 import { ensurePublicUser } from '@/domain/account';
 import { parseArticleQuery } from '@/domain/api/article-resource';
-import { getDatabase } from '@/domain/db/database';
+import { getDatabase } from '@/domain/db/client';
 import { Repository, type TrendingOrder } from '@/domain/repository';
 import { getCurrentUser } from '@/lib/core/auth';
 import { encodeCursor } from '@/lib/core/api';

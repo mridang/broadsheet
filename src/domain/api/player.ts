@@ -11,7 +11,7 @@ import {
   type CurrentUserResolver,
 } from '@/domain/api/auth';
 import { parsePlayerInput, playerResource } from '@/domain/api/player-resource';
-import { getDatabase } from '@/domain/db/database';
+import { getDatabase } from '@/domain/db/client';
 import { PlayerRepository, type PlayerState } from '@/domain/player';
 import {
   ApiController,

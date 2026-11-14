@@ -12,7 +12,7 @@
  * stories apart. Matches merge by union-find into clusters of at most
  * {@link MAX_CLUSTER} spanning two or more sources.
  */
-import type { Database } from '@/domain/db/database';
+import type { Database } from '@/domain/db/client';
 import { Repository, type Clusterable } from '@/domain/repository';
 import {
   MIN_TITLE_LENGTH,
