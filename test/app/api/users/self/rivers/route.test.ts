@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from '@jest/globals';
 
-import { databaseFrom, type Database } from '@/domain/db/client';
+import { createDatabase, type Database } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
 import { RiverRepository } from '@/domain/rivers';
 import { SESSION_COOKIE } from '@/domain/auth/app';
@@ -30,7 +30,7 @@ beforeEach(async () => {
       'INSERT INTO users (id, google_sub, email, session_epoch) VALUES (7, ?, ?, 0), (8, ?, ?, 0)',
     )
     .run('g7', 'a@b.com', 'g8', 'b@b.com');
-  db = databaseFrom(made.d1);
+  db = createDatabase(made.d1);
   const repo = new Repository(db);
   mine = (await repo.addFeed(7, 'https://a.test/f'))!.id;
   const section = await repo.addSection(8, 'Theirs');

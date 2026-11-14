@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from '@jest/globals';
 
 import { budget, overBudget } from '@/domain/api/usage';
 import { DAILY_LIMITS } from '@/domain/assistant';
-import { databaseFrom } from '@/domain/db/client';
+import { createDatabase } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
 import { APP_MIGRATIONS } from '../../lib/core/db/migrations';
 import { sqliteD1 } from '../../lib/core/db/sqlite-d1';
@@ -11,7 +11,7 @@ let repo: Repository;
 const now = new Date('2099-01-01T23:00:00Z');
 
 beforeEach(() => {
-  repo = new Repository(databaseFrom(sqliteD1(...APP_MIGRATIONS).d1));
+  repo = new Repository(createDatabase(sqliteD1(...APP_MIGRATIONS).d1));
 });
 
 /** Note `n` questions of `kind` for person 1, stamped today in `now`'s day. */

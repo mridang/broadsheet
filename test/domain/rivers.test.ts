@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from '@jest/globals';
 
-import { databaseFrom, type Database } from '@/domain/db/client';
+import { createDatabase, type Database } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
 import {
   frontPageRivers,
@@ -31,7 +31,7 @@ const story = (n: number, title: string) => ({
 });
 
 beforeEach(async () => {
-  db = databaseFrom(sqliteD1(...APP_MIGRATIONS).d1);
+  db = createDatabase(sqliteD1(...APP_MIGRATIONS).d1);
   const repo = new Repository(db);
   const user = await repo.upsertUser({ sub: 'g', email: 'a@b.c' });
   uid = user.id;

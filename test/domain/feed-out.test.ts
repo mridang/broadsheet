@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from '@jest/globals';
 
-import { databaseFrom, type Database } from '@/domain/db/client';
+import { createDatabase, type Database } from '@/domain/db/client';
 import { highlightsText, keeps, serveFeed } from '@/domain/feed-out';
 import { OutboundRepository, type FeedTokenInput } from '@/domain/outbound';
 import { Repository } from '@/domain/repository';
@@ -13,7 +13,7 @@ let db: Database;
 const ORIGIN = 'https://paper.test';
 
 beforeEach(() => {
-  db = databaseFrom(sqliteD1(...APP_MIGRATIONS).d1);
+  db = createDatabase(sqliteD1(...APP_MIGRATIONS).d1);
 });
 
 const story = (url: string, title: string, bodyText?: string): ScrapedItem => ({

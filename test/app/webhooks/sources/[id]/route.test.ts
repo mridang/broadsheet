@@ -9,7 +9,7 @@ import {
   jest,
 } from '@jest/globals';
 
-import { databaseFrom } from '@/domain/db/client';
+import { createDatabase } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
 import { subscribeToHub } from '@/domain/websub';
 import { APP_MIGRATIONS } from '../../../../lib/core/db/migrations';
@@ -36,7 +36,7 @@ const url = (id: string | number, query = '') =>
 beforeEach(async () => {
   const made = sqliteD1(...APP_MIGRATIONS);
   restore = installCloudflareContext(made.d1, {});
-  const db = databaseFrom(made.d1);
+  const db = createDatabase(made.d1);
   repo = new Repository(db);
   sourceId = (await repo.addFeed(1, TOPIC))!.source_id;
   jest

@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from '@jest/globals';
 import type { DatabaseSync } from 'node:sqlite';
 
 import { OPTIONS, POST } from '@/app/oauth/token/route';
-import { databaseFrom } from '@/domain/db/client';
+import { createDatabase } from '@/domain/db/client';
 import { D1OAuthStore } from '@/domain/db/oauth';
 import { issueAuthorizationCode, s256 } from '@/lib/oauth';
 import {
@@ -21,13 +21,13 @@ quietSecurityLogs();
 
 let raw: DatabaseSync;
 let restore: () => void;
-let database: ReturnType<typeof databaseFrom>;
+let database: ReturnType<typeof createDatabase>;
 
 beforeEach(() => {
   const made = sqliteD1(...APP_MIGRATIONS);
   raw = made.raw;
   restore = installCloudflareContext(made.d1);
-  database = databaseFrom(made.d1);
+  database = createDatabase(made.d1);
 });
 
 afterEach(() => restore());

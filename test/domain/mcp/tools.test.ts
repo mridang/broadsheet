@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import { DAILY_LIMITS } from '@/domain/assistant';
-import { databaseFrom, type Database } from '@/domain/db/client';
+import { createDatabase, type Database } from '@/domain/db/client';
 import { ToolFailureError } from '@/domain/mcp/tool-failure';
 import { collect } from '@/domain/mcp/tools/support';
 import { TOOL_REGISTRY } from '@/domain/mcp/tools';
@@ -41,7 +41,7 @@ const item = (url: string, title: string): ScrapedItem => ({
 });
 
 beforeEach(async () => {
-  db = databaseFrom(sqliteD1(...APP_MIGRATIONS).d1);
+  db = createDatabase(sqliteD1(...APP_MIGRATIONS).d1);
   const repo = new Repository(db);
   await repo.upsertUser({ sub: 'g1', email: 'a@b.com' });
   await repo.upsertUser({ sub: 'g2', email: 'c@d.com' });

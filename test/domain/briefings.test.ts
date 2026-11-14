@@ -13,7 +13,7 @@ import {
   sqliteTime,
   writeScheduledBriefing,
 } from '@/domain/briefings';
-import { databaseFrom, type Database } from '@/domain/db/client';
+import { createDatabase, type Database } from '@/domain/db/client';
 import {
   DEFAULT_PREFERENCES,
   Repository,
@@ -238,7 +238,7 @@ describe('writeScheduledBriefing', () => {
   };
 
   beforeEach(async () => {
-    db = databaseFrom(sqliteD1(...APP_MIGRATIONS).d1);
+    db = createDatabase(sqliteD1(...APP_MIGRATIONS).d1);
     repo = new Repository(db);
     const user = await repo.upsertUser({ sub: 'g', email: 'a@b.c' });
     uid = user.id;

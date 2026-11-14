@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from '@jest/globals';
 import { sql } from 'drizzle-orm';
 
 import { ASSISTANT_TOOLS, ToolRunner } from '@/domain/assistant-tools';
-import { databaseFrom, type Database } from '@/domain/db/client';
+import { createDatabase, type Database } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
 import type { ScrapedItem } from '@/lib/scraping';
 import { APP_MIGRATIONS } from '../lib/core/db/migrations';
@@ -27,7 +27,7 @@ const story = (over: Partial<ScrapedItem>): ScrapedItem => ({
 
 /** Person 1 follows a source with a rust story and saved it as "lang"; person 2 follows another. */
 beforeEach(async () => {
-  db = databaseFrom(sqliteD1(...APP_MIGRATIONS).d1);
+  db = createDatabase(sqliteD1(...APP_MIGRATIONS).d1);
   repo = new Repository(db);
   const a = (await repo.addFeed(1, 'https://a.test/f'))!;
   const b = (await repo.addFeed(2, 'https://b.test/f'))!;

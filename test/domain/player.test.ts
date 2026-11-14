@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from '@jest/globals';
 
-import { databaseFrom } from '@/domain/db/client';
+import { createDatabase } from '@/domain/db/client';
 import { EMPTY_PLAYER, PlayerRepository } from '@/domain/player';
 import { APP_MIGRATIONS } from '../lib/core/db/migrations';
 import { sqliteD1 } from '../lib/core/db/sqlite-d1';
@@ -11,7 +11,7 @@ let repo: PlayerRepository;
 beforeEach(() => {
   const made = sqliteD1(...APP_MIGRATIONS);
   raw = made.raw;
-  repo = new PlayerRepository(databaseFrom(made.d1));
+  repo = new PlayerRepository(createDatabase(made.d1));
 });
 
 const state = {

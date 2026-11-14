@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from '@jest/globals';
 
-import { databaseFrom, type Database } from '@/domain/db/client';
+import { createDatabase, type Database } from '@/domain/db/client';
 import { NotificationRepository } from '@/domain/notifications';
 import { Repository } from '@/domain/repository';
 import type { ScrapedItem } from '@/lib/scraping';
@@ -15,7 +15,7 @@ let repo: NotificationRepository;
 beforeEach(() => {
   const made = sqliteD1(...APP_MIGRATIONS);
   raw = made.raw;
-  db = databaseFrom(made.d1);
+  db = createDatabase(made.d1);
   repo = new NotificationRepository(db);
 });
 

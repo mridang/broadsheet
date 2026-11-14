@@ -9,7 +9,7 @@ import {
 
 import { SESSION_COOKIE } from '@/domain/auth/app';
 import { Repository } from '@/domain/repository';
-import { databaseFrom } from '@/domain/db/client';
+import { createDatabase } from '@/domain/db/client';
 import { APP_MIGRATIONS } from '../../../../../lib/core/db/migrations';
 import {
   installCloudflareContext,
@@ -44,7 +44,7 @@ beforeEach(async () => {
       'INSERT INTO users (id, google_sub, email, session_epoch) VALUES (7, ?, ?, 0), (8, ?, ?, 0)',
     )
     .run('g7', 'a@b.com', 'g8', 'b@b.com');
-  repo = new Repository(databaseFrom(made.d1));
+  repo = new Repository(createDatabase(made.d1));
   auth = {
     cookie: `${SESSION_COOKIE}=${await tokenFor({ id: 7 }, { ep: 0 })}`,
   };

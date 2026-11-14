@@ -7,7 +7,7 @@ import {
   jest,
 } from '@jest/globals';
 
-import { databaseFrom, type Database } from '@/domain/db/client';
+import { createDatabase, type Database } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
 import { SESSION_COOKIE } from '@/domain/auth/app';
 import { APP_MIGRATIONS } from '../../../../lib/core/db/migrations';
@@ -62,7 +62,7 @@ beforeEach(async () => {
       'INSERT INTO users (id, google_sub, email, session_epoch) VALUES (7, ?, ?, 0), (8, ?, ?, 0)',
     )
     .run('g7', 'a@b.com', 'g8', 'b@b.com');
-  const db = databaseFrom(made.d1);
+  const db = createDatabase(made.d1);
   await addFeed(db, 7, 'https://a.test/1');
   await addFeed(db, 7, 'https://a.test/2');
   await addFeed(db, 8, 'https://a.test/other');

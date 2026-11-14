@@ -10,7 +10,7 @@ import {
   daysBefore,
   clusterGroups,
 } from '@/domain/clustering';
-import { databaseFrom, type Database } from '@/domain/db/client';
+import { createDatabase, type Database } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
 import { APP_MIGRATIONS } from '../lib/core/db/migrations';
 import { sqliteD1 } from '../lib/core/db/sqlite-d1';
@@ -223,7 +223,7 @@ describe('clusterEdition', () => {
   let repo: Repository;
 
   beforeEach(async () => {
-    db = databaseFrom(sqliteD1(...APP_MIGRATIONS).d1);
+    db = createDatabase(sqliteD1(...APP_MIGRATIONS).d1);
     repo = new Repository(db);
     const user = await repo.upsertUser({ sub: 'g', email: 'a@b.c' });
     for (const n of [1, 2]) {

@@ -1,6 +1,6 @@
 import { describe, expect, it, jest } from '@jest/globals';
 
-import { databaseFrom } from '@/domain/db/client';
+import { createDatabase } from '@/domain/db/client';
 import type { McpAuth } from '@/domain/mcp/auth';
 import type { User } from '@/domain/db/users';
 import type { RateLimitDeps } from '@/domain/mcp/request-limits';
@@ -9,7 +9,7 @@ import { APP_MIGRATIONS } from '../../lib/core/db/migrations';
 import { sqliteD1 } from '../../lib/core/db/sqlite-d1';
 
 /** One empty database, which the tools reach for instead of Cloudflare's. */
-const db = databaseFrom(sqliteD1(...APP_MIGRATIONS).d1);
+const db = createDatabase(sqliteD1(...APP_MIGRATIONS).d1);
 
 jest.unstable_mockModule('@/domain/mcp/tool-services', () => ({
   liveToolServices: { openDatabase: () => db, refresh: () => undefined },

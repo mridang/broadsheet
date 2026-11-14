@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from '@jest/globals';
 
-import { databaseFrom, type Database } from '@/domain/db/client';
+import { createDatabase, type Database } from '@/domain/db/client';
 import { RiverRepository } from '@/domain/rivers';
 import { SESSION_COOKIE } from '@/domain/auth/app';
 import { APP_MIGRATIONS } from '../../../../../../lib/core/db/migrations';
@@ -34,7 +34,7 @@ beforeEach(async () => {
       'INSERT INTO users (id, google_sub, email, session_epoch) VALUES (7, ?, ?, 0), (8, ?, ?, 0)',
     )
     .run('g7', 'a@b.com', 'g8', 'b@b.com');
-  db = databaseFrom(made.d1);
+  db = createDatabase(made.d1);
   const [top] = await new RiverRepository(db).replace(7, [
     { river_id: 'all', side: 'left', position: 0 },
     { river_id: 'saves', side: 'left', position: 1 },

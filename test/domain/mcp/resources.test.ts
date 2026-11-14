@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from '@jest/globals';
 
-import { databaseFrom, type Database } from '@/domain/db/client';
+import { createDatabase, type Database } from '@/domain/db/client';
 import { RESOURCES } from '@/domain/mcp/resources';
 import type { ToolContext } from '@/domain/mcp/tool-context';
 import type { User } from '@/domain/db/users';
@@ -12,7 +12,7 @@ let db: Database;
 let ctx: ToolContext;
 
 beforeEach(async () => {
-  db = databaseFrom(sqliteD1(...APP_MIGRATIONS).d1);
+  db = createDatabase(sqliteD1(...APP_MIGRATIONS).d1);
   const repo = new Repository(db);
   await repo.upsertUser({ sub: 'g1', email: 'a@b.com', name: 'A' });
   await repo.upsertUser({ sub: 'g2', email: 'c@d.com' });

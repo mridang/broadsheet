@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
-import { databaseFrom, type Database } from '@/domain/db/client';
+import { createDatabase, type Database } from '@/domain/db/client';
 import {
   briefingFor,
   composeLayout,
@@ -55,7 +55,7 @@ let uid: number;
 let sourceId: number;
 
 beforeEach(async () => {
-  db = databaseFrom(sqliteD1(...APP_MIGRATIONS).d1);
+  db = createDatabase(sqliteD1(...APP_MIGRATIONS).d1);
   repo = new Repository(db);
   const user = await repo.upsertUser({ sub: 'g', email: 'a@b.c' });
   uid = user.id;

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from '@jest/globals';
 
-import { databaseFrom, type Database } from '@/domain/db/client';
+import { createDatabase, type Database } from '@/domain/db/client';
 import type { User } from '@/domain/db/users';
 import { INSTRUCTIONS, SERVER_INFO } from '@/domain/mcp/app';
 import { handleMcpMessage, isAdvertisedTool } from '@/domain/mcp/server';
@@ -16,7 +16,7 @@ let services: ToolServices;
 const user = { id: 1 } as User;
 
 beforeEach(async () => {
-  db = databaseFrom(sqliteD1(...APP_MIGRATIONS).d1);
+  db = createDatabase(sqliteD1(...APP_MIGRATIONS).d1);
   await new Repository(db).upsertUser({ sub: 'g1', email: 'a@b.com' });
   services = { openDatabase: () => db, refresh: () => undefined };
 });
