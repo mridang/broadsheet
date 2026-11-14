@@ -6,6 +6,7 @@
  */
 
 import { messageResource } from '@/domain/api/conversation-resource';
+import { ToolFailureError } from '@/domain/mcp/tool-failure';
 import { budget } from '@/domain/api/usage';
 import {
   AnswerUnavailableError,
@@ -16,7 +17,7 @@ import { type ToolContext } from '@/domain/mcp/tool-context';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { id } from '@/domain/mcp/tools/support';
 import { Repository } from '@/domain/repository';
-import { type ToolAnnotations, ToolFailureError, writes } from '@/lib/mcp';
+import { type ToolAnnotations, writes } from '@/lib/mcp';
 import { z } from 'zod';
 
 /** What `ask_archive` accepts. */
@@ -41,8 +42,11 @@ export class AskArchiveTool extends JsonTool<'ask_archive', typeof SCHEMA> {
 
   protected override async runParsed(
     { question, conversation_id }: z.infer<typeof SCHEMA>,
-    { uid, db, model }: ToolContext,
+    { user, services }: ToolContext,
   ): Promise<object> {
+    const uid = user.id;
+    const db = services.openDatabase();
+    const model = services.model;
     const asked = question.trim();
     if (!asked) throw new ToolFailureError('question: must not be blank.');
     const repo = new Repository(db);

@@ -54,8 +54,10 @@ export class GetTrendingTool extends JsonTool<'get_trending', typeof SCHEMA> {
 
   protected override async runParsed(
     { order, window, unread, limit }: z.infer<typeof SCHEMA>,
-    { uid, db }: ToolContext,
+    { user, services }: ToolContext,
   ): Promise<object> {
+    const uid = user.id;
+    const db = services.openDatabase();
     const rows = await new Repository(db).trendingArticles(uid, {
       order,
       since: sqliteSince(new Date(), WINDOWS[window]),

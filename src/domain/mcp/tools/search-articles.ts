@@ -104,8 +104,10 @@ export class SearchArticlesTool extends JsonTool<
 
   protected override async runParsed(
     args: z.infer<typeof SCHEMA>,
-    { uid, db }: ToolContext,
+    { user, services }: ToolContext,
   ): Promise<object> {
+    const uid = user.id;
+    const db = services.openDatabase();
     const repo = new Repository(db);
     const feeds = await feedScope(repo, uid, args);
     if (feeds?.length === 0) return { articles: [] };

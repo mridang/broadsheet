@@ -37,8 +37,10 @@ export class ReadPaperTool extends JsonTool<'read_paper', typeof SCHEMA> {
 
   protected override async runParsed(
     { date }: z.infer<typeof SCHEMA>,
-    { uid, db }: ToolContext,
+    { user, services }: ToolContext,
   ): Promise<object> {
+    const uid = user.id;
+    const db = services.openDatabase();
     const repo = new Repository(db);
     const [feeds, sections, editions, training, reads] = await Promise.all([
       repo.listFeeds(uid),

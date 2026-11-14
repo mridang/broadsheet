@@ -31,8 +31,10 @@ export class GetArchiveStatsTool extends JsonTool<
 
   protected override async runParsed(
     _args: z.infer<typeof SCHEMA>,
-    { uid, db }: ToolContext,
+    { user, services }: ToolContext,
   ): Promise<object> {
+    const uid = user.id;
+    const db = services.openDatabase();
     const stats = await new Repository(db).archiveStats(uid);
     return {
       ...stats,

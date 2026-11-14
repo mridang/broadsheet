@@ -38,8 +38,10 @@ export class ListSavedTool extends JsonTool<'list_saved', typeof SCHEMA> {
 
   protected override async runParsed(
     { tag, query }: z.infer<typeof SCHEMA>,
-    { uid, db }: ToolContext,
+    { user, services }: ToolContext,
   ): Promise<object> {
+    const uid = user.id;
+    const db = services.openDatabase();
     const repo = new Repository(db);
     const [shown, all] = await Promise.all([
       repo.listSaves(uid, tag, undefined, query),

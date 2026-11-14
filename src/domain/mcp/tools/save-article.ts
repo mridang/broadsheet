@@ -6,6 +6,7 @@
  */
 
 import { parseSaveInput, saveResource } from '@/domain/api/save-resource';
+import { ToolFailureError } from '@/domain/mcp/tool-failure';
 import { type ToolContext } from '@/domain/mcp/tool-context';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import {
@@ -15,7 +16,7 @@ import {
   MAX_NOTE,
 } from '@/domain/mcp/tools/support';
 import { Repository } from '@/domain/repository';
-import { type ToolAnnotations, ToolFailureError, writes } from '@/lib/mcp';
+import { type ToolAnnotations, writes } from '@/lib/mcp';
 import { z } from 'zod';
 
 /** What `save_article` accepts. */
@@ -52,8 +53,10 @@ export class SaveArticleTool extends JsonTool<'save_article', typeof SCHEMA> {
 
   protected override async runParsed(
     { article_id, tags, notes, highlights }: z.infer<typeof SCHEMA>,
-    { uid, db }: ToolContext,
+    { user, services }: ToolContext,
   ): Promise<object> {
+    const uid = user.id;
+    const db = services.openDatabase();
     const repo = new Repository(db);
     const before = await repo.getSave(uid, article_id);
     const input = checked(

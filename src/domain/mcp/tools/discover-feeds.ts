@@ -6,11 +6,12 @@
  */
 
 import { MAX_SUGGESTIONS, suggestionResource } from '@/domain/api/suggestions';
+import { ToolFailureError } from '@/domain/mcp/tool-failure';
 import { type ToolContext } from '@/domain/mcp/tool-context';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { Repository } from '@/domain/repository';
 import { TOPICS } from '@/domain/topics';
-import { READS, type ToolAnnotations, ToolFailureError } from '@/lib/mcp';
+import { READS, type ToolAnnotations } from '@/lib/mcp';
 import { z } from 'zod';
 
 /** What `discover_feeds` accepts. */
@@ -38,8 +39,10 @@ export class DiscoverFeedsTool extends JsonTool<
 
   protected override async runParsed(
     { topic }: z.infer<typeof SCHEMA>,
-    { uid, db }: ToolContext,
+    { user, services }: ToolContext,
   ): Promise<object> {
+    const uid = user.id;
+    const db = services.openDatabase();
     const wanted = topic?.trim().toLowerCase();
     const topics = TOPICS.filter(
       (t) =>

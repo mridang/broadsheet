@@ -71,8 +71,10 @@ export class GetInfrequentStoriesTool extends JsonTool<
 
   protected override async runParsed(
     args: z.infer<typeof SCHEMA>,
-    { uid, db }: ToolContext,
+    { user, services }: ToolContext,
   ): Promise<object> {
+    const uid = user.id;
+    const db = services.openDatabase();
     const repo = new Repository(db);
     const monthly = await repo.storiesPerMonth(uid);
     const quiet = [...monthly]

@@ -11,7 +11,7 @@
  */
 
 import { articleResource } from '@/domain/api/article-resource';
-import { ToolFailureError } from '@/lib/mcp/server';
+import { ToolFailureError } from '@/domain/mcp/tool-failure';
 import { type Database } from '@/domain/db/database';
 import { isIssueDate } from '@/domain/issues';
 import { type ToolContext } from '@/domain/mcp/tool-context';
@@ -19,16 +19,6 @@ import { Repository, type Section } from '@/domain/repository';
 import { refreshSource } from '@/domain/scraping/index';
 import { type SharedStory } from '@/domain/shares';
 import { z } from 'zod';
-
-/** The production way to fetch a newly followed feed. */
-export function refresher(
-  db: Database,
-  env: CloudflareEnv,
-  background: (work: Promise<unknown>) => void,
-): ToolContext['refresh'] {
-  return (source) =>
-    background(refreshSource(db, env, source).catch(() => undefined));
-}
 
 /** A positive whole-number id. */
 export const id = (what: string) =>

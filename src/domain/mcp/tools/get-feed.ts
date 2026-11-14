@@ -6,12 +6,13 @@
  */
 
 import { feedResource } from '@/domain/api/feed-resource';
+import { ToolFailureError } from '@/domain/mcp/tool-failure';
 import { feedClassifierCounts } from '@/domain/classifier-counts';
 import { type ToolContext } from '@/domain/mcp/tool-context';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { id } from '@/domain/mcp/tools/support';
 import { Repository } from '@/domain/repository';
-import { READS, type ToolAnnotations, ToolFailureError } from '@/lib/mcp';
+import { READS, type ToolAnnotations } from '@/lib/mcp';
 import { z } from 'zod';
 
 /** What `get_feed` accepts. */
@@ -31,8 +32,10 @@ export class GetFeedTool extends JsonTool<'get_feed', typeof SCHEMA> {
 
   protected override async runParsed(
     { feed_id }: z.infer<typeof SCHEMA>,
-    { uid, db }: ToolContext,
+    { user, services }: ToolContext,
   ): Promise<object> {
+    const uid = user.id;
+    const db = services.openDatabase();
     const repo = new Repository(db);
     const feed = await repo.getFeed(uid, feed_id);
     if (!feed) throw new ToolFailureError('There is no such feed.');

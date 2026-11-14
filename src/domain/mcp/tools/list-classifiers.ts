@@ -6,11 +6,12 @@
  */
 
 import { classifierResource } from '@/domain/api/classifier-resource';
+import { ToolFailureError } from '@/domain/mcp/tool-failure';
 import { type ToolContext } from '@/domain/mcp/tool-context';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { id } from '@/domain/mcp/tools/support';
 import { Repository } from '@/domain/repository';
-import { READS, type ToolAnnotations, ToolFailureError } from '@/lib/mcp';
+import { READS, type ToolAnnotations } from '@/lib/mcp';
 import { z } from 'zod';
 
 /** What `list_classifiers` accepts. */
@@ -37,8 +38,10 @@ export class ListClassifiersTool extends JsonTool<
 
   protected override async runParsed(
     { feed_id }: z.infer<typeof SCHEMA>,
-    { uid, db }: ToolContext,
+    { user, services }: ToolContext,
   ): Promise<object> {
+    const uid = user.id;
+    const db = services.openDatabase();
     const repo = new Repository(db);
     const all = await repo.listClassifiers(uid);
     if (feed_id === undefined) {

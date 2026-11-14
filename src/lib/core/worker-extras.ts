@@ -22,7 +22,7 @@ import {
 import { clusterEdition } from '@/domain/clustering';
 import type { OpmlFeed } from '@/domain/api/opml';
 import { databaseFrom } from '@/domain/db/database';
-import { D1OAuthStore } from '@/domain/db/oauth';
+import { D1OAuthStore, purgeOAuthData } from '@/domain/db/oauth';
 import { FeedImportRuns, IMPORT_CHUNK } from '@/domain/feed-import-runs';
 import { publishEditionIssue, publishIssue } from '@/domain/issues';
 import { NotificationRepository } from '@/domain/notifications';
@@ -404,13 +404,11 @@ export async function purgeExpired(
 ): Promise<void> {
   try {
     const db = databaseFrom(env.DB);
-    const oauth = await new D1OAuthStore(db).purgeExpired(
-      Math.floor(at.getTime() / 1000),
-    );
+    await purgeOAuthData(db, Math.floor(at.getTime() / 1000));
     const imports = await new FeedImportRuns(db).purgeFinished(
       new Date(at.getTime() - IMPORT_KEPT_MS),
     );
-    logInfo({ event: 'purge.completed', ...oauth, imports });
+    logInfo({ event: 'purge.completed', imports });
   } catch (error) {
     logError({ event: 'purge.failed', error: errorMessage(error) });
   }

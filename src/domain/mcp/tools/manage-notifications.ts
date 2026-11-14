@@ -9,6 +9,7 @@ import {
   notificationResource,
   parseNotificationInput,
 } from '@/domain/api/notification-resource';
+import { ToolFailureError } from '@/domain/mcp/tool-failure';
 import { type ToolContext } from '@/domain/mcp/tool-context';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { checked, id } from '@/domain/mcp/tools/support';
@@ -17,7 +18,7 @@ import {
   NOTIFICATION_FILTERS,
   NotificationRepository,
 } from '@/domain/notifications';
-import { type ToolAnnotations, ToolFailureError, writes } from '@/lib/mcp';
+import { type ToolAnnotations, writes } from '@/lib/mcp';
 import { z } from 'zod';
 
 /** What `manage_notifications` accepts. */
@@ -56,8 +57,10 @@ export class ManageNotificationsTool extends JsonTool<
 
   protected override async runParsed(
     { action, feed_id, channels, filter }: z.infer<typeof SCHEMA>,
-    { uid, db }: ToolContext,
+    { user, services }: ToolContext,
   ): Promise<object> {
+    const uid = user.id;
+    const db = services.openDatabase();
     const notifications = new NotificationRepository(db);
     if (action === 'list') {
       const rows = await notifications.feedNotifications(uid);

@@ -9,11 +9,12 @@ import {
   classifierResource,
   parseClassifierInput,
 } from '@/domain/api/classifier-resource';
+import { ToolFailureError } from '@/domain/mcp/tool-failure';
 import { type ToolContext } from '@/domain/mcp/tool-context';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { checked, id, TRAINABLE } from '@/domain/mcp/tools/support';
 import { Repository } from '@/domain/repository';
-import { type ToolAnnotations, ToolFailureError, writes } from '@/lib/mcp';
+import { type ToolAnnotations, writes } from '@/lib/mcp';
 import { z } from 'zod';
 
 /** What `train_classifier` accepts. */
@@ -59,8 +60,10 @@ export class TrainClassifierTool extends JsonTool<
 
   protected override async runParsed(
     args: z.infer<typeof SCHEMA>,
-    { uid, db }: ToolContext,
+    { user, services }: ToolContext,
   ): Promise<object> {
+    const uid = user.id;
+    const db = services.openDatabase();
     const input = args as Record<string, unknown> & { feed_id: number };
     const repo = new Repository(db);
     const feed = await repo.getFeed(uid, input.feed_id);

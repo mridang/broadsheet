@@ -6,11 +6,12 @@
  */
 
 import { articleDetailResource } from '@/domain/api/article-resource';
+import { ToolFailureError } from '@/domain/mcp/tool-failure';
 import { type ToolContext } from '@/domain/mcp/tool-context';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { id } from '@/domain/mcp/tools/support';
 import { Repository } from '@/domain/repository';
-import { READS, type ToolAnnotations, ToolFailureError } from '@/lib/mcp';
+import { READS, type ToolAnnotations } from '@/lib/mcp';
 import { z } from 'zod';
 
 /** What `get_article` accepts. */
@@ -29,8 +30,10 @@ export class GetArticleTool extends JsonTool<'get_article', typeof SCHEMA> {
 
   protected override async runParsed(
     { article_id }: z.infer<typeof SCHEMA>,
-    { uid, db }: ToolContext,
+    { user, services }: ToolContext,
   ): Promise<object> {
+    const uid = user.id;
+    const db = services.openDatabase();
     const article = await new Repository(db).getArticle(uid, article_id);
     if (!article) throw new ToolFailureError('There is no such article.');
     return articleDetailResource(article);

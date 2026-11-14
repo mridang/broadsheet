@@ -5,7 +5,19 @@
  * instruction naming the tools that do the work.
  */
 
-import type { McpPrompt } from '@/lib/mcp';
+/** A prompt the server offers: a ready-made request for the assistant. */
+export interface McpPrompt {
+  readonly name: string;
+  readonly title: string;
+  readonly description: string;
+  readonly arguments: readonly {
+    readonly name: string;
+    readonly description: string;
+    readonly required?: boolean;
+  }[];
+  /** The text of the request, from its arguments. */
+  readonly render: (args: Readonly<Record<string, string>>) => string;
+}
 
 /** Every prompt. */
 export const PROMPTS: readonly McpPrompt[] = [

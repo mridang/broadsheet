@@ -61,8 +61,10 @@ export class GetSharedStoriesTool extends JsonTool<
 
   protected override async runParsed(
     { sharer_ids, read_filter, limit, before }: z.infer<typeof SCHEMA>,
-    { uid, db }: ToolContext,
+    { user, services }: ToolContext,
   ): Promise<object> {
+    const uid = user.id;
+    const db = services.openDatabase();
     const read =
       read_filter === 'all'
         ? undefined

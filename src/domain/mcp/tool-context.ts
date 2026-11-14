@@ -11,34 +11,43 @@ import {
   type FailureExplainer,
   type JsonContent,
 } from '@/lib/mcp';
-import type { AnswerModel } from '@/domain/assistant';
-import type { Database } from '@/domain/db/database';
-import { SCOPE_READ, SCOPE_WRITE } from '@/lib/oauth/scopes';
+import type { User } from '@/domain/db/users';
+import { SCOPE_READ, SCOPE_WRITE, explainFailure } from '@/domain/mcp/app';
+import {
+  liveToolServices,
+  type ToolServices,
+} from '@/domain/mcp/tool-services';
 
-/** Who is calling and what the tools reach out to. */
+/**
+ * What every tool in this app is given: who is calling, and the outside things
+ * the tools reach for.
+ */
 export interface ToolContext {
-  readonly uid: number;
-  readonly db: Database;
-  /** Fetch a newly followed feed after the reply is sent. */
-  readonly refresh: (source: {
-    readonly id: number;
-    readonly url: string;
-  }) => void;
-  /** The model that answers archive questions, when one is bound. */
-  readonly model?: AnswerModel;
+  readonly user: Readonly<User>;
+  readonly services: ToolServices;
 }
 
 /**
- * What this app's tools return as structured content. They answer with plain
- * objects shaped by what each tool reads, so nothing narrower is said here.
+ * The context for a real call.
+ * @param user - Who is calling.
+ * @param services - What this app's tools reach for; a test passes fakes.
+ */
+export function toolContext(
+  user: Readonly<User>,
+  services: ToolServices = liveToolServices,
+): ToolContext {
+  return { user, services };
+}
+
+/**
+ * What this app's tools return as structured content. They answer with the
+ * facts they read, shaped by what each tool does, so nothing narrower is said
+ * here.
  */
 export type ToolContent = JsonContent;
 
 /** Which sign-in a call needs, by what the tool says about its own effects. */
 export const TOOL_SCOPES = new ReadWriteScopes(SCOPE_READ, SCOPE_WRITE);
 
-/**
- * A tool that cannot do what was asked says so itself, as a result the
- * assistant can act on, so there is no failure left here to explain.
- */
-export const TOOL_FAILURES: FailureExplainer = { explain: () => undefined };
+/** How this app words what an assistant is told about a failure. */
+export const TOOL_FAILURES: FailureExplainer = { explain: explainFailure };

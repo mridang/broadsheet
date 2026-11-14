@@ -35,8 +35,10 @@ export class ListFeedsTool extends JsonTool<'list_feeds', typeof SCHEMA> {
 
   protected override async runParsed(
     { include_counts }: z.infer<typeof SCHEMA>,
-    { uid, db }: ToolContext,
+    { user, services }: ToolContext,
   ): Promise<object> {
+    const uid = user.id;
+    const db = services.openDatabase();
     const repo = new Repository(db);
     const [feeds, sections, unread, monthly] = await Promise.all([
       repo.listFeeds(uid),

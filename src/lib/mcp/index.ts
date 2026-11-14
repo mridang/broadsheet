@@ -1,12 +1,12 @@
 /**
  * @packageDocumentation
  *
- * Public surface of the lib/mcp package.
+ * Public surface of the lib/mcp package: a reusable MCP server library.
  *
- * The tool half is the reusable library the other apps share: an app brings its
- * tools, each a class extending {@link McpTool}, and says which scopes it offers
- * and which of its own failures are worth explaining. The transport half, the
- * JSON-RPC engine and its protocol, is this app's own for now.
+ * An app brings its tools, each a class extending {@link McpTool}, and says
+ * which scopes it offers and which of its own failures are worth explaining.
+ * Everything else — the protocol, the catalogue, the argument checking and the
+ * call path — is here and is the same in every app that uses it.
  */
 export {
   type AnyMcpTool,
@@ -46,14 +46,57 @@ export {
   ANNOTATION_KEYWORDS,
   CHECKED_KEYWORDS,
   describeArguments,
-  isJsonObject,
   type JsonSchema,
   type JsonType,
+  isJsonObject,
   NOT_BLANK,
   PROBLEMS_SHOWN,
   unsupportedKeywords,
   validateJson,
 } from './json-schema';
+export {
+  ERROR_HEADER_MISMATCH,
+  ERROR_INTERNAL,
+  ERROR_INVALID_PARAMS,
+  ERROR_INVALID_REQUEST,
+  ERROR_METHOD_NOT_FOUND,
+  ERROR_PARSE,
+  ERROR_UNSUPPORTED_VERSION,
+  LEGACY_VERSIONS,
+  MODERN_VERSION,
+  type ParsedMessage,
+  type ProtocolMessage,
+  type ProtocolRefusal,
+  type RefusalSpec,
+  type ReplyId,
+  RpcError,
+  SUPPORTED_VERSIONS,
+  checkBatch,
+  checkRequestHeaders,
+  declaredVersion,
+  decodeHeaderValue,
+  errorBody,
+  headerVersion,
+  isAllowedOrigin,
+  isModernRequest,
+  isNotification,
+  isPlainObject,
+  negotiateLegacyVersion,
+  parseAllowedOrigins,
+  parseMessage,
+  protocolRefusal,
+  replyIdOf,
+  withoutId,
+} from './protocol';
+export {
+  type CacheHint,
+  type JsonRpcErrorBody,
+  type JsonRpcMessage,
+  type JsonRpcResponse,
+  type McpMethod,
+  McpServer,
+  type McpServerOptions,
+} from './server';
 export {
   canonicalArguments,
   limitArg,
@@ -68,29 +111,3 @@ export {
   InvalidToolArgumentsError,
   UnknownToolError,
 } from './tool-errors';
-export {
-  ERROR_INTERNAL,
-  ERROR_INVALID_PARAMS,
-  ERROR_INVALID_REQUEST,
-  ERROR_METHOD_NOT_FOUND,
-  ERROR_PARSE,
-  errorReply,
-  isJsonRpcMessage,
-  isNotification,
-  isPlainObject,
-  type JsonRpcMessage,
-  type JsonRpcResponse,
-  negotiateVersion,
-  type ReplyId,
-  replyIdOf,
-  RESOURCE_NOT_FOUND,
-  RpcError,
-  SUPPORTED_VERSIONS,
-} from './protocol';
-export {
-  type McpPrompt,
-  type McpResource,
-  McpServer,
-  type ServerInfo,
-  ToolFailureError,
-} from './server';

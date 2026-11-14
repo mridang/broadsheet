@@ -6,10 +6,11 @@
  */
 
 import { type ToolContext } from '@/domain/mcp/tool-context';
+import { ToolFailureError } from '@/domain/mcp/tool-failure';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { feedScope, id, MAX_MARK } from '@/domain/mcp/tools/support';
 import { Repository } from '@/domain/repository';
-import { type ToolAnnotations, ToolFailureError, writes } from '@/lib/mcp';
+import { type ToolAnnotations, writes } from '@/lib/mcp';
 import { z } from 'zod';
 
 /** What `mark_read` accepts. */
@@ -57,8 +58,10 @@ export class MarkReadTool extends JsonTool<'mark_read', typeof SCHEMA> {
       section_id,
       older_than_days,
     }: z.infer<typeof SCHEMA>,
-    { uid, db }: ToolContext,
+    { user, services }: ToolContext,
   ): Promise<object> {
+    const uid = user.id;
+    const db = services.openDatabase();
     if (
       !article_ids?.length &&
       feed_id === undefined &&

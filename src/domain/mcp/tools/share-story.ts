@@ -6,11 +6,12 @@
  */
 
 import { type ToolContext } from '@/domain/mcp/tool-context';
+import { ToolFailureError } from '@/domain/mcp/tool-failure';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { id, MAX_NOTE, shareResource } from '@/domain/mcp/tools/support';
 import { Repository } from '@/domain/repository';
 import { ShareRepository } from '@/domain/shares';
-import { type ToolAnnotations, ToolFailureError, writes } from '@/lib/mcp';
+import { type ToolAnnotations, writes } from '@/lib/mcp';
 import { z } from 'zod';
 
 /** What `share_story` accepts. */
@@ -37,8 +38,10 @@ export class ShareStoryTool extends JsonTool<'share_story', typeof SCHEMA> {
 
   protected override async runParsed(
     { article_id, comments }: z.infer<typeof SCHEMA>,
-    { uid, db }: ToolContext,
+    { user, services }: ToolContext,
   ): Promise<object> {
+    const uid = user.id;
+    const db = services.openDatabase();
     if (!(await new Repository(db).getArticle(uid, article_id))) {
       throw new ToolFailureError('There is no such article.');
     }

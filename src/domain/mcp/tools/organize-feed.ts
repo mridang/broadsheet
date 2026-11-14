@@ -6,11 +6,12 @@
  */
 
 import { feedResource, parseFeedChanges } from '@/domain/api/feed-resource';
+import { ToolFailureError } from '@/domain/mcp/tool-failure';
 import { type ToolContext } from '@/domain/mcp/tool-context';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { checked, dropUndefined, id } from '@/domain/mcp/tools/support';
 import { Repository } from '@/domain/repository';
-import { type ToolAnnotations, ToolFailureError, writes } from '@/lib/mcp';
+import { type ToolAnnotations, writes } from '@/lib/mcp';
 import { z } from 'zod';
 
 /** What `organize_feed` accepts. */
@@ -57,8 +58,10 @@ export class OrganizeFeedTool extends JsonTool<'organize_feed', typeof SCHEMA> {
 
   protected override async runParsed(
     { feed_id, section_id, ...rest }: z.infer<typeof SCHEMA>,
-    { uid, db }: ToolContext,
+    { user, services }: ToolContext,
   ): Promise<object> {
+    const uid = user.id;
+    const db = services.openDatabase();
     const { changes } = checked(
       parseFeedChanges({
         ...dropUndefined(rest),

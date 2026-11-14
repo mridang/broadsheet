@@ -10,12 +10,15 @@ import {
 } from '@/lib/oauth';
 import { appOrigin } from '@/lib/core/origin';
 
-/** `GET /.well-known/oauth-authorization-server`: the document. 200. */
+/**
+ * `GET /.well-known/oauth-authorization-server`: the discovery document for
+ * this site's authorization server. Public, never cached. Answers 200.
+ */
 export function GET(request: Request) {
   return noStoreJson(authorizationServerMetadata(appOrigin(request)));
 }
 
-/** `OPTIONS /.well-known/oauth-authorization-server`: the CORS preflight. 204. */
+/** `OPTIONS /.well-known/oauth-authorization-server`: the CORS preflight. Answers 204. */
 export function OPTIONS() {
   return preflight();
 }

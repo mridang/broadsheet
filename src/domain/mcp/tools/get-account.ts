@@ -6,9 +6,10 @@
  */
 
 import { type ToolContext } from '@/domain/mcp/tool-context';
+import { ToolFailureError } from '@/domain/mcp/tool-failure';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { Repository } from '@/domain/repository';
-import { READS, type ToolAnnotations, ToolFailureError } from '@/lib/mcp';
+import { READS, type ToolAnnotations } from '@/lib/mcp';
 import { z } from 'zod';
 
 /** What `get_account` accepts. */
@@ -28,20 +29,22 @@ export class GetAccountTool extends JsonTool<'get_account', typeof SCHEMA> {
 
   protected override async runParsed(
     _args: z.infer<typeof SCHEMA>,
-    { uid, db }: ToolContext,
+    { user, services }: ToolContext,
   ): Promise<object> {
+    const uid = user.id;
+    const db = services.openDatabase();
     const repo = new Repository(db);
-    const [user, feeds, sections, saves, training] = await Promise.all([
+    const [account, feeds, sections, saves, training] = await Promise.all([
       repo.getUser(uid),
       repo.listFeeds(uid),
       repo.listSections(uid),
       repo.listSaves(uid),
       repo.listClassifiers(uid),
     ]);
-    if (!user) throw new ToolFailureError('There is no such account.');
+    if (!account) throw new ToolFailureError('There is no such account.');
     return {
-      email: user.email,
-      ...(user.name ? { name: user.name } : {}),
+      email: account.email,
+      ...(account.name ? { name: account.name } : {}),
       feeds: feeds.length,
       sections: sections.length,
       saved: saves.length,

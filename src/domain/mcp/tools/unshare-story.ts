@@ -6,10 +6,11 @@
  */
 
 import { type ToolContext } from '@/domain/mcp/tool-context';
+import { ToolFailureError } from '@/domain/mcp/tool-failure';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { id } from '@/domain/mcp/tools/support';
 import { ShareRepository } from '@/domain/shares';
-import { type ToolAnnotations, ToolFailureError, writes } from '@/lib/mcp';
+import { type ToolAnnotations, writes } from '@/lib/mcp';
 import { z } from 'zod';
 
 /** What `unshare_story` accepts. */
@@ -28,8 +29,10 @@ export class UnshareStoryTool extends JsonTool<'unshare_story', typeof SCHEMA> {
 
   protected override async runParsed(
     { article_id }: z.infer<typeof SCHEMA>,
-    { uid, db }: ToolContext,
+    { user, services }: ToolContext,
   ): Promise<object> {
+    const uid = user.id;
+    const db = services.openDatabase();
     if (!(await new ShareRepository(db).unshare(uid, article_id))) {
       throw new ToolFailureError('That story is not shared.');
     }

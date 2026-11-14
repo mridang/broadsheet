@@ -9,11 +9,12 @@ import {
   parseSectionInput,
   sectionResource,
 } from '@/domain/api/section-resource';
+import { ToolFailureError } from '@/domain/mcp/tool-failure';
 import { type ToolContext } from '@/domain/mcp/tool-context';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { checked, dropUndefined, id } from '@/domain/mcp/tools/support';
 import { Repository } from '@/domain/repository';
-import { type ToolAnnotations, ToolFailureError, writes } from '@/lib/mcp';
+import { type ToolAnnotations, writes } from '@/lib/mcp';
 import { z } from 'zod';
 
 /** What `update_section` accepts. */
@@ -48,8 +49,10 @@ export class UpdateSectionTool extends JsonTool<
 
   protected override async runParsed(
     { section_id, parent_id, ...rest }: z.infer<typeof SCHEMA>,
-    { uid, db }: ToolContext,
+    { user, services }: ToolContext,
   ): Promise<object> {
+    const uid = user.id;
+    const db = services.openDatabase();
     const { changes } = checked(
       parseSectionInput(
         {

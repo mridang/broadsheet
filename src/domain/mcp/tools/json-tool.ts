@@ -11,7 +11,7 @@
  */
 
 import { type ToolContent, type ToolContext } from '@/domain/mcp/tool-context';
-import { ToolFailureError } from '@/lib/mcp/server';
+import { ToolFailureError } from '@/domain/mcp/tool-failure';
 import { checked } from '@/domain/mcp/tools/support';
 import { dataResult, errorResult, McpTool, type ToolResult } from '@/lib/mcp';
 import { z } from 'zod';

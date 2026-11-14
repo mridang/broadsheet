@@ -6,12 +6,13 @@
  */
 
 import { issueResource } from '@/domain/api/issue-resource';
+import { ToolFailureError } from '@/domain/mcp/tool-failure';
 import { isIssueDate, issueFor } from '@/domain/issues';
 import { type ToolContext } from '@/domain/mcp/tool-context';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { Repository } from '@/domain/repository';
 import { todayEdition } from '@/domain/scraping/index';
-import { READS, type ToolAnnotations, ToolFailureError } from '@/lib/mcp';
+import { READS, type ToolAnnotations } from '@/lib/mcp';
 import { z } from 'zod';
 
 /** What `get_briefing` accepts. */
@@ -37,8 +38,10 @@ export class GetBriefingTool extends JsonTool<'get_briefing', typeof SCHEMA> {
 
   protected override async runParsed(
     { date }: z.infer<typeof SCHEMA>,
-    { uid, db }: ToolContext,
+    { user, services }: ToolContext,
   ): Promise<object> {
+    const uid = user.id;
+    const db = services.openDatabase();
     const repo = new Repository(db);
     const editions = date === undefined ? await repo.listEditions(uid) : [];
     const day = date ?? editions[0] ?? todayEdition();

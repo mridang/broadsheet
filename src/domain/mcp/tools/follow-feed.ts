@@ -6,11 +6,12 @@
  */
 
 import { feedResource, parseFeedInput } from '@/domain/api/feed-resource';
+import { ToolFailureError } from '@/domain/mcp/tool-failure';
 import { type ToolContext } from '@/domain/mcp/tool-context';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { checked, id } from '@/domain/mcp/tools/support';
 import { Repository } from '@/domain/repository';
-import { type ToolAnnotations, ToolFailureError, writes } from '@/lib/mcp';
+import { type ToolAnnotations, writes } from '@/lib/mcp';
 import { z } from 'zod';
 
 /** What `follow_feed` accepts. */
@@ -35,8 +36,11 @@ export class FollowFeedTool extends JsonTool<'follow_feed', typeof SCHEMA> {
 
   protected override async runParsed(
     { url: raw, section_id }: z.infer<typeof SCHEMA>,
-    { uid, db, refresh }: ToolContext,
+    { user, services }: ToolContext,
   ): Promise<object> {
+    const uid = user.id;
+    const db = services.openDatabase();
+    const refresh = services.refresh;
     const { url } = checked(parseFeedInput({ url: raw }));
     const repo = new Repository(db);
     if (section_id !== undefined && !(await repo.getSection(uid, section_id))) {
