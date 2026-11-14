@@ -38,6 +38,15 @@ export interface McpTool<Ctx, Input extends z.ZodObject = z.ZodObject> {
   readonly input: Input;
   /** Whether it only reads (so a read-only grant may call it). */
   readonly readOnly: boolean;
+  /**
+   * Whether it may remove or overwrite something the person cannot get back.
+   * Hosts use this to decide when to ask before a call, so it is set from what
+   * the tool really does, not from its name: a tool that deletes a row the
+   * person created is destructive even when the word "remove" is not in it.
+   * Left out it means false, which is what a tool that only adds or changes
+   * its own last answer should say.
+   */
+  readonly destructive?: boolean;
   /** Run it; the result is sent back as structured content. */
   readonly run: (args: z.infer<Input>, ctx: Ctx) => Promise<object>;
 }
@@ -219,7 +228,7 @@ export class McpServer<Ctx> {
         annotations: {
           title: t.title,
           readOnlyHint: t.readOnly,
-          destructiveHint: false,
+          destructiveHint: t.destructive === true,
           openWorldHint: false,
         },
       })),

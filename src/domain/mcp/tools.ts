@@ -371,6 +371,7 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
     description: 'Stop following a feed. Its stories leave the paper.',
     input: z.object({ feed_id: id('feed') }),
     readOnly: false,
+    destructive: true,
     run: async ({ feed_id }, { uid, db }) => {
       if (!(await new Repository(db).removeFeed(uid, feed_id))) {
         throw new ToolFailureError('There is no such feed.');
@@ -599,6 +600,7 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
     description: 'Take an article off the saved list.',
     input: z.object({ article_id: id('article') }),
     readOnly: false,
+    destructive: true,
     run: async ({ article_id }, { uid, db }) => {
       if (!(await new Repository(db).unsaveArticle(uid, article_id))) {
         throw new ToolFailureError('That article is not saved.');
@@ -747,6 +749,7 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
     description: 'Remove one like or dislike, by its id from list_classifiers.',
     input: z.object({ classifier_id: id('classifier') }),
     readOnly: false,
+    destructive: true,
     run: async ({ classifier_id }, { uid, db }) => {
       if (!(await new Repository(db).removeClassifier(uid, classifier_id))) {
         throw new ToolFailureError('There is no such classifier.');
@@ -941,6 +944,7 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
       'Remove a section. Its feeds stay followed and move to the top of the paper.',
     input: z.object({ section_id: id('section') }),
     readOnly: false,
+    destructive: true,
     run: async ({ section_id }, { uid, db }) => {
       if (!(await new Repository(db).removeSection(uid, section_id))) {
         throw new ToolFailureError('There is no such section.');
@@ -1240,6 +1244,7 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
     description: 'Stop sharing a story.',
     input: z.object({ article_id: id('article') }),
     readOnly: false,
+    destructive: true,
     run: async ({ article_id }, { uid, db }) => {
       if (!(await new ShareRepository(db).unshare(uid, article_id))) {
         throw new ToolFailureError('That story is not shared.');
@@ -1428,6 +1433,7 @@ export const TOOLS: readonly McpTool<ToolContext>[] = [
         .describe('For set: which new stories to send.'),
     }),
     readOnly: false,
+    destructive: true,
     run: async ({ action, feed_id, channels, filter }, { uid, db }) => {
       const notifications = new NotificationRepository(db);
       if (action === 'list') {
