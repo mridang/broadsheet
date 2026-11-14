@@ -22,7 +22,7 @@ import {
 import { clusterEdition } from '@/domain/clustering';
 import type { OpmlFeed } from '@/domain/api/opml';
 import { databaseFrom } from '@/domain/db/database';
-import { D1OAuthStore, purgeOAuthData } from '@/domain/db/oauth';
+import { purgeOAuthData } from '@/domain/db/oauth';
 import { FeedImportRuns, IMPORT_CHUNK } from '@/domain/feed-import-runs';
 import { publishEditionIssue, publishIssue } from '@/domain/issues';
 import { NotificationRepository } from '@/domain/notifications';

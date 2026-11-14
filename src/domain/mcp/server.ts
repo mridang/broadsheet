@@ -15,9 +15,11 @@ import {
   RpcError,
   isPlainObject,
   negotiateLegacyVersion,
-  type JsonRpcResponse,
   type ToolArgs,
+  JsonRpcResponse,
 } from '@/lib/mcp';
+
+export type { JsonRpcResponse } from '@/lib/mcp';
 import {
   INSTRUCTIONS,
   SERVER_INFO,
@@ -32,8 +34,6 @@ import { toolContext, type ToolContext } from '@/domain/mcp/tool-context';
 import type { ToolServices } from '@/domain/mcp/tool-services';
 import type { User } from '@/domain/db/users';
 import { TOOL_REGISTRY } from '@/domain/mcp/tools';
-
-export type { JsonRpcResponse };
 
 /** What runs a `tools/call`; a test passes its own. */
 export type ToolRunner = typeof callToolOrExplain;
@@ -106,25 +106,26 @@ async function readResource(
   if (typeof uri !== 'string') {
     throw new RpcError(ERROR_INVALID_PARAMS, 'Send the uri.');
   }
-  for (const resource of RESOURCES) {
-    const found = resource.uri === uri ? {} : resource.match?.(uri);
-    if (found) {
-      try {
-        const data = await resource.read(found, tools);
-        return {
-          contents: [
-            { uri, mimeType: 'application/json', text: JSON.stringify(data) },
-          ],
-        };
-      } catch (error) {
-        if (error instanceof ToolFailureError) {
-          throw new RpcError(ERROR_INVALID_PARAMS, error.message, { uri });
-        }
-        throw error;
-      }
-    }
+  const match = RESOURCES.map((resource) => ({
+    resource,
+    found: resource.uri === uri ? {} : resource.match?.(uri),
+  })).find((candidate) => candidate.found);
+  if (!match?.found) {
+    throw new RpcError(ERROR_INVALID_PARAMS, 'Resource not found', { uri });
   }
-  throw new RpcError(ERROR_INVALID_PARAMS, 'Resource not found', { uri });
+  try {
+    const data = await match.resource.read(match.found, tools);
+    return {
+      contents: [
+        { uri, mimeType: 'application/json', text: JSON.stringify(data) },
+      ],
+    };
+  } catch (error) {
+    if (error instanceof ToolFailureError) {
+      throw new RpcError(ERROR_INVALID_PARAMS, error.message, { uri });
+    }
+    throw error;
+  }
 }
 
 /** The answer to `prompts/list`. */

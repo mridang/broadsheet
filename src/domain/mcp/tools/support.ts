@@ -12,11 +12,8 @@
 
 import { articleResource } from '@/domain/api/article-resource';
 import { ToolFailureError } from '@/domain/mcp/tool-failure';
-import { type Database } from '@/domain/db/database';
 import { isIssueDate } from '@/domain/issues';
-import { type ToolContext } from '@/domain/mcp/tool-context';
 import { Repository, type Section } from '@/domain/repository';
-import { refreshSource } from '@/domain/scraping/index';
 import { type SharedStory } from '@/domain/shares';
 import { z } from 'zod';
 

@@ -5,7 +5,6 @@
  */
 
 import { BRAND_NAME } from '@/app/_brand';
-import { ToolFailureError } from '@/domain/mcp/tool-failure';
 
 /**
  * May look at the feeds, the paper and the archive, and never change them.
