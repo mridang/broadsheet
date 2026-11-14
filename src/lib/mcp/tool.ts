@@ -145,9 +145,16 @@ export abstract class McpTool<
    * The arguments the catalogue advertises, derived from {@link input}. Hosts
    * and models read this; a call is measured against the zod schema it came
    * from, so a default or a check that JSON Schema cannot carry still applies.
+   *
+   * The `$schema` key zod adds is left out: it names the dialect, which the
+   * MCP specification already fixes, and the argument checker treats a keyword
+   * it does not act on as one to warn about.
    */
   get inputSchema(): JsonSchema {
-    return z.toJSONSchema(this.input, { io: 'input' }) as JsonSchema;
+    const { $schema: _dialect, ...schema } = z.toJSONSchema(this.input, {
+      io: 'input',
+    }) as Record<string, unknown>;
+    return schema as JsonSchema;
   }
 
   /** The shape of the structured content this tool returns, where it has one. */
