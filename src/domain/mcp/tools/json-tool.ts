@@ -13,7 +13,12 @@
 import { type ToolContent, type ToolContext } from '@/domain/mcp/tool-context';
 import { ToolFailureError } from '@/domain/mcp/tool-failure';
 import { checked } from '@/domain/mcp/tools/support';
-import { dataResult, errorResult, McpTool, type ToolResult } from '@/lib/mcp';
+import { McpTool } from '@/lib/mcp';
+import {
+  dataResult,
+  errorResult,
+  type ToolResult,
+} from '@/domain/mcp/tool-results';
 import { z } from 'zod';
 
 /** A tool that answers with the facts it read. */

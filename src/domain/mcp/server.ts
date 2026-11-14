@@ -26,7 +26,7 @@ import {
   INSTRUCTIONS,
   SERVER_INFO,
   SERVER_INFO_META_KEY,
-} from '@/domain/mcp/app';
+} from '@/domain/mcp/server-info';
 import { PROMPTS } from '@/domain/mcp/prompts';
 import { RESOURCES } from '@/domain/mcp/resources';
 import { callToolOrExplain } from '@/domain/mcp/tool-calls';

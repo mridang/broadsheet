@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from '@jest/globals';
 
 import { createDatabase, type Database } from '@/domain/db/client';
 import type { User } from '@/domain/db/users';
-import { INSTRUCTIONS, SERVER_INFO } from '@/domain/mcp/app';
+import { INSTRUCTIONS, SERVER_INFO } from '@/domain/mcp/server-info';
 import { handleMcpMessage, isAdvertisedTool } from '@/domain/mcp/server';
 import { TOOLS } from '@/domain/mcp/tool-definitions';
 import type { ToolServices } from '@/domain/mcp/tool-services';

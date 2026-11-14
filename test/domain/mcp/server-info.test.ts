@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { INSTRUCTIONS, SERVER_INFO } from '@/domain/mcp/app';
+import { INSTRUCTIONS, SERVER_INFO } from '@/domain/mcp/server-info';
 
 describe('the MCP server', () => {
   it('names itself broadsheet', () => {
