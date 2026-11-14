@@ -7,6 +7,13 @@ updates:
     commit-message:
       prefix: 'chore(deps):'
     open-pull-requests-limit: 10
+    # ts-jest's latest release declares `typescript: ">=4.3 <7"`, so a bump to
+    # TypeScript 7 cannot be installed and fails the whole grouped update with
+    # it, security fixes included. Hold 7 back until ts-jest supports it, then
+    # drop this. Minor and patch updates, and the move to 6, are unaffected.
+    ignore:
+      - dependency-name: 'typescript'
+        versions: ['>=7']
     groups:
       npm-version-updates:
         patterns:
