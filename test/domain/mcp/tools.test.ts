@@ -53,6 +53,30 @@ async function seed(): Promise<{ feedId: number; articleId: number }> {
   return { feedId: feed.id, articleId: article!.id };
 }
 
+describe('the tool catalogue', () => {
+  /** The tools that say they may destroy something. */
+  const destructive = TOOLS.filter((t) => t.destructive === true).map(
+    (t) => t.name,
+  );
+
+  it('warns about exactly the tools that remove something for good', () => {
+    expect(destructive.toSorted((a, b) => a.localeCompare(b))).toEqual([
+      'manage_notifications',
+      'remove_classifier',
+      'remove_section',
+      'unfollow_feed',
+      'unsave_article',
+      'unshare_story',
+    ]);
+  });
+
+  it('never calls a read-only tool destructive', () => {
+    for (const t of TOOLS.filter((t) => t.readOnly)) {
+      expect(t.destructive).not.toBe(true);
+    }
+  });
+});
+
 describe('list_feeds', () => {
   it('lists the feeds and sections of the caller only', async () => {
     await seed();

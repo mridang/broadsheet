@@ -73,6 +73,15 @@ const server = new McpServer<{ readonly who: string }>(
         throw new Error('database detail');
       },
     }),
+    tool({
+      name: 'wreck',
+      title: 'Wreck',
+      description: 'Throws something away.',
+      input: z.object({}),
+      readOnly: false,
+      destructive: true,
+      run: async () => ({ removed: true }),
+    }),
   ],
   resources,
   prompts,
@@ -122,7 +131,30 @@ describe('McpServer', () => {
         },
         { name: 'refuse', annotations: { readOnlyHint: false } },
         { name: 'crash' },
+        { name: 'wreck', annotations: { readOnlyHint: false } },
       ],
+    });
+  });
+
+  it('warns a host which tools destroy something, and says the others do not', async () => {
+    const reply = await call('tools/list');
+    const listed = (
+      reply && 'result' in reply
+        ? (
+            reply.result as {
+              tools: readonly {
+                name: string;
+                annotations: { destructiveHint: boolean };
+              }[];
+            }
+          ).tools
+        : []
+    ).map((t) => [t.name, t.annotations.destructiveHint] as const);
+    expect(Object.fromEntries(listed)).toEqual({
+      greet: false,
+      refuse: false,
+      crash: false,
+      wreck: true,
     });
   });
 
