@@ -30,6 +30,9 @@ const call = (method: string, params: Record<string, unknown> = {}) =>
     services,
   );
 
+/** Two names in alphabetical order. */
+const compareNames = (a: string, b: string) => a.localeCompare(b);
+
 /** The `result` of a reply, for a reply that has one. */
 const resultOf = async (
   method: string,
@@ -72,19 +75,20 @@ describe('the handshake', () => {
 
   it('refuses a method it does not know', async () => {
     expect(await call('does/not/exist')).toMatchObject({
-      error: { code: -32601 },
+      error: { code: -32_601 },
     });
   });
 });
 
 describe('tools/list', () => {
   it('advertises every registered tool, and nothing else', async () => {
-    const listed = (
-      (await resultOf('tools/list'))['tools'] as { name: string }[]
-    )
-      .map((tool) => tool.name)
-      .toSorted();
-    expect(listed).toEqual([...TOOL_REGISTRY.names].toSorted());
+    const result = await resultOf('tools/list');
+    const listed = (result['tools'] as { name: string }[]).map(
+      (tool) => tool.name,
+    );
+    expect(listed.toSorted(compareNames)).toEqual(
+      [...TOOL_REGISTRY.names].toSorted(compareNames),
+    );
   });
 
   it('gives each tool a title, a description and an object schema', async () => {
@@ -126,19 +130,19 @@ describe('tools/call', () => {
   it('refuses a tool it does not advertise', async () => {
     expect(
       await call('tools/call', { name: 'not_a_tool', arguments: {} }),
-    ).toMatchObject({ error: { code: -32602 } });
+    ).toMatchObject({ error: { code: -32_602 } });
   });
 });
 
 describe('resources', () => {
   it('lists the fixed addresses and the templated ones apart', async () => {
-    const fixed = (
-      (await resultOf('resources/list'))['resources'] as { uri: string }[]
-    ).map((resource) => resource.uri);
+    const listed = await resultOf('resources/list');
+    const templated = await resultOf('resources/templates/list');
+    const fixed = (listed['resources'] as { uri: string }[]).map(
+      (resource) => resource.uri,
+    );
     const templates = (
-      (await resultOf('resources/templates/list'))['resourceTemplates'] as {
-        uriTemplate: string;
-      }[]
+      templated['resourceTemplates'] as { uriTemplate: string }[]
     ).map((template) => template.uriTemplate);
     expect([
       fixed.includes('broadsheet://feeds'),
@@ -148,9 +152,14 @@ describe('resources', () => {
   });
 
   it('reads a fixed resource as JSON', async () => {
-    const contents = (
-      await resultOf('resources/read', { uri: 'broadsheet://feeds' })
-    )['contents'] as { uri: string; mimeType: string; text: string }[];
+    const read = await resultOf('resources/read', {
+      uri: 'broadsheet://feeds',
+    });
+    const contents = read['contents'] as {
+      uri: string;
+      mimeType: string;
+      text: string;
+    }[];
     expect([contents[0]?.uri, contents[0]?.mimeType]).toEqual([
       'broadsheet://feeds',
       'application/json',
@@ -161,19 +170,20 @@ describe('resources', () => {
   it('refuses an address no resource answers to', async () => {
     expect(
       await call('resources/read', { uri: 'broadsheet://nothing' }),
-    ).toMatchObject({ error: { code: -32602 } });
+    ).toMatchObject({ error: { code: -32_602 } });
   });
 
   it('needs an address at all', async () => {
     expect(await call('resources/read')).toMatchObject({
-      error: { code: -32602 },
+      error: { code: -32_602 },
     });
   });
 });
 
 describe('prompts', () => {
   it('lists each prompt with its arguments', async () => {
-    const listed = (await resultOf('prompts/list'))['prompts'] as {
+    const result = await resultOf('prompts/list');
+    const listed = result['prompts'] as {
       name: string;
       arguments: unknown[];
     }[];
@@ -197,12 +207,12 @@ describe('prompts', () => {
   it('refuses a prompt that is missing a required argument', async () => {
     expect(
       await call('prompts/get', { name: 'research_topic', arguments: {} }),
-    ).toMatchObject({ error: { code: -32602 } });
+    ).toMatchObject({ error: { code: -32_602 } });
   });
 
   it('refuses an unknown prompt', async () => {
     expect(await call('prompts/get', { name: 'not_a_prompt' })).toMatchObject({
-      error: { code: -32602 },
+      error: { code: -32_602 },
     });
   });
 });

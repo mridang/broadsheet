@@ -503,13 +503,12 @@ function ids(
     .map((row) => String(row['id']));
 }
 
-const MIGRATIONS = [
-  '0008_oauth.sql',
-  '0012_oauth_housekeeping.sql',
-  '0016_oauth_redirect_uri_sent.sql',
-  '0017_oauth_client_assertions.sql',
-  '0018_oauth_client_logo.sql',
-] as const;
+/**
+ * The whole history, because this app's OAuth tables were not introduced in
+ * migrations of their own: the first ones sit alongside the rest of the schema
+ * and the shared server's columns arrive in `0036_shared_oauth_server.sql`.
+ */
+const MIGRATIONS = APP_MIGRATIONS;
 
 // eslint-disable-next-line sonarjs/max-lines-per-function -- one suite over a real SQLite database; splitting it is a large rewrite
 describe('against a real SQLite database', () => {
