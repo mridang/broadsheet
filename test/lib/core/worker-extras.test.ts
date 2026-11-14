@@ -186,12 +186,9 @@ jest.unstable_mockModule('@/domain/feed-import-runs', () => ({
 }));
 
 jest.unstable_mockModule('@/domain/db/oauth', () => ({
-  D1OAuthStore: class {
-    purgeExpired = async (now: number) => {
-      calls.push(`purgeOAuth:${now}`);
-      if (purgeFails) throw new Error('database down');
-      return { codes: 2, tokens: 3 };
-    };
+  purgeOAuthData: async (_db: unknown, now: number) => {
+    calls.push(`purgeOAuth:${now}`);
+    if (purgeFails) throw new Error('database down');
   },
 }));
 

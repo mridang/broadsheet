@@ -1,12 +1,8 @@
 import { describe, expect, it } from '@jest/globals';
 import { z } from 'zod';
 
-import {
-  McpServer,
-  ToolFailureError,
-  type McpPrompt,
-  type McpResource,
-} from '@/lib/mcp/server';
+import { McpServer, type McpPrompt, type McpResource } from '@/lib/mcp/server';
+import { ToolFailureError } from '@/domain/mcp/tool-failure';
 import {
   READS,
   writes,

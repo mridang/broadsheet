@@ -1,22 +1,42 @@
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it, jest } from '@jest/globals';
 
 import { databaseFrom } from '@/domain/db/database';
 import type { McpAuth } from '@/domain/mcp/auth';
-import { respondToMcp } from '@/domain/mcp/http';
+import type { RateLimitDeps } from '@/domain/mcp/request-limits';
+import type { RateLimitStore } from '@/lib/rate-limit';
 import { APP_MIGRATIONS } from '../../lib/core/db/migrations';
 import { sqliteD1 } from '../../lib/core/db/sqlite-d1';
+
+/** One empty database, which the tools reach for instead of Cloudflare's. */
+const db = databaseFrom(sqliteD1(...APP_MIGRATIONS).d1);
+
+jest.unstable_mockModule('@/domain/mcp/tool-services', () => ({
+  liveToolServices: { openDatabase: () => db, refresh: () => undefined },
+  refresher: () => () => undefined,
+}));
+
+const { respondToMcp } = await import('@/domain/mcp/http');
+
+/** Counters in a map, so no test reaches a database to be rate limited. */
+function fakeRate(): RateLimitDeps {
+  const counters = new Map<string, { count: number; windowStart: number }>();
+  const store: RateLimitStore = {
+    async hit(key, now) {
+      const window = counters.get(key) ?? { count: 0, windowStart: now };
+      const next = { ...window, count: window.count + 1 };
+      counters.set(key, next);
+      return next;
+    },
+    async purge() {},
+  };
+  return { store: () => store, now: () => 0, random: () => 1 };
+}
 
 const ORIGIN = 'https://app.test';
 
 /** Answer a request as a caller with this authentication. */
 function respond(request: Request, auth: McpAuth): Promise<Response> {
-  const db = databaseFrom(sqliteD1(...APP_MIGRATIONS).d1);
-  return respondToMcp(
-    request,
-    ORIGIN,
-    async () => auth,
-    (uid) => ({ uid, db, refresh: () => undefined }),
-  );
+  return respondToMcp(request, ORIGIN, async () => auth, fakeRate());
 }
 
 const reader: McpAuth = { kind: 'ok', uid: 1, scope: ['read'] };

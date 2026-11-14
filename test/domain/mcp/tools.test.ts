@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import { DAILY_LIMITS } from '@/domain/assistant';
 import { databaseFrom, type Database } from '@/domain/db/database';
-import { ToolFailureError } from '@/lib/mcp/server';
+import { ToolFailureError } from '@/domain/mcp/tool-failure';
 import { collect } from '@/domain/mcp/tools/support';
 import { TOOL_REGISTRY } from '@/domain/mcp/tools';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';

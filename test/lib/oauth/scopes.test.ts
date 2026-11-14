@@ -8,14 +8,16 @@ import {
   scopeForMessage,
   scopeForTool,
 } from '@/lib/oauth';
-import { READ_ONLY_TOOLS } from '@/domain/mcp/app';
-import { TOOLS } from '@/domain/mcp/tool-definitions';
+import { TOOL_REGISTRY } from '@/domain/mcp/tools';
 
-/** A tool that only reads, and one that changes something. */
+/** The tools that only look, and the ones that change something. */
+const READ_ONLY_TOOLS = TOOL_REGISTRY.all
+  .filter((tool) => tool.annotations.readOnlyHint === true)
+  .map((tool) => tool.name);
+const WRITE_TOOLS = TOOL_REGISTRY.all
+  .filter((tool) => tool.annotations.readOnlyHint !== true)
+  .map((tool) => tool.name);
 const [READ_TOOL = ''] = READ_ONLY_TOOLS;
-const WRITE_TOOLS = TOOLS.map((tool) => tool.name).filter(
-  (name) => !READ_ONLY_TOOLS.has(name),
-);
 const [WRITE_TOOL = ''] = WRITE_TOOLS;
 
 describe('normaliseScope', () => {
@@ -60,6 +62,7 @@ describe('hasScope', () => {
 
 describe('scopeForTool', () => {
   it('needs only read for viewing tools', () => {
+    expect(READ_ONLY_TOOLS).not.toHaveLength(0);
     for (const tool of READ_ONLY_TOOLS) {
       expect(scopeForTool(tool)).toBe(SCOPE_READ);
     }
