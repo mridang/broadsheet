@@ -9,7 +9,7 @@
 
 import { and, desc, eq, gt, sql } from 'drizzle-orm';
 
-import { type Database } from '@/domain/db/database';
+import { type Database } from '@/domain/db/client';
 import {
   articles,
   feedNotifications,

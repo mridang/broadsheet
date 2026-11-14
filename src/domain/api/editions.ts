@@ -32,7 +32,7 @@ import {
   type CustomEdition,
   type EditionChanges,
 } from '@/domain/repository';
-import { getDatabase } from '@/domain/db/database';
+import { getDatabase } from '@/domain/db/client';
 import { isIssueDate, storedEditionIssue, type Issue } from '@/domain/issues';
 
 /** The signed-in caller's id and the request, for an edition endpoint. */

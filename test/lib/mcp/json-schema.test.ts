@@ -165,9 +165,10 @@ describe('objects', () => {
   });
 
   it('names a missing required property, also when it is undefined', () => {
-    let unset: unknown;
+    // A property the object leaves out: its key stays present, with no value.
+    let notProvided: undefined;
     expect(problems(schema, {})).toEqual(['`a` is required.']);
-    expect(problems(schema, { a: unset })).toEqual(['`a` is required.']);
+    expect(problems(schema, { a: notProvided })).toEqual(['`a` is required.']);
   });
 
   it('names an unknown property and lists the known ones', () => {

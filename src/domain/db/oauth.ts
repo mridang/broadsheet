@@ -45,7 +45,7 @@ import {
   purgeRateLimits,
   type RateLimitStore,
 } from '@/lib/rate-limit';
-import type { Database } from '@/domain/db/database';
+import type { Database } from '@/domain/db/client';
 import {
   oauthAssertions,
   oauthClients,

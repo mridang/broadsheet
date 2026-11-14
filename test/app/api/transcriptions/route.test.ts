@@ -7,7 +7,7 @@ import {
   jest,
 } from '@jest/globals';
 
-import { databaseFrom } from '@/domain/db/database';
+import { databaseFrom } from '@/domain/db/client';
 import { DAILY_LIMITS } from '@/domain/assistant';
 import { Repository } from '@/domain/repository';
 import { SESSION_COOKIE } from '@/domain/auth/app';

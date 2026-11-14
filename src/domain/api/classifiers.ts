@@ -32,7 +32,7 @@ import {
   type Classifier,
   type ClassifierInput,
 } from '@/domain/repository';
-import { getDatabase } from '@/domain/db/database';
+import { getDatabase } from '@/domain/db/client';
 import { fireWebhooks } from '@/domain/notify';
 
 /** The signed-in caller's id and the request, for a classifier endpoint. */

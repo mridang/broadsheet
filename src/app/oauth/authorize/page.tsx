@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import type { ReactElement } from 'react';
 
 import { D1OAuthStore } from '@/domain/db/oauth';
-import { getDatabase } from '@/domain/db/database';
+import { getDatabase } from '@/domain/db/client';
 import { getCurrentUser } from '@/lib/core/auth';
 import { appOriginFromHeaders } from '@/lib/core/origin';
 import {

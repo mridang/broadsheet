@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from '@jest/globals';
 
-import { databaseFrom, type Database } from '@/domain/db/database';
+import { databaseFrom, type Database } from '@/domain/db/client';
 import type { User } from '@/domain/db/users';
 import { INSTRUCTIONS, SERVER_INFO } from '@/domain/mcp/app';
 import { handleMcpMessage, isAdvertisedTool } from '@/domain/mcp/server';

@@ -5,7 +5,7 @@ import {
   feedClassifierCounts,
   feedVerdictCounts,
 } from '@/domain/classifier-counts';
-import { databaseFrom } from '@/domain/db/database';
+import { databaseFrom } from '@/domain/db/client';
 import type { Training } from '@/domain/render/tiers';
 import { Repository, type Article } from '@/domain/repository';
 import { APP_MIGRATIONS } from '../lib/core/db/migrations';

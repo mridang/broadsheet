@@ -13,7 +13,7 @@ import {
   sqliteTime,
   writeScheduledBriefing,
 } from '@/domain/briefings';
-import { databaseFrom, type Database } from '@/domain/db/database';
+import { databaseFrom, type Database } from '@/domain/db/client';
 import {
   DEFAULT_PREFERENCES,
   Repository,

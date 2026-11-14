@@ -8,7 +8,7 @@
 
 import { eq, sql } from 'drizzle-orm';
 
-import { type Database } from '@/domain/db/database';
+import { type Database } from '@/domain/db/client';
 import { players } from '@/domain/db/schema';
 
 /** Where a person is in their listening. */

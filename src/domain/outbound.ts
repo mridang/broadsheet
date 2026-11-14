@@ -9,7 +9,7 @@
 
 import { and, desc, eq, getTableColumns, inArray, or } from 'drizzle-orm';
 
-import { type Database } from '@/domain/db/database';
+import { type Database } from '@/domain/db/client';
 import {
   articles,
   feedTokens,

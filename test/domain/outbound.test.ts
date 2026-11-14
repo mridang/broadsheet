@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from '@jest/globals';
 
-import { databaseFrom, type Database } from '@/domain/db/database';
+import { databaseFrom, type Database } from '@/domain/db/client';
 import { OutboundRepository } from '@/domain/outbound';
 import { Repository } from '@/domain/repository';
 import type { ScrapedItem } from '@/lib/scraping';

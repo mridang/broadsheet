@@ -25,7 +25,7 @@ import {
   validateAuthorizeRequest,
 } from '@/lib/oauth';
 import { isSameOriginPost } from '@/lib/web-security';
-import { getDatabase } from '@/domain/db/database';
+import { getDatabase } from '@/domain/db/client';
 import { appOrigin } from '@/lib/core/origin';
 
 /** A plain-text error page response, with a `Retry-After` when the caller should wait. */

@@ -27,7 +27,7 @@ import {
   readJsonObject,
 } from '@/lib/core/api';
 import { Repository, type Preferences } from '@/domain/repository';
-import { getDatabase } from '@/domain/db/database';
+import { getDatabase } from '@/domain/db/client';
 
 /** The signed-in caller's id and the request. */
 interface UidContext {

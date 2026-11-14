@@ -23,7 +23,7 @@ jest.unstable_mockModule(
   { virtual: true },
 );
 
-jest.unstable_mockModule('@/domain/db/database', () => ({
+jest.unstable_mockModule('@/domain/db/client', () => ({
   databaseFrom: () => 'db',
 }));
 

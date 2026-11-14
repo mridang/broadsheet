@@ -10,7 +10,7 @@
  * {@link composeBriefing} say. One briefing is kept per slot and local date;
  * asking for one again replaces it.
  */
-import type { Database } from '@/domain/db/database';
+import type { Database } from '@/domain/db/client';
 import {
   GLOBAL_SECTIONS,
   LONG_READ,

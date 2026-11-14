@@ -13,7 +13,7 @@ import {
 } from '@/domain/api/auth';
 import { parseSourceQuery, sourceResource } from '@/domain/api/source-resource';
 import { problems, ApiController, page, parseLimit } from '@/lib/core/api';
-import { getDatabase } from '@/domain/db/database';
+import { getDatabase } from '@/domain/db/client';
 import { rankedSourceResource } from '@/domain/api/discover';
 import {
   Repository,

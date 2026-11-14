@@ -11,7 +11,7 @@
 import { BRAND_NAME } from '@/app/_brand';
 import { atomXml, type AtomEntry } from '@/domain/atom';
 import { rfc3339 } from '@/domain/api/feed-resource';
-import { type Database } from '@/domain/db/database';
+import { type Database } from '@/domain/db/client';
 import {
   OutboundRepository,
   type FeedFilter,

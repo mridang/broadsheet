@@ -1,6 +1,6 @@
 import { describe, expect, it, jest } from '@jest/globals';
 
-import { databaseFrom } from '@/domain/db/database';
+import { databaseFrom } from '@/domain/db/client';
 import type { McpAuth } from '@/domain/mcp/auth';
 import type { User } from '@/domain/db/users';
 import type { RateLimitDeps } from '@/domain/mcp/request-limits';

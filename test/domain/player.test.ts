@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from '@jest/globals';
 
-import { databaseFrom } from '@/domain/db/database';
+import { databaseFrom } from '@/domain/db/client';
 import { EMPTY_PLAYER, PlayerRepository } from '@/domain/player';
 import { APP_MIGRATIONS } from '../lib/core/db/migrations';
 import { sqliteD1 } from '../lib/core/db/sqlite-d1';

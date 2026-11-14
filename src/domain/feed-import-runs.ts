@@ -9,7 +9,7 @@
 import { and, eq, isNotNull, lt, sql } from 'drizzle-orm';
 
 import type { OpmlFeed } from '@/domain/api/opml';
-import type { Database } from '@/domain/db/database';
+import type { Database } from '@/domain/db/client';
 import { feedImports } from '@/domain/db/schema';
 import { importFeeds } from '@/domain/feed-import';
 import { Repository } from '@/domain/repository';

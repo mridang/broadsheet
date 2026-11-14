@@ -21,7 +21,7 @@ import {
 } from '@/domain/briefings';
 import { clusterEdition } from '@/domain/clustering';
 import type { OpmlFeed } from '@/domain/api/opml';
-import { databaseFrom } from '@/domain/db/database';
+import { databaseFrom } from '@/domain/db/client';
 import { purgeOAuthData } from '@/domain/db/oauth';
 import { FeedImportRuns, IMPORT_CHUNK } from '@/domain/feed-import-runs';
 import { publishEditionIssue, publishIssue } from '@/domain/issues';

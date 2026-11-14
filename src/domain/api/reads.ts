@@ -22,7 +22,7 @@ import {
   ok,
 } from '@/lib/core/api';
 import { Repository } from '@/domain/repository';
-import { getDatabase } from '@/domain/db/database';
+import { getDatabase } from '@/domain/db/client';
 import { MAX_READ_SECONDS } from '@/domain/trending';
 
 /** The signed-in caller's id and the request, for a read endpoint. */

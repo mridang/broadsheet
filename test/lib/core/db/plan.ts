@@ -1,7 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { expect } from '@jest/globals';
 
-import { databaseFrom, type Database } from '@/domain/db/database';
+import { databaseFrom, type Database } from '@/domain/db/client';
 import { APP_MIGRATIONS } from './migrations';
 import { sqliteD1 } from './sqlite-d1';
 

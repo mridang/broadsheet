@@ -19,7 +19,7 @@ import {
   tooManyRequests,
 } from '@/lib/oauth';
 import { D1RateLimitStore } from '@/lib/rate-limit';
-import { getDatabase } from '@/domain/db/database';
+import { getDatabase } from '@/domain/db/client';
 
 /**
  * `POST /oauth/revoke`: revoke the grant behind `token` (a URL-encoded form

@@ -30,7 +30,7 @@ import {
   type DiscoveredArticle,
   type TrendingQuery,
 } from '@/domain/repository';
-import { getDatabase } from '@/domain/db/database';
+import { getDatabase } from '@/domain/db/client';
 import { withText } from '@/domain/scraping/index';
 
 /** The signed-in caller's id and the request, for an article endpoint. */

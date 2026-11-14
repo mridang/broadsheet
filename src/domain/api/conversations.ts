@@ -43,7 +43,7 @@ import {
   problems,
   type Slice,
 } from '@/lib/core/api';
-import { getDatabase } from '@/domain/db/database';
+import { getDatabase } from '@/domain/db/client';
 import { Repository, type ConversationSummary } from '@/domain/repository';
 
 /** The signed-in caller's id and the request. */

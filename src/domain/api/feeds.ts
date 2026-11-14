@@ -51,7 +51,7 @@ import {
 } from '@/domain/classifier-counts';
 import { discoverFeed, refreshSource } from '@/domain/scraping/index';
 import { getEnv, runInBackground } from '@/lib/core/runtime';
-import { getDatabase } from '@/domain/db/database';
+import { getDatabase } from '@/domain/db/client';
 import {
   buildOpml,
   OPML_TYPE,

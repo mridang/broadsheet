@@ -5,7 +5,7 @@ import { DatabaseSync, type SQLInputValue } from 'node:sqlite';
 
 import { drizzle } from 'drizzle-orm/sqlite-proxy';
 
-import type { Database } from '@/domain/db/database';
+import type { Database } from '@/domain/db/client';
 import {
   users,
   oauthClients,

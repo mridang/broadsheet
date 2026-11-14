@@ -1,7 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 
 import { noteActivity } from '@/domain/activity';
-import { databaseFrom } from '@/domain/db/database';
+import { databaseFrom } from '@/domain/db/client';
 import { NotificationRepository } from '@/domain/notifications';
 import { APP_MIGRATIONS } from '../lib/core/db/migrations';
 import { sqliteD1 } from '../lib/core/db/sqlite-d1';

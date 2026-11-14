@@ -14,7 +14,7 @@ import {
   type JsonBody,
 } from '@/lib/core/api';
 import { runInBackground } from '@/lib/core/runtime';
-import { getDatabase } from '@/domain/db/database';
+import { getDatabase } from '@/domain/db/client';
 import { errorMessage, logError } from '@/utils/logging';
 import {
   D1RateLimitStore,

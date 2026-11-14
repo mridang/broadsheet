@@ -29,7 +29,7 @@ import {
   noContent,
   page,
 } from '@/lib/core/api';
-import { getDatabase, type Database } from '@/domain/db/database';
+import { getDatabase, type Database } from '@/domain/db/client';
 import {
   ownsTarget,
   parseRiverId,

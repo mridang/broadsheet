@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from '@jest/globals';
 
 import { SESSION_COOKIE } from '@/domain/auth/app';
-import { databaseFrom } from '@/domain/db/database';
+import { databaseFrom } from '@/domain/db/client';
 import { FeedImportRuns } from '@/domain/feed-import-runs';
 import { APP_MIGRATIONS } from '../../../../../lib/core/db/migrations';
 import {

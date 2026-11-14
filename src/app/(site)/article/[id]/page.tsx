@@ -6,7 +6,7 @@ import { AskBox } from '@/app/(site)/article/[id]/_components/ask-box';
 import { ReadTimer } from '@/app/(site)/article/[id]/_components/read-timer';
 import { ensurePublicUser } from '@/domain/account';
 import { parseFeedId } from '@/domain/api/feed-resource';
-import { getDatabase } from '@/domain/db/database';
+import { getDatabase } from '@/domain/db/client';
 import { hostOf } from '@/domain/render/tiers';
 import { Repository } from '@/domain/repository';
 import { getCurrentUser } from '@/lib/core/auth';

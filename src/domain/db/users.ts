@@ -7,7 +7,7 @@
 
 import { eq } from 'drizzle-orm';
 
-import { type Database } from '@/domain/db/database';
+import { type Database } from '@/domain/db/client';
 import { users } from '@/domain/db/schema';
 
 /** One signed-in person, as this app stores them. */

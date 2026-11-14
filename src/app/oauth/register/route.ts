@@ -20,7 +20,7 @@ import {
 } from '@/lib/oauth';
 import { D1RateLimitStore } from '@/lib/rate-limit';
 import { runInBackground } from '@/lib/core/runtime';
-import { getDatabase } from '@/domain/db/database';
+import { getDatabase } from '@/domain/db/client';
 
 /**
  * `POST /oauth/register`: register a public client from a JSON body. Anyone

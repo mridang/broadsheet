@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from '@jest/globals';
 
-import { databaseFrom, type Database } from '@/domain/db/database';
+import { databaseFrom, type Database } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
 import { ShareRepository } from '@/domain/shares';
 import { APP_MIGRATIONS } from '../lib/core/db/migrations';

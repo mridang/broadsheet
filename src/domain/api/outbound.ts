@@ -23,7 +23,7 @@ import {
   webhookResource,
   type Checked,
 } from '@/domain/api/outbound-resource';
-import { getDatabase } from '@/domain/db/database';
+import { getDatabase } from '@/domain/db/client';
 import {
   OutboundRepository,
   type FeedToken,

@@ -15,7 +15,7 @@ import {
   resourceUri,
   type AccessIdentity,
 } from '@/lib/oauth';
-import { getDatabase } from '@/domain/db/database';
+import { getDatabase } from '@/domain/db/client';
 import { setErrorContext } from '@/lib/core/observability/context';
 
 /** Who the request is from, or why it is not allowed in. */

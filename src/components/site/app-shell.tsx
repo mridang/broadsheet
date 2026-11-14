@@ -1,6 +1,6 @@
 import type { ReactElement, ReactNode } from 'react';
 
-import { getDatabase } from '@/domain/db/database';
+import { getDatabase } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
 import { getCurrentUser } from '@/lib/core/auth';
 

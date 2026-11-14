@@ -36,7 +36,7 @@ import {
   readJsonObject,
 } from '@/lib/core/api';
 import { getEnv } from '@/lib/core/runtime';
-import { getDatabase } from '@/domain/db/database';
+import { getDatabase } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
 import { logWarn } from '@/utils/logging';
 

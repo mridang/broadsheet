@@ -31,7 +31,7 @@ import {
   type Slice,
 } from '@/lib/core/api';
 import { Repository, type SavedStory } from '@/domain/repository';
-import { getDatabase } from '@/domain/db/database';
+import { getDatabase } from '@/domain/db/client';
 import { fireWebhooks } from '@/domain/notify';
 
 /** The signed-in caller's id and the request, for a save endpoint. */

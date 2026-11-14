@@ -9,7 +9,7 @@ import { DeleteConversationButton } from '@/app/(site)/assistant/_components/del
 import { conversationResource } from '@/domain/api/conversation-resource';
 import { parseFeedId } from '@/domain/api/feed-resource';
 import { starterQuestions } from '@/domain/assistant';
-import { getDatabase } from '@/domain/db/database';
+import { getDatabase } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
 import { getCurrentUser } from '@/lib/core/auth';
 import { PageHeader, PageSection } from '@/components/ui/page-header';

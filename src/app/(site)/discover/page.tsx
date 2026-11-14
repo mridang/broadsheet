@@ -13,7 +13,7 @@ import {
 } from '@/app/(site)/discover/_components/discover-tabs';
 import { SearchForm } from '@/app/(site)/discover/_components/search-form';
 import { fetchJson } from '@/domain/api/discover';
-import { getDatabase } from '@/domain/db/database';
+import { getDatabase } from '@/domain/db/client';
 import {
   GOOGLE_NEWS_TOPICS,
   googleNewsFeed,

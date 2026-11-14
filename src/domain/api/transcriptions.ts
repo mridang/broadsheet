@@ -21,7 +21,7 @@ import {
 } from '@/domain/api/auth';
 import { overBudget } from '@/domain/api/usage';
 import { ApiController, ok, problem, problems } from '@/lib/core/api';
-import { getDatabase } from '@/domain/db/database';
+import { getDatabase } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
 
 /** What a recording was heard to say. */

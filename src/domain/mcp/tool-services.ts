@@ -9,7 +9,7 @@
  */
 
 import type { AnswerModel } from '@/domain/assistant';
-import { getDatabase, type Database } from '@/domain/db/database';
+import { getDatabase, type Database } from '@/domain/db/client';
 import { refreshSource } from '@/domain/scraping/index';
 
 /** What this app's tools reach for. */
