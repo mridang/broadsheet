@@ -231,11 +231,16 @@ describe('McpServer', () => {
     });
   });
 
-  it('reports bad arguments as a tool error', async () => {
+  it('reports bad arguments as a tool error, naming the tool and what it takes', async () => {
     const reply = await call('tools/call', { name: 'greet', arguments: {} });
     expect(reply && 'result' in reply && reply.result).toMatchObject({
       isError: true,
-      content: [{ type: 'text', text: expect.stringContaining('name:') }],
+      content: [
+        {
+          type: 'text',
+          text: 'Invalid arguments for greet: `name` is required. The arguments are: name (required).',
+        },
+      ],
     });
   });
 
