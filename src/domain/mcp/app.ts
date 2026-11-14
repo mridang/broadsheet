@@ -1,10 +1,10 @@
 /**
  * @packageDocumentation
  *
- * How the MCP server names itself to assistants, and what it tells them.
+ * What this app lets a caller do: the scopes it offers, how each is worded for
+ * the approval screen, and which of its own failures are worth explaining to an
+ * assistant. Who the server says it is lives in `server-info.ts`.
  */
-
-import { BRAND_NAME } from '@/app/_brand';
 
 /**
  * May look at the feeds, the paper and the archive, and never change them.
@@ -42,33 +42,5 @@ export const SUPPORTED_SCOPES = [SCOPE_READ, SCOPE_WRITE] as const;
 export function explainFailure(_error: unknown): string | undefined {
   return undefined;
 }
-
-/** How this server names itself in the `initialize` reply. */
-export interface ServerInfo {
-  readonly name: string;
-  readonly title: string;
-  readonly version: string;
-}
-
-/**
- * Where the server's identity is carried in a result's `_meta`, which the
- * newest protocol revision asks for.
- */
-export const SERVER_INFO_META_KEY = 'io.modelcontextprotocol/serverInfo';
-
-/** The server's identity in the `initialize` reply. */
-export const SERVER_INFO: ServerInfo = {
-  name: 'broadsheet',
-  title: BRAND_NAME,
-  version: '1.0.0',
-};
-
-/** What the server tells an assistant about itself when it connects. */
-export const INSTRUCTIONS = [
-  `${BRAND_NAME} turns the feeds a person follows into a daily newspaper.`,
-  'Use read_paper for today’s edition, search_articles to look through the archive,',
-  'and get_article for one story’s full text. Feeds, saves and training change',
-  'what the person sees, so only change them when asked.',
-].join(' ');
 
 export { BRAND_NAME as RESOURCE_NAME } from '@/app/_brand';

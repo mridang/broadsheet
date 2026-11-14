@@ -6,7 +6,7 @@ import { ToolFailureError } from '@/domain/mcp/tool-failure';
 import { collect } from '@/domain/mcp/tools/support';
 import { TOOL_REGISTRY } from '@/domain/mcp/tools';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
-import { TOOL_INVOKER } from '@/domain/mcp/tool-catalogue';
+import { callTool } from '@/domain/mcp/tool-calls';
 import type { ToolContext } from '@/domain/mcp/tool-context';
 import type { ToolServices } from '@/domain/mcp/tool-services';
 import type { User } from '@/domain/db/users';
@@ -51,7 +51,11 @@ beforeEach(async () => {
 
 /** Run a tool by name with arguments parsed as `tools/call` would. */
 async function run(name: string, args: Record<string, unknown> = {}) {
-  const result = await TOOL_INVOKER.invoke({ name, arguments: args }, ctx);
+  const result = await callTool(
+    ctx.user,
+    { name, arguments: args },
+    ctx.services,
+  );
   if (result.isError) {
     throw new ToolFailureError(result.content[0]?.text ?? '');
   }
