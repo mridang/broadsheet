@@ -16,16 +16,19 @@ ALTER TABLE oauth_clients ADD COLUMN logo_uri TEXT;
 ALTER TABLE oauth_grants ADD COLUMN last_used_at TEXT;
 
 ALTER TABLE oauth_codes ADD COLUMN grant_id TEXT;
-ALTER TABLE oauth_codes ADD COLUMN redirect_uri_sent INTEGER;
+ALTER TABLE oauth_codes ADD COLUMN redirect_uri_sent INTEGER NOT NULL DEFAULT 1;
 
 ALTER TABLE oauth_tokens ADD COLUMN used_at INTEGER;
 
 -- What a client signed to prove who it is, kept only until it expires so the
 -- same assertion cannot be replayed.
+-- One jti is only ever spent for the client that sent it, so the key is the
+-- pair: one app's assertion id must not lock another app out.
 CREATE TABLE IF NOT EXISTS oauth_assertions (
-  jti TEXT PRIMARY KEY,
   client_id TEXT NOT NULL,
-  expires_at INTEGER NOT NULL
+  jti TEXT NOT NULL,
+  expires_at INTEGER NOT NULL,
+  PRIMARY KEY (client_id, jti)
 );
 
 CREATE INDEX IF NOT EXISTS idx_oauth_assertions_expires
@@ -49,3 +52,17 @@ CREATE INDEX IF NOT EXISTS idx_oauth_grants_revoked_used
   ON oauth_grants (revoked_at, coalesce(last_used_at, created_at));
 
 DROP INDEX IF EXISTS idx_oauth_grants_user;
+
+-- Fixed-window counters for rate limiting (tool calls, client registration,
+-- client-metadata fetches). One row per limited thing (`key`), holding when its
+-- current window opened and how many hits it has taken. A hit in a window that
+-- has run out starts a new window at one; rows for idle keys are swept up by
+-- `purgeRateLimits` now and then. This app had no counters of its own, so the
+-- shared server's limits had nowhere to be kept until now.
+CREATE TABLE IF NOT EXISTS rate_limits (
+  key TEXT PRIMARY KEY,
+  window_start INTEGER NOT NULL,
+  count INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_rate_limits_window ON rate_limits (window_start);

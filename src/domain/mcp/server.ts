@@ -11,8 +11,10 @@
 
 import {
   ERROR_INVALID_PARAMS,
+  InvalidToolArgumentsError,
   McpServer,
   RpcError,
+  UnknownToolError,
   isPlainObject,
   negotiateLegacyVersion,
   type ToolArgs,
@@ -171,12 +173,38 @@ function promptResult(params: ToolArgs | undefined): object {
   };
 }
 
-/** Run a `tools/call` through whatever runs tools for this request. */
+/**
+ * Run a `tools/call` through whatever runs tools for this request.
+ *
+ * A name no tool answers to, and arguments that are not an object at all, are
+ * malformed requests rather than tool failures, so they are answered `-32602`
+ * and not as a tool result. Arguments that are an object but do not fit the
+ * tool's schema are the tool's own refusal, which the invoker words.
+ */
 async function callTool(
   params: ToolArgs | undefined,
   { tools, runTool }: McpContext,
 ): Promise<object> {
-  return runTool(tools.user, params, tools.services);
+  const named = params?.['name'];
+  const tool = typeof named === 'string' ? named : 'no name given';
+  try {
+    return await runTool(tools.user, params, tools.services);
+  } catch (error) {
+    if (error instanceof UnknownToolError) {
+      throw new RpcError(
+        ERROR_INVALID_PARAMS,
+        `Unknown tool: ${error.tool}. The tools are ${[...TOOL_REGISTRY.names].join(', ')}.`,
+      );
+    }
+    if (error instanceof InvalidToolArgumentsError) {
+      throw new RpcError(
+        ERROR_INVALID_PARAMS,
+        `Invalid arguments for tool ${tool}: ${error.problems.join(' ')}`,
+        { tool, problems: error.problems },
+      );
+    }
+    throw error;
+  }
 }
 
 /** This app's MCP server: the engine with its methods registered. */
