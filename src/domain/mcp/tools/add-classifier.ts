@@ -11,8 +11,7 @@ import {
 } from '@/domain/api/classifier-resource';
 import { type ToolContext } from '@/domain/mcp/tool-context';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
-import { checked, id } from '@/domain/mcp/tools/support';
-import { verdict } from '@/domain/render/tiers';
+import { checked } from '@/domain/mcp/tools/support';
 import { Repository } from '@/domain/repository';
 import { type ToolAnnotations, ToolFailureError, writes } from '@/lib/mcp';
 import { z } from 'zod';

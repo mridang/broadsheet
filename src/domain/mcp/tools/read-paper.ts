@@ -8,7 +8,6 @@
 import { articleResource } from '@/domain/api/article-resource';
 import { type ToolContext } from '@/domain/mcp/tool-context';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
-import { id } from '@/domain/mcp/tools/support';
 import { rank } from '@/domain/render/tiers';
 import { Repository, sectionPath } from '@/domain/repository';
 import { todayEdition } from '@/domain/scraping/index';

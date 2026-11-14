@@ -8,7 +8,6 @@
 import { MAX_SUGGESTIONS, suggestionResource } from '@/domain/api/suggestions';
 import { type ToolContext } from '@/domain/mcp/tool-context';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
-import { id } from '@/domain/mcp/tools/support';
 import { Repository } from '@/domain/repository';
 import { TOPICS } from '@/domain/topics';
 import { READS, type ToolAnnotations, ToolFailureError } from '@/lib/mcp';

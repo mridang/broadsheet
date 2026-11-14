@@ -8,7 +8,7 @@
 import { articleResource } from '@/domain/api/article-resource';
 import { type ToolContext } from '@/domain/mcp/tool-context';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
-import { collect, id, MAX_SEARCH } from '@/domain/mcp/tools/support';
+import { collect, MAX_SEARCH } from '@/domain/mcp/tools/support';
 import { verdict } from '@/domain/render/tiers';
 import { Repository } from '@/domain/repository';
 import { READS, type ToolAnnotations } from '@/lib/mcp';

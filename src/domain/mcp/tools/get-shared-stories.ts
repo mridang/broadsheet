@@ -7,12 +7,7 @@
 
 import { type ToolContext } from '@/domain/mcp/tool-context';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
-import {
-  collect,
-  id,
-  MAX_SEARCH,
-  shareResource,
-} from '@/domain/mcp/tools/support';
+import { collect, MAX_SEARCH, shareResource } from '@/domain/mcp/tools/support';
 import { Repository } from '@/domain/repository';
 import { ShareRepository } from '@/domain/shares';
 import { READS, type ToolAnnotations } from '@/lib/mcp';
