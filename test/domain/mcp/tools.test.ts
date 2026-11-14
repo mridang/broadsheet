@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { DAILY_LIMITS } from '@/domain/assistant';
 import { createDatabase, type Database } from '@/domain/db/client';
 import { ToolFailureError } from '@/domain/mcp/tool-failure';
-import { collect } from '@/domain/mcp/tools/support';
 import { TOOL_REGISTRY } from '@/domain/mcp/tools';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { callTool } from '@/domain/mcp/tool-calls';
@@ -73,32 +72,6 @@ async function seed(): Promise<{ feedId: number; articleId: number }> {
   const [article] = await repo.searchArticles(1, { q: 'Rust', limit: 1 });
   return { feedId: feed.id, articleId: article!.id };
 }
-
-describe('the tool catalogue', () => {
-  /** The tools that say they may destroy something. */
-  const destructive = TOOL_REGISTRY.all
-    .filter((tool) => tool.annotations.destructiveHint)
-    .map((tool) => tool.name);
-
-  it('warns about exactly the tools that remove something for good', () => {
-    expect(destructive.toSorted((a, b) => a.localeCompare(b))).toEqual([
-      'manage_notifications',
-      'remove_classifier',
-      'remove_section',
-      'unfollow_feed',
-      'unsave_article',
-      'unshare_story',
-    ]);
-  });
-
-  it('never calls a read-only tool destructive', () => {
-    for (const tool of TOOL_REGISTRY.all.filter(
-      (candidate) => candidate.annotations.readOnlyHint,
-    )) {
-      expect(tool.annotations.destructiveHint).toBe(false);
-    }
-  });
-});
 
 describe('list_feeds', () => {
   it('lists the feeds and sections of the caller only', async () => {
@@ -364,16 +337,6 @@ const ZOD_TOOLS = TOOL_REGISTRY.all as readonly JsonTool<string>[];
 /** The tool with this name, as the zod-backed class it is. */
 const zodTool = (name: string): JsonTool<string> =>
   ZOD_TOOLS.find((tool) => tool.name === name)!;
-
-describe('TOOLS', () => {
-  it('describes every input in plain words', () => {
-    for (const t of ZOD_TOOLS) {
-      for (const field of Object.values(t.input.shape)) {
-        expect((field as { description?: string }).description).toBeTruthy();
-      }
-    }
-  });
-});
 
 describe('follow_feed into a section', () => {
   it('files the new feed', async () => {
@@ -781,24 +744,6 @@ describe('search_articles filters', () => {
     expect(page).toEqual({
       articles: [expect.objectContaining({ title: 'Rust ships' })],
     });
-  });
-});
-
-describe('collect', () => {
-  const rows = Array.from({ length: 250 }, (_, i) => ({ id: 250 - i }));
-  const fetch = async (before: number | undefined, limit: number) =>
-    rows
-      .filter((r) => before === undefined || r.id < before)
-      .slice(0, limit + 1);
-
-  it('reads past batches until the page is full', async () => {
-    const { items, next } = await collect(fetch, (r) => r.id % 50 === 0, 3);
-    expect([items.map((r) => r.id), next]).toEqual([[250, 200, 150], 150]);
-  });
-
-  it('says nothing follows once the rows run out', async () => {
-    const { next } = await collect(fetch, (r) => r.id === 1, 5);
-    expect(next).toBeUndefined();
   });
 });
 

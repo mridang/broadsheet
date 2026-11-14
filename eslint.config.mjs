@@ -84,7 +84,6 @@ export default [
     files: [
       'src/domain/repository.ts',
       'test/domain/db/oauth.test.ts',
-      'test/domain/mcp/tools.test.ts',
       'test/domain/repository.test.ts',
       'test/openapi.test.ts',
     ],
