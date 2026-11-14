@@ -46,6 +46,9 @@ const CHATGPT_DOCUMENT = {
   jwks_uri: 'https://chatgpt.com/oauth/jwks.json',
 };
 
+/** A key the document carries with no value, as an override can send it. */
+let notProvided: undefined;
+
 describe('isMetadataDocumentUrl', () => {
   it('accepts an https URL with a path', () => {
     expect(isMetadataDocumentUrl(URL_ID)).toBe(true);
@@ -149,6 +152,7 @@ describe('parseClientMetadataDocument', () => {
     ['a jwks_uri with credentials', { jwks_uri: 'https://u:p@chatgpt.com/k' }],
     ['a jwks_uri that is not a URL', { jwks_uri: 'keys' }],
     ['a jwks_uri that is not text', { jwks_uri: 7 }],
+    ['a jwks_uri sent as nothing', { jwks_uri: notProvided }],
     [
       'a signing algorithm we do not accept',
       { token_endpoint_auth_signing_alg: 'HS256' },
