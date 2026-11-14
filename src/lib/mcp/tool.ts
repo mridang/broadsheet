@@ -151,9 +151,11 @@ export abstract class McpTool<
    * it does not act on as one to warn about.
    */
   get inputSchema(): JsonSchema {
-    const { $schema: _dialect, ...schema } = z.toJSONSchema(this.input, {
-      io: 'input',
-    }) as Record<string, unknown>;
+    const schema = z.toJSONSchema(this.input, { io: 'input' }) as Record<
+      string,
+      unknown
+    >;
+    delete schema['$schema'];
     return schema as JsonSchema;
   }
 
