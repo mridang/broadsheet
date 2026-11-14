@@ -7,7 +7,8 @@
 
 import { articleResource } from '@/domain/api/article-resource';
 import { type ToolContext } from '@/domain/mcp/tool-context';
-import { ZodTool } from '@/domain/mcp/tools/zod-tool';
+import { JsonTool } from '@/domain/mcp/tools/json-tool';
+import { id } from '@/domain/mcp/tools/support';
 import { rank } from '@/domain/render/tiers';
 import { Repository, sectionPath } from '@/domain/repository';
 import { todayEdition } from '@/domain/scraping/index';
@@ -23,7 +24,7 @@ const SCHEMA = z.object({
     .describe('The edition, as YYYY-MM-DD. Leave out for the latest.'),
 });
 
-export class ReadPaperTool extends ZodTool<'read_paper', typeof SCHEMA> {
+export class ReadPaperTool extends JsonTool<'read_paper', typeof SCHEMA> {
   readonly name = 'read_paper';
 
   readonly title = "Read today's paper";

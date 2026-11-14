@@ -18,6 +18,8 @@
  * names any of them, so it carries no knowledge of the app it serves.
  */
 
+import { z } from 'zod';
+
 import type { JsonSchema } from './json-schema';
 import type { JsonContent, ToolResult } from './results';
 
@@ -114,6 +116,7 @@ export abstract class McpTool<
   TName extends string = string,
   TContext = unknown,
   TContent = JsonContent,
+  TInput extends z.ZodObject = z.ZodObject,
 > {
   /** The name an assistant calls, in `snake_case`. */
   abstract readonly name: TName;
@@ -128,11 +131,24 @@ export abstract class McpTool<
   abstract readonly description: string;
 
   /**
-   * The arguments the tool accepts, in JSON Schema 2020-12. This is a promise
-   * rather than documentation: every call is checked against it before anything
-   * runs.
+   * The arguments the tool accepts, and the only description of them.
+   *
+   * zod rather than JSON Schema because zod says things JSON Schema cannot: a
+   * default to fill in when an argument is absent, and a check no keyword
+   * covers, such as a date that parses but is not a day in the calendar. This
+   * is a promise rather than documentation: every call is measured against it
+   * before anything runs.
    */
-  abstract readonly inputSchema: JsonSchema;
+  abstract readonly input: TInput;
+
+  /**
+   * The arguments the catalogue advertises, derived from {@link input}. Hosts
+   * and models read this; a call is measured against the zod schema it came
+   * from, so a default or a check that JSON Schema cannot carry still applies.
+   */
+  get inputSchema(): JsonSchema {
+    return z.toJSONSchema(this.input, { io: 'input' }) as JsonSchema;
+  }
 
   /** The shape of the structured content this tool returns, where it has one. */
   readonly outputSchema?: JsonSchema;
@@ -179,9 +195,9 @@ export abstract class McpTool<
   }
 
   /**
-   * Run the call. The arguments have already been checked against
-   * {@link inputSchema} and corrected for {@link spellings}, so this does not
-   * check them again.
+   * Run the call. The arguments have already been corrected for
+   * {@link spellings} and parsed by {@link input}, so their defaults are filled
+   * in and this does not check them again.
    *
    * Anything slow or costly is opened through the context when the tool asks
    * for it, never in advance, so a tool that does not need it does not pay for
@@ -192,7 +208,7 @@ export abstract class McpTool<
    * @param context - What the app hands its tools.
    */
   abstract handle(
-    args: ToolArgs,
+    args: z.infer<TInput>,
     context: TContext,
   ): Promise<ToolResult<TContent>>;
 }
@@ -207,4 +223,4 @@ export abstract class McpTool<
  * anything. This is the type to ask for when a collaborator reads what a tool
  * says about itself and never calls it, as a catalogue or a scope policy does.
  */
-export type AnyMcpTool = McpTool<string, never, unknown>;
+export type AnyMcpTool = McpTool<string, never, unknown, z.ZodObject>;

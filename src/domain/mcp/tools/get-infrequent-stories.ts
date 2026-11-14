@@ -7,8 +7,8 @@
 
 import { articleResource } from '@/domain/api/article-resource';
 import { type ToolContext } from '@/domain/mcp/tool-context';
-import { collect, MAX_SEARCH } from '@/domain/mcp/tools/support';
-import { ZodTool } from '@/domain/mcp/tools/zod-tool';
+import { JsonTool } from '@/domain/mcp/tools/json-tool';
+import { collect, id, MAX_SEARCH } from '@/domain/mcp/tools/support';
 import { verdict } from '@/domain/render/tiers';
 import { Repository } from '@/domain/repository';
 import { READS, type ToolAnnotations } from '@/lib/mcp';
@@ -54,7 +54,7 @@ const SCHEMA = z.object({
     ),
 });
 
-export class GetInfrequentStoriesTool extends ZodTool<
+export class GetInfrequentStoriesTool extends JsonTool<
   'get_infrequent_stories',
   typeof SCHEMA
 > {

@@ -10,11 +10,11 @@ import {
   parseClassifierInput,
 } from '@/domain/api/classifier-resource';
 import { type ToolContext } from '@/domain/mcp/tool-context';
-import { checked } from '@/domain/mcp/tools/support';
-import { ZodTool } from '@/domain/mcp/tools/zod-tool';
+import { JsonTool } from '@/domain/mcp/tools/json-tool';
+import { checked, id } from '@/domain/mcp/tools/support';
+import { verdict } from '@/domain/render/tiers';
 import { Repository } from '@/domain/repository';
-import { type ToolAnnotations, writes } from '@/lib/mcp';
-import { ToolFailureError } from '@/lib/mcp/server';
+import { type ToolAnnotations, ToolFailureError, writes } from '@/lib/mcp';
 import { z } from 'zod';
 
 /** What `add_classifier` accepts. */
@@ -32,7 +32,7 @@ const SCHEMA = z.object({
     .describe('Whether to like, dislike or super dislike.'),
 });
 
-export class AddClassifierTool extends ZodTool<
+export class AddClassifierTool extends JsonTool<
   'add_classifier',
   typeof SCHEMA
 > {

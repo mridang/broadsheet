@@ -6,17 +6,16 @@
  */
 
 import { type ToolContext } from '@/domain/mcp/tool-context';
+import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { id } from '@/domain/mcp/tools/support';
-import { ZodTool } from '@/domain/mcp/tools/zod-tool';
 import { Repository } from '@/domain/repository';
-import { type ToolAnnotations, writes } from '@/lib/mcp';
-import { ToolFailureError } from '@/lib/mcp/server';
+import { type ToolAnnotations, ToolFailureError, writes } from '@/lib/mcp';
 import { z } from 'zod';
 
 /** What `unfollow_feed` accepts. */
 const SCHEMA = z.object({ feed_id: id('feed') });
 
-export class UnfollowFeedTool extends ZodTool<'unfollow_feed', typeof SCHEMA> {
+export class UnfollowFeedTool extends JsonTool<'unfollow_feed', typeof SCHEMA> {
   readonly name = 'unfollow_feed';
 
   readonly title = 'Unfollow a feed';

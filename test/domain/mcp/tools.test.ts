@@ -5,7 +5,7 @@ import { databaseFrom, type Database } from '@/domain/db/database';
 import { ToolFailureError } from '@/lib/mcp';
 import { collect } from '@/domain/mcp/tools/support';
 import { TOOL_REGISTRY } from '@/domain/mcp/tools';
-import { ZodTool } from '@/domain/mcp/tools/zod-tool';
+import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { TOOL_INVOKER } from '@/domain/mcp/tool-catalogue';
 import type { ToolContext } from '@/domain/mcp/tool-context';
 import { Repository } from '@/domain/repository';
@@ -346,10 +346,10 @@ describe('classifiers', () => {
 });
 
 /** Every tool, as the zod-backed class it is, so a test can read its schema. */
-const ZOD_TOOLS = TOOL_REGISTRY.all as readonly ZodTool<string>[];
+const ZOD_TOOLS = TOOL_REGISTRY.all as readonly JsonTool<string>[];
 
 /** The tool with this name, as the zod-backed class it is. */
-const zodTool = (name: string): ZodTool<string> =>
+const zodTool = (name: string): JsonTool<string> =>
   ZOD_TOOLS.find((tool) => tool.name === name)!;
 
 describe('TOOLS', () => {

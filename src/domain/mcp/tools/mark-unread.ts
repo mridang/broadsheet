@@ -6,17 +6,16 @@
  */
 
 import { type ToolContext } from '@/domain/mcp/tool-context';
+import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { id } from '@/domain/mcp/tools/support';
-import { ZodTool } from '@/domain/mcp/tools/zod-tool';
 import { Repository } from '@/domain/repository';
-import { type ToolAnnotations, writes } from '@/lib/mcp';
-import { ToolFailureError } from '@/lib/mcp/server';
+import { type ToolAnnotations, ToolFailureError, writes } from '@/lib/mcp';
 import { z } from 'zod';
 
 /** What `mark_unread` accepts. */
 const SCHEMA = z.object({ article_id: id('article') });
 
-export class MarkUnreadTool extends ZodTool<'mark_unread', typeof SCHEMA> {
+export class MarkUnreadTool extends JsonTool<'mark_unread', typeof SCHEMA> {
   readonly name = 'mark_unread';
 
   readonly title = 'Mark a story unread';

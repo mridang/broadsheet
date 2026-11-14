@@ -10,11 +10,10 @@ import {
   sectionResource,
 } from '@/domain/api/section-resource';
 import { type ToolContext } from '@/domain/mcp/tool-context';
+import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { checked, dropUndefined, id } from '@/domain/mcp/tools/support';
-import { ZodTool } from '@/domain/mcp/tools/zod-tool';
 import { Repository } from '@/domain/repository';
-import { type ToolAnnotations, writes } from '@/lib/mcp';
-import { ToolFailureError } from '@/lib/mcp/server';
+import { type ToolAnnotations, ToolFailureError, writes } from '@/lib/mcp';
 import { z } from 'zod';
 
 /** What `update_section` accepts. */
@@ -32,7 +31,7 @@ const SCHEMA = z.object({
     .describe('Nest it under this section; null moves it to the top level.'),
 });
 
-export class UpdateSectionTool extends ZodTool<
+export class UpdateSectionTool extends JsonTool<
   'update_section',
   typeof SCHEMA
 > {

@@ -6,11 +6,10 @@
  */
 
 import { type ToolContext } from '@/domain/mcp/tool-context';
+import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { feedScope, id, MAX_MARK } from '@/domain/mcp/tools/support';
-import { ZodTool } from '@/domain/mcp/tools/zod-tool';
 import { Repository } from '@/domain/repository';
-import { type ToolAnnotations, writes } from '@/lib/mcp';
-import { ToolFailureError } from '@/lib/mcp/server';
+import { type ToolAnnotations, ToolFailureError, writes } from '@/lib/mcp';
 import { z } from 'zod';
 
 /** What `mark_read` accepts. */
@@ -39,7 +38,7 @@ const SCHEMA = z.object({
     ),
 });
 
-export class MarkReadTool extends ZodTool<'mark_read', typeof SCHEMA> {
+export class MarkReadTool extends JsonTool<'mark_read', typeof SCHEMA> {
   readonly name = 'mark_read';
 
   readonly title = 'Mark stories read';

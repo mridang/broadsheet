@@ -3,14 +3,21 @@
  *
  * Checking the arguments of a tool call before anything runs.
  *
- * Arguments arrive as untrusted JSON. A check has three parts: the envelope has
+ * Arguments arrive as untrusted JSON. A check has four parts: the envelope has
  * to be an object at all, the looser spellings the tool forgives are put right,
- * and what is left is measured against the tool's own input schema. The first
- * is a malformed request and is thrown; the third is a mistake an assistant can
- * correct and comes back as a refusal naming each problem.
+ * what is left is measured against the schema the catalogue advertises, and
+ * then against the zod schema that was derived from, which fills in defaults
+ * and applies the checks no keyword covers. The first is a malformed request
+ * and is thrown; the rest are mistakes an assistant can correct and come back
+ * as a refusal naming each problem.
  */
 
-import { describeArguments, isJsonObject, validateJson } from './json-schema';
+import {
+  describeArguments,
+  isJsonObject,
+  validateJson,
+  type JsonSchema,
+} from './json-schema';
 import { InvalidToolArgumentsError } from './tool-errors';
 import { errorResult, type ToolResult } from './results';
 import { canonicalArguments } from './tool-args';
@@ -48,14 +55,34 @@ export class ArgumentChecker {
       throw new InvalidToolArgumentsError(['`arguments` must be an object.']);
     }
     const args = canonicalArguments(given, tool.spellings);
-    const problems = validateJson(tool.inputSchema, args, 'The arguments');
-    if (problems.length === 0) {
-      return { args };
+    const schema = tool.inputSchema;
+    const problems = validateJson(schema, args, 'The arguments');
+    if (problems.length > 0) {
+      return { refusal: this.#refusal(tool.name, problems, schema) };
     }
-    return {
-      refusal: errorResult(
-        `Invalid arguments for ${tool.name}: ${problems.join(' ')} ${describeArguments(tool.inputSchema)}`,
-      ),
-    };
+    const parsed = tool.input.safeParse(args);
+    return parsed.success
+      ? { args: parsed.data as ToolArgs }
+      : {
+          refusal: this.#refusal(
+            tool.name,
+            parsed.error.issues.map(
+              (issue) =>
+                `${issue.path.join('.') || 'The arguments'}: ${issue.message}.`,
+            ),
+            schema,
+          ),
+        };
+  }
+
+  /** The refusal to answer with, naming each problem and what the tool takes. */
+  #refusal(
+    name: string,
+    problems: readonly string[],
+    schema: JsonSchema,
+  ): ToolResult<never> {
+    return errorResult(
+      `Invalid arguments for ${name}: ${problems.join(' ')} ${describeArguments(schema)}`,
+    );
   }
 }

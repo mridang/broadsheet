@@ -13,11 +13,10 @@ import {
 } from '@/domain/assistant';
 import { answerTurn } from '@/domain/assistant-tools';
 import { type ToolContext } from '@/domain/mcp/tool-context';
+import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { id } from '@/domain/mcp/tools/support';
-import { ZodTool } from '@/domain/mcp/tools/zod-tool';
 import { Repository } from '@/domain/repository';
-import { type ToolAnnotations, writes } from '@/lib/mcp';
-import { ToolFailureError } from '@/lib/mcp/server';
+import { type ToolAnnotations, ToolFailureError, writes } from '@/lib/mcp';
 import { z } from 'zod';
 
 /** What `ask_archive` accepts. */
@@ -28,7 +27,7 @@ const SCHEMA = z.object({
     .describe('Continue this conversation; leave out to start one.'),
 });
 
-export class AskArchiveTool extends ZodTool<'ask_archive', typeof SCHEMA> {
+export class AskArchiveTool extends JsonTool<'ask_archive', typeof SCHEMA> {
   readonly name = 'ask_archive';
 
   readonly title = 'Ask the archive';

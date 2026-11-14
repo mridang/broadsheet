@@ -17,7 +17,7 @@ import {
   ToolRegistry,
   type FailureLog,
 } from '@/lib/mcp';
-import { ZodTool } from '@/domain/mcp/tools/zod-tool';
+import { JsonTool } from '@/domain/mcp/tools/json-tool';
 
 const resources: McpResource<{ readonly who: string }>[] = [
   {
@@ -57,7 +57,7 @@ interface Who {
 }
 
 /** A tool built the way this app builds them, for the engine's own tests. */
-abstract class Fixture<TName extends string> extends ZodTool<TName> {}
+abstract class Fixture<TName extends string> extends JsonTool<TName> {}
 
 class GreetTool extends Fixture<'greet'> {
   readonly name = 'greet';

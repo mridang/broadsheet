@@ -7,17 +7,16 @@
 
 import { articleDetailResource } from '@/domain/api/article-resource';
 import { type ToolContext } from '@/domain/mcp/tool-context';
+import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { id } from '@/domain/mcp/tools/support';
-import { ZodTool } from '@/domain/mcp/tools/zod-tool';
 import { Repository } from '@/domain/repository';
-import { READS, type ToolAnnotations } from '@/lib/mcp';
-import { ToolFailureError } from '@/lib/mcp/server';
+import { READS, type ToolAnnotations, ToolFailureError } from '@/lib/mcp';
 import { z } from 'zod';
 
 /** What `get_article` accepts. */
 const SCHEMA = z.object({ article_id: id('article') });
 
-export class GetArticleTool extends ZodTool<'get_article', typeof SCHEMA> {
+export class GetArticleTool extends JsonTool<'get_article', typeof SCHEMA> {
   readonly name = 'get_article';
 
   readonly title = 'Get an article';

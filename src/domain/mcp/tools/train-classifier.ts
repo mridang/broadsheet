@@ -10,11 +10,10 @@ import {
   parseClassifierInput,
 } from '@/domain/api/classifier-resource';
 import { type ToolContext } from '@/domain/mcp/tool-context';
+import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { checked, id, TRAINABLE } from '@/domain/mcp/tools/support';
-import { ZodTool } from '@/domain/mcp/tools/zod-tool';
 import { Repository } from '@/domain/repository';
-import { type ToolAnnotations, writes } from '@/lib/mcp';
-import { ToolFailureError } from '@/lib/mcp/server';
+import { type ToolAnnotations, ToolFailureError, writes } from '@/lib/mcp';
 import { z } from 'zod';
 
 /** What `train_classifier` accepts. */
@@ -43,7 +42,7 @@ const SCHEMA = z.object({
     .describe('Dislike every story of the feed.'),
 });
 
-export class TrainClassifierTool extends ZodTool<
+export class TrainClassifierTool extends JsonTool<
   'train_classifier',
   typeof SCHEMA
 > {

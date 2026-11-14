@@ -7,11 +7,10 @@
 
 import { feedResource, parseFeedChanges } from '@/domain/api/feed-resource';
 import { type ToolContext } from '@/domain/mcp/tool-context';
+import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { checked, dropUndefined, id } from '@/domain/mcp/tools/support';
-import { ZodTool } from '@/domain/mcp/tools/zod-tool';
 import { Repository } from '@/domain/repository';
-import { type ToolAnnotations, writes } from '@/lib/mcp';
-import { ToolFailureError } from '@/lib/mcp/server';
+import { type ToolAnnotations, ToolFailureError, writes } from '@/lib/mcp';
 import { z } from 'zod';
 
 /** What `organize_feed` accepts. */
@@ -44,7 +43,7 @@ const SCHEMA = z.object({
     .describe('The section to file it under; null takes it out of one.'),
 });
 
-export class OrganizeFeedTool extends ZodTool<'organize_feed', typeof SCHEMA> {
+export class OrganizeFeedTool extends JsonTool<'organize_feed', typeof SCHEMA> {
   readonly name = 'organize_feed';
 
   readonly title = 'Organize a feed';

@@ -10,6 +10,7 @@ import {
   MAX_QUERY_LENGTH,
 } from '@/domain/api/article-resource';
 import { type ToolContext } from '@/domain/mcp/tool-context';
+import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import {
   collect,
   feedScope,
@@ -17,7 +18,6 @@ import {
   isoDate,
   MAX_SEARCH,
 } from '@/domain/mcp/tools/support';
-import { ZodTool } from '@/domain/mcp/tools/zod-tool';
 import { verdict } from '@/domain/render/tiers';
 import { ArticleSummary, Repository } from '@/domain/repository';
 import { READS, type ToolAnnotations } from '@/lib/mcp';
@@ -87,7 +87,7 @@ const SCHEMA = z.object({
     .describe('Newest or oldest first.'),
 });
 
-export class SearchArticlesTool extends ZodTool<
+export class SearchArticlesTool extends JsonTool<
   'search_articles',
   typeof SCHEMA
 > {

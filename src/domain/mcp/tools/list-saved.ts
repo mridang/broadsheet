@@ -8,8 +8,8 @@
 import { MAX_QUERY_LENGTH } from '@/domain/api/article-resource';
 import { saveResource } from '@/domain/api/save-resource';
 import { type ToolContext } from '@/domain/mcp/tool-context';
+import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { MAX_SEARCH } from '@/domain/mcp/tools/support';
-import { ZodTool } from '@/domain/mcp/tools/zod-tool';
 import { Repository } from '@/domain/repository';
 import { READS, type ToolAnnotations } from '@/lib/mcp';
 import { z } from 'zod';
@@ -24,7 +24,7 @@ const SCHEMA = z.object({
     .describe('Words, author:name and tag:name terms to look for.'),
 });
 
-export class ListSavedTool extends ZodTool<'list_saved', typeof SCHEMA> {
+export class ListSavedTool extends JsonTool<'list_saved', typeof SCHEMA> {
   readonly name = 'list_saved';
 
   readonly title = 'List saved stories';

@@ -10,15 +10,14 @@ import {
   parseNotificationInput,
 } from '@/domain/api/notification-resource';
 import { type ToolContext } from '@/domain/mcp/tool-context';
+import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { checked, id } from '@/domain/mcp/tools/support';
-import { ZodTool } from '@/domain/mcp/tools/zod-tool';
 import {
   NOTIFICATION_CHANNELS,
   NOTIFICATION_FILTERS,
   NotificationRepository,
 } from '@/domain/notifications';
-import { type ToolAnnotations, writes } from '@/lib/mcp';
-import { ToolFailureError } from '@/lib/mcp/server';
+import { type ToolAnnotations, ToolFailureError, writes } from '@/lib/mcp';
 import { z } from 'zod';
 
 /** What `manage_notifications` accepts. */
@@ -40,7 +39,7 @@ const SCHEMA = z.object({
     .describe('For set: which new stories to send.'),
 });
 
-export class ManageNotificationsTool extends ZodTool<
+export class ManageNotificationsTool extends JsonTool<
   'manage_notifications',
   typeof SCHEMA
 > {

@@ -7,16 +7,15 @@
 
 import { parseSaveInput, saveResource } from '@/domain/api/save-resource';
 import { type ToolContext } from '@/domain/mcp/tool-context';
+import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import {
   checked,
   id,
   MAX_HIGHLIGHTS,
   MAX_NOTE,
 } from '@/domain/mcp/tools/support';
-import { ZodTool } from '@/domain/mcp/tools/zod-tool';
 import { Repository } from '@/domain/repository';
-import { type ToolAnnotations, writes } from '@/lib/mcp';
-import { ToolFailureError } from '@/lib/mcp/server';
+import { type ToolAnnotations, ToolFailureError, writes } from '@/lib/mcp';
 import { z } from 'zod';
 
 /** What `save_article` accepts. */
@@ -39,7 +38,7 @@ const SCHEMA = z.object({
     .describe('Passages of the story to mark.'),
 });
 
-export class SaveArticleTool extends ZodTool<'save_article', typeof SCHEMA> {
+export class SaveArticleTool extends JsonTool<'save_article', typeof SCHEMA> {
   readonly name = 'save_article';
 
   readonly title = 'Save an article';

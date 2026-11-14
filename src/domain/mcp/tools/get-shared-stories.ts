@@ -6,8 +6,13 @@
  */
 
 import { type ToolContext } from '@/domain/mcp/tool-context';
-import { collect, MAX_SEARCH, shareResource } from '@/domain/mcp/tools/support';
-import { ZodTool } from '@/domain/mcp/tools/zod-tool';
+import { JsonTool } from '@/domain/mcp/tools/json-tool';
+import {
+  collect,
+  id,
+  MAX_SEARCH,
+  shareResource,
+} from '@/domain/mcp/tools/support';
 import { Repository } from '@/domain/repository';
 import { ShareRepository } from '@/domain/shares';
 import { READS, type ToolAnnotations } from '@/lib/mcp';
@@ -44,7 +49,7 @@ const SCHEMA = z.object({
     ),
 });
 
-export class GetSharedStoriesTool extends ZodTool<
+export class GetSharedStoriesTool extends JsonTool<
   'get_shared_stories',
   typeof SCHEMA
 > {

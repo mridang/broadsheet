@@ -11,8 +11,8 @@ import {
   WINDOWS,
 } from '@/domain/api/article-resource';
 import { type ToolContext } from '@/domain/mcp/tool-context';
+import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { MAX_SEARCH } from '@/domain/mcp/tools/support';
-import { ZodTool } from '@/domain/mcp/tools/zod-tool';
 import { Repository, TRENDING_ORDERS } from '@/domain/repository';
 import { READS, type ToolAnnotations } from '@/lib/mcp';
 import { z } from 'zod';
@@ -40,7 +40,7 @@ const SCHEMA = z.object({
     .describe(`How many to return, 1 to ${MAX_SEARCH}.`),
 });
 
-export class GetTrendingTool extends ZodTool<'get_trending', typeof SCHEMA> {
+export class GetTrendingTool extends JsonTool<'get_trending', typeof SCHEMA> {
   readonly name = 'get_trending';
 
   readonly title = 'Get trending stories';

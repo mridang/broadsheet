@@ -6,17 +6,16 @@
  */
 
 import { type ToolContext } from '@/domain/mcp/tool-context';
+import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { id } from '@/domain/mcp/tools/support';
-import { ZodTool } from '@/domain/mcp/tools/zod-tool';
 import { Repository } from '@/domain/repository';
-import { type ToolAnnotations, writes } from '@/lib/mcp';
-import { ToolFailureError } from '@/lib/mcp/server';
+import { type ToolAnnotations, ToolFailureError, writes } from '@/lib/mcp';
 import { z } from 'zod';
 
 /** What `remove_classifier` accepts. */
 const SCHEMA = z.object({ classifier_id: id('classifier') });
 
-export class RemoveClassifierTool extends ZodTool<
+export class RemoveClassifierTool extends JsonTool<
   'remove_classifier',
   typeof SCHEMA
 > {

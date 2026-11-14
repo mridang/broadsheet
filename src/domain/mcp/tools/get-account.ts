@@ -6,16 +6,15 @@
  */
 
 import { type ToolContext } from '@/domain/mcp/tool-context';
-import { ZodTool } from '@/domain/mcp/tools/zod-tool';
+import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { Repository } from '@/domain/repository';
-import { READS, type ToolAnnotations } from '@/lib/mcp';
-import { ToolFailureError } from '@/lib/mcp/server';
+import { READS, type ToolAnnotations, ToolFailureError } from '@/lib/mcp';
 import { z } from 'zod';
 
 /** What `get_account` accepts. */
 const SCHEMA = z.object({});
 
-export class GetAccountTool extends ZodTool<'get_account', typeof SCHEMA> {
+export class GetAccountTool extends JsonTool<'get_account', typeof SCHEMA> {
   readonly name = 'get_account';
 
   readonly title = 'Get the account';

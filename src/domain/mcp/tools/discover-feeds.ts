@@ -7,11 +7,11 @@
 
 import { MAX_SUGGESTIONS, suggestionResource } from '@/domain/api/suggestions';
 import { type ToolContext } from '@/domain/mcp/tool-context';
-import { ZodTool } from '@/domain/mcp/tools/zod-tool';
+import { JsonTool } from '@/domain/mcp/tools/json-tool';
+import { id } from '@/domain/mcp/tools/support';
 import { Repository } from '@/domain/repository';
 import { TOPICS } from '@/domain/topics';
-import { READS, type ToolAnnotations } from '@/lib/mcp';
-import { ToolFailureError } from '@/lib/mcp/server';
+import { READS, type ToolAnnotations, ToolFailureError } from '@/lib/mcp';
 import { z } from 'zod';
 
 /** What `discover_feeds` accepts. */
@@ -22,7 +22,7 @@ const SCHEMA = z.object({
     .describe('Only this starter topic (its id or name).'),
 });
 
-export class DiscoverFeedsTool extends ZodTool<
+export class DiscoverFeedsTool extends JsonTool<
   'discover_feeds',
   typeof SCHEMA
 > {

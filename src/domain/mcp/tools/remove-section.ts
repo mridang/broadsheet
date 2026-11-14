@@ -6,17 +6,16 @@
  */
 
 import { type ToolContext } from '@/domain/mcp/tool-context';
+import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { id } from '@/domain/mcp/tools/support';
-import { ZodTool } from '@/domain/mcp/tools/zod-tool';
 import { Repository } from '@/domain/repository';
-import { type ToolAnnotations, writes } from '@/lib/mcp';
-import { ToolFailureError } from '@/lib/mcp/server';
+import { type ToolAnnotations, ToolFailureError, writes } from '@/lib/mcp';
 import { z } from 'zod';
 
 /** What `remove_section` accepts. */
 const SCHEMA = z.object({ section_id: id('section') });
 
-export class RemoveSectionTool extends ZodTool<
+export class RemoveSectionTool extends JsonTool<
   'remove_section',
   typeof SCHEMA
 > {

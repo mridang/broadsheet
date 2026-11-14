@@ -8,17 +8,16 @@
 import { feedResource } from '@/domain/api/feed-resource';
 import { feedClassifierCounts } from '@/domain/classifier-counts';
 import { type ToolContext } from '@/domain/mcp/tool-context';
+import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { id } from '@/domain/mcp/tools/support';
-import { ZodTool } from '@/domain/mcp/tools/zod-tool';
 import { Repository } from '@/domain/repository';
-import { READS, type ToolAnnotations } from '@/lib/mcp';
-import { ToolFailureError } from '@/lib/mcp/server';
+import { READS, type ToolAnnotations, ToolFailureError } from '@/lib/mcp';
 import { z } from 'zod';
 
 /** What `get_feed` accepts. */
 const SCHEMA = z.object({ feed_id: id('feed') });
 
-export class GetFeedTool extends ZodTool<'get_feed', typeof SCHEMA> {
+export class GetFeedTool extends JsonTool<'get_feed', typeof SCHEMA> {
   readonly name = 'get_feed';
 
   readonly title = 'Get a feed';

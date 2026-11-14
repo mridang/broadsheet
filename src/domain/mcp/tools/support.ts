@@ -17,7 +17,7 @@ import { type ToolContext } from '@/domain/mcp/tool-context';
 import { Repository, type Section } from '@/domain/repository';
 import { refreshSource } from '@/domain/scraping/index';
 import { type SharedStory } from '@/domain/shares';
-import { ToolFailureError } from '@/lib/mcp/server';
+import { ToolFailureError } from '@/lib/mcp';
 import { z } from 'zod';
 
 /** The production way to fetch a newly followed feed. */

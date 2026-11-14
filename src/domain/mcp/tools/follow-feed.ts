@@ -7,11 +7,10 @@
 
 import { feedResource, parseFeedInput } from '@/domain/api/feed-resource';
 import { type ToolContext } from '@/domain/mcp/tool-context';
+import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { checked, id } from '@/domain/mcp/tools/support';
-import { ZodTool } from '@/domain/mcp/tools/zod-tool';
 import { Repository } from '@/domain/repository';
-import { type ToolAnnotations, writes } from '@/lib/mcp';
-import { ToolFailureError } from '@/lib/mcp/server';
+import { type ToolAnnotations, ToolFailureError, writes } from '@/lib/mcp';
 import { z } from 'zod';
 
 /** What `follow_feed` accepts. */
@@ -22,7 +21,7 @@ const SCHEMA = z.object({
     .describe('File the new feed under this section.'),
 });
 
-export class FollowFeedTool extends ZodTool<'follow_feed', typeof SCHEMA> {
+export class FollowFeedTool extends JsonTool<'follow_feed', typeof SCHEMA> {
   readonly name = 'follow_feed';
 
   readonly title = 'Follow a feed';

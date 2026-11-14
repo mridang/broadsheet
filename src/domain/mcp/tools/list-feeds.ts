@@ -8,7 +8,8 @@
 import { feedResource } from '@/domain/api/feed-resource';
 import { sectionResource } from '@/domain/api/section-resource';
 import { type ToolContext } from '@/domain/mcp/tool-context';
-import { ZodTool } from '@/domain/mcp/tools/zod-tool';
+import { JsonTool } from '@/domain/mcp/tools/json-tool';
+import { id } from '@/domain/mcp/tools/support';
 import { Repository } from '@/domain/repository';
 import { READS, type ToolAnnotations } from '@/lib/mcp';
 import { z } from 'zod';
@@ -21,7 +22,7 @@ const SCHEMA = z.object({
     .describe('Add unread and monthly story counts to each feed and section.'),
 });
 
-export class ListFeedsTool extends ZodTool<'list_feeds', typeof SCHEMA> {
+export class ListFeedsTool extends JsonTool<'list_feeds', typeof SCHEMA> {
   readonly name = 'list_feeds';
 
   readonly title = 'List feeds and sections';

@@ -6,17 +6,16 @@
  */
 
 import { type ToolContext } from '@/domain/mcp/tool-context';
+import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { id } from '@/domain/mcp/tools/support';
-import { ZodTool } from '@/domain/mcp/tools/zod-tool';
 import { ShareRepository } from '@/domain/shares';
-import { type ToolAnnotations, writes } from '@/lib/mcp';
-import { ToolFailureError } from '@/lib/mcp/server';
+import { type ToolAnnotations, ToolFailureError, writes } from '@/lib/mcp';
 import { z } from 'zod';
 
 /** What `unshare_story` accepts. */
 const SCHEMA = z.object({ article_id: id('article') });
 
-export class UnshareStoryTool extends ZodTool<'unshare_story', typeof SCHEMA> {
+export class UnshareStoryTool extends JsonTool<'unshare_story', typeof SCHEMA> {
   readonly name = 'unshare_story';
 
   readonly title = 'Unshare a story';

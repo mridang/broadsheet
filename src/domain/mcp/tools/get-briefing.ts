@@ -8,11 +8,10 @@
 import { issueResource } from '@/domain/api/issue-resource';
 import { isIssueDate, issueFor } from '@/domain/issues';
 import { type ToolContext } from '@/domain/mcp/tool-context';
-import { ZodTool } from '@/domain/mcp/tools/zod-tool';
+import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { Repository } from '@/domain/repository';
 import { todayEdition } from '@/domain/scraping/index';
-import { READS, type ToolAnnotations } from '@/lib/mcp';
-import { ToolFailureError } from '@/lib/mcp/server';
+import { READS, type ToolAnnotations, ToolFailureError } from '@/lib/mcp';
 import { z } from 'zod';
 
 /** What `get_briefing` accepts. */
@@ -24,7 +23,7 @@ const SCHEMA = z.object({
     .describe('The day, as YYYY-MM-DD. Leave out for the latest edition.'),
 });
 
-export class GetBriefingTool extends ZodTool<'get_briefing', typeof SCHEMA> {
+export class GetBriefingTool extends JsonTool<'get_briefing', typeof SCHEMA> {
   readonly name = 'get_briefing';
 
   readonly title = 'Get the daily briefing';

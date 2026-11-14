@@ -6,7 +6,7 @@
  */
 
 import { type ToolContext } from '@/domain/mcp/tool-context';
-import { ZodTool } from '@/domain/mcp/tools/zod-tool';
+import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { Repository } from '@/domain/repository';
 import { READS, type ToolAnnotations } from '@/lib/mcp';
 import { z } from 'zod';
@@ -14,7 +14,7 @@ import { z } from 'zod';
 /** What `get_archive_stats` accepts. */
 const SCHEMA = z.object({});
 
-export class GetArchiveStatsTool extends ZodTool<
+export class GetArchiveStatsTool extends JsonTool<
   'get_archive_stats',
   typeof SCHEMA
 > {

@@ -6,12 +6,11 @@
  */
 
 import { type ToolContext } from '@/domain/mcp/tool-context';
+import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { id, MAX_NOTE, shareResource } from '@/domain/mcp/tools/support';
-import { ZodTool } from '@/domain/mcp/tools/zod-tool';
 import { Repository } from '@/domain/repository';
 import { ShareRepository } from '@/domain/shares';
-import { type ToolAnnotations, writes } from '@/lib/mcp';
-import { ToolFailureError } from '@/lib/mcp/server';
+import { type ToolAnnotations, ToolFailureError, writes } from '@/lib/mcp';
 import { z } from 'zod';
 
 /** What `share_story` accepts. */
@@ -24,7 +23,7 @@ const SCHEMA = z.object({
     .describe('What the person says about it.'),
 });
 
-export class ShareStoryTool extends ZodTool<'share_story', typeof SCHEMA> {
+export class ShareStoryTool extends JsonTool<'share_story', typeof SCHEMA> {
   readonly name = 'share_story';
 
   readonly title = 'Share a story';
