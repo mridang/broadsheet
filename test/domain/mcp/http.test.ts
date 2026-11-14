@@ -2,6 +2,7 @@ import { describe, expect, it, jest } from '@jest/globals';
 
 import { databaseFrom } from '@/domain/db/database';
 import type { McpAuth } from '@/domain/mcp/auth';
+import type { User } from '@/domain/db/users';
 import type { RateLimitDeps } from '@/domain/mcp/request-limits';
 import type { RateLimitStore } from '@/lib/rate-limit';
 import { APP_MIGRATIONS } from '../../lib/core/db/migrations';
@@ -39,8 +40,9 @@ function respond(request: Request, auth: McpAuth): Promise<Response> {
   return respondToMcp(request, ORIGIN, async () => auth, fakeRate());
 }
 
-const reader: McpAuth = { kind: 'ok', uid: 1, scope: ['read'] };
-const writer: McpAuth = { kind: 'ok', uid: 1, scope: ['read', 'write'] };
+const user = { id: 1 } as User;
+const reader: McpAuth = { kind: 'ok', user, scope: ['read'] };
+const writer: McpAuth = { kind: 'ok', user, scope: ['read', 'write'] };
 
 const post = (body: unknown) =>
   new Request(`${ORIGIN}/mcp`, {
@@ -146,7 +148,7 @@ describe('respondToMcp', () => {
   it('refuses a grant with no scope at all', async () => {
     const response = await respond(call('list_feeds'), {
       kind: 'ok',
-      uid: 1,
+      user,
       scope: [],
     });
     expect(response.status).toBe(403);

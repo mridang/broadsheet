@@ -8,6 +8,9 @@ import { TOOL_REGISTRY } from '@/domain/mcp/tools';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { TOOL_INVOKER } from '@/domain/mcp/tool-catalogue';
 import type { ToolContext } from '@/domain/mcp/tool-context';
+import type { ToolServices } from '@/domain/mcp/tool-services';
+import type { User } from '@/domain/db/users';
+import type { AnswerModel } from '@/domain/assistant';
 import { Repository } from '@/domain/repository';
 import type { ScrapedItem } from '@/lib/scraping';
 import { APP_MIGRATIONS } from '../../lib/core/db/migrations';
@@ -16,7 +19,13 @@ import insecure from '../../fixtures/insecure-urls.json';
 
 let db: Database;
 let ctx: ToolContext;
-let refresh: jest.Mock<ToolContext['refresh']>;
+let refresh: jest.Mock<ToolServices['refresh']>;
+
+/** The context of a call by this person, with this model bound when there is one. */
+const asCaller = (uid: number, model?: AnswerModel): ToolContext => ({
+  user: { id: uid } as User,
+  services: { openDatabase: () => db, refresh, ...(model && { model }) },
+});
 
 /** A scraped story. */
 const item = (url: string, title: string): ScrapedItem => ({
@@ -36,8 +45,8 @@ beforeEach(async () => {
   const repo = new Repository(db);
   await repo.upsertUser({ sub: 'g1', email: 'a@b.com' });
   await repo.upsertUser({ sub: 'g2', email: 'c@d.com' });
-  refresh = jest.fn<ToolContext['refresh']>();
-  ctx = { uid: 1, db, refresh };
+  refresh = jest.fn<ToolServices['refresh']>();
+  ctx = asCaller(1);
 });
 
 /** Run a tool by name with arguments parsed as `tools/call` would. */
@@ -232,7 +241,7 @@ describe('search_articles', () => {
 
   it('finds nothing from feeds others follow', async () => {
     await seed();
-    ctx = { ...ctx, uid: 2 };
+    ctx = asCaller(2);
     expect(await run('search_articles', { query: 'Rust' })).toEqual({
       articles: [],
     });
@@ -250,7 +259,7 @@ describe('get_article', () => {
 
   it('refuses an article from a feed the caller does not follow', async () => {
     const { articleId } = await seed();
-    ctx = { ...ctx, uid: 2 };
+    ctx = asCaller(2);
     await expect(run('get_article', { article_id: articleId })).rejects.toThrow(
       'There is no such article.',
     );
@@ -626,7 +635,7 @@ describe('ask_archive', () => {
 
   it('answers in a new conversation and keeps both turns', async () => {
     await seed();
-    ctx = { ...ctx, model: answering('Rust shipped.') };
+    ctx = asCaller(1, answering('Rust shipped.'));
     const result = (await run('ask_archive', {
       question: 'What shipped?',
     })) as {
@@ -644,7 +653,7 @@ describe('ask_archive', () => {
 
   it("refuses another person's conversation", async () => {
     const theirs = await new Repository(db).addConversation(2);
-    ctx = { ...ctx, model: answering('x') };
+    ctx = asCaller(1, answering('x'));
     await expect(
       run('ask_archive', { question: 'Hi', conversation_id: theirs.id }),
     ).rejects.toThrow('There is no such conversation.');
@@ -653,9 +662,9 @@ describe('ask_archive', () => {
   it('refuses once today’s assistant budget is used up', async () => {
     const repo = new Repository(db);
     for (let i = 0; i < DAILY_LIMITS.assistant; i++) {
-      await repo.recordUsage(ctx.uid, 'assistant');
+      await repo.recordUsage(ctx.user.id, 'assistant');
     }
-    ctx = { ...ctx, model: answering('x') };
+    ctx = asCaller(1, answering('x'));
     await expect(run('ask_archive', { question: 'Hi' })).rejects.toThrow(
       'You have used all your assistant questions for today.',
     );
@@ -991,7 +1000,7 @@ describe('sharing', () => {
 
   it('refuses an article the caller cannot see', async () => {
     const { articleId } = await seed();
-    ctx = { ...ctx, uid: 2 };
+    ctx = asCaller(2);
     await expect(run('share_story', { article_id: articleId })).rejects.toThrow(
       'There is no such article.',
     );
@@ -1000,7 +1009,7 @@ describe('sharing', () => {
   it('lists everyone’s shares, or chosen people’s', async () => {
     const { articleId } = await seed();
     await run('share_story', { article_id: articleId });
-    ctx = { ...ctx, uid: 2 };
+    ctx = asCaller(2);
     expect(await run('get_shared_stories')).toMatchObject({
       shares: [{ sharer: { id: '1' } }],
     });
