@@ -30,3 +30,22 @@ CREATE TABLE IF NOT EXISTS oauth_assertions (
 
 CREATE INDEX IF NOT EXISTS idx_oauth_assertions_expires
   ON oauth_assertions (expires_at);
+
+-- The indexes the shared server's queries need: finding clients by what they
+-- are and when they were seen, a person's grant for one client, every grant of
+-- a client, and the sweep's own ordering. The old index on user alone is
+-- covered by the pair that replaces it.
+
+CREATE INDEX IF NOT EXISTS idx_oauth_clients_kind_created
+  ON oauth_clients (kind, created_at);
+CREATE INDEX IF NOT EXISTS idx_oauth_clients_kind_fetched
+  ON oauth_clients (kind, fetched_at);
+
+CREATE INDEX IF NOT EXISTS idx_oauth_grants_user_client
+  ON oauth_grants (user_id, client_id);
+CREATE INDEX IF NOT EXISTS idx_oauth_grants_client
+  ON oauth_grants (client_id);
+CREATE INDEX IF NOT EXISTS idx_oauth_grants_revoked_used
+  ON oauth_grants (revoked_at, coalesce(last_used_at, created_at));
+
+DROP INDEX IF EXISTS idx_oauth_grants_user;
