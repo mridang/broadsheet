@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from '@jest/globals';
 
-import { databaseFrom } from '@/domain/db/client';
+import { createDatabase } from '@/domain/db/client';
 import { FeedImportRuns } from '@/domain/feed-import-runs';
 import { Repository } from '@/domain/repository';
 import { APP_MIGRATIONS } from '../lib/core/db/migrations';
@@ -15,7 +15,7 @@ let raw: DatabaseSync;
 beforeEach(() => {
   const made = sqliteD1(...APP_MIGRATIONS);
   raw = made.raw;
-  const db = databaseFrom(made.d1);
+  const db = createDatabase(made.d1);
   runs = new FeedImportRuns(db);
   repo = new Repository(db);
 });

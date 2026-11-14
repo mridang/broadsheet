@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from '@jest/globals';
 
-import { databaseFrom } from '@/domain/db/client';
+import { createDatabase } from '@/domain/db/client';
 import { comparable, importFeeds } from '@/domain/feed-import';
 import { Repository } from '@/domain/repository';
 import { APP_MIGRATIONS } from '../lib/core/db/migrations';
@@ -10,7 +10,7 @@ import insecure from '../fixtures/insecure-urls.json';
 let repo: Repository;
 
 beforeEach(() => {
-  repo = new Repository(databaseFrom(sqliteD1(...APP_MIGRATIONS).d1));
+  repo = new Repository(createDatabase(sqliteD1(...APP_MIGRATIONS).d1));
 });
 
 describe('importFeeds', () => {

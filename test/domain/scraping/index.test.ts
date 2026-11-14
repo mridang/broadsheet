@@ -7,7 +7,7 @@ import {
   jest,
 } from '@jest/globals';
 
-import { databaseFrom, type Database } from '@/domain/db/client';
+import { createDatabase, type Database } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
 import { createHmac } from 'node:crypto';
 
@@ -68,7 +68,7 @@ const redirect = (status: number, to: string) => () =>
   new Response(null, { status, headers: { location: to } });
 
 beforeEach(async () => {
-  db = databaseFrom(sqliteD1(...APP_MIGRATIONS).d1);
+  db = createDatabase(sqliteD1(...APP_MIGRATIONS).d1);
   sourceId = (await new Repository(db).addFeed(1, 'https://a.test/f'))!
     .source_id;
   jest.spyOn(console, 'log').mockImplementation(() => undefined);

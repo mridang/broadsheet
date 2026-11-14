@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
-import { databaseFrom, type Database } from '@/domain/db/client';
+import { createDatabase, type Database } from '@/domain/db/client';
 import { NotificationRepository } from '@/domain/notifications';
 import {
   deliverWebhooks,
@@ -24,7 +24,7 @@ import { sqliteD1 } from '../lib/core/db/sqlite-d1';
 let db: Database;
 
 beforeEach(() => {
-  db = databaseFrom(sqliteD1(...APP_MIGRATIONS).d1);
+  db = createDatabase(sqliteD1(...APP_MIGRATIONS).d1);
 });
 
 /** A fetcher answering each call with the next status, recording what was sent. */

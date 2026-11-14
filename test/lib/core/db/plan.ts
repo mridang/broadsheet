@@ -1,7 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { expect } from '@jest/globals';
 
-import { databaseFrom, type Database } from '@/domain/db/client';
+import { createDatabase, type Database } from '@/domain/db/client';
 import { APP_MIGRATIONS } from './migrations';
 import { sqliteD1 } from './sqlite-d1';
 
@@ -36,7 +36,7 @@ export function recordedDatabase(): RecordedDatabase {
   } as unknown as D1Database;
   const sent = (text: string) => statements.filter((s) => s.includes(text));
   return {
-    db: databaseFrom(recording),
+    db: createDatabase(recording),
     raw,
     statements,
     sent,

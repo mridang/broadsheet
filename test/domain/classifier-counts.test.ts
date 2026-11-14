@@ -5,7 +5,7 @@ import {
   feedClassifierCounts,
   feedVerdictCounts,
 } from '@/domain/classifier-counts';
-import { databaseFrom } from '@/domain/db/client';
+import { createDatabase } from '@/domain/db/client';
 import type { Training } from '@/domain/render/tiers';
 import { Repository, type Article } from '@/domain/repository';
 import { APP_MIGRATIONS } from '../lib/core/db/migrations';
@@ -56,7 +56,7 @@ describe('feedClassifierCounts', () => {
   let repo: Repository;
 
   beforeEach(() => {
-    repo = new Repository(databaseFrom(sqliteD1(...APP_MIGRATIONS).d1));
+    repo = new Repository(createDatabase(sqliteD1(...APP_MIGRATIONS).d1));
   });
 
   it('leaves out the stories the person has read', async () => {

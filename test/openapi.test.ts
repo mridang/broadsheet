@@ -11,7 +11,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { SESSION_COOKIE } from '@/domain/auth/app';
-import { databaseFrom } from '@/domain/db/client';
+import { createDatabase } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
 import { APP_MIGRATIONS } from './lib/core/db/migrations';
 import { installCloudflareContext, sqliteD1 } from './lib/core/db/sqlite-d1';
@@ -1086,7 +1086,7 @@ async function world(): Promise<World> {
     )
     .run('g7', 'a@example.org', 'g8', 'b@example.org');
   cookie = await tokenFor({ id: ME }, { ep: 0 });
-  const repo = new Repository(databaseFrom(made.d1));
+  const repo = new Repository(createDatabase(made.d1));
   const feed = (await repo.addFeed(ME, 'https://a.example.org/feed'))!;
   await repo.writeEdition(feed.source_id, DAY, [
     {
@@ -1164,7 +1164,7 @@ async function world(): Promise<World> {
     JSON.stringify({ groups: [{ name: null, desks: [] }] }),
     null,
   );
-  const feedImport = await new FeedImportRuns(databaseFrom(made.d1)).start(
+  const feedImport = await new FeedImportRuns(createDatabase(made.d1)).start(
     ME,
     3,
   );

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
-import { databaseFrom } from '@/domain/db/client';
+import { createDatabase } from '@/domain/db/client';
 import {
   PROMPT_MODEL,
   promptQuestion,
@@ -41,7 +41,7 @@ let uid: number;
 let feedId: number;
 
 beforeEach(async () => {
-  repo = new Repository(databaseFrom(sqliteD1(...APP_MIGRATIONS).d1));
+  repo = new Repository(createDatabase(sqliteD1(...APP_MIGRATIONS).d1));
   const owner = await repo.upsertUser({ sub: 'g', email: 'a@b.c' });
   uid = owner.id;
   const feed = (await repo.addFeed(uid, 'https://x.test/rss', 'X'))!;

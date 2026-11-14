@@ -4,7 +4,7 @@ import { sql } from 'drizzle-orm';
 import type { DatabaseSync } from 'node:sqlite';
 
 import { ShareRepository } from '@/domain/shares';
-import { databaseFrom, type Database } from '@/domain/db/client';
+import { createDatabase, type Database } from '@/domain/db/client';
 import {
   anyWordQuery,
   FETCH_HISTORY_LIMIT,
@@ -60,7 +60,7 @@ const storyNumbered = (n: number) => ({
 let db: Database;
 
 beforeEach(() => {
-  db = databaseFrom(sqliteD1(...APP_MIGRATIONS).d1);
+  db = createDatabase(sqliteD1(...APP_MIGRATIONS).d1);
 });
 
 describe('upsertUser', () => {
@@ -312,7 +312,7 @@ describe('dueSources', () => {
         return d1.prepare(text);
       },
     } as unknown as D1Database;
-    await new Repository(databaseFrom(recording)).dueSources();
+    await new Repository(createDatabase(recording)).dueSources();
     const plan = planOf(
       raw,
       statements.find((s) => s.includes('"sources"'))!,
@@ -373,7 +373,7 @@ describe('sourceActivity', () => {
         return d1.prepare(text);
       },
     } as unknown as D1Database;
-    await new Repository(databaseFrom(recording)).sourceActivity(1);
+    await new Repository(createDatabase(recording)).sourceActivity(1);
     const plan = planOf(
       raw,
       statements.find((s) => s.includes('"feed_notifications"'))!,
@@ -3010,7 +3010,7 @@ describe('briefings', () => {
 describe('popular shares', () => {
   it('ranks the articles the most people shared', async () => {
     const made = sqliteD1(...APP_MIGRATIONS);
-    const repo = new Repository(databaseFrom(made.d1));
+    const repo = new Repository(createDatabase(made.d1));
     await repo.writeEdition(1, '2026-11-01', [
       {
         url: 'https://s.test/1',

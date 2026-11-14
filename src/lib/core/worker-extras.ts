@@ -21,7 +21,7 @@ import {
 } from '@/domain/briefings';
 import { clusterEdition } from '@/domain/clustering';
 import type { OpmlFeed } from '@/domain/api/opml';
-import { databaseFrom } from '@/domain/db/client';
+import { createDatabase } from '@/domain/db/client';
 import { purgeOAuthData } from '@/domain/db/oauth';
 import { FeedImportRuns, IMPORT_CHUNK } from '@/domain/feed-import-runs';
 import { publishEditionIssue, publishIssue } from '@/domain/issues';
@@ -94,7 +94,7 @@ export class DailyScrape extends WorkflowEntrypoint<
     event: Readonly<WorkflowEvent<ScrapeParams>>,
     step: WorkflowStep,
   ): Promise<{ sources: number; ok: number; articles: number }> {
-    const db = databaseFrom(this.env.DB);
+    const db = createDatabase(this.env.DB);
     const edition = event.timestamp.toISOString().slice(0, 10);
     const sources = await step.do('list sources', async () => {
       const due = await new Repository(db).dueSources();
@@ -272,7 +272,7 @@ export class BriefingRun extends WorkflowEntrypoint<CloudflareEnv> {
     event: Readonly<WorkflowEvent<{ due: DueBriefing[]; at: string }>>,
     step: WorkflowStep,
   ): Promise<{ due: number; written: number }> {
-    const db = databaseFrom(this.env.DB);
+    const db = createDatabase(this.env.DB);
     const at = new Date(event.payload.at);
     let written = 0;
     for (const { user, slot, date } of event.payload.due) {
@@ -351,7 +351,7 @@ export class FeedImportRun extends WorkflowEntrypoint<
     step: WorkflowStep,
   ): Promise<{ added: number }> {
     const { id, user, feeds } = event.payload;
-    const db = databaseFrom(this.env.DB);
+    const db = createDatabase(this.env.DB);
     const runs = new FeedImportRuns(db);
     const added: { id: number; url: string }[] = [];
     try {
@@ -403,7 +403,7 @@ export async function purgeExpired(
   at: Date,
 ): Promise<void> {
   try {
-    const db = databaseFrom(env.DB);
+    const db = createDatabase(env.DB);
     await purgeOAuthData(db, Math.floor(at.getTime() / 1000));
     const imports = await new FeedImportRuns(db).purgeFinished(
       new Date(at.getTime() - IMPORT_KEPT_MS),
@@ -425,7 +425,7 @@ export async function purgeExpired(
 /** Start a run that writes the briefings due at `at`, if any are. */
 async function startBriefings(env: CloudflareEnv, at: Date): Promise<void> {
   try {
-    const due = await dueBriefings(new Repository(databaseFrom(env.DB)), at);
+    const due = await dueBriefings(new Repository(createDatabase(env.DB)), at);
     if (due.length === 0) return;
     const run = await env.BRIEFINGS.create({
       params: { due, at: at.toISOString() },

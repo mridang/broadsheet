@@ -7,7 +7,7 @@ import {
   jest,
 } from '@jest/globals';
 
-import { databaseFrom, type Database } from '@/domain/db/client';
+import { createDatabase, type Database } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
 import {
   callbackUrl,
@@ -27,7 +27,7 @@ let sourceId: number;
 const source = async () => (await new Repository(db).sourceById(sourceId))!;
 
 beforeEach(async () => {
-  db = databaseFrom(sqliteD1(...APP_MIGRATIONS).d1);
+  db = createDatabase(sqliteD1(...APP_MIGRATIONS).d1);
   sourceId = (await new Repository(db).addFeed(1, 'https://a.test/f'))!
     .source_id;
 });

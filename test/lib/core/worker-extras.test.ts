@@ -24,7 +24,7 @@ jest.unstable_mockModule(
 );
 
 jest.unstable_mockModule('@/domain/db/client', () => ({
-  databaseFrom: () => 'db',
+  createDatabase: () => 'db',
 }));
 
 jest.unstable_mockModule('@/domain/repository', () => ({
