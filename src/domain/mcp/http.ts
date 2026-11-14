@@ -29,7 +29,9 @@ import type { McpAuth } from './auth';
 import { INSTRUCTIONS, SERVER_INFO } from './app';
 import { PROMPTS } from './prompts';
 import { RESOURCES } from './resources';
-import { refresher, TOOLS, type ToolContext } from './tools';
+import { refresher } from './tools/support';
+import { TOOL_CATALOGUE, TOOL_INVOKER } from './tool-catalogue';
+import type { ToolContext } from './tool-context';
 import { answerModel } from '@/domain/api/answers';
 
 /** The largest message accepted, in bytes. */
@@ -39,7 +41,8 @@ export const MAX_MCP_BYTES = 1024 * 1024;
 export const mcpServer = new McpServer<ToolContext>(
   SERVER_INFO,
   INSTRUCTIONS,
-  TOOLS,
+  TOOL_CATALOGUE,
+  TOOL_INVOKER,
   RESOURCES,
   PROMPTS,
 );
@@ -134,7 +137,11 @@ export async function respondToMcp(
   if (message.method === 'tools/call') {
     const params = message.params as Record<string, unknown> | undefined;
     const found = mcpServer.tool(params?.['name']);
-    if (found && !found.readOnly && !hasScope(auth.scope, SCOPE_WRITE)) {
+    if (
+      found &&
+      !found.annotations.readOnlyHint &&
+      !hasScope(auth.scope, SCOPE_WRITE)
+    ) {
       return challenge(origin, 403, 'insufficient_scope', SCOPE_WRITE);
     }
   }

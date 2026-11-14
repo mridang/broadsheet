@@ -4,10 +4,20 @@ import { z } from 'zod';
 import {
   McpServer,
   ToolFailureError,
-  tool,
   type McpPrompt,
   type McpResource,
 } from '@/lib/mcp/server';
+import {
+  READS,
+  writes,
+  NoExplanations,
+  ReadWriteScopes,
+  ToolCatalogue,
+  ToolInvoker,
+  ToolRegistry,
+  type FailureLog,
+} from '@/lib/mcp';
+import { ZodTool } from '@/domain/mcp/tools/zod-tool';
 
 const resources: McpResource<{ readonly who: string }>[] = [
   {
@@ -41,48 +51,100 @@ const prompts: McpPrompt[] = [
   },
 ];
 
+/** What the engine's fixture tools are handed. */
+interface Who {
+  readonly who: string;
+}
+
+/** A tool built the way this app builds them, for the engine's own tests. */
+abstract class Fixture<TName extends string> extends ZodTool<TName> {}
+
+class GreetTool extends Fixture<'greet'> {
+  readonly name = 'greet';
+
+  readonly title = 'Greet';
+
+  readonly description = 'Say hello.';
+
+  readonly input = z.object({ name: z.string().describe('Who to greet.') });
+
+  readonly annotations = READS;
+
+  protected override async runParsed(
+    { name }: { readonly name: string },
+    context: unknown,
+  ): Promise<object> {
+    return { text: `${(context as Who).who} greets ${name}` };
+  }
+}
+
+class RefuseTool extends Fixture<'refuse'> {
+  readonly name = 'refuse';
+
+  readonly title = 'Refuse';
+
+  readonly description = 'Always says no.';
+
+  readonly input = z.object({});
+
+  readonly annotations = writes();
+
+  protected override async runParsed(): Promise<object> {
+    throw new ToolFailureError('No.');
+  }
+}
+
+class CrashTool extends Fixture<'crash'> {
+  readonly name = 'crash';
+
+  readonly title = 'Crash';
+
+  readonly description = 'Fails.';
+
+  readonly input = z.object({});
+
+  readonly annotations = writes();
+
+  protected override async runParsed(): Promise<object> {
+    throw new Error('database detail');
+  }
+}
+
+class WreckTool extends Fixture<'wreck'> {
+  readonly name = 'wreck';
+
+  readonly title = 'Wreck';
+
+  readonly description = 'Throws something away.';
+
+  readonly input = z.object({});
+
+  readonly annotations = writes({ destructive: true });
+
+  protected override async runParsed(): Promise<object> {
+    return { removed: true };
+  }
+}
+
+const registry = new ToolRegistry<string, never, never>([
+  new GreetTool(),
+  new RefuseTool(),
+  new CrashTool(),
+  new WreckTool(),
+] as never);
+
+/** A log that drops what it is told, which these tests do not read. */
+const log: FailureLog = { record: () => undefined };
+
 const server = new McpServer<{ readonly who: string }>(
   { name: 'test', title: 'Test', version: '1' },
   'Be nice.',
-  [
-    tool({
-      name: 'greet',
-      title: 'Greet',
-      description: 'Say hello.',
-      input: z.object({ name: z.string().describe('Who to greet.') }),
-      readOnly: true,
-      run: async ({ name }, { who }) => ({ text: `${who} greets ${name}` }),
-    }),
-    tool({
-      name: 'refuse',
-      title: 'Refuse',
-      description: 'Always says no.',
-      input: z.object({}),
-      readOnly: false,
-      run: async () => {
-        throw new ToolFailureError('No.');
-      },
-    }),
-    tool({
-      name: 'crash',
-      title: 'Crash',
-      description: 'Fails.',
-      input: z.object({}),
-      readOnly: false,
-      run: async () => {
-        throw new Error('database detail');
-      },
-    }),
-    tool({
-      name: 'wreck',
-      title: 'Wreck',
-      description: 'Throws something away.',
-      input: z.object({}),
-      readOnly: false,
-      destructive: true,
-      run: async () => ({ removed: true }),
-    }),
-  ],
+  new ToolCatalogue(registry, new ReadWriteScopes('read', 'write')),
+  new ToolInvoker({
+    registry,
+    failures: new NoExplanations(),
+    log,
+  }) as never,
   resources,
   prompts,
 );

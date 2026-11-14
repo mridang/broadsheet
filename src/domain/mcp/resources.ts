@@ -11,7 +11,7 @@ import { feedResource } from '@/domain/api/feed-resource';
 import { sectionResource } from '@/domain/api/section-resource';
 import { Repository } from '@/domain/repository';
 import { ToolFailureError, type McpResource } from '@/lib/mcp';
-import type { ToolContext } from './tools';
+import type { ToolContext } from './tool-context';
 import { compareText } from '@/lib/intl';
 
 /** The URI of one feed. */

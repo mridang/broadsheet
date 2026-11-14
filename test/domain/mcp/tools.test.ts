@@ -2,7 +2,12 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import { DAILY_LIMITS } from '@/domain/assistant';
 import { databaseFrom, type Database } from '@/domain/db/database';
-import { collect, TOOLS, type ToolContext } from '@/domain/mcp/tools';
+import { ToolFailureError } from '@/lib/mcp';
+import { collect } from '@/domain/mcp/tools/support';
+import { TOOL_REGISTRY } from '@/domain/mcp/tools';
+import { ZodTool } from '@/domain/mcp/tools/zod-tool';
+import { TOOL_INVOKER } from '@/domain/mcp/tool-catalogue';
+import type { ToolContext } from '@/domain/mcp/tool-context';
 import { Repository } from '@/domain/repository';
 import type { ScrapedItem } from '@/lib/scraping';
 import { APP_MIGRATIONS } from '../../lib/core/db/migrations';
@@ -37,8 +42,11 @@ beforeEach(async () => {
 
 /** Run a tool by name with arguments parsed as `tools/call` would. */
 async function run(name: string, args: Record<string, unknown> = {}) {
-  const found = TOOLS.find((t) => t.name === name)!;
-  return found.run(found.input.parse(args), ctx);
+  const result = await TOOL_INVOKER.invoke({ name, arguments: args }, ctx);
+  if (result.isError) {
+    throw new ToolFailureError(result.content[0]?.text ?? '');
+  }
+  return result.structuredContent;
 }
 
 /** Follow a feed for person 1 with one edition of stories. */
@@ -55,9 +63,9 @@ async function seed(): Promise<{ feedId: number; articleId: number }> {
 
 describe('the tool catalogue', () => {
   /** The tools that say they may destroy something. */
-  const destructive = TOOLS.filter((t) => t.destructive === true).map(
-    (t) => t.name,
-  );
+  const destructive = TOOL_REGISTRY.all
+    .filter((tool) => tool.annotations.destructiveHint)
+    .map((tool) => tool.name);
 
   it('warns about exactly the tools that remove something for good', () => {
     expect(destructive.toSorted((a, b) => a.localeCompare(b))).toEqual([
@@ -71,8 +79,10 @@ describe('the tool catalogue', () => {
   });
 
   it('never calls a read-only tool destructive', () => {
-    for (const t of TOOLS.filter((t) => t.readOnly)) {
-      expect(t.destructive).not.toBe(true);
+    for (const tool of TOOL_REGISTRY.all.filter(
+      (candidate) => candidate.annotations.readOnlyHint,
+    )) {
+      expect(tool.annotations.destructiveHint).toBe(false);
     }
   });
 });
@@ -335,9 +345,16 @@ describe('classifiers', () => {
   });
 });
 
+/** Every tool, as the zod-backed class it is, so a test can read its schema. */
+const ZOD_TOOLS = TOOL_REGISTRY.all as readonly ZodTool<string>[];
+
+/** The tool with this name, as the zod-backed class it is. */
+const zodTool = (name: string): ZodTool<string> =>
+  ZOD_TOOLS.find((tool) => tool.name === name)!;
+
 describe('TOOLS', () => {
   it('describes every input in plain words', () => {
-    for (const t of TOOLS) {
+    for (const t of ZOD_TOOLS) {
       for (const field of Object.values(t.input.shape)) {
         expect((field as { description?: string }).description).toBeTruthy();
       }
@@ -583,7 +600,7 @@ describe('get_trending', () => {
   });
 
   it('refuses a list NewsBlur does not have', () => {
-    const found = TOOLS.find((t) => t.name === 'get_trending')!;
+    const found = zodTool('get_trending');
     expect(found.input.safeParse({ order: 'hot' }).success).toBe(false);
     expect(found.input.safeParse({ order: 'long_reads' }).success).toBe(true);
   });
@@ -704,7 +721,7 @@ describe('search_articles filters', () => {
   });
 
   it('refuses a domain with other characters', async () => {
-    const found = TOOLS.find((t) => t.name === 'search_articles')!;
+    const found = zodTool('search_articles');
     expect(found.input.safeParse({ domain: "x' or 1" }).success).toBe(false);
   });
 
@@ -716,7 +733,7 @@ describe('search_articles filters', () => {
   });
 
   it('refuses a day that is not on the calendar', () => {
-    const found = TOOLS.find((t) => t.name === 'search_articles')!;
+    const found = zodTool('search_articles');
     expect(found.input.safeParse({ date_from: '2026-02-31' }).success).toBe(
       false,
     );

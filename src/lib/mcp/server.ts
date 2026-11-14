@@ -11,9 +11,10 @@
  * lives with the caller.
  */
 
-import { z } from 'zod';
-
 import { errorMessage, logError } from '@/utils/logging';
+import type { AdvertisedTool, ToolCatalogue } from './catalogue';
+import type { ToolInvoker } from './invoker';
+import type { ToolResult } from './results';
 import {
   ERROR_INTERNAL,
   ERROR_INVALID_PARAMS,
@@ -28,35 +29,6 @@ import {
   type JsonRpcMessage,
   type JsonRpcResponse,
 } from './protocol';
-
-/** One tool the server offers. */
-export interface McpTool<Ctx, Input extends z.ZodObject = z.ZodObject> {
-  readonly name: string;
-  readonly title: string;
-  /** What it does, in plain words, for the assistant choosing a tool. */
-  readonly description: string;
-  readonly input: Input;
-  /** Whether it only reads (so a read-only grant may call it). */
-  readonly readOnly: boolean;
-  /**
-   * Whether it may remove or overwrite something the person cannot get back.
-   * Hosts use this to decide when to ask before a call, so it is set from what
-   * the tool really does, not from its name: a tool that deletes a row the
-   * person created is destructive even when the word "remove" is not in it.
-   * Left out it means false, which is what a tool that only adds or changes
-   * its own last answer should say.
-   */
-  readonly destructive?: boolean;
-  /** Run it; the result is sent back as structured content. */
-  readonly run: (args: z.infer<Input>, ctx: Ctx) => Promise<object>;
-}
-
-/** Declare a tool, keeping its argument type tied to its schema. */
-export function tool<Ctx, Input extends z.ZodObject>(
-  definition: McpTool<Ctx, Input>,
-): McpTool<Ctx> {
-  return definition as unknown as McpTool<Ctx>;
-}
 
 /**
  * A tool's outcome the assistant can read and act on: a refusal it can fix
@@ -109,41 +81,27 @@ export interface ServerInfo {
   readonly version: string;
 }
 
-/** A tool result carrying text and the same data as structured content. */
-function toolResult(data: object, isError = false): object {
-  return {
-    content: [{ type: 'text', text: JSON.stringify(data) }],
-    structuredContent: data,
-    ...(isError ? { isError: true } : {}),
-  };
-}
-
-/** A failed tool call, said in words. */
-function toolError(message: string): object {
-  return {
-    content: [{ type: 'text', text: message }],
-    isError: true,
-  };
-}
-
 /** The JSON-RPC MCP server. */
 export class McpServer<Ctx> {
   readonly #info: ServerInfo;
   readonly #instructions: string;
-  readonly #tools: ReadonlyMap<string, McpTool<Ctx>>;
+  readonly #catalogue: ToolCatalogue;
+  readonly #invoker: ToolInvoker<string, Ctx>;
   readonly #resources: readonly McpResource<Ctx>[];
   readonly #prompts: ReadonlyMap<string, McpPrompt>;
 
   constructor(
     info: ServerInfo,
     instructions: string,
-    tools: readonly McpTool<Ctx>[],
+    catalogue: ToolCatalogue,
+    invoker: ToolInvoker<string, Ctx>,
     resources: readonly McpResource<Ctx>[] = [],
     prompts: readonly McpPrompt[] = [],
   ) {
     this.#info = info;
     this.#instructions = instructions;
-    this.#tools = new Map(tools.map((t) => [t.name, t]));
+    this.#catalogue = catalogue;
+    this.#invoker = invoker;
     this.#resources = resources;
     this.#prompts = new Map(prompts.map((p) => [p.name, p]));
   }
@@ -212,55 +170,28 @@ export class McpServer<Ctx> {
     };
   }
 
-  /** The tool with this name, if the server offers it. */
-  tool(name: unknown): McpTool<Ctx> | undefined {
-    return typeof name === 'string' ? this.#tools.get(name) : undefined;
+  /**
+   * What the catalogue says about the tool with this name, if the server offers
+   * it. Callers read this to decide what a call needs, such as which sign-in.
+   */
+  tool(name: unknown): AdvertisedTool | undefined {
+    return typeof name === 'string' ? this.#catalogue.named(name) : undefined;
   }
 
   /** The `tools/list` entry of every tool. */
   #list(): object {
-    return {
-      tools: [...this.#tools.values()].map((t) => ({
-        name: t.name,
-        title: t.title,
-        description: t.description,
-        inputSchema: z.toJSONSchema(t.input, { io: 'input' }),
-        annotations: {
-          title: t.title,
-          readOnlyHint: t.readOnly,
-          destructiveHint: t.destructive === true,
-          openWorldHint: false,
-        },
-      })),
-    };
+    return { tools: this.#catalogue.tools };
   }
 
   /** Run a `tools/call`. */
   async #call(
     params: Readonly<Record<string, unknown>>,
     ctx: Ctx,
-  ): Promise<object> {
-    const found = this.tool(params['name']);
-    if (!found) {
+  ): Promise<ToolResult> {
+    if (this.tool(params['name']) === undefined) {
       throw new RpcError(ERROR_INVALID_PARAMS, 'No such tool.');
     }
-    const args = params['arguments'] ?? {};
-    const parsed = found.input.safeParse(args);
-    if (!parsed.success) {
-      return toolError(
-        `The arguments are not valid: ${parsed.error.issues
-          .map((i) => `${i.path.join('.') || 'arguments'}: ${i.message}`)
-          .join('; ')}`,
-      );
-    }
-    try {
-      return toolResult(await found.run(parsed.data, ctx));
-    } catch (error) {
-      if (error instanceof ToolFailureError) {
-        return toolError(error.message);
-      }
-      throw error;
-    }
+    return this.#invoker.invokeOrExplain(params, ctx);
   }
 
   /** The result of one request, or a thrown {@link RpcError}. */
