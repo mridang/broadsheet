@@ -15,6 +15,9 @@ import { quietSecurityLogs } from './quiet-logs';
 import { SCOPE_READ, SCOPE_WRITE } from '@/domain/mcp/app';
 import urls from '../../fixtures/insecure-urls.json' with { type: 'json' };
 
+const ERROR_DESCRIPTION_IS_PRINTABLE_ASCII_PATTERN =
+  /^[\u0020\u0021\u0023-\u005B\u005D-\u007E]+$/;
+
 const ORIGIN = 'https://site.example';
 const CHALLENGE = 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM';
 const client: OAuthClient = {
@@ -257,7 +260,7 @@ describe('grantedScope', () => {
     const asked = [SCOPE_READ, SCOPE_WRITE] as const;
     expect(grantedScope(asked, 'write')).toEqual(asked);
     expect(grantedScope(asked, null)).toEqual(asked);
-    expect(grantedScope(asked, undefined)).toEqual(asked);
+    expect(grantedScope(asked)).toEqual(asked);
     expect(grantedScope(asked, 'anything else')).toEqual(asked);
     expect(grantedScope(asked, 'read')).toEqual([SCOPE_READ]);
   });
@@ -330,7 +333,7 @@ describe('error_description is printable ASCII without quotes or backslashes (RF
     const result = await check(overrides);
     expect(result.ok).toBe(false);
     expect(!result.ok && result.description).toMatch(
-      /^[\u0020\u0021\u0023-\u005B\u005D-\u007E]+$/,
+      ERROR_DESCRIPTION_IS_PRINTABLE_ASCII_PATTERN,
     );
   });
 });

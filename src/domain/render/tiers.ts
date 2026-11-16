@@ -13,6 +13,9 @@ import type { Article } from '@/domain/repository';
 import { regexProblem } from '@/domain/rules';
 import { foldText, relativeTime, truncate } from '@/lib/intl';
 
+const WORDY_PATTERN = /[\p{L}\p{N}\p{M}_]/u;
+const HOST_OF_PATTERN = /^www\./;
+
 export type Tier = 'lead' | 'feature' | 'standard' | 'brief';
 
 /** Tier -> [lane span, excerpt char budget]. */
@@ -102,8 +105,7 @@ const same = (a: string, b: string): boolean => foldText(a) === foldText(b);
 const has = (text: string | null | undefined, phrase: string): boolean =>
   (text ?? '').toLowerCase().includes(phrase.toLowerCase());
 
-const wordy = (c: string | undefined): boolean =>
-  !!c && /[\p{L}\p{N}\p{M}_]/u.test(c);
+const wordy = (c: string | undefined): boolean => !!c && WORDY_PATTERN.test(c);
 
 /**
  * Whether a title holds the phrase, as NewsBlur matches titles: ignoring case,
@@ -290,13 +292,13 @@ export function rank<T extends Article & Classifiable>(
 /** Tiers emerge from the section's own order (highest weight first). */
 export function assignTiers(arts: Article[]): Tier[] {
   const n = arts.length;
-  return arts.map((a, i) => {
+  return arts.map((a, index) => {
     const hasImg = !!a.image;
-    const len = (a.summary ?? '').length;
-    if (i === 0 && n >= 5) return 'lead';
-    if (i <= Math.max(1, Math.floor(n / 6)) && hasImg && len > 200)
+    const size2 = (a.summary ?? '').length;
+    if (index === 0 && n >= 5) return 'lead';
+    if (index <= Math.max(1, Math.floor(n / 6)) && hasImg && size2 > 200)
       return 'feature';
-    if ((!len || len < 120) && i >= n * 0.5) return 'brief';
+    if ((!size2 || size2 < 120) && index >= n * 0.5) return 'brief';
     return 'standard';
   });
 }
@@ -314,7 +316,7 @@ export function ago(iso: string | null): string {
 
 export const hostOf = (u: string): string => {
   try {
-    return new URL(u).hostname.replace(/^www\./, '');
+    return new URL(u).hostname.replace(HOST_OF_PATTERN, '');
   } catch {
     return u;
   }

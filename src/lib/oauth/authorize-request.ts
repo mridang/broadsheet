@@ -107,7 +107,7 @@ export function authorizeParamsFrom(form: FormFields): AuthorizeParams {
  */
 export function grantedScope(
   requested: readonly Scope[],
-  choice: string | null | undefined,
+  choice?: string | null,
 ): readonly Scope[] {
   return choice === 'read' ? [SCOPE_READ] : requested;
 }

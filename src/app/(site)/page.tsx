@@ -51,7 +51,7 @@ export default async function Home({
 }: Readonly<{
   searchParams: Promise<{ edition?: string }>;
 }>) {
-  const { edition: editionParam } = await searchParams;
+  const { edition: editionParameter } = await searchParams;
   const user = await getCurrentUser();
   const repo = new Repository(getDatabase());
   // Logged-out visitors read the hidden public user's Hacker News edition.
@@ -90,7 +90,7 @@ export default async function Home({
 
   // A custom edition the reader owns, when one is asked for.
   const papers = user ? await repo.listCustomEditions(user.id) : [];
-  const paperId = parseFeedId(editionParam ?? '');
+  const paperId = parseFeedId(editionParameter ?? '');
   const paper = papers.find((p) => p.id === paperId);
 
   // Today's stored issue when the daily run has laid it out; else the most

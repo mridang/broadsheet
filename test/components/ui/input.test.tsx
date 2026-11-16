@@ -3,6 +3,8 @@ import { describe, expect, it } from '@jest/globals';
 import { Field, Toggle } from '@/components/ui/input';
 import { html } from '../render';
 
+const POINTS_ITS_LABEL_AT_PATTERN = /<label for="([^"]+)"/;
+
 describe('Field', () => {
   it('points its label at the control', () => {
     const out = html(
@@ -10,7 +12,7 @@ describe('Field', () => {
         {(id) => <input id={id} />}
       </Field>,
     );
-    const id = /<label for="([^"]+)"/.exec(out)?.[1];
+    const id = POINTS_ITS_LABEL_AT_PATTERN.exec(out)?.[1];
     expect(id).toBeTruthy();
     expect(out).toMatch(new RegExp(`<input[^>]*id="${id}"`));
     expect(out).toContain('A feed’s URL');

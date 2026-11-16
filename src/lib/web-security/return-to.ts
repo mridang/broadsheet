@@ -10,9 +10,7 @@
  * The path if it is a safe same-site path (starts with a single `/`, no
  * backslashes or control characters), otherwise undefined.
  */
-export function safeReturnPath(
-  value: string | null | undefined,
-): string | undefined {
+export function safeReturnPath(value?: string | null): string | undefined {
   if (!value || !value.startsWith('/') || value.startsWith('//')) {
     return undefined;
   }

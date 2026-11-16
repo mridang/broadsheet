@@ -6,6 +6,9 @@ import {
 } from '@/app/(site)/_components/river-controls';
 import { html } from '../../../components/render';
 
+const UNPINS_WITH_A_PLAIN_PATTERN =
+  /^<button type="button" class="[^"]*">Unpin<\/button>$/;
+
 describe('RiverPicker', () => {
   it('offers each river to pin and both columns', () => {
     const out = html(
@@ -26,7 +29,7 @@ describe('RiverPicker', () => {
 describe('UnpinRiverButton', () => {
   it('unpins with a plain button', () => {
     expect(html(<UnpinRiverButton id={2} />)).toMatch(
-      /^<button type="button" class="[^"]*">Unpin<\/button>$/,
+      UNPINS_WITH_A_PLAIN_PATTERN,
     );
   });
 });

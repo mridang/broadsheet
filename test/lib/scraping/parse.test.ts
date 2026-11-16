@@ -297,7 +297,7 @@ describe('feedHeader', () => {
       <author><name>Ann</name><email>a@b.test</email></author>
       <link rel="self" href="https://b.test/f" type="application/atom+xml"/>
       <rights>&#169; Ann</rights><entry><id>e</id></entry></feed>`;
-    expect(feedHeader(xml).map((e) => e.name)).toEqual([
+    expect(feedHeader(xml).map((event) => event.name)).toEqual([
       'id',
       'author',
       'link',
@@ -350,7 +350,7 @@ describe('itemTags', () => {
   it('keeps at most 20 tags of at most 60 characters', () => {
     const many = Array.from(
       { length: 25 },
-      (_, i) => `<category>t${i}${'x'.repeat(70)}</category>`,
+      (_, index) => `<category>t${index}${'x'.repeat(70)}</category>`,
     ).join('');
     const tags = itemTags(many);
     expect(tags).toHaveLength(20);
@@ -512,10 +512,10 @@ describe('bracketedName', () => {
   it('matches the old pattern on seeded random input', () => {
     const random = seeded(7);
     const alphabet = ['a', 'b', '@', '(', ')', ' ', ' ', '\n', '\u2028', 'x'];
-    for (let i = 0; i < 20_000; i += 1) {
+    for (let index = 0; index < 20_000; index += 1) {
       const length = Math.floor(random() * 14);
       let raw = '';
-      for (let j = 0; j < length; j += 1) {
+      for (let index = 0; index < length; index += 1) {
         raw += alphabet[Math.floor(random() * alphabet.length)];
       }
       expect({ raw, got: bracketedName(raw) }).toEqual({
@@ -540,7 +540,7 @@ describe('FEED_TOKEN', () => {
     '([^<]+)',
   ].join('|');
   const tokens = (source: string, pattern: string): string[][] =>
-    [...source.matchAll(new RegExp(pattern, 'g'))].map((m) => [...m]);
+    Array.from(source.matchAll(new RegExp(pattern, 'g')), (m) => [...m]);
 
   it.each([
     '<rss version="2.0"><channel><title>T</title></channel></rss>',
@@ -567,9 +567,9 @@ describe('FEED_TOKEN', () => {
       ']]>',
       'x',
     ];
-    for (let i = 0; i < 5000; i += 1) {
+    for (let index = 0; index < 5000; index += 1) {
       let source = '';
-      for (let j = 0; j < 20; j += 1) {
+      for (let index = 0; index < 20; index += 1) {
         source += parts[Math.floor(random() * parts.length)];
       }
       expect(tokens(source, FEED_TOKEN)).toEqual(tokens(source, old));

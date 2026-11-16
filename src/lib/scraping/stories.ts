@@ -8,12 +8,15 @@
 
 import type { ScrapedItem } from './types';
 
+const BIGRAMS_PATTERN = /\s+/g;
+const MAX_AGE_MINUTES_PATTERN = /(?:^|,)\s*max-age\s*=\s*(\d+)/i;
+
 /** The pairs of adjacent characters in a text, for {@link similarity}. */
 function bigrams(text: string): Map<string, number> {
   const pairs = new Map<string, number>();
-  const s = text.toLowerCase().replaceAll(/\s+/g, ' ').trim();
-  for (let i = 0; i < s.length - 1; i++) {
-    const pair = s.slice(i, i + 2);
+  const s = text.toLowerCase().replaceAll(BIGRAMS_PATTERN, ' ').trim();
+  for (let index = 0; index < s.length - 1; index++) {
+    const pair = s.slice(index, index + 2);
     pairs.set(pair, (pairs.get(pair) ?? 0) + 1);
   }
   return pairs;
@@ -142,6 +145,6 @@ export function withJitter(minutes: number, random: number): number {
  * undefined when it sets none.
  */
 export function maxAgeMinutes(header: string | null): number | undefined {
-  const seconds = /(?:^|,)\s*max-age\s*=\s*(\d+)/i.exec(header ?? '')?.[1];
+  const seconds = MAX_AGE_MINUTES_PATTERN.exec(header ?? '')?.[1];
   return seconds === undefined ? undefined : Math.ceil(Number(seconds) / 60);
 }

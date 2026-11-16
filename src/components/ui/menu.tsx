@@ -16,6 +16,7 @@ export function Menu({
   triggerClassName,
   label,
   width = 'w-56',
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
   className,
   children,
 }: Readonly<{
@@ -25,10 +26,12 @@ export function Menu({
   label?: string;
   /** The panel's width class. */
   width?: string;
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
   className?: string;
   children: ReactNode;
 }>): ReactElement {
   return (
+    // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
     <div className={className}>
       <Popover
         {...(label ? { label } : {})}
@@ -55,6 +58,7 @@ export const MENU_ITEM =
 
 /** One action in a `Menu`. */
 export function MenuItem({
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
   className,
   children,
   ...props

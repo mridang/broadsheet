@@ -21,6 +21,6 @@ describe('safeReturnPath', () => {
     expect(safeReturnPath('/a\nb')).toBeUndefined();
     expect(safeReturnPath('')).toBeUndefined();
     expect(safeReturnPath(null)).toBeUndefined();
-    expect(safeReturnPath(undefined)).toBeUndefined();
+    expect(safeReturnPath()).toBeUndefined();
   });
 });

@@ -14,6 +14,8 @@ import {
 } from '../../lib/core/db/sqlite-d1';
 import insecure from '../../fixtures/insecure-urls.json';
 
+const PARSE_CONVERSION_PATTERN = /^google_news:/;
+
 let restore: (() => void) | undefined;
 afterEach(() => restore?.());
 
@@ -52,8 +54,8 @@ describe('parseConversion', () => {
     [{ url: 'x', more: 1 }, 'more: not a member of this request.'],
     [{ url: insecure.ftpBare }, 'url: not an address a feed can be found for.'],
     [{ url: 3 }, 'url: not an address a feed can be found for.'],
-    [{ google_news: 'x' }, expect.stringMatching(/^google_news:/)],
-    [{ google_news: {} }, expect.stringMatching(/^google_news:/)],
+    [{ google_news: 'x' }, expect.stringMatching(PARSE_CONVERSION_PATTERN)],
+    [{ google_news: {} }, expect.stringMatching(PARSE_CONVERSION_PATTERN)],
   ])('refuses %j', (body, error) => {
     const out = parseConversion(body);
     expect(out.ok ? [] : out.errors).toContainEqual(error);

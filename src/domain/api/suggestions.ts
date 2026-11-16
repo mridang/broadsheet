@@ -134,7 +134,10 @@ export function createSimilarFeeds(
       }
       return pageRequest(request);
     },
-    handle: async ({ after, limit }, { request, uid }) => {
+    handle: async (
+      { after, limit },
+      { request, uid },
+    ): Promise<{ items: SimilarSource[]; next?: number } | undefined> => {
       const id = parseFeedId(parentIdOf(request));
       if (id === undefined) return undefined;
       const all = await new Repository(getDatabase()).similarSources(

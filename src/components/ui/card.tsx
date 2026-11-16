@@ -17,12 +17,14 @@ export function Card({
   as: Tag = 'div',
   padding = 'md',
   interactive = false,
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
   className,
   children,
 }: Readonly<{
   as?: ElementType;
   padding?: keyof typeof PADDING;
   interactive?: boolean;
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
   className?: string;
   children: ReactNode;
 }>): ReactElement {
@@ -47,11 +49,13 @@ export function Card({
  */
 export function List({
   label,
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
   className,
   children,
 }: Readonly<{
   /** What the list is, for a screen reader, when no heading names it. */
   label?: string;
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
   className?: string;
   children: ReactNode;
 }>): ReactElement {
@@ -78,6 +82,7 @@ export function ListItem({
   title,
   detail,
   actions,
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
   className,
   children,
 }: Readonly<{
@@ -85,6 +90,7 @@ export function ListItem({
   title: ReactNode;
   detail?: ReactNode;
   actions?: ReactNode;
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
   className?: string;
   /** Anything more, beneath the row (a settings form, say). */
   children?: ReactNode;

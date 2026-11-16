@@ -144,10 +144,10 @@ describe('diversify', () => {
 describe('capSourceShare', () => {
   it('keeps a source to a tenth of a list of ten or more', () => {
     const list = [
-      ...Array.from({ length: 3 }, (_, i) =>
-        candidate(i + 1, { domain: 'big.test' }),
+      ...Array.from({ length: 3 }, (_, index) =>
+        candidate(index + 1, { domain: 'big.test' }),
       ),
-      ...Array.from({ length: 9 }, (_, i) => candidate(i + 10)),
+      ...Array.from({ length: 9 }, (_, index) => candidate(index + 10)),
     ];
     const capped = capSourceShare(list);
     expect(capped.filter((c) => c.domain === 'big.test')).toHaveLength(1);

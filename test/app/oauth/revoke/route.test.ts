@@ -11,6 +11,8 @@ import { quietSecurityLogs } from '../../../lib/oauth/quiet-logs';
 import { SCOPE_READ } from '@/domain/mcp/app';
 import { APP_MIGRATIONS } from '../../../lib/core/db/migrations';
 
+const ANSWERS_429_WITH_RETRY_AFTER_PATTERN = /^\d+$/;
+
 quietSecurityLogs();
 
 let raw: DatabaseSync;
@@ -79,13 +81,15 @@ describe('POST /oauth/revoke limits and body rules', () => {
       revoke(new URLSearchParams({ token: 'cdn_at_x' }), {
         'cf-connecting-ip': ip,
       });
-    for (let i = 0; i < 60; i += 1) {
+    for (let index = 0; index < 60; index += 1) {
       const ok = await hit('203.0.113.7');
       expect(ok.status).toBe(200);
     }
     const limited = await hit('203.0.113.7');
     expect(limited.status).toBe(429);
-    expect(limited.headers.get('retry-after')).toMatch(/^\d+$/);
+    expect(limited.headers.get('retry-after')).toMatch(
+      ANSWERS_429_WITH_RETRY_AFTER_PATTERN,
+    );
     const other = await hit('198.51.100.9');
     expect(other.status).toBe(200);
   });

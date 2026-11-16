@@ -30,9 +30,9 @@ export async function POST(request: Request): Promise<NextResponse> {
   if (body.kind !== 'ok') {
     return new NextResponse(null, { status: 400 });
   }
-  summariseReports(body.value).forEach((report) => {
+  for (const report of summariseReports(body.value)) {
     console.log('[csp-report]', JSON.stringify(report));
-  });
+  }
   return new NextResponse(null, {
     status: 204,
     headers: { 'Cache-Control': 'no-store' },

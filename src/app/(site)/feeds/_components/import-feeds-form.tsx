@@ -36,6 +36,7 @@ export function ImportFeedsForm(): ReactElement {
         <label
           className={buttonClass({
             variant: 'outline',
+            // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
             className:
               'w-full has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ink sm:w-auto',
           })}

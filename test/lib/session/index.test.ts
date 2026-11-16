@@ -9,6 +9,8 @@ import {
   sessionIsCurrent,
 } from '@/lib/session';
 
+const REFUSES_WHEN_THERE_IS_PATTERN = /SESSION_SECRET/;
+
 /** A value that is not there, for fields the test leaves out on purpose. */
 const unset = (): undefined => undefined;
 
@@ -242,7 +244,9 @@ describe('requireSessionSecret', () => {
   });
 
   it('refuses when there is none, rather than falling back to a value anyone could guess', () => {
-    expect(() => requireSessionSecret(undefined)).toThrow(/SESSION_SECRET/);
-    expect(() => requireSessionSecret('')).toThrow(/SESSION_SECRET/);
+    expect(() => requireSessionSecret()).toThrow(REFUSES_WHEN_THERE_IS_PATTERN);
+    expect(() => requireSessionSecret('')).toThrow(
+      REFUSES_WHEN_THERE_IS_PATTERN,
+    );
   });
 });

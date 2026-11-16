@@ -6,6 +6,8 @@ import {
 } from '@/app/(site)/feeds/_components/feed-title-editor';
 import { html } from '../../../../components/render';
 
+const LINKS_THE_NAME_TO_PATTERN = /<a[^>]*href="\/feeds\/3"[^>]*>a.test<\/a>/;
+
 describe('editedTitle', () => {
   it('trims what was typed', () => {
     expect(editedTitle('  Mine ')).toBe('Mine');
@@ -20,7 +22,7 @@ describe('FeedTitleEditor', () => {
   const out = html(<FeedTitleEditor id={3} title="" name="a.test" />);
 
   it('links the name to the feed', () => {
-    expect(out).toMatch(/<a[^>]*href="\/feeds\/3"[^>]*>a.test<\/a>/);
+    expect(out).toMatch(LINKS_THE_NAME_TO_PATTERN);
   });
 
   it('offers a labelled pencil to rename the feed', () => {

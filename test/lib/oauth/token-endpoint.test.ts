@@ -21,6 +21,9 @@ import {
 } from '@/lib/oauth';
 import { SCOPE_READ, SCOPE_WRITE } from '@/domain/mcp/app';
 
+const ISSUES_TOKENS_FOR_A_PATTERN = /^cdn_at_/;
+const ISSUES_TOKENS_FOR_A_PATTERN_2 = /^cdn_rt_/;
+
 const RESOURCE = 'https://site.example/mcp';
 const VERIFIER = 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk';
 const NOW = 1_000_000;
@@ -44,7 +47,7 @@ const logs = quietSecurityLogs();
 let store: MemoryStore;
 let code: string;
 
-async function newCode(overrides: Partial<CodeRecord> = {}) {
+async function nextCode(overrides: Partial<CodeRecord> = {}) {
   return issueAuthorizationCode(
     store,
     {
@@ -81,7 +84,7 @@ const redeem = (
 
 beforeEach(async () => {
   store = new MemoryStore();
-  code = await newCode();
+  code = await nextCode();
 });
 
 describe('issueAuthorizationCode', () => {
@@ -104,8 +107,8 @@ describe('exchangeAuthorizationCode', () => {
       expires_in: ACCESS_TTL_SECONDS,
       scope: `${SCOPE_READ} ${SCOPE_WRITE}`,
     });
-    expect(tokens.access_token).toMatch(/^cdn_at_/);
-    expect(tokens.refresh_token).toMatch(/^cdn_rt_/);
+    expect(tokens.access_token).toMatch(ISSUES_TOKENS_FOR_A_PATTERN);
+    expect(tokens.refresh_token).toMatch(ISSUES_TOKENS_FOR_A_PATTERN_2);
   });
 
   it('never stores the tokens themselves, only hashes', async () => {
@@ -415,7 +418,7 @@ describe('exchangeRefreshToken', () => {
     });
 
     it('still never widens the scope on a retry', async () => {
-      const readOnly = await newCode({ scope: [SCOPE_READ] });
+      const readOnly = await nextCode({ scope: [SCOPE_READ] });
       const first = (await redeem(readOnly)) as TokenResponse;
       await refresh(first.refresh_token);
       expect(
@@ -515,7 +518,7 @@ describe('exchangeRefreshToken', () => {
   });
 
   it('never widens the scope', async () => {
-    const readOnly = await newCode({ scope: [SCOPE_READ] });
+    const readOnly = await nextCode({ scope: [SCOPE_READ] });
     const first = (await redeem(readOnly)) as TokenResponse;
     expect(
       await refresh(first.refresh_token, {
@@ -525,7 +528,7 @@ describe('exchangeRefreshToken', () => {
   });
 
   it('reports the whole grant, since tokens are not narrowed one by one', async () => {
-    const code = await newCode({ scope: [SCOPE_READ, SCOPE_WRITE] });
+    const code = await nextCode({ scope: [SCOPE_READ, SCOPE_WRITE] });
     const first = (await redeem(code)) as TokenResponse;
     const second = (await refresh(first.refresh_token, {
       scope: SCOPE_READ,
@@ -557,7 +560,7 @@ describe('withinRefreshGrace', () => {
 describe('several installs of one app', () => {
   it('keeps the earlier grant working when the same user approves the same client again', async () => {
     const first = (await redeem(code)) as TokenResponse;
-    const again = (await redeem(await newCode())) as TokenResponse;
+    const again = (await redeem(await nextCode())) as TokenResponse;
     const grants = [...store.grants.values()];
     expect(grants).toHaveLength(2);
     expect(grants.filter((g) => !g.revoked)).toHaveLength(2);
@@ -586,8 +589,8 @@ describe('several installs of one app', () => {
 
   it('retires the oldest grant once the user has more installs than the cap', async () => {
     const tokens: unknown[] = [];
-    for (let i = 0; i <= MAX_LIVE_GRANTS_PER_APP; i += 1) {
-      tokens.push(await redeem(await newCode()));
+    for (let index = 0; index <= MAX_LIVE_GRANTS_PER_APP; index += 1) {
+      tokens.push(await redeem(await nextCode()));
     }
     const live = [...store.grants.values()].filter((g) => !g.revoked);
     expect(live).toHaveLength(MAX_LIVE_GRANTS_PER_APP);
@@ -605,12 +608,12 @@ describe('several installs of one app', () => {
   it('leaves other users and other clients alone, and the first approval working', async () => {
     const mine = (await redeem(code)) as TokenResponse;
     const otherUser = (await redeem(
-      await newCode({ userId: 8 }),
+      await nextCode({ userId: 8 }),
     )) as TokenResponse;
     const otherClient = (await exchangeAuthorizationCode(
       store,
       {
-        code: await newCode({ clientId: 'client-2' }),
+        code: await nextCode({ clientId: 'client-2' }),
         clientId: 'client-2',
         redirectUri: 'https://app.example/cb',
         codeVerifier: VERIFIER,
@@ -620,7 +623,7 @@ describe('several installs of one app', () => {
       NOW + 5,
     )) as TokenResponse;
     // Approving again as the first user changes nothing for the others.
-    await redeem(await newCode());
+    await redeem(await nextCode());
     for (const token of [otherUser, otherClient]) {
       expect(
         await authenticateAccessToken(
@@ -644,7 +647,7 @@ describe('several installs of one app', () => {
 
 describe('redirect_uri at the token endpoint (OAuth 2.1 4.1.3)', () => {
   it('is required when the authorization request carried one', async () => {
-    const sent = await newCode({ redirectUriSent: true });
+    const sent = await nextCode({ redirectUriSent: true });
     expect(await redeem(sent, { redirectUri: absent })).toMatchObject({
       ok: false,
       error: 'invalid_grant',
@@ -653,19 +656,19 @@ describe('redirect_uri at the token endpoint (OAuth 2.1 4.1.3)', () => {
   });
 
   it('may be left out when the client let the only registered address stand in', async () => {
-    const assumed = await newCode({ redirectUriSent: false });
+    const assumed = await nextCode({ redirectUriSent: false });
     const tokens = await redeem(assumed, { redirectUri: absent });
     expect(isFailure(tokens)).toBe(false);
   });
 
   it('still has to match when it is sent after being assumed', async () => {
-    const assumed = await newCode({ redirectUriSent: false });
+    const assumed = await nextCode({ redirectUriSent: false });
     expect(
       await redeem(assumed, { redirectUri: 'https://evil.example/cb' }),
     ).toMatchObject({ ok: false, error: 'invalid_grant' });
     expect(
       isFailure(
-        await redeem(await newCode({ redirectUriSent: false }), {
+        await redeem(await nextCode({ redirectUriSent: false }), {
           redirectUri: 'https://app.example/cb',
         }),
       ),
@@ -686,7 +689,7 @@ describe('refresh scope and resource', () => {
 
   it('lets a grant of write refresh with read, which write covers', async () => {
     const first = (await redeem(
-      await newCode({ scope: [SCOPE_WRITE] }),
+      await nextCode({ scope: [SCOPE_WRITE] }),
     )) as TokenResponse;
     const second = await refreshWith(first.refresh_token, {
       scope: SCOPE_READ,
@@ -703,7 +706,7 @@ describe('refresh scope and resource', () => {
         }),
       ),
     ).toBe(false);
-    const again = (await redeem(await newCode())) as TokenResponse;
+    const again = (await redeem(await nextCode())) as TokenResponse;
     expect(
       await refreshWith(again.refresh_token, { scope: 'admin' }),
     ).toMatchObject({ ok: false, error: 'invalid_scope' });

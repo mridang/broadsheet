@@ -7,6 +7,8 @@ import {
 } from '@/domain/api/preference-resource';
 import { DEFAULT_PREFERENCES } from '@/domain/repository';
 
+const REFUSES_A_MODEL_WE_PATTERN = /^briefing\.model: must be null or one of /;
+
 describe('preferencesResource', () => {
   it('groups the briefing preferences', () => {
     expect(preferencesResource(DEFAULT_PREFERENCES)).toMatchObject({
@@ -255,9 +257,7 @@ describe('parsePreferenceChanges for the schedule and sections', () => {
 
   it('refuses a model we do not offer', () => {
     const out = parsePreferenceChanges({ briefing: { model: '@cf/x/y' } });
-    expect(out.ok ? [] : out.errors[0]).toMatch(
-      /^briefing\.model: must be null or one of /,
-    );
+    expect(out.ok ? [] : out.errors[0]).toMatch(REFUSES_A_MODEL_WE_PATTERN);
   });
 });
 

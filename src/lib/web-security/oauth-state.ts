@@ -16,6 +16,7 @@ export const STATE_TTL_SECONDS = 600;
 export const SIGN_IN_PURPOSE = 'signin';
 
 /** A fresh `state` for the given purpose: `<purpose>.<random>`. */
+// eslint-disable-next-line unicorn/no-keyword-prefix -- newState is an exported name of the module's public surface, so it is not renamed
 export function newState(purpose: string): string {
   return `${purpose}.${crypto.randomUUID()}`;
 }

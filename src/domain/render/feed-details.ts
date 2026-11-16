@@ -1,5 +1,9 @@
 import { countOf } from '@/lib/intl';
 
+const WORDS_PATTERN = /([a-z0-9])([A-Z])/g;
+const WORDS_PATTERN_2 = /[-_.]+/g;
+const CHILD_PATTERN = /^.*:/;
+
 /**
  * @packageDocumentation
  *
@@ -39,8 +43,8 @@ const PREFIXES: Readonly<Record<string, string>> = {
 /** `updatePeriod` → `Update period`, `last-modified` → `Last modified`. */
 function words(name: string): string {
   const spaced = name
-    .replaceAll(/([a-z0-9])([A-Z])/g, '$1 $2')
-    .replaceAll(/[-_.]+/g, ' ')
+    .replaceAll(WORDS_PATTERN, '$1 $2')
+    .replaceAll(WORDS_PATTERN_2, ' ')
     .toLowerCase()
     .trim();
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
@@ -102,9 +106,10 @@ export interface HeaderFact {
 }
 
 /** The text of a child element by local name, or blank. */
-function child(e: Element, name: string): string {
+function child(event5: Element, name: string): string {
   return (
-    e.children.find((c) => c.name.replace(/^.*:/, '') === name)?.text ?? ''
+    event5.children.find((c) => c.name.replace(CHILD_PATTERN, '') === name)
+      ?.text ?? ''
   );
 }
 
@@ -113,12 +118,13 @@ function child(e: Element, name: string): string {
  * (an Atom `<author>` reads as its name, email and address), else its
  * attributes (an RSS `<cloud>` or an Atom `<category term>`).
  */
-function phrase(e: Element): string {
-  if (e.text && Object.keys(e.attributes).length === 0) return e.text;
+function phrase(event4: Element): string {
+  if (event4.text && Object.keys(event4.attributes).length === 0)
+    return event4.text;
   const parts = [
-    e.text,
-    ...e.children.map((c) => phrase(c)).filter(Boolean),
-    ...Object.entries(e.attributes)
+    event4.text,
+    ...event4.children.map((c) => phrase(c)).filter(Boolean),
+    ...Object.entries(event4.attributes)
       .filter(([k]) => !k.startsWith('xmlns'))
       .map(([k, v]) => `${k} ${v}`),
   ].filter(Boolean);
@@ -147,15 +153,15 @@ const SHOWN = new Set([
  */
 export function headerFacts(elements: readonly Element[]): HeaderFact[] {
   const facts = new Map<string, string[]>();
-  for (const e of elements) {
-    const local = e.name.replace(/^.*:/, '');
-    const value = phrase(e);
-    const isShown = SHOWN.has(local) && !e.name.includes(':');
+  for (const event3 of elements) {
+    const local = event3.name.replace(CHILD_PATTERN, '');
+    const value = phrase(event3);
+    const isShown = SHOWN.has(local) && !event3.name.includes(':');
     if (isShown || !value) continue;
-    const label = elementLabel(e.name);
+    const label = elementLabel(event3.name);
     facts.set(label, [...(facts.get(label) ?? []), value]);
   }
-  return [...facts].map(([label, values]) => ({
+  return Array.from(facts, ([label, values]) => ({
     label,
     value: values.join(', '),
   }));
@@ -165,7 +171,7 @@ export function headerFacts(elements: readonly Element[]): HeaderFact[] {
 export function headerImage(
   elements: readonly Element[],
 ): { url: string; title: string; link: string } | undefined {
-  const image = elements.find((e) => e.name === 'image');
+  const image = elements.find((event2) => event2.name === 'image');
   if (image && child(image, 'url')) {
     return {
       url: child(image, 'url'),
@@ -173,6 +179,8 @@ export function headerImage(
       link: child(image, 'link'),
     };
   }
-  const logo = elements.find((e) => e.name === 'logo' || e.name === 'icon');
+  const logo = elements.find(
+    (event) => event.name === 'logo' || event.name === 'icon',
+  );
   return logo?.text ? { url: logo.text, title: '', link: '' } : undefined;
 }

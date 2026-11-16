@@ -242,7 +242,7 @@ describe('publishIssue', () => {
     await repo.writeEdition(
       sourceId,
       DAY,
-      Array.from({ length: 12 }, (_, i) => item(i + 1)),
+      Array.from({ length: 12 }, (_, index) => item(index + 1)),
     );
     // One source gives at most three, whatever the count.
     await repo.updatePreferences(uid, { briefing_story_count: 10 });

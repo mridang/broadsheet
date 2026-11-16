@@ -77,11 +77,10 @@ function streaming(
   const state = { cancelled: false };
   const body = new ReadableStream<Uint8Array>({
     start(controller) {
-      pieces.forEach((piece) =>
+      for (const piece of pieces)
         controller.enqueue(
           typeof piece === 'string' ? encoder.encode(piece) : piece,
-        ),
-      );
+        );
       controller.close();
     },
     cancel() {

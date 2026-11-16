@@ -45,7 +45,7 @@ describe('toggleQueued', () => {
   it('keeps no more than the API allows', () => {
     const full = {
       ...EMPTY,
-      queue: Array.from({ length: MAX_ITEMS }, (_, i) => i + 1),
+      queue: Array.from({ length: MAX_ITEMS }, (_, index) => index + 1),
     };
     expect(toggleQueued(full, 999).queue).toHaveLength(MAX_ITEMS);
   });

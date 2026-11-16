@@ -21,6 +21,8 @@ import {
   tokenFor,
 } from '../../../../domain/auth/auth-test-kit';
 
+const POST_API_FEEDS_IMPORTS_PATTERN = /^topic_ids:/;
+
 const refreshSource = jest.fn<(...args: unknown[]) => Promise<unknown>>(
   async () => ({ ok: true, n: 0 }),
 );
@@ -129,7 +131,7 @@ describe('POST /api/feeds/imports', () => {
     expect(res.status).toBe(400);
     expect(res.headers.get('content-type')).toBe('application/problem+json');
     expect(((await res.json()) as { errors: string[] }).errors[0]).toMatch(
-      /^topic_ids:/,
+      POST_API_FEEDS_IMPORTS_PATTERN,
     );
   });
 
@@ -168,7 +170,7 @@ describe('POST /api/feeds/imports', () => {
   it('answers 400 for more than 500 feeds', async () => {
     const many = Array.from(
       { length: 501 },
-      (_, i) => `<outline xmlUrl="https://a.test/${i}"/>`,
+      (_, index) => `<outline xmlUrl="https://a.test/${index}"/>`,
     ).join('');
     const res = await post(opml(many), 'text/x-opml');
     expect(res.status).toBe(400);
@@ -178,7 +180,7 @@ describe('POST /api/feeds/imports', () => {
   it('starts a Workflow for more than 50 feeds, answering 202 with where to watch it', async () => {
     const many = Array.from(
       { length: 51 },
-      (_, i) => `<outline xmlUrl="https://a.test/${i}"/>`,
+      (_, index) => `<outline xmlUrl="https://a.test/${index}"/>`,
     ).join('');
     const res = await post(opml(many), 'text/x-opml');
     expect(res.status).toBe(202);
@@ -211,7 +213,7 @@ describe('POST /api/feeds/imports', () => {
     create.mockRejectedValueOnce(new Error('no binding'));
     const many = Array.from(
       { length: 51 },
-      (_, i) => `<outline xmlUrl="https://a.test/${i}"/>`,
+      (_, index) => `<outline xmlUrl="https://a.test/${index}"/>`,
     ).join('');
     jest.spyOn(console, 'error').mockImplementation(() => undefined);
     const res = await post(opml(many), 'text/x-opml');
@@ -224,7 +226,7 @@ describe('POST /api/feeds/imports', () => {
   it('imports 50 feeds straight away', async () => {
     const many = Array.from(
       { length: 50 },
-      (_, i) => `<outline xmlUrl="https://a.test/${i}"/>`,
+      (_, index) => `<outline xmlUrl="https://a.test/${index}"/>`,
     ).join('');
     const res = await post(opml(many), 'text/x-opml');
     expect(res.status).toBe(201);

@@ -84,7 +84,7 @@ describe('parseSharerIds', () => {
   });
 
   it('refuses more than 100 people', () => {
-    const many = Array.from({ length: 101 }, (_, i) => String(i + 1));
+    const many = Array.from({ length: 101 }, (_, index) => String(index + 1));
     expect(parseSharerIds(many)).toMatchObject({ ok: false });
   });
 });

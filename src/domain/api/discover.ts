@@ -54,6 +54,8 @@ import {
   type User,
 } from '@/domain/repository';
 
+const PARSE_RECOMMENDATION_PATTERN = /^https?:\/\/\S+$/i;
+
 /** The signed-in caller's id. */
 interface UidContext {
   readonly request: Request;
@@ -376,7 +378,7 @@ export function isCurator(user: Pick<User, 'email'>): boolean {
     (getEnv() as unknown as Record<string, unknown>)['CURATOR_EMAILS'] ?? '',
   )
     .split(',')
-    .map((e) => e.trim().toLowerCase())
+    .map((event) => event.trim().toLowerCase())
     .filter(Boolean);
   return listed.includes(user.email.toLowerCase());
 }
@@ -393,7 +395,7 @@ export function parseRecommendation(
   const url = body['url'];
   if (
     typeof url !== 'string' ||
-    !/^https?:\/\/\S+$/i.test(url) ||
+    !PARSE_RECOMMENDATION_PATTERN.test(url) ||
     url.length > 2000
   ) {
     errors.push('url: an http(s) address.');

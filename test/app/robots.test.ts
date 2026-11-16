@@ -3,6 +3,9 @@ import { describe, expect, it } from '@jest/globals';
 import { BRAND_URL, CRAWLABLE_PATHS, PRIVATE_PATHS } from '@/app/_brand';
 import robots from '@/app/robots';
 
+const MATCHES_PATTERN = /[.+?^{}()|[\]\\]/g;
+const LETS_CRAWLERS_READ_EACH_PATTERN = /\$$/;
+
 type Group = { userAgent: string; allow: string[]; disallow: string[] };
 
 describe('robots.txt', () => {
@@ -16,7 +19,7 @@ describe('robots.txt', () => {
    */
   const allowed = (target: string): boolean => {
     const matches = (pattern: string): boolean => {
-      const escaped = pattern.replaceAll(/[.+?^{}()|[\]\\]/g, String.raw`\$&`);
+      const escaped = pattern.replaceAll(MATCHES_PATTERN, String.raw`\$&`);
       return new RegExp(`^${escaped.replaceAll('*', '.*')}`).test(target);
     };
     const hit = (patterns: string[]): number =>
@@ -36,7 +39,9 @@ describe('robots.txt', () => {
 
   it('lets crawlers read each public page', () => {
     for (const path of CRAWLABLE_PATHS) {
-      expect(allowed(path.replace(/\$$/, ''))).toBe(true);
+      expect(allowed(path.replace(LETS_CRAWLERS_READ_EACH_PATTERN, ''))).toBe(
+        true,
+      );
     }
   });
 

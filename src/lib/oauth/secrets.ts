@@ -21,6 +21,7 @@ export type SecretPrefix =
   typeof CODE_PREFIX | typeof ACCESS_PREFIX | typeof REFRESH_PREFIX;
 
 /** A new random secret such as `cdn_at_Qk3…`. */
+// eslint-disable-next-line unicorn/no-keyword-prefix -- newSecret is an exported name of the module's public surface, so it is not renamed
 export function newSecret(prefix: SecretPrefix): string {
   const bytes = crypto.getRandomValues(new Uint8Array(32));
   return `${prefix}_${bytesToBase64Url(bytes)}`;
@@ -32,7 +33,7 @@ export async function hashSecret(secret: string): Promise<string> {
     'SHA-256',
     new TextEncoder().encode(secret),
   );
-  return [...new Uint8Array(digest)]
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
+  return Array.from(new Uint8Array(digest), (b) =>
+    b.toString(16).padStart(2, '0'),
+  ).join('');
 }

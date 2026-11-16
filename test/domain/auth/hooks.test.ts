@@ -10,7 +10,7 @@ const { OTHER_FLOWS, afterSignIn } = await import('@/domain/auth/hooks');
 
 beforeEach(() => {
   seedDefaults.mockReset();
-  seedDefaults.mockResolvedValue(undefined);
+  seedDefaults.mockResolvedValue();
 });
 
 describe('afterSignIn', () => {

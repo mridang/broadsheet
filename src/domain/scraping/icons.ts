@@ -1,3 +1,9 @@
+const LARGEST_PATTERN = /\bany\b/i;
+const PAGE_ICONS_PATTERN = /<link\b[^>]*>/gi;
+const PAGE_ICONS_PATTERN_2 = /\s+/;
+const MANIFEST_URL_PATTERN = /\bmanifest\b/i;
+const FIRST_WORKING_ICON_PATTERN = /\.ico(\?|$)/i;
+const SIZE_PAIRS_PATTERN = /\d+|x/gi;
 /**
  * @packageDocumentation
  *
@@ -17,7 +23,7 @@ interface Declared {
 
 /** The longest side a `sizes` value names (`32x32 192x192` → 192; `any` → 512). */
 function largest(sizes: string): number {
-  if (/\bany\b/i.test(sizes)) return 512;
+  if (LARGEST_PATTERN.test(sizes)) return 512;
   return Math.max(0, ...sizePairs(sizes).map(([w, h]) => Math.max(w, h)));
 }
 
@@ -42,9 +48,11 @@ function attribute(tag: string, name: string): string {
 /** The icons a page's `<link>` tags declare, largest first. */
 export function pageIcons(html: string, base: string): string[] {
   const found: Declared[] = [];
-  for (const [tag] of html.matchAll(/<link\b[^>]*>/gi)) {
-    const rel = attribute(tag, 'rel').toLowerCase().split(/\s+/);
-    const isIcon = rel.some(
+  for (const [tag] of html.matchAll(PAGE_ICONS_PATTERN)) {
+    const relation = attribute(tag, 'rel')
+      .toLowerCase()
+      .split(PAGE_ICONS_PATTERN_2);
+    const isIcon = relation.some(
       (r) => r === 'icon' || r.startsWith('apple-touch-icon'),
     );
     const href = isIcon ? absolute(attribute(tag, 'href'), base) : undefined;
@@ -52,7 +60,7 @@ export function pageIcons(html: string, base: string): string[] {
     // An apple-touch-icon with no sizes is the 180px one by convention.
     const size =
       largest(attribute(tag, 'sizes')) ||
-      (rel.some((r) => r.startsWith('apple-touch-icon')) ? 180 : 16);
+      (relation.some((r) => r.startsWith('apple-touch-icon')) ? 180 : 16);
     found.push({ href, size });
   }
   return found.toSorted((a, b) => b.size - a.size).map((d) => d.href);
@@ -60,8 +68,8 @@ export function pageIcons(html: string, base: string): string[] {
 
 /** The address of a page's web app manifest, if it links one. */
 export function manifestUrl(html: string, base: string): string | undefined {
-  for (const [tag] of html.matchAll(/<link\b[^>]*>/gi)) {
-    if (/\bmanifest\b/i.test(attribute(tag, 'rel'))) {
+  for (const [tag] of html.matchAll(PAGE_ICONS_PATTERN)) {
+    if (MANIFEST_URL_PATTERN.test(attribute(tag, 'rel'))) {
       return absolute(attribute(tag, 'href'), base);
     }
   }
@@ -125,7 +133,7 @@ export async function firstWorkingIcon(
       const isImage =
         type.startsWith('image/') ||
         type.includes('icon') ||
-        (!type && /\.ico(\?|$)/i.test(url));
+        (!type && FIRST_WORKING_ICON_PATTERN.test(url));
       if (response.ok && isImage) {
         return url;
       }
@@ -139,14 +147,14 @@ export async function firstWorkingIcon(
 /** The `WxH` pairs of a sizes attribute, left to right, none sharing a digit run. */
 function sizePairs(sizes: string): [number, number][] {
   const out: [number, number][] = [];
-  const parts = [...sizes.matchAll(/\d+|x/gi)];
-  for (let i = 0; i + 2 < parts.length; i += 1) {
-    const [a, x, b] = [parts[i]!, parts[i + 1]!, parts[i + 2]!];
+  const parts = [...sizes.matchAll(SIZE_PAIRS_PATTERN)];
+  for (let index = 0; index + 2 < parts.length; index += 1) {
+    const [a, x, b] = [parts[index]!, parts[index + 1]!, parts[index + 2]!];
     const isX = (m: RegExpExecArray | RegExpMatchArray) =>
       m[0].toLowerCase() === 'x';
     if (!isX(a) && isX(x) && !isX(b) && b.index === a.index + a[0].length + 1) {
       out.push([Number(a[0]), Number(b[0])]);
-      i += 2;
+      index += 2;
     }
   }
   return out;

@@ -1,3 +1,6 @@
+const PARSE_ICON_PATTERN = /^[a-z0-9-]{1,64}$/;
+const PARSE_ICON_PATTERN_2 = /^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/;
+const PARSE_ICON_PATTERN_3 = /^#[0-9a-f]{6}$/i;
 /**
  * @packageDocumentation
  *
@@ -66,14 +69,13 @@ export function parseIcon(raw: unknown, field: string): IconInput {
     errors.push(`${field}.data: required.`);
   } else if (type === 'emoji' && [...data].length > 8) {
     errors.push(`${field}.data: an emoji, at most 8 characters.`);
-  } else if (type === 'preset' && !/^[a-z0-9-]{1,64}$/.test(data)) {
+  } else if (type === 'preset' && !PARSE_ICON_PATTERN.test(data)) {
     errors.push(
       `${field}.data: an icon name of lowercase letters, digits and hyphens.`,
     );
   } else if (
     type === 'upload' &&
-    (data.length > MAX_UPLOAD_LENGTH ||
-      !/^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/.test(data))
+    (data.length > MAX_UPLOAD_LENGTH || !PARSE_ICON_PATTERN_2.test(data))
   ) {
     errors.push(
       `${field}.data: a data:image/png;base64 URL of at most ${MAX_UPLOAD_LENGTH} characters.`,
@@ -83,7 +85,7 @@ export function parseIcon(raw: unknown, field: string): IconInput {
   }
   if (
     color !== undefined &&
-    (typeof color !== 'string' || !/^#[0-9a-f]{6}$/i.test(color))
+    (typeof color !== 'string' || !PARSE_ICON_PATTERN_3.test(color))
   ) {
     errors.push(`${field}.color: a hex colour such as #ff5722.`);
   }

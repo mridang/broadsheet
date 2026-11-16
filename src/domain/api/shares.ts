@@ -149,7 +149,10 @@ export function createShareItem(
         }
         return { comments: input.comments };
       },
-      handle: async ({ comments }, { request, uid }) => {
+      handle: async (
+        { comments },
+        { request, uid },
+      ): Promise<{ story: SharedStory; created: boolean } | undefined> => {
         const id = parseFeedId(idOf(request));
         const db = getDatabase();
         if (id === undefined || !(await new Repository(db).getArticle(uid, id)))

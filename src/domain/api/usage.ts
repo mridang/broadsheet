@@ -18,6 +18,8 @@ import { ApiController, ok, problems } from '@/lib/core/api';
 import { getDatabase } from '@/domain/db/client';
 import { Repository, type UsageKind } from '@/domain/repository';
 
+const BUDGET_PATTERN = /\.\d{3}Z$/;
+
 /** How much of one budget is used today. */
 export interface BudgetResource {
   readonly used: number;
@@ -52,7 +54,7 @@ export async function budget(
     remaining: Math.max(0, limit - used),
     resets_at: new Date(now.getTime() + day.retryAfter * 1000)
       .toISOString()
-      .replace(/\.\d{3}Z$/, 'Z'),
+      .replace(BUDGET_PATTERN, 'Z'),
   };
 }
 

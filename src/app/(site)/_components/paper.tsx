@@ -31,8 +31,11 @@ export function Paper({
           <p className="mt-2 leading-relaxed text-ink">{briefing}</p>
         </aside>
       ) : null}
-      {layout.groups.map((group, i) => (
-        <div key={group.name ?? `unfiled-${i}`} className="mt-14 first:mt-0">
+      {layout.groups.map((group, index) => (
+        <div
+          key={group.name ?? `unfiled-${index}`}
+          className="mt-14 first:mt-0"
+        >
           {group.name ? (
             <h2 className="mb-6 text-2xl font-semibold tracking-tight text-ink">
               {group.name}

@@ -3,12 +3,14 @@ import { describe, expect, it } from '@jest/globals';
 import { EditionSwitcher } from '@/app/(site)/_components/edition-switcher';
 import { html } from '../../../components/render';
 
+const MARKS_THE_DAILY_PAPER_PATTERN =
+  /<a class="[^"]*" href="\/" aria-current="page">Daily<\/a>/;
+const LINKS_EACH_CUSTOM_EDITION_PATTERN = /href="\/\?edition=4">Weekend<\/a>/;
+
 describe('EditionSwitcher', () => {
   it('marks the daily paper when no custom edition shows', () => {
     const out = html(<EditionSwitcher editions={[]} />);
-    expect(out).toMatch(
-      /<a class="[^"]*" href="\/" aria-current="page">Daily<\/a>/,
-    );
+    expect(out).toMatch(MARKS_THE_DAILY_PAPER_PATTERN);
     expect(out).toContain('href="/editions"');
   });
 
@@ -22,7 +24,7 @@ describe('EditionSwitcher', () => {
         selected={5}
       />,
     );
-    expect(out).toMatch(/href="\/\?edition=4">Weekend<\/a>/);
+    expect(out).toMatch(LINKS_EACH_CUSTOM_EDITION_PATTERN);
     expect(out).toContain('href="/?edition=5" aria-current="page">Rust</a>');
     expect(out).toContain('href="/">Daily</a>');
   });

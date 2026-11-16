@@ -35,6 +35,8 @@ import { CSP_REPORT_PATH } from './reporting';
 import { DISCOVERY_PATHS, STATIC_PREFIXES } from './site';
 import { errorMessage, logError } from '@/utils/logging';
 
+const COUNTER_KEY_PATTERN = /^Bearer\s+(\S+)$/i;
+
 /** One Workers Rate Limiting binding: `limit` says whether `key` may go ahead. */
 export interface RateLimitBinding {
   limit(options: {
@@ -178,7 +180,7 @@ async function digestKey(text: string): Promise<string> {
 export async function counterKey(
   counted: Counted,
   headers: Headers,
-  sessionCookie: string | undefined,
+  sessionCookie?: string,
 ): Promise<string> {
   if (counted === 'person') {
     const session =
@@ -190,7 +192,7 @@ export async function counterKey(
       : `a:${clientSubject(headers)}`;
   }
   if (counted === 'token') {
-    const token = /^Bearer\s+(\S+)$/i.exec(
+    const token = COUNTER_KEY_PATTERN.exec(
       headers.get('authorization') ?? '',
     )?.[1];
     return token

@@ -9,6 +9,10 @@
 import type { Category } from '@/domain/briefing';
 import { countOf } from '@/lib/intl';
 
+const SECTION_HEADING_PATTERN = /^custom_(\d+)$/;
+const PARAGRAPHS_PATTERN = /\n\s*\n/;
+const WRITTEN_WITH_PATTERN = /^@cf\//;
+
 /** The heading of each fixed section, as the briefing prints it. */
 const HEADINGS: Readonly<Record<string, string>> = {
   widely_covered: 'Widely covered',
@@ -25,7 +29,7 @@ const HEADINGS: Readonly<Record<string, string>> = {
 
 /** A section's heading; a custom one is "Your topic" and its number. */
 export function sectionHeading(category: Category): string {
-  const custom = /^custom_(\d+)$/.exec(category);
+  const custom = SECTION_HEADING_PATTERN.exec(category);
   if (custom) return `Your topic ${custom[1]}`;
   return HEADINGS[category] ?? category.replaceAll('_', ' ');
 }
@@ -40,19 +44,17 @@ export function groupBySection<T extends { readonly category: Category }>(
   order: readonly Category[],
 ): { category: Category; stories: T[] }[] {
   const seen = [...order, ...stories.map((s) => s.category)];
-  return [...new Set(seen)]
-    .map((category) => ({
-      category,
-      stories: stories.filter((s) => s.category === category),
-    }))
-    .filter((g) => g.stories.length > 0);
+  return Array.from(new Set(seen), (category) => ({
+    category,
+    stories: stories.filter((s) => s.category === category),
+  })).filter((g) => g.stories.length > 0);
 }
 
 /** The summary as paragraphs, split on blank lines (or lines, when it has none). */
 export function paragraphs(summary: string | null | undefined): string[] {
   const text = (summary ?? '').trim();
   if (!text) return [];
-  const blocks = text.split(/\n\s*\n/);
+  const blocks = text.split(PARAGRAPHS_PATTERN);
   return (blocks.length > 1 ? blocks : text.split('\n'))
     .map((p) => p.trim())
     .filter(Boolean);
@@ -69,7 +71,7 @@ export function writtenWith({
   readonly seconds?: number | null;
 }): string {
   return [
-    model ? `Written by ${model.replace(/^@cf\//, '')}` : null,
+    model ? `Written by ${model.replace(WRITTEN_WITH_PATTERN, '')}` : null,
     tokens == null ? null : countOf(tokens, 'token'),
     seconds == null ? null : `${Math.round(seconds * 10) / 10}s`,
   ]

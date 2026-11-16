@@ -7,14 +7,18 @@ import {
 } from '@/app/(site)/briefings/_components/write-briefing';
 import { html } from '../../../../components/render';
 
+const IS_A_PLAIN_BUTTON_PATTERN =
+  /<button type="button"[^>]*>Write a briefing now<\/button>/;
+const IS_A_PLAIN_BUTTON_PATTERN_2 = /role="status" aria-live="polite"/;
+const SAYS_TOO_FEW_STORIES_PATTERN = /Too few new stories/;
+const ASKS_TO_WAIT_FOR_PATTERN = /Try again in a minute/;
+
 describe('WriteBriefing', () => {
   const out = html(<WriteBriefing />);
 
   it('is a plain button, with a status line that is read out', () => {
-    expect(out).toMatch(
-      /<button type="button"[^>]*>Write a briefing now<\/button>/,
-    );
-    expect(out).toMatch(/role="status" aria-live="polite"/);
+    expect(out).toMatch(IS_A_PLAIN_BUTTON_PATTERN);
+    expect(out).toMatch(IS_A_PLAIN_BUTTON_PATTERN_2);
   });
 
   it('shows no progress before it is pressed', () => {
@@ -42,11 +46,13 @@ describe('failureOf', () => {
     });
 
   it('says too few stories qualify for a 404', async () => {
-    expect(await failureOf(problem(404, {}))).toMatch(/Too few new stories/);
+    expect(await failureOf(problem(404, {}))).toMatch(
+      SAYS_TOO_FEW_STORIES_PATTERN,
+    );
   });
 
   it('asks to wait for a 429', async () => {
-    expect(await failureOf(problem(429, {}))).toMatch(/Try again in a minute/);
+    expect(await failureOf(problem(429, {}))).toMatch(ASKS_TO_WAIT_FOR_PATTERN);
   });
 
   it('shows the problem’s detail otherwise', async () => {

@@ -90,13 +90,15 @@ const schema = {
 import { APP_MIGRATIONS } from '../../lib/core/db/migrations';
 import { sqliteD1 } from '../../lib/core/db/sqlite-d1';
 
+const collator = new Intl.Collator();
+
 /** The column names SQLite reports for a table, sorted. */
 function columnsOf(raw: DatabaseSync, table: string): readonly string[] {
   return raw
     .prepare(`PRAGMA table_info(${table})`)
     .all()
     .map((row) => String(row['name']))
-    .toSorted((a, b) => a.localeCompare(b));
+    .toSorted((a, b) => collator.compare(a, b));
 }
 
 /** The names of the indexes SQLite reports for a table. */
@@ -140,14 +142,13 @@ describe('the schema file and the migrations', () => {
       expect(columnsOf(raw, name)).toEqual(
         config.columns
           .map((column) => column.name)
-          .toSorted((a, b) => a.localeCompare(b)),
+          .toSorted((a, b) => collator.compare(a, b)),
       );
       // Every index the schema names exists (the database may carry more, such
       // as the legacy unique constraint on recipes.drive_file_id).
       const present = indexesOf(raw, name);
-      config.indexes.forEach((index) =>
-        expect(present).toContain(index.config.name),
-      );
+      for (const index of config.indexes)
+        expect(present).toContain(index.config.name);
     },
   );
 
@@ -167,12 +168,11 @@ describe('the schema file and the migrations', () => {
         .all()
         .filter((row) => row['origin'] === 'c')
         .map((row) => String(row['name']));
-      expect(created.toSorted((a, b) => a.localeCompare(b))).toEqual(
-        [...declared.keys()].toSorted((a, b) => a.localeCompare(b)),
+      expect(created.toSorted((a, b) => collator.compare(a, b))).toEqual(
+        [...declared.keys()].toSorted((a, b) => collator.compare(a, b)),
       );
-      created.forEach((index) =>
-        expect(keyColumns(raw, index)).toEqual(declared.get(index)),
-      );
+      for (const index of created)
+        expect(keyColumns(raw, index)).toEqual(declared.get(index));
     },
   );
 });

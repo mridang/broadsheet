@@ -7,13 +7,13 @@ describe('sitemap', () => {
   const entries = sitemap();
 
   it('lists the pages the app names, by full address', () => {
-    expect(entries.map((e) => e.url)).toEqual(
+    expect(entries.map((event2) => event2.url)).toEqual(
       SITEMAP_PAGES.map((page) => `${BRAND_URL}${page.path}`),
     );
   });
 
   it('dates a page by the day its text last changed, and gives the others no made-up date', () => {
-    expect(entries.map((e) => e.lastModified)).toEqual(
+    expect(entries.map((event) => event.lastModified)).toEqual(
       SITEMAP_PAGES.map((page) =>
         page.lastModified
           ? new Date(`${page.lastModified}T00:00:00Z`)

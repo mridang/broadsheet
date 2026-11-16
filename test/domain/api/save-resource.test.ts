@@ -84,7 +84,7 @@ describe('parseSaveInput', () => {
     [{ tags: [''] }],
     [{ tags: [1] }],
     [{ tags: ['x'.repeat(51)] }],
-    [{ tags: Array.from({ length: 21 }, (_, i) => `t${i}`) }],
+    [{ tags: Array.from({ length: 21 }, (_, index) => `t${index}`) }],
   ])('refuses %j', (body) => {
     expect(parseSaveInput(body)).toMatchObject({ ok: false });
   });

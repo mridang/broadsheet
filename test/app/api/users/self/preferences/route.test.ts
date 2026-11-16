@@ -11,6 +11,8 @@ import {
   tokenFor,
 } from '../../../../../domain/auth/auth-test-kit';
 
+const ANSWERS_200_WITH_THE_PATTERN = /^"[0-9a-f]{16}"$/;
+
 const { GET, PATCH } = await import('@/app/api/users/self/preferences/route');
 
 let restore: () => void;
@@ -53,7 +55,7 @@ describe('GET /api/users/self/preferences', () => {
   it('answers 200 with the defaults and an ETag', async () => {
     const res = await get();
     expect(res.status).toBe(200);
-    expect(res.headers.get('etag')).toMatch(/^"[0-9a-f]{16}"$/);
+    expect(res.headers.get('etag')).toMatch(ANSWERS_200_WITH_THE_PATTERN);
     expect(await res.json()).toMatchObject({
       story_clustering: true,
       briefing: { enabled: true, story_count: 5 },

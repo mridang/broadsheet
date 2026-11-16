@@ -13,6 +13,8 @@ import { EmptyState } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
 import { countOf } from '@/lib/intl';
 
+const BEFORE_OF_PATTERN = /^[1-9]\d{0,14}$/;
+
 export const dynamic = 'force-dynamic';
 
 /** The tab title of the briefings. */
@@ -23,7 +25,7 @@ const PAGE = 20;
 
 /** The `before` parameter as a briefing id, or undefined. */
 function beforeOf(raw: string | undefined): number | undefined {
-  return raw && /^[1-9]\d{0,14}$/.test(raw) ? Number(raw) : undefined;
+  return raw && BEFORE_OF_PATTERN.test(raw) ? Number(raw) : undefined;
 }
 
 /**

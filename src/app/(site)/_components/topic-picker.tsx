@@ -54,6 +54,7 @@ export function TopicPicker({
         </div>
       </fieldset>
       <button
+        // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
         className={buttonClass({ size: 'lg', className: 'mt-6' })}
         type="submit"
         disabled={busy}

@@ -1,6 +1,8 @@
 import { readdir } from 'node:fs/promises';
 import path from 'node:path';
 
+const collator = new Intl.Collator();
+
 const files = await readdir(path.join(process.cwd(), 'migrations'));
 
 /**
@@ -9,4 +11,4 @@ const files = await readdir(path.join(process.cwd(), 'migrations'));
  */
 export const APP_MIGRATIONS: readonly string[] = files
   .filter((file) => file.endsWith('.sql'))
-  .toSorted((a, b) => a.localeCompare(b));
+  .toSorted((a, b) => collator.compare(a, b));

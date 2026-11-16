@@ -46,15 +46,15 @@ export async function FeedRail({
           </span>
         </summary>
         <ul className="mt-1 space-y-0.5">
-          {feeds.map((f, i) => (
+          {feeds.map((f, index) => (
             <li key={f.id}>
               <SidebarLink
                 href={`/feeds/${f.id}`}
                 current={current === undefined ? undefined : f.id === current}
               >
-                {icons[i] ? (
+                {icons[index] ? (
                   <img
-                    src={icons[i]}
+                    src={icons[index]}
                     alt=""
                     width={16}
                     height={16}

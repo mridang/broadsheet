@@ -82,7 +82,10 @@ export function createIssueItem(
     }),
   }).on<null, { issue: Issue; view: IssueView } | undefined>({
     method: 'GET',
-    handle: async (_input, { request, uid }) => {
+    handle: async (
+      _input,
+      { request, uid },
+    ): Promise<{ issue: Issue; view: IssueView } | undefined> => {
       const date = idOf(request);
       if (!isIssueDate(date)) return undefined;
       const repo = new Repository(getDatabase());

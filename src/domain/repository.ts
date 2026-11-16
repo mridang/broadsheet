@@ -81,6 +81,13 @@ import type {
 import type { Intelligence } from '@/domain/render/tiers';
 import { compareText } from '@/lib/intl';
 
+const collator = new Intl.Collator();
+
+const SEARCH_TERMS_PATTERN = /(author|tags?):(?:"([^"]*)"|(\S+))|\S+/gi;
+const ANY_WORD_QUERY_PATTERN = /[^\p{L}\p{N}]+/u;
+const CONVERSATION_TITLE_PATTERN = /\s+/g;
+const SEARCH_SOURCES_PATTERN = /[%_\\]/g;
+
 /** A signed-in person. */
 export type User = typeof users.$inferSelect;
 /** A feed address, fetched once for everyone who follows it. */
@@ -259,9 +266,7 @@ export function searchTerms(q: string): SearchTerms {
   const words: string[] = [];
   const authors: string[] = [];
   const tags: string[] = [];
-  for (const [token, field, quoted, bare] of q.matchAll(
-    /(author|tags?):(?:"([^"]*)"|(\S+))|\S+/gi,
-  )) {
+  for (const [token, field, quoted, bare] of q.matchAll(SEARCH_TERMS_PATTERN)) {
     const value = (quoted ?? bare ?? '').trim();
     if (!field) words.push(token);
     else if (value) {
@@ -636,8 +641,8 @@ const IN_CHUNK = 90;
 /** `list` cut into runs of at most `size`. */
 function chunks<T>(list: readonly T[], size: number): T[][] {
   const out: T[][] = [];
-  for (let i = 0; i < list.length; i += size) {
-    out.push(list.slice(i, i + size));
+  for (let index = 0; index < list.length; index += size) {
+    out.push(list.slice(index, index + size));
   }
   return out;
 }
@@ -764,9 +769,9 @@ const STOPWORDS = new Set(
 export function anyWordQuery(question: string): string {
   const words = question
     .toLowerCase()
-    .split(/[^\p{L}\p{N}]+/u)
+    .split(ANY_WORD_QUERY_PATTERN)
     .filter((w) => w.length >= 3 && !STOPWORDS.has(w));
-  return [...new Set(words)].map((w) => `"${w}"`).join(' OR ');
+  return Array.from(new Set(words), (w) => `"${w}"`).join(' OR ');
 }
 
 /** A saver's note and highlights as a passage's annotation, when there are any. */
@@ -788,7 +793,7 @@ const TITLE_LENGTH = 50;
 
 /** A conversation's title from its first question: cut at {@link TITLE_LENGTH} with an ellipsis. */
 export function conversationTitle(question: string): string {
-  const text = question.trim().replaceAll(/\s+/g, ' ');
+  const text = question.trim().replaceAll(CONVERSATION_TITLE_PATTERN, ' ');
   return text.length > TITLE_LENGTH ? `${text.slice(0, TITLE_LENGTH)}…` : text;
 }
 
@@ -1000,7 +1005,7 @@ export class Repository {
       const extra =
         changes.section_ids?.slice(1) ??
         (await this.getFeed(userId, id))!.section_ids.filter(
-          (s, i) => i > 0 && s !== changes.section_id,
+          (s, index) => index > 0 && s !== changes.section_id,
         );
       await this.#db
         .delete(subscriptionSections)
@@ -1614,7 +1619,9 @@ export class Repository {
       .innerJoin(subscriptions, eq(articles.source_id, subscriptions.source_id))
       .where(and(eq(subscriptions.user_id, userId), notMuted))
       .orderBy(desc(articles.edition));
-    return rows.map((r) => r.edition).filter((e): e is string => !!e);
+    return rows
+      .map((r) => r.edition)
+      .filter((event2): event2 is string => !!event2);
   }
 
   /** Distinct edition dates that already exist for a single source. */
@@ -1623,7 +1630,9 @@ export class Repository {
       .selectDistinct({ edition: articles.edition })
       .from(articles)
       .where(eq(articles.source_id, sourceId));
-    return rows.map((r) => r.edition).filter((e): e is string => !!e);
+    return rows
+      .map((r) => r.edition)
+      .filter((event): event is string => !!event);
   }
 
   /** The ids of the sources a person follows, as a subquery. */
@@ -2177,7 +2186,7 @@ export class Repository {
       counts.set(day.source_id, (counts.get(day.source_id) ?? 0) + n);
       if (day.edition !== null) editions.add(day.edition);
     }
-    const ordered = [...editions].toSorted((a, b) => a.localeCompare(b));
+    const ordered = [...editions].toSorted((a, b) => collator.compare(a, b));
     return {
       articles: total,
       editions: editions.size,
@@ -2240,9 +2249,10 @@ export class Repository {
         weekdays.set(key, (weekdays.get(key) ?? 0) + count);
       }
     }
-    const months = [...byMonth]
-      .map(([month, count]) => ({ month, count }))
-      .slice(0, 12);
+    const months = Array.from(byMonth, ([month, count]) => ({
+      month,
+      count,
+    })).slice(0, 12);
     const byHour = await this.#db
       .select({
         key: sql<string | null>`strftime('%H', ${articles.published_at})`,
@@ -2743,10 +2753,10 @@ export class Repository {
       const at = served.findIndex((c) => c.id === after.id);
       start = (at === -1 ? after.position : at) + 1;
     }
-    return served.slice(start, start + limit + 1).map((c, i) => ({
+    return served.slice(start, start + limit + 1).map((c, index) => ({
       article: byId.get(c.id)!.article,
       count: c.count,
-      position: start + i,
+      position: start + index,
     }));
   }
 
@@ -2992,7 +3002,7 @@ export class Repository {
           and(inArray(articles.source_id, part), gte(articles.edition, since)),
         )
         .groupBy(articles.source_id);
-      rows.forEach((r) => counts.set(r.id, Number(r.n)));
+      for (const r of rows) counts.set(r.id, Number(r.n));
     }
     return counts;
   }
@@ -3841,9 +3851,9 @@ export class Repository {
         counts.set(tag, (counts.get(tag) ?? 0) + 1);
       }
     }
-    return [...counts]
-      .map(([tag, count]) => ({ tag, count }))
-      .toSorted((a, b) => compareText(a.tag, b.tag));
+    return Array.from(counts, ([tag, count]) => ({ tag, count })).toSorted(
+      (a, b) => compareText(a.tag, b.tag),
+    );
   }
 
   /**
@@ -3867,11 +3877,7 @@ export class Repository {
    * has both, or remove it from them when `to` is undefined. The number of
    * saves changed: 0 when no save had the tag.
    */
-  async retagSaves(
-    userId: number,
-    from: string,
-    to: string | undefined,
-  ): Promise<number> {
+  async retagSaves(userId: number, from: string, to?: string): Promise<number> {
     const rows = await this.#db
       .select({ article_id: saves.article_id, tags: saves.tags })
       .from(saves)
@@ -3941,13 +3947,13 @@ export class Repository {
     const unread = inScope.filter((a) => !a.read);
     // Thirty rows per INSERT keeps under D1's limit on bound variables.
     const inserts = [];
-    for (let i = 0; i < unread.length; i += 30) {
+    for (let index = 0; index < unread.length; index += 30) {
       inserts.push(
         this.#db
           .insert(reads)
           .values(
             unread
-              .slice(i, i + 30)
+              .slice(index, index + 30)
               .map((a) => ({ user_id: userId, article_id: a.id })),
           )
           .onConflictDoNothing(),
@@ -4002,7 +4008,7 @@ export class Repository {
     classifierId: number,
     answers: ReadonlyMap<number, boolean>,
   ): Promise<void> {
-    const inserts = [...answers].map(([articleId, matched]) =>
+    const inserts = Array.from(answers, ([articleId, matched]) =>
       this.#db
         .insert(promptScores)
         .values({
@@ -4157,7 +4163,7 @@ export class Repository {
     q: string,
     limit: number,
   ): Promise<RankedSource[]> {
-    const escaped = q.replaceAll(/[%_\\]/g, (c) => `\\${c}`);
+    const escaped = q.replaceAll(SEARCH_SOURCES_PATTERN, (c) => `\\${c}`);
     const like = `%${escaped}%`;
     return this.#ranked(
       userId,
@@ -4349,7 +4355,7 @@ function trimDots(text: string | undefined): string | undefined {
   if (text === undefined) return undefined;
   let start = 0;
   let end = text.length;
-  while (start < end && text[start] === '.') start += 1;
-  while (end > start && text[end - 1] === '.') end -= 1;
+  while (start < end && text.codePointAt(start) === 46) start += 1;
+  while (end > start && text.codePointAt(end - 1) === 46) end -= 1;
   return text.slice(start, end);
 }

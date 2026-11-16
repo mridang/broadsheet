@@ -15,12 +15,12 @@ export function RemoveSectionButton({
   id,
 }: Readonly<{ id: number }>): ReactElement {
   const { busy, error, run } = useFeedAction();
-  const className = buttonClass({ variant: 'danger', size: 'xs' });
+  const cssName = buttonClass({ variant: 'danger', size: 'xs' });
   return (
     <div className="flex flex-wrap gap-2">
       <button
         type="button"
-        className={className}
+        className={cssName}
         disabled={busy}
         onClick={() =>
           void run(() => removeSection(id), 'Could not remove that section.')
@@ -30,7 +30,7 @@ export function RemoveSectionButton({
       </button>
       <button
         type="button"
-        className={className}
+        className={cssName}
         disabled={busy}
         onClick={() =>
           void run(

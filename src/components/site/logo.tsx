@@ -11,7 +11,9 @@ import { cn } from '@/components/ui/cn';
  * unless a class sets another, and the page stays newsprint in either theme.
  */
 export function BrandMark({
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
   className,
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
 }: Readonly<{ className?: string }>): ReactElement {
   return (
     <svg
@@ -40,7 +42,9 @@ export function BrandMark({
 /** The mark and the name set in the serif, as the masthead of the top bar. */
 export function Wordmark({
   name,
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
   className,
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
 }: Readonly<{ name: string; className?: string }>): ReactElement {
   return (
     <span className={cn('flex items-center gap-2.5', className)}>

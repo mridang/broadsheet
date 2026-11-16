@@ -3,6 +3,11 @@ import { describe, expect, it } from '@jest/globals';
 import { StoryRow } from '@/components/stories/story-row';
 import { html } from '../render';
 
+const SHOWS_WHERE_THE_STORY_PATTERN =
+  /<a href="\/article\/1"[^>]*>A headline<\/a>/;
+const SHOWS_ITS_PICTURE_THROUGH_PATTERN =
+  /<img src="\/img\?url=https%3A%2F%2Fexample\.com%2Fp\.jpg/;
+
 describe('StoryRow', () => {
   it('shows where the story is from, its title, excerpt and links', async () => {
     const out = html(
@@ -17,7 +22,7 @@ describe('StoryRow', () => {
       }),
     );
     expect(out).toContain('Source · 2026-11-01');
-    expect(out).toMatch(/<a href="\/article\/1"[^>]*>A headline<\/a>/);
+    expect(out).toMatch(SHOWS_WHERE_THE_STORY_PATTERN);
     expect(out).toContain('The start of it.');
     expect(out).toContain('href="https://a.test/"');
     expect(out).not.toContain('<img');
@@ -48,8 +53,6 @@ describe('StoryRow', () => {
         },
       }),
     );
-    expect(out).toMatch(
-      /<img src="\/img\?url=https%3A%2F%2Fexample\.com%2Fp\.jpg/,
-    );
+    expect(out).toMatch(SHOWS_ITS_PICTURE_THROUGH_PATTERN);
   });
 });

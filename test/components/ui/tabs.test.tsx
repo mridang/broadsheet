@@ -3,6 +3,9 @@ import { describe, expect, it } from '@jest/globals';
 import { Tabs } from '@/components/ui/tabs';
 import { htmlAt } from '../render';
 
+const MARKS_ONLY_THE_OPEN_PATTERN = /aria-current="page"/g;
+const SHOWS_A_COUNT_BESIDE_PATTERN = /All<span[^>]*>4<\/span>/;
+
 describe('Tabs', () => {
   const out = htmlAt(
     <Tabs
@@ -20,10 +23,10 @@ describe('Tabs', () => {
   });
 
   it('marks only the open tab as the current page', () => {
-    expect(out.match(/aria-current="page"/g)).toHaveLength(1);
+    expect(out.match(MARKS_ONLY_THE_OPEN_PATTERN)).toHaveLength(1);
   });
 
   it('shows a count beside the words', () => {
-    expect(out).toMatch(/All<span[^>]*>4<\/span>/);
+    expect(out).toMatch(SHOWS_A_COUNT_BESIDE_PATTERN);
   });
 });

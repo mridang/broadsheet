@@ -232,8 +232,8 @@ describe('collapseClusters with copies outside the paper', () => {
 
 describe('layOut', () => {
   it('keeps a covered story whose heavier copy its desk has no room for', () => {
-    const crowd = Array.from({ length: DESK_STORIES }, (_, i) =>
-      article({ id: 100 + i, points: 1000 }),
+    const crowd = Array.from({ length: DESK_STORIES }, (_, index) =>
+      article({ id: 100 + index, points: 1000 }),
     );
     const heavy = article({ id: 1, points: 100, cluster_id: 9 });
     const light = article({ id: 2, source_id: 2, points: 1, cluster_id: 9 });
@@ -250,8 +250,8 @@ describe('layOut', () => {
   });
 
   it(`prints at most ${DESK_STORIES} stories from one feed`, () => {
-    const many = Array.from({ length: DESK_STORIES + 5 }, (_, i) =>
-      article({ id: i + 1 }),
+    const many = Array.from({ length: DESK_STORIES + 5 }, (_, index) =>
+      article({ id: index + 1 }),
     );
     const layout = layOut([
       { name: null, desks: [{ feed: feed(1), articles: many }] },

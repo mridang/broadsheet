@@ -64,7 +64,10 @@ describe('distinctStories', () => {
       item({ url: 'https://x/1', guid: 'same', title: 'One', summary: 'a' }),
       item({ url: 'https://x/2', guid: 'same', title: 'Two', summary: 'b' }),
     ]);
-    expect(out.map((i) => i.guid)).toEqual(['https://x/1', 'https://x/2']);
+    expect(out.map((index) => index.guid)).toEqual([
+      'https://x/1',
+      'https://x/2',
+    ]);
   });
 
   it('uses the publication time when the links collide too', () => {
@@ -72,7 +75,7 @@ describe('distinctStories', () => {
       item({ guid: 'same', title: 'One', summary: 'a', published_at: 't1' }),
       item({ guid: 'same', title: 'Two', summary: 'b', published_at: 't2' }),
     ]);
-    expect(out.map((i) => i.guid)).toEqual(['t1']);
+    expect(out.map((index) => index.guid)).toEqual(['t1']);
   });
 
   it('keeps the first of each set of the same story', () => {
@@ -97,7 +100,10 @@ describe('distinctStories', () => {
         summary: 'Else',
       }),
     ]);
-    expect(out.map((i) => i.url)).toEqual(['https://x/1', 'https://x/3']);
+    expect(out.map((index) => index.url)).toEqual([
+      'https://x/1',
+      'https://x/3',
+    ]);
   });
 });
 

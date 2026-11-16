@@ -26,6 +26,11 @@ import {
 } from '@/domain/outbound';
 import { isPublicWebUrl } from '@/lib/safe-fetch';
 
+const IS_KEY_PATTERN = /^[A-Za-z0-9_-]+={0,2}$/;
+const IS_PLAIN_NAME_PATTERN = /[<>"\r\n]/;
+const ADDRESSES_OF_PATTERN = /[\s,]+/;
+const IS_MAILBOX_PATTERN = /^[^\s@<>,;"]+$/;
+
 /** A checked body, or what was wrong with it. */
 export type Checked<T> =
   | { readonly ok: true; readonly value: T }
@@ -64,7 +69,7 @@ function isKey(value: unknown, min: number, max: number): value is string {
     typeof value === 'string' &&
     value.length >= min &&
     value.length <= max &&
-    /^[A-Za-z0-9_-]+={0,2}$/.test(value)
+    IS_KEY_PATTERN.test(value)
   );
 }
 
@@ -174,7 +179,9 @@ export function parseWebhookInput(
   if (
     !Array.isArray(events) ||
     events.length === 0 ||
-    !events.every((e) => (WEBHOOK_EVENTS as readonly unknown[]).includes(e))
+    !events.every((event) =>
+      (WEBHOOK_EVENTS as readonly unknown[]).includes(event),
+    )
   ) {
     errors.push(
       `events: must be a non-empty list of ${WEBHOOK_EVENTS.join(', ')}.`,
@@ -332,7 +339,7 @@ function isPlainName(name: unknown): name is string {
     typeof name === 'string' &&
     name.trim() !== '' &&
     name.length <= MAX_NAME_LENGTH &&
-    !/[<>"\r\n]/.test(name)
+    !IS_PLAIN_NAME_PATTERN.test(name)
   );
 }
 
@@ -341,7 +348,8 @@ function isPlainName(name: unknown): name is string {
  * the addresses separated by commas or spaces. Undefined when it is neither.
  */
 function addressesOf(to: unknown): string[] | undefined {
-  if (typeof to === 'string') return to.split(/[\s,]+/).filter(Boolean);
+  if (typeof to === 'string')
+    return to.split(ADDRESSES_OF_PATTERN).filter(Boolean);
   if (Array.isArray(to) && to.every((a) => typeof a === 'string')) {
     return (to as string[]).map((a) => a.trim()).filter(Boolean);
   }
@@ -398,8 +406,8 @@ function isMailbox(value: string): boolean {
   if (at < 1) return false;
   const domain = value.slice(at + 1);
   return (
-    /^[^\s@<>,;"]+$/.test(value.slice(0, at)) &&
-    /^[^\s@<>,;"]+$/.test(domain) &&
+    IS_MAILBOX_PATTERN.test(value.slice(0, at)) &&
+    IS_MAILBOX_PATTERN.test(domain) &&
     domain.slice(1, -1).includes('.')
   );
 }

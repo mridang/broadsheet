@@ -11,6 +11,8 @@ import { SCOPE_READ, SCOPE_WRITE, SUPPORTED_SCOPES } from '@/domain/mcp/app';
 import { TOOL_SCOPES } from '@/domain/mcp/tool-context';
 import { TOOL_REGISTRY } from '@/domain/mcp/tools';
 
+const NORMALISE_SCOPE_PATTERN = /\s+/;
+
 /**
  * The OpenID Connect scope that asks for a refresh token. Every grant here gets
  * one anyway, so the scope changes nothing; it is advertised in the
@@ -37,11 +39,9 @@ export function isSupportedScope(scope: string): scope is Scope {
  * {@link SCOPE_OFFLINE_ACCESS} Is ignored, so asking for it alone is the same as
  * asking for nothing.
  */
-export function normaliseScope(
-  requested: string | undefined | null,
-): readonly Scope[] {
+export function normaliseScope(requested?: string | null): readonly Scope[] {
   const asked = (requested ?? '')
-    .split(/\s+/)
+    .split(NORMALISE_SCOPE_PATTERN)
     .filter((scope) => scope !== '' && scope !== SCOPE_OFFLINE_ACCESS);
   if (asked.length === 0) {
     return [...SUPPORTED_SCOPES];

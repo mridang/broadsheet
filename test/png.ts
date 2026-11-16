@@ -88,13 +88,13 @@ export async function pngIsOpaque(file: string): Promise<boolean> {
     const start = y * (stride + 1);
     const filter = raw[start];
     const row = Buffer.from(raw.subarray(start + 1, start + 1 + stride));
-    for (let i = 0; i < stride; i++) {
-      const left = i >= 4 ? (row[i - 4] ?? 0) : 0;
-      const up = above[i] ?? 0;
-      const upLeft = i >= 4 ? (above[i - 4] ?? 0) : 0;
+    for (let index = 0; index < stride; index++) {
+      const left = index >= 4 ? (row[index - 4] ?? 0) : 0;
+      const up = above[index] ?? 0;
+      const upLeft = index >= 4 ? (above[index - 4] ?? 0) : 0;
       const predicted = predictor(filter, left, up, upLeft);
-      row[i] = ((row[i] ?? 0) + predicted) & 255;
-      if (i % 4 === 3 && row[i] !== 255) {
+      row[index] = ((row[index] ?? 0) + predicted) & 255;
+      if (index % 4 === 3 && row[index] !== 255) {
         return false;
       }
     }

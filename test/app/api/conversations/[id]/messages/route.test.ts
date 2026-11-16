@@ -137,7 +137,7 @@ describe('POST /api/conversations/:id/messages', () => {
   });
 
   it('answers 429 once today’s budget is used up, asking nothing', async () => {
-    for (let i = 0; i < DAILY_LIMITS.assistant; i++) {
+    for (let index = 0; index < DAILY_LIMITS.assistant; index++) {
       await new Repository(db).recordUsage(7, 'assistant');
     }
     const res = await send(conversation, '{"content":"Q"}');

@@ -10,19 +10,21 @@ import {
 import { Button } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/notice';
 
+const BRIEFING_PAGE_PATTERN = /\/briefings\/(\d+)$/;
+
 /** How often the progress bar moves, in milliseconds. */
 const TICK_MS = 200;
 
 /** The class and the mark of one stage: done, the one under way, or still to come. */
-function stageLook(i: number, stage: number): readonly [string, string] {
-  if (i < stage) return ['text-muted', '✓ '];
-  if (i === stage) return ['font-semibold text-ink', '› '];
+function stageLook(index: number, stage: number): readonly [string, string] {
+  if (index < stage) return ['text-muted', '✓ '];
+  if (index === stage) return ['font-semibold text-ink', '› '];
   return ['text-subtle', ''];
 }
 
 /** The page of the briefing a `Location` names, or undefined. */
 export function briefingPage(location: string | null): string | undefined {
-  const id = /\/briefings\/(\d+)$/.exec(location ?? '')?.[1];
+  const id = BRIEFING_PAGE_PATTERN.exec(location ?? '')?.[1];
   return id ? `/briefings/${id}` : undefined;
 }
 
@@ -57,7 +59,7 @@ export function WriteBriefing(): ReactElement {
   const [now, setNow] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  useEffect((): (() => void) | undefined => {
     if (started === null) return undefined;
     const timer = setInterval(() => setNow(Date.now()), TICK_MS);
     return () => clearInterval(timer);
@@ -112,8 +114,8 @@ export function WriteBriefing(): ReactElement {
             className="block h-1.5 w-full appearance-none overflow-hidden rounded-full bg-ink/10 [&::-moz-progress-bar]:bg-highlight [&::-webkit-progress-bar]:bg-ink/10 [&::-webkit-progress-value]:rounded-full [&::-webkit-progress-value]:bg-highlight"
           />
           <ol className="mt-2 space-y-0.5 text-xs">
-            {STAGES.map((name, i) => {
-              const [tone, mark] = stageLook(i, stage);
+            {STAGES.map((name, index) => {
+              const [tone, mark] = stageLook(index, stage);
               return (
                 <li key={name} className={tone}>
                   {mark}

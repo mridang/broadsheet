@@ -16,7 +16,7 @@ beforeEach(() => {
 
 /** Note `n` questions of `kind` for person 1, stamped today in `now`'s day. */
 async function asked(n: number, kind: 'answer' | 'assistant' = 'answer') {
-  for (let i = 0; i < n; i++) await repo.recordUsage(1, kind);
+  for (let index = 0; index < n; index++) await repo.recordUsage(1, kind);
 }
 
 describe('budget', () => {

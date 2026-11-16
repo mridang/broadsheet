@@ -3,6 +3,12 @@ import { describe, expect, it } from '@jest/globals';
 import { ReadingPreferences } from '@/app/(site)/settings/_components/reading-preferences';
 import { html } from '../../../../components/render';
 
+const SELECTS_THE_READER_S_LEVEL_PATTERN = /<option value="focus" selected="">/;
+const READING_PREFERENCES_PATTERN = /type="checkbox"[^>]*checked=""/;
+const SHOWS_THE_READER_S_DAYS_PATTERN = /type="number"[^>]*value="14"/;
+const READING_PREFERENCES_MARK_READ_ON_SCROLL_PATTERN =
+  /type="checkbox"[^>]*checked=""/g;
+
 describe('ReadingPreferences', () => {
   it('selects the reader’s level', () => {
     expect(
@@ -14,7 +20,7 @@ describe('ReadingPreferences', () => {
           markReadOnScroll={false}
         />,
       ),
-    ).toMatch(/<option value="focus" selected="">/);
+    ).toMatch(SELECTS_THE_READER_S_LEVEL_PATTERN);
   });
 
   it('offers every level', () => {
@@ -26,9 +32,8 @@ describe('ReadingPreferences', () => {
         markReadOnScroll={false}
       />,
     );
-    ['focus', 'unread', 'all'].forEach((level) =>
-      expect(out).toContain(`value="${level}"`),
-    );
+    for (const level of ['focus', 'unread', 'all'])
+      expect(out).toContain(`value="${level}"`);
   });
 
   it.each([
@@ -43,7 +48,7 @@ describe('ReadingPreferences', () => {
         markReadOnScroll={false}
       />,
     );
-    expect(/type="checkbox"[^>]*checked=""/.test(out)).toBe(ticked);
+    expect(READING_PREFERENCES_PATTERN.test(out)).toBe(ticked);
   });
 });
 
@@ -58,7 +63,7 @@ describe('ReadingPreferences auto-mark-read days', () => {
           markReadOnScroll={false}
         />,
       ),
-    ).toMatch(/type="number"[^>]*value="14"/);
+    ).toMatch(SHOWS_THE_READER_S_DAYS_PATTERN);
   });
 });
 
@@ -75,8 +80,8 @@ describe('ReadingPreferences mark-read-on-scroll', () => {
         markReadOnScroll={on}
       />,
     );
-    expect(out.match(/type="checkbox"[^>]*checked=""/g)?.length ?? 0).toBe(
-      ticked,
-    );
+    expect(
+      out.match(READING_PREFERENCES_MARK_READ_ON_SCROLL_PATTERN)?.length ?? 0,
+    ).toBe(ticked);
   });
 });

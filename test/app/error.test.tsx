@@ -4,6 +4,13 @@ import { ERROR_REASSURANCE } from '@/app/_brand';
 import ErrorPage from '@/app/error';
 import { html } from '../components/render';
 
+const SAYS_SOMETHING_WENT_WRONG_PATTERN =
+  /<h1[^>]*>That didn&#x27;t work<\/h1>/;
+const OFFERS_TO_TRY_AGAIN_PATTERN =
+  /<button[^>]*type="button"[^>]*>Try again<\/button>/;
+const OFFERS_TO_TRY_AGAIN_PATTERN_2 =
+  /<a [^>]*href="\/"[^>]*>Back to the home page<\/a>/;
+
 describe('ErrorPage', () => {
   const retry = () => undefined;
 
@@ -11,7 +18,7 @@ describe('ErrorPage', () => {
     const out = html(
       <ErrorPage error={new Error('boom')} unstable_retry={retry} />,
     );
-    expect(out).toMatch(/<h1[^>]*>That didn&#x27;t work<\/h1>/);
+    expect(out).toMatch(SAYS_SOMETHING_WENT_WRONG_PATTERN);
     expect(out).toContain(ERROR_REASSURANCE);
   });
 
@@ -19,8 +26,8 @@ describe('ErrorPage', () => {
     const out = html(
       <ErrorPage error={new Error('boom')} unstable_retry={retry} />,
     );
-    expect(out).toMatch(/<button[^>]*type="button"[^>]*>Try again<\/button>/);
-    expect(out).toMatch(/<a [^>]*href="\/"[^>]*>Back to the home page<\/a>/);
+    expect(out).toMatch(OFFERS_TO_TRY_AGAIN_PATTERN);
+    expect(out).toMatch(OFFERS_TO_TRY_AGAIN_PATTERN_2);
   });
 
   it('does not show the error’s message, which may say more than it should', () => {

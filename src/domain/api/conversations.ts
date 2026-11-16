@@ -123,7 +123,10 @@ export function createConversationItem(
   return new ApiController<UidContext>({ context: signedIn(resolver) })
     .on<null, ConversationResource | undefined>({
       method: 'GET',
-      handle: async (_input, { request, uid }) => {
+      handle: async (
+        _input,
+        { request, uid },
+      ): Promise<ConversationResource | undefined> => {
         const repo = new Repository(getDatabase());
         const id = parseFeedId(idOf(request));
         const conversation =

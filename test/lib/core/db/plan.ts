@@ -5,6 +5,9 @@ import { createDatabase, type Database } from '@/domain/db/client';
 import { APP_MIGRATIONS } from './migrations';
 import { sqliteD1 } from './sqlite-d1';
 
+const EXPECT_INDEXED_PATTERN = /^\s*SCAN /;
+const EXPECT_INDEXED_PATTERN_2 = /TEMP B-TREE/;
+
 /** A migrated database that remembers the statements sent to it. */
 export interface RecordedDatabase {
   readonly db: Database;
@@ -65,11 +68,11 @@ export function expectIndexed(
     sorts = false,
   }: { scans?: readonly string[]; sorts?: boolean } = {},
 ): void {
-  indexes.forEach((index) => expect(plan).toContain(index));
+  for (const index of indexes) expect(plan).toContain(index);
   const scanned = plan
     .split('\n')
-    .filter((line) => /^\s*SCAN /.test(line))
+    .filter((line) => EXPECT_INDEXED_PATTERN.test(line))
     .filter((line) => !scans.some((allowed) => line.includes(allowed)));
   expect(scanned).toEqual([]);
-  if (!sorts) expect(plan).not.toMatch(/TEMP B-TREE/);
+  if (!sorts) expect(plan).not.toMatch(EXPECT_INDEXED_PATTERN_2);
 }

@@ -3,6 +3,9 @@ import { describe, expect, it } from '@jest/globals';
 import { SuggestedFeeds } from '@/app/(site)/feeds/_components/suggested-feeds';
 import { html } from '../../../../components/render';
 
+const LISTS_EACH_SUGGESTION_WITH_PATTERN = /<strong[^>]*>A<\/strong>/;
+const NAMES_A_SOURCE_WITH_PATTERN = /<strong[^>]*>a\.test<\/strong>/;
+
 describe('SuggestedFeeds', () => {
   it('lists each suggestion with a Follow button', () => {
     const out = html(
@@ -11,7 +14,7 @@ describe('SuggestedFeeds', () => {
       />,
     );
     expect(out).toContain('You might also like');
-    expect(out).toMatch(/<strong[^>]*>A<\/strong>/);
+    expect(out).toMatch(LISTS_EACH_SUGGESTION_WITH_PATTERN);
     expect(out).toContain('>Follow</button>');
     expect(out).toContain('Followed by 2 readers');
   });
@@ -22,7 +25,7 @@ describe('SuggestedFeeds', () => {
         feeds={[{ url: 'https://a.test/f', title: null, followers: 1 }]}
       />,
     );
-    expect(out).toMatch(/<strong[^>]*>a\.test<\/strong>/);
+    expect(out).toMatch(NAMES_A_SOURCE_WITH_PATTERN);
     expect(out).toContain('Followed by 1 reader like you');
   });
 

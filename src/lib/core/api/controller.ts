@@ -152,7 +152,8 @@ function toResponse(
     return new Response(null, { status, headers });
   }
   const response = Response.json(body, { status });
-  headers.forEach((value, name) => response.headers.set(name, value));
+  for (const [name, value] of headers.entries())
+    response.headers.set(name, value);
   return response;
 }
 

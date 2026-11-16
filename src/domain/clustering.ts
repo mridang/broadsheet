@@ -65,9 +65,9 @@ export function cosine(a: readonly number[], b: readonly number[]): number {
   let dot = 0;
   let na = 0;
   let nb = 0;
-  for (let i = 0; i < Math.min(a.length, b.length); i++) {
-    const x = a[i] ?? 0;
-    const y = b[i] ?? 0;
+  for (let index = 0; index < Math.min(a.length, b.length); index++) {
+    const x = a[index] ?? 0;
+    const y = b[index] ?? 0;
     dot += x * y;
     na += x * x;
     nb += y * y;
@@ -84,20 +84,20 @@ class Groups {
     n: number,
     readonly cap: number,
   ) {
-    this.#parent = Array.from({ length: n }, (_, i) => i);
+    this.#parent = Array.from({ length: n }, (_, index) => index);
     this.#size = Array.from({ length: n }, () => 1);
   }
 
-  rootOf(i: number): number {
-    let root = i;
+  rootOf(index: number): number {
+    let root = index;
     while (this.#parent[root] !== root) root = this.#parent[root] ?? root;
-    this.#parent[i] = root;
+    this.#parent[index] = root;
     return root;
   }
 
-  union(i: number, j: number): void {
-    const a = this.rootOf(i);
-    const b = this.rootOf(j);
+  union(index: number, index6: number): void {
+    const a = this.rootOf(index);
+    const b = this.rootOf(index6);
     if (a === b) return;
     const size = (this.#size[a] ?? 1) + (this.#size[b] ?? 1);
     if (size > this.cap) return;
@@ -109,18 +109,18 @@ class Groups {
 /** Every pair of items that share a title word not too common to count. */
 function candidatePairs(words: readonly Set<string>[]): [number, number][] {
   const index = new Map<string, number[]>();
-  words.forEach((set, i) => {
-    for (const w of set) index.set(w, [...(index.get(w) ?? []), i]);
-  });
+  for (const [index5, set] of words.entries()) {
+    for (const w of set) index.set(w, [...(index.get(w) ?? []), index5]);
+  }
   // Keyed by pair, so a pair found twice keeps its first place and is kept once.
   const seen = new Map<string, [number, number]>();
   for (const members of index.values()) {
     if (members.length > COMMON_WORD) continue;
     for (let x = 0; x < members.length; x++) {
       for (let y = x + 1; y < members.length; y++) {
-        const i = members[x] ?? 0;
-        const j = members[y] ?? 0;
-        seen.set(`${i}:${j}`, [i, j]);
+        const index4 = members[x] ?? 0;
+        const position = members[y] ?? 0;
+        seen.set(`${index4}:${position}`, [index4, position]);
       }
     }
   }
@@ -141,35 +141,36 @@ export function clusterGroups(
   const words = items.map((it) => significantWords(it.title, it.feed_title));
   const groups = new Groups(items.length, MAX_CLUSTER);
   const exact = new Map<string, number>();
-  items.forEach((it, i) => {
+  for (const [index, it] of items.entries()) {
     const key = normaliseTitle(it.title);
-    if (key.length < MIN_TITLE_LENGTH) return;
+    if (key.length < MIN_TITLE_LENGTH) continue;
     const first = exact.get(key);
-    if (first === undefined) exact.set(key, i);
-    else groups.union(first, i);
-  });
-  for (const [i, j] of candidatePairs(words)) {
-    const a = items[i];
-    const b = items[j];
+    if (first === undefined) exact.set(key, index);
+    else groups.union(first, index);
+  }
+  for (const [index, index3] of candidatePairs(words)) {
+    const a = items[index];
+    const b = items[index3];
     if (!a || !b || a.source_id === b.source_id) continue;
-    const wa = words[i] ?? new Set<string>();
-    const wb = words[j] ?? new Set<string>();
+    const wa = words[index] ?? new Set<string>();
+    const wb = words[index3] ?? new Set<string>();
     const close =
       a.vector && b.vector && cosine(a.vector, b.vector) >= threshold;
     if (fuzzyMatch(wa, wb) || (close && relatedMatch(wa, wb))) {
-      groups.union(i, j);
+      groups.union(index, index3);
     }
   }
   const byRoot = new Map<number, number[]>();
-  items.forEach((_, i) => {
-    const root = groups.rootOf(i);
-    byRoot.set(root, [...(byRoot.get(root) ?? []), i]);
-  });
+  for (const [index] of items.entries()) {
+    const root = groups.rootOf(index);
+    byRoot.set(root, [...(byRoot.get(root) ?? []), index]);
+  }
   return [...byRoot.values()]
     .filter(
-      (members) => new Set(members.map((i) => items[i]?.source_id)).size > 1,
+      (members) =>
+        new Set(members.map((index) => items[index]?.source_id)).size > 1,
     )
-    .map((members) => members.map((i) => items[i]?.id ?? 0));
+    .map((members) => members.map((index) => items[index]?.id ?? 0));
 }
 
 /** What an article is embedded from: its title and the start of its summary. */
@@ -180,7 +181,8 @@ export function embeddingText(a: Clusterable): string {
 /** Cut `list` into runs of at most `size`. */
 function batches<T>(list: readonly T[], size: number): T[][] {
   const out: T[][] = [];
-  for (let i = 0; i < list.length; i += size) out.push(list.slice(i, i + size));
+  for (let index = 0; index < list.length; index += size)
+    out.push(list.slice(index, index + size));
   return out;
 }
 
@@ -213,8 +215,8 @@ async function embedAll(
       text: part.map((a) => embeddingText(a)),
     });
     const data = 'data' in out ? (out.data ?? []) : [];
-    const vectors = part.flatMap((a, i) => {
-      const values = data[i];
+    const vectors = part.flatMap((a, index2) => {
+      const values = data[index2];
       return values ? [{ a, values }] : [];
     });
     if (vectors.length === 0) continue;
@@ -225,7 +227,7 @@ async function embedAll(
         metadata: { edition, source_id: a.source_id },
       })),
     );
-    vectors.forEach(({ a, values }) => made.set(a.id, values));
+    for (const { a, values } of vectors) made.set(a.id, values);
   }
   return made;
 }

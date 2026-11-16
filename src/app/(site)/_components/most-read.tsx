@@ -19,13 +19,13 @@ export function MostRead({
         Most read
       </h2>
       <ol className="mt-3 space-y-4">
-        {stories.map(({ article, count }, i) => (
+        {stories.map(({ article, count }, index) => (
           <li key={article.id} className="flex gap-3">
             <span
               aria-hidden="true"
               className="w-4 shrink-0 text-lg leading-6 font-semibold text-accent tabular-nums"
             >
-              {i + 1}
+              {index + 1}
             </span>
             <div className="min-w-0">
               <a

@@ -51,6 +51,6 @@ export function htmlAt(
 }
 
 /** The class list of the first element whose tag is `tag`. */
-export function classOf(markup: string, tag: string): string {
+export function cssClassesOf(markup: string, tag: string): string {
   return new RegExp(`<${tag}[^>]*class="([^"]*)"`).exec(markup)?.[1] ?? '';
 }

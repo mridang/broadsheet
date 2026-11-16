@@ -57,7 +57,9 @@ export function appRequest(
   path: string,
   init: Readonly<{ headers?: Record<string, string> }> = {},
 ): NextRequest {
-  const cookie = [...jar].map(([name, value]) => `${name}=${value}`).join('; ');
+  const cookie = Array.from(jar, ([name, value]) => `${name}=${value}`).join(
+    '; ',
+  );
   return new NextRequest(`https://app.test${path}`, {
     method,
     headers: { ...(cookie ? { cookie } : {}), ...init.headers },

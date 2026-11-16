@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 import { RETURN_COOKIE, STATE_COOKIE } from '@/domain/auth/app';
 import { finishFlow, startFlowCookies } from '@/lib/core/auth';
 
-const start = (returnTo: string | undefined, secure = true) => {
+const start = (returnTo?: string, secure = true) => {
   const response = NextResponse.next();
   startFlowCookies(response, { state: 'signin.abc', returnTo, secure });
   return response;
@@ -32,7 +32,7 @@ describe('startFlowCookies', () => {
   });
 
   it('clears an earlier return path when there is none this time', () => {
-    const cookie = start(undefined).cookies.get(RETURN_COOKIE);
+    const cookie = start().cookies.get(RETURN_COOKIE);
     expect(cookie).toMatchObject({ value: '', expires: new Date(0) });
   });
 

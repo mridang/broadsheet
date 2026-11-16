@@ -174,9 +174,9 @@ export function KeyboardShortcuts(): ReactElement {
         case 'expand': {
           if (!card) return;
           take();
-          card.querySelectorAll<HTMLElement>(BODY).forEach((part) => {
+          for (const part of card.querySelectorAll<HTMLElement>(BODY)) {
             part.hidden = shortcut === 'collapse';
-          });
+          }
           return;
         }
         case 'comments': {
@@ -223,11 +223,11 @@ export function KeyboardShortcuts(): ReactElement {
         case 'read-above':
         case 'read-below': {
           const marked = storiesToMark(cards.length, current, shortcut)
-            .map((i) => cards[i]!)
+            .map((index) => cards[index]!)
             .filter((c) => c.dataset['articleId']);
           if (marked.length === 0) return;
           take();
-          marked.forEach((c) => c.toggleAttribute('data-read', true));
+          for (const c of marked) c.toggleAttribute('data-read', true);
           markManyRead(marked.map((c) => Number(c.dataset['articleId'])));
           return;
         }
@@ -271,7 +271,7 @@ export function KeyboardShortcuts(): ReactElement {
   const shown = matchSections(
     sections.map((s) => s.name),
     query,
-  ).map((i) => sections[i]!);
+  ).map((index) => sections[index]!);
 
   /** Focus the first story of a section, and close the picker. */
   function choose(desk: Desk) {
@@ -344,6 +344,7 @@ export function KeyboardShortcuts(): ReactElement {
                   className={buttonClass({
                     variant: 'ghost',
                     size: 'sm',
+                    // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
                     className: 'w-full justify-start font-medium',
                   })}
                   onClick={() => choose(desk)}

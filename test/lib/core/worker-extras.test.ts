@@ -170,9 +170,9 @@ jest.unstable_mockModule('@/domain/feed-import-runs', () => ({
     importChunk = async (id: string, user: number, feeds: unknown[]) => {
       calls.push(`chunk:${id}:${user}:${feeds.length}`);
       if (failingChunks.has(feeds.length)) throw new Error('database down');
-      return feeds.map((_f, i) => ({
-        id: 100 + i,
-        url: `https://f.test/${i}`,
+      return feeds.map((_f, index) => ({
+        id: 100 + index,
+        url: `https://f.test/${index}`,
       }));
     };
     finish = async (id: string, status: string) => {
@@ -451,7 +451,9 @@ describe('scheduled clean-up', () => {
 
 describe('FeedImportRun', () => {
   const feeds = (n: number) =>
-    Array.from({ length: n }, (_v, i) => ({ url: `https://f.test/${i}` }));
+    Array.from({ length: n }, (_v, index) => ({
+      url: `https://f.test/${index}`,
+    }));
   const importRun = (n: number) =>
     Reflect.apply(FeedImportRun.prototype.run, { env: { DB: {} } }, [
       { payload: { id: 'imp', user: 7, feeds: feeds(n) } },

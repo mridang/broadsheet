@@ -30,14 +30,14 @@ export function EditionSwitcher({
       >
         Daily
       </a>
-      {editions.map((e) => (
+      {editions.map((event) => (
         <a
-          key={e.id}
+          key={event.id}
           className={TAB}
-          href={`/?edition=${e.id}`}
-          aria-current={selected === e.id ? 'page' : undefined}
+          href={`/?edition=${event.id}`}
+          aria-current={selected === event.id ? 'page' : undefined}
         >
-          {e.name}
+          {event.name}
         </a>
       ))}
       <a href="/editions" className={TAB}>

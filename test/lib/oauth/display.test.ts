@@ -13,6 +13,8 @@ import {
 } from '@/lib/oauth';
 import { SCOPE_READ, SCOPE_TEXT, SCOPE_WRITE } from '@/domain/mcp/app';
 
+const NEVER_LETS_A_DIRECTION_CHANGING_PATTERN = /[^\u0021-\u007E]/;
+
 describe('sanitiseDisplayName', () => {
   it('keeps an ordinary name', () => {
     expect(sanitiseDisplayName('Claude Desktop', 'x')).toBe('Claude Desktop');
@@ -162,10 +164,12 @@ describe('describeRedirect', () => {
     const address = describeRedirect(
       'https://claude.ai/\u202Efoo\u200B',
     ).address;
-    expect(address).not.toMatch(/[^\u0021-\u007E]/);
+    expect(address).not.toMatch(NEVER_LETS_A_DIRECTION_CHANGING_PATTERN);
     expect(address).toBe('https://claude.ai/%E2%80%AEfoo%E2%80%8B');
     const unreadable = describeRedirect('not a url \u202E');
-    expect(unreadable.address).not.toMatch(/[^\u0021-\u007E]/);
+    expect(unreadable.address).not.toMatch(
+      NEVER_LETS_A_DIRECTION_CHANGING_PATTERN,
+    );
     expect(unreadable.address).toContain(String.raw`\u{202e}`);
   });
 

@@ -7,6 +7,12 @@ const { nonceOf, genericLimits, serve, serverTiming } =
   await import('@/lib/core/http');
 import type { ServeApp } from '@/lib/core/http';
 
+const MAKES_ONE_UP_WHEN_PATTERN = /^[0-9a-f-]{36}$/;
+const REPORTS_THE_TOTAL_A_PATTERN =
+  /^total;dur=\d+(\.\d)?, edge;desc="skip", app;dur=\d+(\.\d)?$/;
+const IS_ON_A_REFUSAL_PATTERN = /^total;dur=/;
+const KEEPS_TIMING_THE_APP_PATTERN = /^db;dur=3, total;/;
+
 /** What is rate limited in these tests: the classes every app has, with sessions in `app_session`. */
 const limits = genericLimits('app_session');
 /** The one page these tests let the edge keep a copy of. */
@@ -207,7 +213,7 @@ describe('serve — flow id', () => {
         { app, limits },
       );
       const id = response.headers.get('x-flow-id') ?? '';
-      expect(id).toMatch(/^[0-9a-f-]{36}$/);
+      expect(id).toMatch(MAKES_ONE_UP_WHEN_PATTERN);
       expect(app.seen[0]?.headers.get('x-flow-id')).toBe(id);
     }
   });
@@ -461,7 +467,7 @@ describe('serve — Server-Timing', () => {
       limits,
     });
     expect(response.headers.get('server-timing')).toMatch(
-      /^total;dur=\d+(\.\d)?, edge;desc="skip", app;dur=\d+(\.\d)?$/,
+      REPORTS_THE_TOTAL_A_PATTERN,
     );
   });
 
@@ -491,7 +497,9 @@ describe('serve — Server-Timing', () => {
       ctx().context,
       { app: appAnswering(html), limits },
     );
-    expect(response.headers.get('server-timing')).toMatch(/^total;dur=/);
+    expect(response.headers.get('server-timing')).toMatch(
+      IS_ON_A_REFUSAL_PATTERN,
+    );
     expect(response.headers.get('server-timing')).not.toContain('app;dur=');
   });
 
@@ -502,7 +510,9 @@ describe('serve — Server-Timing', () => {
       ),
       limits,
     });
-    expect(response.headers.get('server-timing')).toMatch(/^db;dur=3, total;/);
+    expect(response.headers.get('server-timing')).toMatch(
+      KEEPS_TIMING_THE_APP_PATTERN,
+    );
   });
 });
 

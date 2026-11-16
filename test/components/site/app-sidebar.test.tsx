@@ -26,7 +26,7 @@ describe('AppSidebar', () => {
     const out = htmlAt(<AppSidebar user={user} feeds={[]} />, {
       pathname: '/saved',
     });
-    [
+    for (const href of [
       '/',
       '/briefings',
       '/saved',
@@ -38,7 +38,8 @@ describe('AppSidebar', () => {
       '/editions',
       '/feeds',
       '/settings',
-    ].forEach((href) => expect(out).toContain(`href="${href}"`));
+    ])
+      expect(out).toContain(`href="${href}"`);
     expect(out).toContain('aria-current="page" href="/saved"');
   });
 });

@@ -7,7 +7,9 @@ import { cn } from '@/components/ui/cn';
  * it pulses gently (still, for people who ask for less motion).
  */
 export function Skeleton({
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
   className,
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
 }: Readonly<{ className?: string }>): ReactElement {
   return (
     <span
@@ -23,8 +25,8 @@ export function SkeletonRows({
 }: Readonly<{ rows?: number }>): ReactElement {
   return (
     <div role="status" aria-label="Loading" className="space-y-6">
-      {Array.from({ length: rows }, (_, i) => (
-        <div key={i} className="flex gap-4">
+      {Array.from({ length: rows }, (_, index) => (
+        <div key={index} className="flex gap-4">
           <div className="flex-1 space-y-2.5">
             <Skeleton className="h-3 w-24" />
             <Skeleton className="h-5 w-4/5" />

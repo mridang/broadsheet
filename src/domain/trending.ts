@@ -1,3 +1,7 @@
+const TITLE_KEY_PATTERN = /[-/]/g;
+const TITLE_KEY_PATTERN_2 = /[^\p{L}\p{N}_\s]/gu;
+const TITLE_KEY_PATTERN_3 = /\s+/g;
+const DOMAIN_OF_PATTERN = /^www\./;
 /**
  * @packageDocumentation
  *
@@ -86,9 +90,9 @@ export function titleKey(title: string): string {
   return title
     .toLowerCase()
     .trim()
-    .replaceAll(/[-/]/g, ' ')
-    .replaceAll(/[^\p{L}\p{N}_\s]/gu, '')
-    .replaceAll(/\s+/g, ' ');
+    .replaceAll(TITLE_KEY_PATTERN, ' ')
+    .replaceAll(TITLE_KEY_PATTERN_2, '')
+    .replaceAll(TITLE_KEY_PATTERN_3, ' ');
 }
 
 /** The site a story or feed address is on, without `www.`. */
@@ -96,7 +100,7 @@ export function domainOf(url: string): string {
   try {
     return new URL(url.includes('://') ? url : `https://${url}`).hostname
       .toLowerCase()
-      .replace(/^www\./, '');
+      .replace(DOMAIN_OF_PATTERN, '');
   } catch {
     return '';
   }
@@ -180,8 +184,8 @@ export function rank(order: ListOrder, a: Activity): Ranked | undefined {
 
 /** Highest keys first, then the newer story. */
 export function byRank(a: Ranked, b: Ranked): number {
-  for (let i = 0; i < Math.max(a.keys.length, b.keys.length); i++) {
-    const d = (b.keys[i] ?? 0) - (a.keys[i] ?? 0);
+  for (let index = 0; index < Math.max(a.keys.length, b.keys.length); index++) {
+    const d = (b.keys[index] ?? 0) - (a.keys[index] ?? 0);
     if (d) return d;
   }
   return b.id - a.id;
@@ -285,12 +289,16 @@ export function capSourceShare<T extends Candidate>(list: readonly T[]): T[] {
     });
     const kept = fields.map(() => new Map<unknown, number>());
     const filtered = capped.filter((c) => {
-      if (fields.some((f, i) => c[f] && (kept[i]!.get(c[f]) ?? 0) >= limit)) {
+      if (
+        fields.some(
+          (f, index) => c[f] && (kept[index]!.get(c[f]) ?? 0) >= limit,
+        )
+      ) {
         return false;
       }
-      fields.forEach((f, i) => {
-        if (c[f]) kept[i]!.set(c[f], (kept[i]!.get(c[f]) ?? 0) + 1);
-      });
+      for (const [index, f] of fields.entries()) {
+        if (c[f]) kept[index]!.set(c[f], (kept[index]!.get(c[f]) ?? 0) + 1);
+      }
       return true;
     });
     // When every count is within the limit the filter keeps everything anyway.

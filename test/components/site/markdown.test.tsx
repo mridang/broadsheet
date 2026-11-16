@@ -96,7 +96,7 @@ describe('INLINE_MARKS', () => {
     '`([^`]+)`',
   ].join('|');
   const found = (text: string, pattern: string): unknown[] =>
-    [...text.matchAll(new RegExp(pattern, 'g'))].map((m) => [m.index, ...m]);
+    Array.from(text.matchAll(new RegExp(pattern, 'g')), (m) => [m.index, ...m]);
 
   it.each([
     'see [#12] and [a link](https://x.org) with **bold**, *em* and `code`',
@@ -113,9 +113,9 @@ describe('INLINE_MARKS', () => {
       return state / 2 ** 32;
     };
     const parts = ['[', ']', '(', ')', '#', '1', '*', '**', '`', ' ', 'a'];
-    for (let i = 0; i < 5000; i += 1) {
+    for (let index = 0; index < 5000; index += 1) {
       let text = '';
-      for (let j = 0; j < 16; j += 1) {
+      for (let index = 0; index < 16; index += 1) {
         text += parts[Math.floor(random() * parts.length)];
       }
       expect(found(text, INLINE_MARKS)).toEqual(found(text, old));

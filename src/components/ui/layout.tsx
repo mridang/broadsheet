@@ -5,10 +5,12 @@ import { cn } from '@/components/ui/cn';
 /** The page column: one max width and one set of gutters, used everywhere. */
 export function Container({
   children,
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
   className,
   as: Tag = 'div',
 }: Readonly<{
   children: ReactNode;
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
   className?: string;
   /** The tag to render, when a `div` is not the right element. */
   as?: ElementType;
@@ -45,11 +47,13 @@ export function Eyebrow({
   as: Tag = 'p',
   tone = 'accent',
   children,
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
   className,
 }: Readonly<{
   as?: ElementType;
   tone?: keyof typeof EYEBROW_TONES;
   children: ReactNode;
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
   className?: string;
 }>): ReactElement {
   return (
@@ -84,6 +88,7 @@ export function Heading({
   variant = 'h2',
   as: Tag = 'h2',
   children,
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
   className,
   ref,
   tabIndex,
@@ -91,6 +96,7 @@ export function Heading({
   variant?: keyof typeof HEADINGS;
   as?: ElementType;
   children: ReactNode;
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
   className?: string;
   ref?: Ref<HTMLHeadingElement>;
   tabIndex?: number;

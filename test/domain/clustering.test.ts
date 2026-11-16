@@ -181,9 +181,9 @@ describe('clusterGroups', () => {
   });
 
   it(`holds at most ${MAX_CLUSTER} stories in one cluster`, () => {
-    const many = Array.from({ length: MAX_CLUSTER + 3 }, (_, i) => ({
-      id: i + 1,
-      source_id: i + 1,
+    const many = Array.from({ length: MAX_CLUSTER + 3 }, (_, index) => ({
+      id: index + 1,
+      source_id: index + 1,
       title: QUAKE,
     }));
     const groups = clusterGroups(many);
@@ -257,7 +257,7 @@ describe('clusterEdition', () => {
   function env(stored: Map<string, number[]> = new Map()) {
     const upsert = jest.fn(
       async (vectors: { id: string; values: number[] }[]) => {
-        vectors.forEach((v) => stored.set(v.id, v.values));
+        for (const v of vectors) stored.set(v.id, v.values);
         return { ids: [], count: vectors.length };
       },
     );
@@ -285,8 +285,8 @@ describe('clusterEdition', () => {
 
   it('clusters the same story from two sources and leaves the rest alone', async () => {
     jest.spyOn(console, 'log').mockImplementation(() => undefined);
-    const { env: e } = env();
-    expect(await clusterEdition(db, e, '2026-11-01')).toEqual({
+    const { env: event2 } = env();
+    expect(await clusterEdition(db, event2, '2026-11-01')).toEqual({
       articles: 4,
       clusters: 1,
     });
@@ -343,9 +343,9 @@ describe('clusterEdition', () => {
   });
 
   it('skips clustering without embedding anything when no index is bound', async () => {
-    const { run, env: e } = env();
+    const { run, env: event } = env();
     const unbound = Object.fromEntries(
-      Object.entries(e).filter(([key]) => key !== 'VECTORIZE'),
+      Object.entries(event).filter(([key]) => key !== 'VECTORIZE'),
     ) as CloudflareEnv;
     expect(await clusterEdition(db, unbound, '2026-11-01')).toEqual({
       articles: 0,

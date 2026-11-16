@@ -3,6 +3,8 @@ import { describe, expect, it } from '@jest/globals';
 import { TOOL_REGISTRY } from '@/domain/mcp/tools';
 import type { JsonTool } from '@/domain/mcp/tools/json-tool';
 
+const collator = new Intl.Collator();
+
 /** Every tool, as the class that carries its zod input. */
 const TOOLS = TOOL_REGISTRY.all as readonly JsonTool<string>[];
 
@@ -13,7 +15,7 @@ describe('the tool catalogue', () => {
     .map((tool) => tool.name);
 
   it('warns about exactly the tools that remove something for good', () => {
-    expect(destructive.toSorted((a, b) => a.localeCompare(b))).toEqual([
+    expect(destructive.toSorted((a, b) => collator.compare(a, b))).toEqual([
       'manage_notifications',
       'remove_classifier',
       'remove_section',

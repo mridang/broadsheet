@@ -92,8 +92,8 @@ describe('shortcutFor', () => {
 
   it.each(['altKey', 'ctrlKey', 'metaKey'])(
     'leaves a press with %s to the browser',
-    (mod) => {
-      expect(shortcutFor(press('k', { [mod]: true }))).toBeNull();
+    (loaded) => {
+      expect(shortcutFor(press('k', { [loaded]: true }))).toBeNull();
     },
   );
 });

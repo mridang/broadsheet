@@ -3,6 +3,8 @@ import { describe, expect, it } from '@jest/globals';
 import { Dialog } from '@/components/ui/dialog';
 import { html } from '../render';
 
+const IS_A_NATIVE_DIALOG_PATTERN = /^<dialog aria-label="Remove feed"/;
+
 describe('Dialog', () => {
   const out = html(
     <Dialog
@@ -17,7 +19,7 @@ describe('Dialog', () => {
   );
 
   it('is a native dialog named by its title', () => {
-    expect(out).toMatch(/^<dialog aria-label="Remove feed"/);
+    expect(out).toMatch(IS_A_NATIVE_DIALOG_PATTERN);
     expect(out).toContain('Its stories go too.');
   });
 

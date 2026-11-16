@@ -42,7 +42,7 @@ describe('resource and issuer', () => {
 
 describe('isProtectedResourcePath', () => {
   it('answers for the bare well-known path and for the MCP endpoint path', () => {
-    expect(isProtectedResourcePath(undefined)).toBe(true);
+    expect(isProtectedResourcePath()).toBe(true);
     expect(isProtectedResourcePath([])).toBe(true);
     expect(isProtectedResourcePath(['mcp'])).toBe(true);
   });
@@ -57,48 +57,50 @@ describe('isProtectedResourcePath', () => {
 
 describe('protectedResourceMetadata', () => {
   it('points at this origin as its own authorization server', () => {
-    const doc = protectedResourceMetadata(ORIGIN);
-    expect(doc.resource).toBe(`${ORIGIN}/mcp`);
-    expect(doc.authorization_servers).toEqual([ORIGIN]);
-    expect(doc.bearer_methods_supported).toEqual(['header']);
+    const documentRoot2 = protectedResourceMetadata(ORIGIN);
+    expect(documentRoot2.resource).toBe(`${ORIGIN}/mcp`);
+    expect(documentRoot2.authorization_servers).toEqual([ORIGIN]);
+    expect(documentRoot2.bearer_methods_supported).toEqual(['header']);
   });
 });
 
 describe('authorizationServerMetadata', () => {
-  const doc = authorizationServerMetadata(ORIGIN);
+  const documentRoot = authorizationServerMetadata(ORIGIN);
 
   it('advertises every endpoint on this origin', () => {
-    expect(doc.issuer).toBe(ORIGIN);
-    expect(doc.authorization_endpoint).toBe(`${ORIGIN}/oauth/authorize`);
-    expect(doc.token_endpoint).toBe(`${ORIGIN}/oauth/token`);
-    expect(doc.registration_endpoint).toBe(`${ORIGIN}/oauth/register`);
-    expect(doc.revocation_endpoint).toBe(`${ORIGIN}/oauth/revoke`);
+    expect(documentRoot.issuer).toBe(ORIGIN);
+    expect(documentRoot.authorization_endpoint).toBe(
+      `${ORIGIN}/oauth/authorize`,
+    );
+    expect(documentRoot.token_endpoint).toBe(`${ORIGIN}/oauth/token`);
+    expect(documentRoot.registration_endpoint).toBe(`${ORIGIN}/oauth/register`);
+    expect(documentRoot.revocation_endpoint).toBe(`${ORIGIN}/oauth/revoke`);
   });
 
   it('requires PKCE S256 and offers public clients and signed assertions', () => {
-    expect(doc.code_challenge_methods_supported).toEqual(['S256']);
-    expect(doc.token_endpoint_auth_methods_supported).toEqual([
+    expect(documentRoot.code_challenge_methods_supported).toEqual(['S256']);
+    expect(documentRoot.token_endpoint_auth_methods_supported).toEqual([
       'none',
       'private_key_jwt',
     ]);
-    expect(doc.token_endpoint_auth_signing_alg_values_supported).toEqual([
-      'RS256',
-      'PS256',
-      'ES256',
-    ]);
+    expect(
+      documentRoot.token_endpoint_auth_signing_alg_values_supported,
+    ).toEqual(['RS256', 'PS256', 'ES256']);
   });
 
   it('says revocation takes public clients only', () => {
-    expect(doc.revocation_endpoint_auth_methods_supported).toEqual(['none']);
+    expect(documentRoot.revocation_endpoint_auth_methods_supported).toEqual([
+      'none',
+    ]);
   });
 
   it('advertises offline_access, because every grant gets a refresh token', () => {
-    expect(doc.scopes_supported).toEqual([
+    expect(documentRoot.scopes_supported).toEqual([
       SCOPE_READ,
       SCOPE_WRITE,
       'offline_access',
     ]);
-    expect(doc.grant_types_supported).toContain('refresh_token');
+    expect(documentRoot.grant_types_supported).toContain('refresh_token');
   });
 
   it('keeps offline_access out of the resource metadata and the challenge', () => {
@@ -109,8 +111,10 @@ describe('authorizationServerMetadata', () => {
   });
 
   it('supports metadata-document clients and the iss parameter', () => {
-    expect(doc.client_id_metadata_document_supported).toBe(true);
-    expect(doc.authorization_response_iss_parameter_supported).toBe(true);
+    expect(documentRoot.client_id_metadata_document_supported).toBe(true);
+    expect(documentRoot.authorization_response_iss_parameter_supported).toBe(
+      true,
+    );
   });
 });
 

@@ -15,6 +15,8 @@
 
 import { problems } from './problem';
 
+const BYTES_TO_BASE64_URL_PATTERN = /={1,2}$/;
+
 /** The default page size when the client asks for none. */
 export const DEFAULT_LIMIT = 20;
 
@@ -109,7 +111,7 @@ function bytesToBase64Url(bytes: Uint8Array): string {
   return btoa(binary)
     .replaceAll('+', '-')
     .replaceAll('/', '_')
-    .replace(/={1,2}$/, '');
+    .replace(BYTES_TO_BASE64_URL_PATTERN, '');
 }
 
 /** Decode base64url bytes, the inverse of {@link bytesToBase64Url}. */

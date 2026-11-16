@@ -16,6 +16,9 @@ import { clockMinutes, isTimeZone } from '@/domain/briefings';
 import type { Preferences } from '@/domain/repository';
 import { INTELLIGENCE } from '@/domain/render/tiers';
 
+const BRIEFING_CHANGES_PATTERN = /^(all|section:[1-9]\d{0,14})$/;
+const SOURCE_SECTION_PATTERN = /^section:([1-9]\d*)$/;
+
 /** The most days a story may wait before it counts as read anyway. */
 const MAX_AUTO_READ_DAYS = 365;
 
@@ -226,7 +229,7 @@ function briefingChanges(
   }
   if ('sources' in brief) {
     const v = brief['sources'];
-    if (typeof v === 'string' && /^(all|section:[1-9]\d{0,14})$/.test(v)) {
+    if (typeof v === 'string' && BRIEFING_CHANGES_PATTERN.test(v)) {
       changes.briefing_sources = v;
     } else errors.push('briefing.sources: must be all or section:{id}.');
   }
@@ -364,6 +367,6 @@ export function parsePreferenceChanges(
 
 /** The section a `section:{id}` source names, or undefined for `all`. */
 export function sourceSection(sources: string): number | undefined {
-  const m = /^section:([1-9]\d*)$/.exec(sources);
+  const m = SOURCE_SECTION_PATTERN.exec(sources);
   return m ? Number(m[1]) : undefined;
 }

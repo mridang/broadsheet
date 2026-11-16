@@ -4,6 +4,21 @@ import { StoryCard, StoryMenuItems } from '@/app/(site)/_components/story-card';
 import type { Article } from '@/domain/repository';
 import { html } from '../../../components/render';
 
+const IS_COVERED_BY_ONE_PATTERN =
+  /<a class="[^"]*" data-story-link="" href="https:\/\/a\.test\/story" target="_blank" rel="noopener noreferrer" aria-label="A headline">/;
+const IS_COVERED_BY_ONE_PATTERN_2 = /<h2[^>]*>A headline<\/h2>/;
+const BADGES_A_CLUSTERED_STORY_PATTERN = /<ul[^>]*aria-label="Also covered by"/;
+const SHOWS_WHAT_CHANGED_IN_PATTERN = /<del[^>]*>was said\. <\/del>/;
+const LETS_A_READER_SHARE_PATTERN =
+  /<button type="button" aria-label="More actions"/;
+const DIMS_A_READ_STORY_S_PATTERN = /<article[^>]*opacity/;
+const DIMS_A_READ_STORY_S_PATTERN_2 = /<h2[^>]*group-data-read:opacity-55/;
+const LETS_THE_SAVE_BUTTON_PATTERN =
+  /<button[^>]*pointer-events-auto[^>]*data-action="save"/;
+const LETS_THE_SAVE_BUTTON_PATTERN_2 = /<img[^>]*class="pointer-events-none /;
+const SHOWS_ITS_PHOTO_THROUGH_PATTERN =
+  /src="\/img\?url=https%3A%2F%2Fexample\.com%2Fp\.jpg/;
+
 const article = (over: Partial<Article> = {}): Article =>
   ({
     id: 7,
@@ -26,11 +41,9 @@ const article = (over: Partial<Article> = {}): Article =>
 describe('StoryCard', () => {
   it('is covered by one link to the story, named by its headline', async () => {
     const out = html(await StoryCard({ article: article(), tier: 'standard' }));
-    expect(out).toMatch(
-      /<a class="[^"]*" data-story-link="" href="https:\/\/a\.test\/story" target="_blank" rel="noopener noreferrer" aria-label="A headline">/,
-    );
+    expect(out).toMatch(IS_COVERED_BY_ONE_PATTERN);
     expect(out).toContain('data-url="https://a.test/story"');
-    expect(out).toMatch(/<h2[^>]*>A headline<\/h2>/);
+    expect(out).toMatch(IS_COVERED_BY_ONE_PATTERN_2);
     expect(out).toContain('▲ 42');
   });
 
@@ -72,7 +85,7 @@ describe('StoryCard', () => {
       }),
     );
     expect(out).toContain('+2 sources');
-    expect(out).toMatch(/<ul[^>]*aria-label="Also covered by"/);
+    expect(out).toMatch(BADGES_A_CLUSTERED_STORY_PATTERN);
     expect(out).toContain('href="https://b.test/1"');
     expect(out).not.toContain('Also covered by: B');
   });
@@ -85,7 +98,7 @@ describe('StoryCard', () => {
       }),
     );
     expect(out).toContain('show changes');
-    expect(out).toMatch(/<del[^>]*>was said\. <\/del>/);
+    expect(out).toMatch(SHOWS_WHAT_CHANGED_IN_PATTERN);
   });
 
   it('offers no changes when the text is the same', async () => {
@@ -107,7 +120,7 @@ describe('StoryCard', () => {
         shared: true,
       }),
     );
-    expect(out).toMatch(/<button type="button" aria-label="More actions"/);
+    expect(out).toMatch(LETS_A_READER_SHARE_PATTERN);
     const items = html(
       <StoryMenuItems
         article={article()}
@@ -144,8 +157,8 @@ describe('StoryCard', () => {
         read: true,
       }),
     );
-    expect(out).not.toMatch(/<article[^>]*opacity/);
-    expect(out).toMatch(/<h2[^>]*group-data-read:opacity-55/);
+    expect(out).not.toMatch(DIMS_A_READ_STORY_S_PATTERN);
+    expect(out).toMatch(DIMS_A_READ_STORY_S_PATTERN_2);
   });
 
   it('lets the save button and the photo take clicks over the story link', async () => {
@@ -156,10 +169,8 @@ describe('StoryCard', () => {
         personal: true,
       }),
     );
-    expect(out).toMatch(
-      /<button[^>]*pointer-events-auto[^>]*data-action="save"/,
-    );
-    expect(out).toMatch(/<img[^>]*class="pointer-events-none /);
+    expect(out).toMatch(LETS_THE_SAVE_BUTTON_PATTERN);
+    expect(out).toMatch(LETS_THE_SAVE_BUTTON_PATTERN_2);
   });
 
   it('highlights the headline only when the story link is hovered', async () => {
@@ -199,6 +210,6 @@ describe('StoryCard', () => {
           tier: 'feature',
         }),
       ),
-    ).toMatch(/src="\/img\?url=https%3A%2F%2Fexample\.com%2Fp\.jpg/);
+    ).toMatch(SHOWS_ITS_PHOTO_THROUGH_PATTERN);
   });
 });

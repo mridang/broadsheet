@@ -46,11 +46,10 @@ export function sqliteDatabase(
   ...migrations: readonly string[]
 ): SqliteDatabase {
   const raw = new DatabaseSync(':memory:');
-  migrations.forEach((file) =>
+  for (const file of migrations)
     raw.exec(
       readFileSync(path.join(process.cwd(), 'migrations', file), 'utf8'),
-    ),
-  );
+    );
   const exec = (sql: string, params: readonly unknown[], method: Method) => {
     const statement = raw.prepare(sql);
     const values = params as SQLInputValue[];

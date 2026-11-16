@@ -132,16 +132,19 @@ export function collapseClusters(
     if (a.cluster_id === null || printed.has(a.id)) continue;
     elsewhere.set(a.cluster_id, [...(elsewhere.get(a.cluster_id) ?? []), a]);
   }
-  members.forEach((group, cluster) => {
+  for (const [cluster, group] of members.entries()) {
     const extra = elsewhere.get(cluster) ?? [];
-    if (group.length + extra.length < 2) return;
-    const [first, ...others] = group.toSorted(
-      (x, y) =>
-        verdict(y, training) - verdict(x, training) ||
-        Number(printable?.has(y.id) ?? 0) - Number(printable?.has(x.id) ?? 0) ||
-        weight(y) - weight(x),
-    );
-    if (!first) return;
+    const [first, ...others] =
+      group.length + extra.length < 2
+        ? []
+        : group.toSorted(
+            (x, y) =>
+              verdict(y, training) - verdict(x, training) ||
+              Number(printable?.has(y.id) ?? 0) -
+                Number(printable?.has(x.id) ?? 0) ||
+              weight(y) - weight(x),
+          );
+    if (!first) continue;
     const kept = first;
     const rest = [...others, ...extra];
     const folded = rest
@@ -151,41 +154,45 @@ export function collapseClusters(
           tier === 'title' ||
           (options.mode !== 'title' && a.source_id !== kept.source_id),
       );
-    if (folded.length === 0) return;
-    folded.forEach(({ a }) => {
-      if (printed.has(a.id)) dropped.add(a.id);
-    });
-    also.set(
-      kept.id,
-      [...new Set(folded.map(({ a }) => byline(a)))].filter(
-        (n) => n !== byline(kept),
-      ),
-    );
-    siblings.set(
-      kept.id,
-      folded.map(({ a, tier }) => ({
-        id: a.id,
-        source: byline(a),
-        url: a.url,
-        tier,
-        ...(a.title ? { title: a.title } : {}),
-        ...(a.published_at ? { published_at: a.published_at } : {}),
-        ...(a.image ? { image: a.image } : {}),
-        ...(a.summary || a.body_text
-          ? {
-              excerpt: (a.summary || a.body_text || '').slice(
-                0,
-                SIBLING_EXCERPT,
-              ),
-            }
-          : {}),
-      })),
-    );
-    coverage.set(
-      cluster,
-      new Set([kept, ...folded.map(({ a }) => a)].map((a) => a.source_id)).size,
-    );
-  });
+    if (folded.length > 0) {
+      for (const id of folded
+        .map(({ a }) => a.id)
+        .filter((id) => printed.has(id))) {
+        dropped.add(id);
+      }
+      also.set(
+        kept.id,
+        [...new Set(folded.map(({ a }) => byline(a)))].filter(
+          (n) => n !== byline(kept),
+        ),
+      );
+      siblings.set(
+        kept.id,
+        folded.map(({ a, tier }) => ({
+          id: a.id,
+          source: byline(a),
+          url: a.url,
+          tier,
+          ...(a.title ? { title: a.title } : {}),
+          ...(a.published_at ? { published_at: a.published_at } : {}),
+          ...(a.image ? { image: a.image } : {}),
+          ...(a.summary || a.body_text
+            ? {
+                excerpt: (a.summary || a.body_text || '').slice(
+                  0,
+                  SIBLING_EXCERPT,
+                ),
+              }
+            : {}),
+        })),
+      );
+      coverage.set(
+        cluster,
+        new Set([kept, ...folded.map(({ a }) => a)].map((a) => a.source_id))
+          .size,
+      );
+    }
+  }
   return { dropped, also, siblings, coverage };
 }
 
@@ -256,9 +263,9 @@ export function layOut(
           feed_id: feed.id,
           title: feed.title || hostOf(feed.url),
           url: feed.url,
-          stories: ranked.map((a, i) => ({
+          stories: ranked.map((a, index) => ({
             id: a.id,
-            tier: tiers[i] ?? 'standard',
+            tier: tiers[index] ?? 'standard',
             also: also.get(a.id) ?? [],
             siblings: siblings.get(a.id) ?? [],
           })),

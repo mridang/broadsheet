@@ -15,16 +15,19 @@ import { HINT, LABEL } from '@/components/ui/field';
 export function Field({
   label,
   hint,
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
   className,
   children,
 }: Readonly<{
   label: ReactNode;
   hint?: ReactNode;
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
   className?: string;
   children: (id: string) => ReactNode;
 }>): ReactElement {
   const id = useId();
   return (
+    // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
     <div className={className}>
       <label htmlFor={id} className={LABEL}>
         {label}
@@ -43,12 +46,14 @@ export function Field({
 export function Toggle({
   label,
   description,
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
   className,
   ...props
 }: Readonly<
   {
     label: ReactNode;
     description?: ReactNode;
+    // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
     className?: string;
   } & Omit<ComponentProps<'input'>, 'type' | 'className' | 'role'>
 >): ReactElement {

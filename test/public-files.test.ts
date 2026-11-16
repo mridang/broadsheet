@@ -4,6 +4,14 @@ import path from 'node:path';
 
 import { BRAND_NAME, BRAND_URL, SECURITY_CONTACT } from '@/app/_brand';
 
+const FOLLOWS_THE_LLMS_TXT_SHAPE_PATTERN = /\n> .+/;
+const FOLLOWS_THE_LLMS_TXT_SHAPE_PATTERN_2 = /\n## .+/;
+const LINKS_ONLY_TO_THIS_PATTERN = /\]\((https?:[^)]+)\)/g;
+const SAYS_WHAT_TO_EXPECT_PATTERN = /What to expect/;
+const SAYS_WHAT_TO_EXPECT_PATTERN_2 = /In scope/;
+const SAYS_WHAT_TO_EXPECT_PATTERN_3 = /Out of scope/;
+const SAYS_WHAT_TO_EXPECT_PATTERN_4 = /good faith/;
+
 const read = (name: string) =>
   readFile(path.join(process.cwd(), 'public', name), 'utf8');
 
@@ -21,12 +29,15 @@ describe('public/llms.txt', () => {
 
   it('follows the llms.txt shape: a title, a summary and sections of links', () => {
     expect(text.startsWith(`# ${BRAND_NAME}\n`)).toBe(true);
-    expect(text).toMatch(/\n> .+/);
-    expect(text).toMatch(/\n## .+/);
+    expect(text).toMatch(FOLLOWS_THE_LLMS_TXT_SHAPE_PATTERN);
+    expect(text).toMatch(FOLLOWS_THE_LLMS_TXT_SHAPE_PATTERN_2);
   });
 
   it('links only to this site, outside the Optional section', () => {
-    const links = [...main.matchAll(/\]\((https?:[^)]+)\)/g)].map((m) => m[1]!);
+    const links = Array.from(
+      main.matchAll(LINKS_ONLY_TO_THIS_PATTERN),
+      (m) => m[1]!,
+    );
     expect(links.length).toBeGreaterThan(0);
     for (const link of links) {
       expect(link.startsWith(`${BRAND_URL}/`)).toBe(true);
@@ -57,10 +68,10 @@ describe('public/security-policy.txt', () => {
   });
 
   it('says what to expect, what is in scope and that good faith is safe', () => {
-    expect(text).toMatch(/What to expect/);
-    expect(text).toMatch(/In scope/);
-    expect(text).toMatch(/Out of scope/);
-    expect(text).toMatch(/good faith/);
+    expect(text).toMatch(SAYS_WHAT_TO_EXPECT_PATTERN);
+    expect(text).toMatch(SAYS_WHAT_TO_EXPECT_PATTERN_2);
+    expect(text).toMatch(SAYS_WHAT_TO_EXPECT_PATTERN_3);
+    expect(text).toMatch(SAYS_WHAT_TO_EXPECT_PATTERN_4);
   });
 
   it('is ASCII, since it is served with no charset', () => {

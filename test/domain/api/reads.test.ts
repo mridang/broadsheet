@@ -63,7 +63,7 @@ describe('parseReadScope', () => {
       {
         article_ids: Array.from(
           { length: MAX_BULK_READS + 1 },
-          (_, i) => `${i + 1}`,
+          (_, index) => `${index + 1}`,
         ),
       },
       `article_ids: must be a list of 1 to ${MAX_BULK_READS} ids.`,

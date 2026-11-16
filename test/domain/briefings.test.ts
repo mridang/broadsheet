@@ -23,6 +23,9 @@ import type { ScrapedItem } from '@/lib/scraping';
 import { APP_MIGRATIONS } from '../lib/core/db/migrations';
 import { sqliteD1 } from '../lib/core/db/sqlite-d1';
 
+const NAMES_A_CUSTOM_TIME_PATTERN = /^Afternoon/;
+const STORES_A_COMPLETE_BRIEFING_PATTERN = /^Morning Daily Briefing — /;
+
 describe('isTimeZone', () => {
   it('knows an IANA zone and refuses a made-up one', () => {
     expect(isTimeZone('Europe/Helsinki')).toBe(true);
@@ -172,7 +175,7 @@ describe('briefingTitle', () => {
       'Evening Weekly Briefing — Sunday, November 1, 2026',
     );
     expect(briefingTitle('custom', 800, 'daily', '2026-11-01')).toMatch(
-      /^Afternoon/,
+      NAMES_A_CUSTOM_TIME_PATTERN,
     );
   });
 });
@@ -265,7 +268,7 @@ describe('writeScheduledBriefing', () => {
       tokens: 99,
     });
     expect(JSON.parse(briefing!.stories)).toHaveLength(3);
-    expect(briefing!.title).toMatch(/^Morning Daily Briefing — /);
+    expect(briefing!.title).toMatch(STORES_A_COMPLETE_BRIEFING_PATTERN);
   });
 
   it('replaces the briefing of the same slot and day', async () => {

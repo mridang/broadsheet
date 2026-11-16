@@ -28,7 +28,7 @@ export const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30;
  * fails and no session is ever honoured, rather than signing with a value
  * anyone could guess.
  */
-export function requireSessionSecret(secret: string | undefined): string {
+export function requireSessionSecret(secret?: string): string {
   if (!secret) {
     throw new Error('SESSION_SECRET is not set, so sessions cannot be signed');
   }

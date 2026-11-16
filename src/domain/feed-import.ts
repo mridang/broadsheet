@@ -10,6 +10,8 @@ import { parseFeedInput, MAX_NAME_LENGTH } from '@/domain/api/feed-resource';
 import type { OpmlFeed } from '@/domain/api/opml';
 import type { Feed, Repository } from '@/domain/repository';
 
+const COMPARABLE_PATTERN = /^www\./;
+
 /** Most feeds one import may carry. */
 export const MAX_IMPORT_FEEDS = 500;
 
@@ -34,12 +36,12 @@ export interface ImportSummary {
  * An address as it is compared to find a feed already followed: the scheme,
  * a leading `www.`, the fragment and a trailing slash do not tell feeds apart.
  */
-export function comparable(address: string | null | undefined): string {
+export function comparable(address?: string | null): string {
   if (!address) return '';
   try {
     const url = new URL(address.trim());
     const path = trimTrailingSlashes(url.pathname);
-    return `${url.hostname.replace(/^www\./, '')}${url.port}${path}${url.search}`.toLowerCase();
+    return `${url.hostname.replace(COMPARABLE_PATTERN, '')}${url.port}${path}${url.search}`.toLowerCase();
   } catch {
     return '';
   }
@@ -163,6 +165,6 @@ export async function importFeeds(
 /** Drops the trailing slashes; same as `.replace(/\/+$/, '')`, in linear time. */
 function trimTrailingSlashes(text: string): string {
   let end = text.length;
-  while (end > 0 && text[end - 1] === '/') end -= 1;
+  while (end > 0 && text.codePointAt(end - 1) === 47) end -= 1;
   return text.slice(0, end);
 }

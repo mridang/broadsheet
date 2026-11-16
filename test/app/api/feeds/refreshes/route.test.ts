@@ -20,6 +20,8 @@ import {
   tokenFor,
 } from '../../../../domain/auth/auth-test-kit';
 
+const collator = new Intl.Collator();
+
 const addFeed = (d: Database, u: number, url: string, t?: string) =>
   new Repository(d).addFeed(u, url, t);
 
@@ -87,7 +89,7 @@ describe('POST /api/feeds/refreshes', () => {
     expect(
       refreshSource.mock.calls
         .map((c) => c[2].url)
-        .toSorted((a, b) => a.localeCompare(b)),
+        .toSorted((a, b) => collator.compare(a, b)),
     ).toEqual(['https://a.test/1', 'https://a.test/2']);
   });
 

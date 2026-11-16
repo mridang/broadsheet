@@ -16,6 +16,10 @@
 
 import type { FollowedStory, NotificationRule } from '@/domain/notifications';
 
+const REGEX_PROBLEM_PATTERN = /\\[1-9]|\\k</;
+const REPEATS_AGROUP_PATTERN = /[+*}]/;
+const REPEATS_AGROUP_PATTERN_2 = /^\s*[+*{?]/;
+
 /** Longest pattern or phrase a rule may hold. */
 export const MAX_RULE_LENGTH = 200;
 
@@ -33,7 +37,8 @@ export function regexProblem(pattern: string): string | undefined {
   } catch {
     return 'not a valid regular expression';
   }
-  if (/\\[1-9]|\\k</.test(pattern)) return 'back-references are not allowed';
+  if (REGEX_PROBLEM_PATTERN.test(pattern))
+    return 'back-references are not allowed';
   if (repeatsAGroup(pattern)) {
     return 'a repeated group may not itself repeat';
   }
@@ -106,8 +111,8 @@ function repeatsAGroup(pattern: string): boolean {
     const close = pattern.indexOf(')', open + 1);
     if (close === -1) return false;
     if (
-      /[+*}]/.test(pattern.slice(open + 1, close)) &&
-      /^\s*[+*{?]/.test(pattern.slice(close + 1))
+      REPEATS_AGROUP_PATTERN.test(pattern.slice(open + 1, close)) &&
+      REPEATS_AGROUP_PATTERN_2.test(pattern.slice(close + 1))
     ) {
       return true;
     }

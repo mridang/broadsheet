@@ -3,11 +3,12 @@ import { afterEach, describe, expect, it, jest } from '@jest/globals';
 import { SignOutButton } from '@/components/site/sign-out-button';
 import { html } from '../render';
 
+const IS_A_PLAIN_BUTTON_PATTERN =
+  /^<button type="button" class="[^"]*">Sign out<\/button>$/;
+
 describe('SignOutButton', () => {
   it('is a plain button, not a link', () => {
-    expect(html(<SignOutButton />)).toMatch(
-      /^<button type="button" class="[^"]*">Sign out<\/button>$/,
-    );
+    expect(html(<SignOutButton />)).toMatch(IS_A_PLAIN_BUTTON_PATTERN);
   });
 });
 

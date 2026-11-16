@@ -3,12 +3,19 @@ import { describe, expect, it } from '@jest/globals';
 import PrivacyPage, { metadata } from '@/app/(site)/privacy/page';
 import { html } from '../../../components/render';
 
+const HAS_ONE_HEADING_THE_PATTERN = /<h1/g;
+const HAS_ONE_HEADING_THE_PATTERN_2 = /<h1[^>]*>Privacy Policy<\/h1>/;
+const SAYS_HOW_TO_DELETE_PATTERN =
+  /<a [^>]*href="https:\/\/myaccount\.google\.com\/permissions"[^>]*target="_blank"/;
+const LINKS_BACK_HOME_PATTERN =
+  /<a [^>]*href="\/"[^>]*>.*Back to Broadsheet<\/a>/;
+
 describe('PrivacyPage', () => {
   const out = html(<PrivacyPage />);
 
   it('has one heading, the policy’s title', () => {
-    expect(out.match(/<h1/g)).toHaveLength(1);
-    expect(out).toMatch(/<h1[^>]*>Privacy Policy<\/h1>/);
+    expect(out.match(HAS_ONE_HEADING_THE_PATTERN)).toHaveLength(1);
+    expect(out).toMatch(HAS_ONE_HEADING_THE_PATTERN_2);
   });
 
   it('says when it last changed', () => {
@@ -50,9 +57,7 @@ describe('PrivacyPage', () => {
 
   it('says how to delete an account and withdraw Google’s permission', () => {
     expect(out).toContain('To delete your account, email us');
-    expect(out).toMatch(
-      /<a [^>]*href="https:\/\/myaccount\.google\.com\/permissions"[^>]*target="_blank"/,
-    );
+    expect(out).toMatch(SAYS_HOW_TO_DELETE_PATTERN);
   });
 
   it('gives the contact address', () => {
@@ -60,7 +65,7 @@ describe('PrivacyPage', () => {
   });
 
   it('links back home', () => {
-    expect(out).toMatch(/<a [^>]*href="\/"[^>]*>.*Back to Broadsheet<\/a>/);
+    expect(out).toMatch(LINKS_BACK_HOME_PATTERN);
   });
 });
 

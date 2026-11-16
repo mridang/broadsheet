@@ -1,3 +1,12 @@
+const IS_FEED_PATTERN = /^\s*</;
+const IS_FEED_PATTERN_2 = /<html[\s>]/i;
+const IS_FEED_PATTERN_3 = /<rss[\s>]|<rdf:RDF[\s>]|<feed[\s>]/i;
+const IS_FEED_PATTERN_4 = /"version"\s*:\s*"https:\/\/jsonfeed\.org/i;
+const FEED_CANDIDATES_PATTERN = /<link\b[^>]*>/gi;
+const FEED_CANDIDATES_PATTERN_2 = /\balternate\b/i;
+const FEED_CANDIDATES_PATTERN_3 = /<a\b[^>]*>/gi;
+const FEED_CANDIDATES_PATTERN_4 = /rss|rdf|atom|feed|\.xml|json/i;
+const RETRY_AFTER_MINUTES_PATTERN = /^\s*\d+\s*$/;
 /**
  * @packageDocumentation
  *
@@ -27,11 +36,8 @@ const USUAL_PATHS = [
 /** Whether a fetched body is a feed (RSS, Atom, RDF or JSON Feed), not a page. */
 export function isFeed(body: string): boolean {
   const head = body.slice(0, 2000);
-  if (/^\s*</.test(head) && /<html[\s>]/i.test(head)) return false;
-  return (
-    /<rss[\s>]|<rdf:RDF[\s>]|<feed[\s>]/i.test(head) ||
-    /"version"\s*:\s*"https:\/\/jsonfeed\.org/i.test(head)
-  );
+  if (IS_FEED_PATTERN.test(head) && IS_FEED_PATTERN_2.test(head)) return false;
+  return IS_FEED_PATTERN_3.test(head) || IS_FEED_PATTERN_4.test(head);
 }
 
 /**
@@ -53,7 +59,7 @@ export function feedScore(url: string): number {
 }
 
 /** An attribute of one tag, or blank. */
-function attr(tag: string, name: string): string {
+function attribute(tag: string, name: string): string {
   return (
     new RegExp(String.raw`\b${name}\s*=\s*["']([^"']*)["']`, 'i').exec(
       tag,
@@ -80,23 +86,23 @@ function resolve(href: string, base: string): string | undefined {
  */
 export function feedCandidates(html: string, pageUrl: string): string[] {
   const declared: string[] = [];
-  for (const [tag] of html.matchAll(/<link\b[^>]*>/gi)) {
+  for (const [tag] of html.matchAll(FEED_CANDIDATES_PATTERN)) {
     if (
-      /\balternate\b/i.test(attr(tag, 'rel')) &&
-      FEED_TYPES.test(attr(tag, 'type'))
+      FEED_CANDIDATES_PATTERN_2.test(attribute(tag, 'rel')) &&
+      FEED_TYPES.test(attribute(tag, 'type'))
     ) {
-      const url = resolve(attr(tag, 'href'), pageUrl);
+      const url = resolve(attribute(tag, 'href'), pageUrl);
       if (url) declared.push(url);
     }
   }
   const host = new URL(pageUrl).host;
   const linked: string[] = [];
-  for (const [tag] of html.matchAll(/<a\b[^>]*>/gi)) {
-    const url = resolve(attr(tag, 'href'), pageUrl);
+  for (const [tag] of html.matchAll(FEED_CANDIDATES_PATTERN_3)) {
+    const url = resolve(attribute(tag, 'href'), pageUrl);
     if (
       url &&
       new URL(url).host === host &&
-      /rss|rdf|atom|feed|\.xml|json/i.test(new URL(url).pathname)
+      FEED_CANDIDATES_PATTERN_4.test(new URL(url).pathname)
     ) {
       linked.push(url);
     }
@@ -119,7 +125,7 @@ export function retryAfterMinutes(
   now: number = Date.now(),
 ): number | undefined {
   if (!header) return undefined;
-  const seconds = /^\s*\d+\s*$/.test(header)
+  const seconds = RETRY_AFTER_MINUTES_PATTERN.test(header)
     ? Number(header)
     : (Date.parse(header) - now) / 1000;
   return Number.isNaN(seconds)

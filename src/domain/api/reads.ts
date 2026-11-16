@@ -25,6 +25,10 @@ import { Repository } from '@/domain/repository';
 import { getDatabase } from '@/domain/db/client';
 import { MAX_READ_SECONDS } from '@/domain/trending';
 
+const TIME_PATTERN =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/i;
+const PARSE_READ_SCOPE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
 /** The signed-in caller's id and the request, for a read endpoint. */
 interface UidContext {
   readonly request: Request;
@@ -112,7 +116,10 @@ export function createReadItem(
   })
     .on<null, { id: number; first: boolean | undefined } | undefined>({
       method: 'POST',
-      handle: async (_input, { request, uid }) => {
+      handle: async (
+        _input,
+        { request, uid },
+      ): Promise<{ id: number; first: boolean | undefined } | undefined> => {
         const id = parseFeedId(idOf(request));
         if (id === undefined) return undefined;
         const repo = new Repository(getDatabase());
@@ -143,7 +150,10 @@ export function createReadItem(
         }
         return input.seconds;
       },
-      handle: async (seconds, { request, uid }) => {
+      handle: async (
+        seconds,
+        { request, uid },
+      ): Promise<ReadResource | undefined> => {
         const id = parseFeedId(idOf(request));
         if (id === undefined) return undefined;
         const stored = await new Repository(getDatabase()).recordReadTime(
@@ -206,12 +216,7 @@ function ids(raw: unknown): number[] | undefined {
 
 /** An RFC 3339 time, or undefined. */
 function time(raw: unknown): Date | undefined {
-  if (
-    typeof raw !== 'string' ||
-    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/i.test(
-      raw,
-    )
-  ) {
+  if (typeof raw !== 'string' || !TIME_PATTERN.test(raw)) {
     return undefined;
   }
   const at = new Date(raw);
@@ -260,7 +265,7 @@ export function parseReadScope(
   if (edition !== undefined) {
     if (
       typeof edition === 'string' &&
-      /^\d{4}-\d{2}-\d{2}$/.test(edition) &&
+      PARSE_READ_SCOPE_PATTERN.test(edition) &&
       !Number.isNaN(Date.parse(edition))
     ) {
       scope.edition = edition;

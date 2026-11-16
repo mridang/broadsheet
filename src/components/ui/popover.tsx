@@ -235,7 +235,7 @@ export function Popover({
   // (the click bubbles up to the panel), and closing does not stop a link being
   // followed. And in a browser with no popovers, where nothing else would,
   // Escape closes the panel and puts focus back on the button.
-  useEffect(() => {
+  useEffect((): (() => void) | undefined => {
     const panelElement = panel.current;
     const rootElement = root.current;
     if (!panelElement || !rootElement) {

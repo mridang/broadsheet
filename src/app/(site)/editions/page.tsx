@@ -46,15 +46,15 @@ export default async function EditionsPage() {
         </div>
       )}
       <ul className="mt-8 space-y-3">
-        {editions.map((e) => (
-          <li className={`${CARD} flex items-start gap-4 p-5`} key={e.id}>
+        {editions.map((event) => (
+          <li className={`${CARD} flex items-start gap-4 p-5`} key={event.id}>
             <div className="min-w-0 flex-1">
               <strong className="text-base font-semibold">
                 <a
                   className="focus-ring rounded-sm underline-offset-4 hover:underline"
-                  href={`/?edition=${e.id}`}
+                  href={`/?edition=${event.id}`}
                 >
-                  {e.name}
+                  {event.name}
                 </a>
               </strong>
               <details className="group mt-2">
@@ -69,17 +69,17 @@ export default async function EditionsPage() {
                 </summary>
                 <EditionForm
                   draft={{
-                    id: e.id,
-                    name: e.name,
-                    section_ids: e.section_ids,
-                    query: e.query ?? '',
-                    tag: e.tag ?? '',
+                    id: event.id,
+                    name: event.name,
+                    section_ids: event.section_ids,
+                    query: event.query ?? '',
+                    tag: event.tag ?? '',
                   }}
                   sections={options}
                 />
               </details>
             </div>
-            <RemoveEditionButton id={e.id} />
+            <RemoveEditionButton id={event.id} />
           </li>
         ))}
       </ul>

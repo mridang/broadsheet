@@ -20,11 +20,13 @@ export interface Tab {
 export function Tabs({
   label,
   tabs,
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
   className,
 }: Readonly<{
   /** What the tabs choose between, for a screen reader. */
   label: string;
   tabs: readonly Tab[];
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
   className?: string;
 }>): ReactElement {
   return (

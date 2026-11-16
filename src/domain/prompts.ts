@@ -11,6 +11,9 @@ import type { Feed, Repository } from '@/domain/repository';
 import { budget } from '@/domain/api/usage';
 import { logWarn } from '@/utils/logging';
 
+const READ_ANSWER_PATTERN = /^\W*yes\b/i;
+const READ_ANSWER_PATTERN_2 = /^\W*no\b/i;
+
 /** The model that judges stories against a prompt. */
 export const PROMPT_MODEL = '@cf/meta/llama-3.1-8b-instruct-fast';
 
@@ -38,8 +41,8 @@ export function promptQuestion(
 export function readAnswer(out: unknown): boolean | undefined {
   const text = (out as { response?: unknown } | null)?.response;
   if (typeof text !== 'string') return undefined;
-  if (/^\W*yes\b/i.test(text)) return true;
-  if (/^\W*no\b/i.test(text)) return false;
+  if (READ_ANSWER_PATTERN.test(text)) return true;
+  if (READ_ANSWER_PATTERN_2.test(text)) return false;
   return undefined;
 }
 

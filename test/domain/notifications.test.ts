@@ -8,6 +8,8 @@ import { APP_MIGRATIONS } from '../lib/core/db/migrations';
 import { expectIndexed, recordedDatabase } from '../lib/core/db/plan';
 import { sqliteD1 } from '../lib/core/db/sqlite-d1';
 
+const THE_PLANS_OF_THE_PATTERN = /LIST SUBQUERY/;
+
 let db: Database;
 let raw: ReturnType<typeof sqliteD1>['raw'];
 let repo: NotificationRepository;
@@ -283,7 +285,7 @@ describe('the plans of the notification queries', () => {
       const plan = recorded.planOf('"articles"');
       expect(plan).toContain('sqlite_autoindex_notification_deliveries_1');
       expect(plan).toContain('CORRELATED SCALAR SUBQUERY');
-      expect(plan).not.toMatch(/LIST SUBQUERY/);
+      expect(plan).not.toMatch(THE_PLANS_OF_THE_PATTERN);
     },
   );
 

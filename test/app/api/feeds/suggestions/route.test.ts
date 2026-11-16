@@ -13,6 +13,8 @@ import {
   tokenFor,
 } from '../../../../domain/auth/auth-test-kit';
 
+const ANSWERS_200_WITH_A_PATTERN = /\/api\/feeds\/suggestions$/;
+
 const { GET } = await import('@/app/api/feeds/suggestions/route');
 
 let restore: () => void;
@@ -46,7 +48,7 @@ describe('GET /api/feeds/suggestions', () => {
     const res = await list();
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({
-      self: expect.stringMatching(/\/api\/feeds\/suggestions$/),
+      self: expect.stringMatching(ANSWERS_200_WITH_A_PATTERN),
       items: [
         {
           url: 'https://other.test/f',

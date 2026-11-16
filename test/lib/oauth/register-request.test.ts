@@ -7,6 +7,8 @@ import {
 } from '@/lib/oauth';
 import type { RateLimitStore } from '@/lib/rate-limit';
 
+const REGISTERS_A_CLIENT_AND_PATTERN = /^dcr_/;
+
 const body = JSON.stringify({
   client_name: 'Assistant',
   redirect_uris: ['https://app.example/cb'],
@@ -54,7 +56,7 @@ describe('handleRegistration', () => {
       },
     });
     expect(saved).toHaveLength(1);
-    expect(saved[0]?.clientId).toMatch(/^dcr_/);
+    expect(saved[0]?.clientId).toMatch(REGISTERS_A_CLIENT_AND_PATTERN);
   });
 
   it('counts the attempt against the caller address', async () => {

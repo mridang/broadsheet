@@ -18,6 +18,8 @@ import {
   type ImageFetch,
 } from '@/lib/cloudflare/images/server';
 
+const FETCHES_THE_PICTURE_KEEPS_PATTERN = /^"[0-9a-f]{32}"$/;
+
 const HOST = ALLOWED_HOSTS?.[0] ?? 'photos.example.org';
 const PHOTO = `https://${HOST}/soup.jpg`;
 const WIDTH = ALLOWED_WIDTHS[0] ?? DEFAULT_WIDTH;
@@ -48,7 +50,7 @@ const open: ImageAccess = {
 };
 
 /** A cache that remembers what it is given. */
-function fakeCache(initial: Response | undefined = undefined) {
+function fakeCache(initial?: Response | undefined) {
   const stored: [string, Response][] = [];
   const cache: ImageCache = {
     match: async () => initial?.clone(),
@@ -136,7 +138,9 @@ describe('serveImage', () => {
     expect(response.headers.get('cache-control')).toBe(
       imageHeaders('image/jpeg', '"x"').get('cache-control'),
     );
-    expect(response.headers.get('etag')).toMatch(/^"[0-9a-f]{32}"$/);
+    expect(response.headers.get('etag')).toMatch(
+      FETCHES_THE_PICTURE_KEEPS_PATTERN,
+    );
     expect(new Uint8Array(await response.arrayBuffer())).toEqual(
       new Uint8Array([1, 2, 3]),
     );

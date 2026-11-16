@@ -20,6 +20,8 @@ import { SITE_NAME, SITE_URL } from '@/utils/site';
 import { DEFAULT_WIDTH, isAllowedHost, snapWidth } from './address';
 import { fetchImage, type ImageFetch, type ImagesLike } from './proxy';
 
+const IS_CURRENT_PATTERN = /^W\//;
+
 /** The two cache operations the service uses. */
 export type ImageCache = Pick<Cache, 'match' | 'put'>;
 
@@ -134,7 +136,7 @@ function isCurrent(ifNoneMatch: string | null, etag: string): boolean {
     ifNoneMatch !== null &&
     ifNoneMatch
       .split(',')
-      .map((tag) => tag.trim().replace(/^W\//, ''))
+      .map((tag) => tag.trim().replace(IS_CURRENT_PATTERN, ''))
       .some((tag) => tag === '*' || tag === etag)
   );
 }

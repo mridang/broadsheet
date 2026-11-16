@@ -274,7 +274,7 @@ describe('parseEmailInput', () => {
     [{}, 'to: must be 1 to 10 email addresses.'],
     [{ to: [1] }, 'to: must be 1 to 10 email addresses.'],
     [
-      { to: Array.from({ length: 11 }, (_, i) => `a${i}@b.co`) },
+      { to: Array.from({ length: 11 }, (_, index) => `a${index}@b.co`) },
       'to: must be 1 to 10 email addresses.',
     ],
     [

@@ -13,6 +13,8 @@ import {
   tokenFor,
 } from '../../../../domain/auth/auth-test-kit';
 
+const ANSWERS_400_NAMING_PARENT_ID_PATTERN = /^parent_id:/;
+
 const { PATCH, DELETE } = await import('@/app/api/sections/[id]/route');
 
 let restore: () => void;
@@ -90,7 +92,7 @@ describe('PATCH /api/sections/:id', () => {
     );
     expect(res.status).toBe(400);
     expect(((await res.json()) as { errors: string[] }).errors[0]).toMatch(
-      /^parent_id:/,
+      ANSWERS_400_NAMING_PARENT_ID_PATTERN,
     );
   });
 

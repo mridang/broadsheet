@@ -72,7 +72,9 @@ describe('POST /api/feeds/removals', () => {
     [{}, 'feed_ids: a list of 1 to 500 feed ids.'],
     [{ feed_ids: ['0'] }, 'feed_ids: a list of 1 to 500 feed ids.'],
     [
-      { feed_ids: Array.from({ length: 501 }, (_, i) => String(i + 1)) },
+      {
+        feed_ids: Array.from({ length: 501 }, (_, index) => String(index + 1)),
+      },
       'feed_ids: a list of 1 to 500 feed ids.',
     ],
     [{ feed_ids: ['1'], all: true }, 'all: not a member of a removal.'],

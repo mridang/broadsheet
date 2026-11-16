@@ -18,6 +18,12 @@ import {
 import { DISCOVERY_PATHS, EDGE_LIMITS, STATIC_PREFIXES } from '@/lib/core/http';
 import ips from '../../../fixtures/ips.json';
 
+const collator = new Intl.Collator();
+
+const COUNTS_A_SIGNED_IN_PERSON_PATTERN = /^p:[0-9a-f]{32}$/;
+const COUNTS_A_BEARER_TOKEN_PATTERN = /^t:[0-9a-f]{32}$/;
+const COUNTS_A_PERSON_IN_PATTERN = /^p:/;
+
 /** A static file under the app's own first static prefix. */
 const staticFile = `${STATIC_PREFIXES[0] ?? '/'}static/x.js`;
 /** One of the app's own discovery paths. */
@@ -79,7 +85,7 @@ describe('counterKey', () => {
       new Headers({ cookie: 'a=1; app_session=SECRET.value; b=2' }),
       'app_session',
     );
-    expect(key).toMatch(/^p:[0-9a-f]{32}$/);
+    expect(key).toMatch(COUNTS_A_SIGNED_IN_PERSON_PATTERN);
     expect(key).not.toContain('SECRET');
   });
 
@@ -109,14 +115,12 @@ describe('counterKey', () => {
       await counterKey(
         'token',
         new Headers({ authorization: 'Bearer abc123' }),
-        undefined,
       ),
-    ).toMatch(/^t:[0-9a-f]{32}$/);
+    ).toMatch(COUNTS_A_BEARER_TOKEN_PATTERN);
     expect(
       await counterKey(
         'token',
         new Headers({ 'cf-connecting-ip': ips.anonymousCaller }),
-        undefined,
       ),
     ).toBe(ips.anonymousKey);
   });
@@ -184,15 +188,15 @@ describe('edgeLimitRefusal', () => {
       { RL_API: api, [OVERALL_BINDING]: overall },
       limits,
     );
-    expect(api.keys[0]).toMatch(/^p:/);
+    expect(api.keys[0]).toMatch(COUNTS_A_PERSON_IN_PATTERN);
     expect(overall.keys).toEqual(['a:203.0.113.7']);
   });
 
   it('stops a caller who makes up cookies at the overall bucket', async () => {
     const env = { RL_API: binding(100), [OVERALL_BINDING]: binding(1) };
-    const forged = (i: number) =>
+    const forged = (index: number) =>
       get('/api/recipes', {
-        cookie: `app_session=forged${i}`,
+        cookie: `app_session=forged${index}`,
         'cf-connecting-ip': '203.0.113.7',
       });
     expect(await edgeLimitRefusal(forged(1), env, limits)).toBeNull();
@@ -257,11 +261,11 @@ describe('wrangler.jsonc', () => {
   it('declares a binding for every class and for the overall bucket, and no others', () => {
     const declared = parsed.ratelimits
       .map((r) => r.name)
-      .toSorted((a, b) => a.localeCompare(b));
+      .toSorted((a, b) => collator.compare(a, b));
     const expected = [
       ...Object.values(EDGE_LIMITS.classes).map((c) => c.binding),
       OVERALL_BINDING,
-    ].toSorted((a, b) => a.localeCompare(b));
+    ].toSorted((a, b) => collator.compare(a, b));
     expect(declared).toEqual(expected);
   });
 

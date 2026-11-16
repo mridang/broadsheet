@@ -54,6 +54,8 @@ import {
   oauthTokens,
 } from '@/domain/db/schema';
 
+const collator = new Intl.Collator();
+
 /** Unix seconds as the ISO-8601 text the timestamp columns hold. */
 const iso = (seconds: number): string => new Date(seconds * 1000).toISOString();
 
@@ -481,7 +483,7 @@ export async function listConnectedApps(
       const all = [newest, ...older];
       const lastUsed = all
         .flatMap((r) => (r.grant.last_used_at ? [r.grant.last_used_at] : []))
-        .toSorted((a, b) => a.localeCompare(b))
+        .toSorted((a, b) => collator.compare(a, b))
         .at(-1);
       const identity = clientIdentity({
         clientId: newest.grant.client_id,
