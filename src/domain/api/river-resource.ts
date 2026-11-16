@@ -116,7 +116,9 @@ export function parseRiverList(
     errors.push(`items: must be a list of at most ${MAX_RIVERS} rivers.`);
     return { ok: false, errors };
   }
-  const list = items.map((item, i) => checkRiver(item, `items[${i}].`, errors));
+  const list = items.map((item, index) =>
+    checkRiver(item, `items[${index}].`, errors),
+  );
   const places = new Set(list.map((r) => r && `${r.side}:${r.position}`));
   if (errors.length === 0 && places.size < list.length) {
     errors.push('items: two rivers at the same side and position.');

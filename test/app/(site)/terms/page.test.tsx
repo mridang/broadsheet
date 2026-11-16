@@ -3,12 +3,21 @@ import { describe, expect, it } from '@jest/globals';
 import TermsPage, { metadata } from '@/app/(site)/terms/page';
 import { html } from '../../../components/render';
 
+const HAS_ONE_HEADING_THE_PATTERN = /<h1/g;
+const HAS_ONE_HEADING_THE_PATTERN_2 = /<h1[^>]*>Terms of Service<\/h1>/;
+const LINKS_THE_SOURCE_IN_PATTERN =
+  /<a href="https:\/\/github\.com\/mridang\/broadsheet" target="_blank"[^>]*>GitHub<\/a>/;
+const POINTS_TO_THE_PRIVACY_PATTERN =
+  /<a [^>]*href="\/privacy"[^>]*>privacy policy<\/a>/;
+const LINKS_BACK_HOME_PATTERN =
+  /<a [^>]*href="\/"[^>]*>.*Back to Broadsheet<\/a>/;
+
 describe('TermsPage', () => {
   const out = html(<TermsPage />);
 
   it('has one heading, the terms’ title', () => {
-    expect(out.match(/<h1/g)).toHaveLength(1);
-    expect(out).toMatch(/<h1[^>]*>Terms of Service<\/h1>/);
+    expect(out.match(HAS_ONE_HEADING_THE_PATTERN)).toHaveLength(1);
+    expect(out).toMatch(HAS_ONE_HEADING_THE_PATTERN_2);
   });
 
   it('says when it last changed', () => {
@@ -38,13 +47,11 @@ describe('TermsPage', () => {
   });
 
   it('links the source in a new tab', () => {
-    expect(out).toMatch(
-      /<a href="https:\/\/github\.com\/mridang\/broadsheet" target="_blank"[^>]*>GitHub<\/a>/,
-    );
+    expect(out).toMatch(LINKS_THE_SOURCE_IN_PATTERN);
   });
 
   it('points to the privacy policy for data', () => {
-    expect(out).toMatch(/<a [^>]*href="\/privacy"[^>]*>privacy policy<\/a>/);
+    expect(out).toMatch(POINTS_TO_THE_PRIVACY_PATTERN);
   });
 
   it('gives the contact address', () => {
@@ -52,7 +59,7 @@ describe('TermsPage', () => {
   });
 
   it('links back home', () => {
-    expect(out).toMatch(/<a [^>]*href="\/"[^>]*>.*Back to Broadsheet<\/a>/);
+    expect(out).toMatch(LINKS_BACK_HOME_PATTERN);
   });
 });
 

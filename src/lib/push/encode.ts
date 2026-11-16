@@ -1,3 +1,4 @@
+const B64U_ENCODE_PATTERN = /={1,2}$/;
 /**
  * @packageDocumentation
  *
@@ -14,8 +15,8 @@ export function b64uDecode(input: string): Uint8Array {
   const padded = std + PAD.repeat((4 - (std.length % 4)) % 4);
   const bin = atob(padded);
   const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i += 1) {
-    out[i] = bin.codePointAt(i) ?? 0;
+  for (let index = 0; index < bin.length; index += 1) {
+    out[index] = bin.codePointAt(index) ?? 0;
   }
   return out;
 }
@@ -29,7 +30,7 @@ export function b64uEncode(bytes: Uint8Array): string {
   return btoa(s)
     .replaceAll('+', '-')
     .replaceAll('/', '_')
-    .replace(/={1,2}$/, '');
+    .replace(B64U_ENCODE_PATTERN, '');
 }
 
 /** Concatenate any number of byte arrays in order. @public */

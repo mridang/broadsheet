@@ -1,3 +1,4 @@
+const WITH_QUERY_PARAMS_PATTERN = /^([^?#]*)(\?[^#]*)?(#.*)?$/;
 /**
  * @packageDocumentation
  *
@@ -58,6 +59,6 @@ export function withQueryParams(
     return url.toString();
   }
   const [, base = '', query = '', hash = ''] =
-    /^([^?#]*)(\?[^#]*)?(#.*)?$/.exec(url.href) ?? [];
+    WITH_QUERY_PARAMS_PATTERN.exec(url.href) ?? [];
   return `${base}${setSearchParams(query, params)}${hash}`;
 }

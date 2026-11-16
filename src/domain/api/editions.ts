@@ -136,7 +136,10 @@ export function createEditionItem(
     .on<EditionChanges, CustomEdition | undefined>({
       method: 'PATCH',
       decode: (request) => decodeEdition(request, false),
-      handle: async (changes, { request, uid }) => {
+      handle: async (
+        changes,
+        { request, uid },
+      ): Promise<CustomEdition | undefined> => {
         const id = parseFeedId(idOf(request));
         if (id === undefined) return undefined;
         const repo = new Repository(getDatabase());
@@ -183,7 +186,7 @@ export function createEditionIssueItem(
     }),
   }).on<null, Issue | undefined>({
     method: 'GET',
-    handle: async (_input, { request, uid }) => {
+    handle: async (_input, { request, uid }): Promise<Issue | undefined> => {
       const id = editionIdOf(request);
       const date = idOf(request);
       if (id === undefined || !isIssueDate(date)) return undefined;

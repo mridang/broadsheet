@@ -3,6 +3,8 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import vm from 'node:vm';
 
+const collator = new Intl.Collator();
+
 const SW_SOURCE = await readFile(
   path.join(process.cwd(), 'public/sw.js'),
   'utf8',
@@ -116,7 +118,7 @@ describe('public/sw.js', () => {
   it('listens for install, activate and fetch', () => {
     const { listeners } = loadWorker({ online: true, preload: true });
     expect(
-      [...listeners.keys()].toSorted((a, b) => a.localeCompare(b)),
+      [...listeners.keys()].toSorted((a, b) => collator.compare(a, b)),
     ).toEqual([
       'activate',
       'fetch',
@@ -371,6 +373,7 @@ describe('public/sw.js: pushsubscriptionchange', () => {
   it('posts the new subscription the browser hands over to the push path', async () => {
     const worker = loadWorker({ online: true, preload: false, query });
     await renew(worker, {
+      // eslint-disable-next-line unicorn/no-keyword-prefix -- newSubscription is the field name of the browser pushsubscriptionchange event
       newSubscription: {
         toJSON: () => ({ endpoint: 'https://push.test/new' }),
       },
@@ -410,6 +413,7 @@ describe('public/sw.js: pushsubscriptionchange', () => {
     async (q) => {
       const worker = loadWorker({ online: true, preload: false, query: q });
       await renew(worker, {
+        // eslint-disable-next-line unicorn/no-keyword-prefix -- newSubscription is the field name of the browser pushsubscriptionchange event
         newSubscription: { toJSON: () => ({}) },
       });
       expect(worker.calls.fetched).toEqual([]);

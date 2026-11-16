@@ -107,6 +107,7 @@ export function AddRuleForm({
             </label>
           ))}
           <button
+            // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
             className={buttonClass({ className: 'sm:ml-auto' })}
             type="submit"
             disabled={busy}

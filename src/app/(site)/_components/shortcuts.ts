@@ -187,7 +187,7 @@ export function focusedStory(
  * (NewsBlur's `n`).
  */
 export function nextUnread(read: readonly boolean[], current: number): number {
-  return read.findIndex((isRead, i) => i > current && !isRead);
+  return read.findIndex((isRead, index) => index > current && !isRead);
 }
 
 /**
@@ -226,12 +226,12 @@ export function storiesToMark(
   current: number,
   which: 'read-all' | 'read-above' | 'read-below',
 ): number[] {
-  const all = Array.from({ length: count }, (_, i) => i);
+  const all = Array.from({ length: count }, (_, index) => index);
   if (which === 'read-all') return all;
   if (current < 0) return [];
   return which === 'read-above'
-    ? all.filter((i) => i < current)
-    : all.filter((i) => i > current);
+    ? all.filter((index) => index < current)
+    : all.filter((index) => index > current);
 }
 
 /** The sections whose names hold `query`, ignoring case (NewsBlur's `g`). */
@@ -240,7 +240,7 @@ export function matchSections(
   query: string,
 ): number[] {
   const q = query.trim().toLowerCase();
-  return names.flatMap((name, i) =>
-    name.toLowerCase().includes(q) ? [i] : [],
+  return names.flatMap((name, index) =>
+    name.toLowerCase().includes(q) ? [index] : [],
   );
 }

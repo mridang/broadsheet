@@ -21,6 +21,8 @@ import { SCOPE_READ, SCOPE_WRITE } from '@/domain/mcp/app';
 import { APP_MIGRATIONS } from '../../../lib/core/db/migrations';
 import urls from '../../../fixtures/insecure-urls.json' with { type: 'json' };
 
+const SENDS_AN_APPROVAL_BACK_PATTERN = /^cdn_/;
+
 /** Who is signed in; null means nobody. */
 /** `ended`: the person signed out everywhere, though the cookie itself still verifies. */
 const session: { uid: number | null; ended: boolean } = {
@@ -111,7 +113,9 @@ describe('POST /oauth/consent', () => {
     );
     expect(location.searchParams.get('state')).toBe('xyz');
     expect(location.searchParams.get('iss')).toBe(ORIGIN);
-    expect(location.searchParams.get('code')).toMatch(/^cdn_/);
+    expect(location.searchParams.get('code')).toMatch(
+      SENDS_AN_APPROVAL_BACK_PATTERN,
+    );
     expect(raw.prepare('SELECT COUNT(*) AS n FROM oauth_codes').get()).toEqual({
       n: 1,
     });

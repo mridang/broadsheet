@@ -35,6 +35,8 @@ import { WebPushSender, type PushPayload } from '@/lib/push';
 import { fetchCapped, type SafeFetcher } from '@/lib/safe-fetch';
 import { errorMessage, logError } from '@/utils/logging';
 
+const DELIVER_WEBHOOKS_PATTERN = /\.\d{3}Z$/;
+
 /** How we introduce ourselves to push services and webhook receivers. */
 const USER_AGENT = `${BRAND_SHORT_NAME} (+${BRAND_URL})`;
 
@@ -223,7 +225,7 @@ export async function deliverWebhooks(
     const at = now();
     const body = JSON.stringify({
       event,
-      occurred_at: at.toISOString().replace(/\.\d{3}Z$/, 'Z'),
+      occurred_at: at.toISOString().replace(DELIVER_WEBHOOKS_PATTERN, 'Z'),
       data,
     });
     try {

@@ -23,6 +23,8 @@ import type { Article, Preferences } from '@/domain/repository';
 import { coverageBoost, hostOf, weight } from '@/domain/render/tiers';
 import { logWarn } from '@/utils/logging';
 
+const WORD_COUNT_PATTERN = /\s+/;
+
 /** The model the note is written with when the reader chose none. */
 export const BRIEFING_MODEL = '@cf/meta/llama-3.1-8b-instruct-fast';
 
@@ -217,7 +219,7 @@ const SELECTION_DEFAULTS = {
 /** Words in a story's text (its body, else its summary). */
 export function wordCount(a: Article): number {
   const text = a.body_text || a.summary || '';
-  return text.split(/\s+/).filter(Boolean).length;
+  return text.split(WORD_COUNT_PATTERN).filter(Boolean).length;
 }
 
 /** The boost a rarely publishing source gets: up to 2x, none above 30 a month. */
@@ -276,15 +278,15 @@ export function allocate(
   if (!n) return out;
   const total = (n * (n + 1)) / 2;
   let left = budget;
-  sections.forEach((key, i) => {
+  for (const [index, key] of sections.entries()) {
     const share =
-      i === n - 1
+      index === n - 1
         ? Math.max(left, 0)
-        : Math.max(1, Math.floor((budget * (n - i)) / total));
+        : Math.max(1, Math.floor((budget * (n - index)) / total));
     const given = Math.min(share, Math.max(left, 0));
     out.set(key, given);
     left -= given;
-  });
+  }
   return out;
 }
 
@@ -386,11 +388,11 @@ export function selectStories(
           (isCustom || !c.read),
       )
       .slice(0, isCustom ? PER_PROMPT : PER_GLOBAL);
-    pick.forEach((c) => {
+    for (const c of pick) {
       taken.add(c.article.id);
       urls.add(c.article.url);
       chosen.push({ candidate: c, category: key });
-    });
+    }
   }
   return order.flatMap((key) => chosen.filter((c) => c.category === key));
 }
@@ -433,9 +435,9 @@ export function systemPrompt(
   const sections = sectionsOf(picks, {
     briefing_section_order: given.briefing_section_order ?? null,
   })
-    .map((k, i) => {
+    .map((k, index) => {
       const [head, guide] = sectionLine(k, prompts);
-      return `${i + 1}. ${head} (${k}): ${guide}`;
+      return `${index + 1}. ${head} (${k}): ${guide}`;
     })
     .join('\n');
   return (
@@ -455,10 +457,10 @@ export function userPrompt(picks: readonly Choice[], date: string): string {
   return (
     `Today's date: ${date}\n\nStories, most important first:\n\n` +
     picks
-      .map(({ candidate: c, category }, i) => {
+      .map(({ candidate: c, category }, index) => {
         const a = c.article;
         const lines = [
-          `${i + 1}. TITLE: ${a.title ?? ''}`,
+          `${index + 1}. TITLE: ${a.title ?? ''}`,
           `FEED: ${a.source || hostOf(a.url)}`,
           `DATE: ${a.published_at || a.edition || ''}`,
           `CATEGORY: ${category}`,

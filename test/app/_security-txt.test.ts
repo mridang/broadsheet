@@ -3,6 +3,8 @@ import { describe, expect, it } from '@jest/globals';
 import { BRAND_URL, SECURITY_POLICY_URL } from '@/app/_brand';
 import { SECURITY_TXT_VALID_DAYS, securityTxt } from '@/app/_security-txt';
 
+const HAS_THE_ONE_FIELD_PATTERN = /^mailto:.+@.+/;
+
 describe('securityTxt', () => {
   const now = new Date('2026-10-18T00:00:00Z');
   const lines = securityTxt(now).trim().split('\n');
@@ -10,7 +12,7 @@ describe('securityTxt', () => {
     lines.find((l) => l.startsWith(`${name}:`))?.slice(name.length + 2);
 
   it('has the one field the standard requires, a contact', () => {
-    expect(field('Contact')).toMatch(/^mailto:.+@.+/);
+    expect(field('Contact')).toMatch(HAS_THE_ONE_FIELD_PATTERN);
   });
 
   it('expires half a year after it is made, in ISO 8601', () => {

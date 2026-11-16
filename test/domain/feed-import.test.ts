@@ -115,7 +115,7 @@ describe('importFeeds by name', () => {
 
 describe('comparable', () => {
   it('is empty for nothing or a non-address', () => {
-    expect(comparable(undefined)).toBe('');
+    expect(comparable()).toBe('');
     expect(comparable('nonsense')).toBe('');
   });
   it('ignores scheme, www, fragment and trailing slashes but not the query', () => {

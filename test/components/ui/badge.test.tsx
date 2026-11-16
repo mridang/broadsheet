@@ -1,20 +1,22 @@
 import { describe, expect, it } from '@jest/globals';
 
 import { Badge, Chip, CHIP } from '@/components/ui/badge';
-import { classOf, html } from '../render';
+import { cssClassesOf, html } from '../render';
 
 describe('Badge', () => {
   it('is a quiet neutral label by default', () => {
-    expect(classOf(html(<Badge>3</Badge>), 'span')).toContain('text-muted');
+    expect(cssClassesOf(html(<Badge>3</Badge>), 'span')).toContain(
+      'text-muted',
+    );
   });
 
   it('takes its colours from the tone', () => {
     expect(
-      classOf(html(<Badge tone="danger">Failing</Badge>), 'span'),
+      cssClassesOf(html(<Badge tone="danger">Failing</Badge>), 'span'),
     ).toContain('text-danger');
-    expect(classOf(html(<Badge tone="success">Live</Badge>), 'span')).toContain(
-      'text-success',
-    );
+    expect(
+      cssClassesOf(html(<Badge tone="success">Live</Badge>), 'span'),
+    ).toContain('text-success');
   });
 });
 

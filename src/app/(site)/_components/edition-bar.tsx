@@ -8,6 +8,7 @@ import { MENU_ITEM, Menu } from '@/components/ui/menu';
 const ARROW = buttonClass({
   variant: 'outline',
   size: 'sm',
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
   className: 'w-9 border-line px-0',
 });
 
@@ -23,9 +24,9 @@ export function EditionBar({
   selected: string;
   editions: string[];
 }>) {
-  const i = editions.indexOf(selected);
-  const older = i === -1 ? undefined : editions[i + 1]; // editions are newest-first
-  const newer = i > 0 ? editions[i - 1] : undefined;
+  const index = editions.indexOf(selected);
+  const older = index === -1 ? undefined : editions[index + 1]; // editions are newest-first
+  const newer = index > 0 ? editions[index - 1] : undefined;
 
   return (
     <div className="flex items-center gap-2 print:hidden">

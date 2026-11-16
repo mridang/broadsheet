@@ -3,6 +3,11 @@ import { describe, expect, it } from '@jest/globals';
 import { FeedRail, type RailFeed } from '@/components/feeds/feed-rail';
 import { html } from '../render';
 
+const SHOWS_A_FEED_ICON_PATTERN =
+  /<img src="\/img\?url=https%3A%2F%2Fexample\.com%2Fi\.png/;
+const SHOWS_HOW_MANY_STORIES_PATTERN = />12<\/span>/;
+const SHOWS_HOW_MANY_STORIES_PATTERN_2 = />0<\/span>/;
+
 const feed = (over: Partial<RailFeed>): RailFeed => ({
   id: 1,
   url: 'https://a.test/feed',
@@ -33,9 +38,7 @@ describe('FeedRail', () => {
     const out = html(
       await FeedRail({ feeds: [feed({ icon: 'https://example.com/i.png' })] }),
     );
-    expect(out).toMatch(
-      /<img src="\/img\?url=https%3A%2F%2Fexample\.com%2Fi\.png/,
-    );
+    expect(out).toMatch(SHOWS_A_FEED_ICON_PATTERN);
   });
 
   it('shows how many stories a feed holds, and nothing for none', async () => {
@@ -44,7 +47,7 @@ describe('FeedRail', () => {
         feeds: [feed({ count: 12 }), feed({ id: 2, count: 0 })],
       }),
     );
-    expect(out).toMatch(/>12<\/span>/);
-    expect(out).not.toMatch(/>0<\/span>/);
+    expect(out).toMatch(SHOWS_HOW_MANY_STORIES_PATTERN);
+    expect(out).not.toMatch(SHOWS_HOW_MANY_STORIES_PATTERN_2);
   });
 });

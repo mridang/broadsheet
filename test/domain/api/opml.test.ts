@@ -2,13 +2,13 @@ import { describe, expect, it } from '@jest/globals';
 
 import { buildOpml, escapeXml, parseOpml } from '@/domain/api/opml';
 
-const doc = (body: string) =>
+const documentRoot = (body: string) =>
   `<?xml version="1.0"?><opml version="2.0"><body>${body}</body></opml>`;
 
 describe('parseOpml', () => {
   it('reads feeds, using folders as sections', () => {
     const parsed = parseOpml(
-      doc(`<outline text="Tech"><outline type="rss" text="HN &amp; Co" xmlUrl="https://a.test/f"/></outline>
+      documentRoot(`<outline text="Tech"><outline type="rss" text="HN &amp; Co" xmlUrl="https://a.test/f"/></outline>
         <outline title="Lone" xmlUrl='https://b.test/f'></outline>`),
     );
     expect(parsed).toEqual({
@@ -22,7 +22,7 @@ describe('parseOpml', () => {
 
   it('files nested folders under the top-level one and pops it after', () => {
     const parsed = parseOpml(
-      doc(
+      documentRoot(
         `<outline text="A"><outline text="B"><outline xmlUrl="https://a.test/1"/></outline></outline><outline xmlUrl="https://a.test/2"/>`,
       ),
     );
@@ -50,7 +50,9 @@ describe('parseOpml', () => {
 
   it('leaves unknown entities alone', () => {
     expect(
-      parseOpml(doc('<outline text="&nope;" xmlUrl="https://a.test/f"/>')),
+      parseOpml(
+        documentRoot('<outline text="&nope;" xmlUrl="https://a.test/f"/>'),
+      ),
     ).toMatchObject({
       feeds: [{ title: '&nope;' }],
     });
@@ -58,7 +60,9 @@ describe('parseOpml', () => {
 
   it('reads numeric character references', () => {
     expect(
-      parseOpml(doc('<outline text="&#65;&#x42;" xmlUrl="https://a.test/f"/>')),
+      parseOpml(
+        documentRoot('<outline text="&#65;&#x42;" xmlUrl="https://a.test/f"/>'),
+      ),
     ).toMatchObject({
       feeds: [{ title: 'AB' }],
     });
@@ -137,7 +141,7 @@ describe('parseOpml details', () => {
       '<outline text="f">'.repeat(12) +
       '<outline xmlUrl="https://a.test/f" htmlUrl="https://a.test/"/>' +
       '</outline>'.repeat(12);
-    const parsed = parseOpml(doc(deep));
+    const parsed = parseOpml(documentRoot(deep));
     expect(parsed).toMatchObject({ ok: true });
     const feed = (
       parsed as unknown as {
@@ -160,7 +164,9 @@ describe('escapeXml', () => {
 describe('parseOpml robustness', () => {
   it('reads a tag whose attribute holds a ">"', () => {
     expect(
-      parseOpml(doc('<outline text="a > b" xmlUrl="https://a.test/f"/>')),
+      parseOpml(
+        documentRoot('<outline text="a > b" xmlUrl="https://a.test/f"/>'),
+      ),
     ).toEqual({
       ok: true,
       feeds: [{ url: 'https://a.test/f', title: 'a > b' }],
@@ -169,7 +175,7 @@ describe('parseOpml robustness', () => {
 
   it('ignores commented-out outlines and CDATA', () => {
     const parsed = parseOpml(
-      doc(
+      documentRoot(
         '<!-- <outline xmlUrl="https://a.test/old"/> --><![CDATA[<outline xmlUrl="https://a.test/cd"/>]]><outline xmlUrl="https://a.test/new"/>',
       ),
     );
@@ -180,12 +186,14 @@ describe('parseOpml robustness', () => {
   });
 
   it('refuses an unterminated comment or tag', () => {
-    expect(parseOpml(doc('<!-- never closed')).ok).toBe(false);
-    expect(parseOpml(doc('<outline text="open')).ok).toBe(false);
+    expect(parseOpml(documentRoot('<!-- never closed')).ok).toBe(false);
+    expect(parseOpml(documentRoot('<outline text="open')).ok).toBe(false);
   });
 
   it('does not take <outlines> for an outline', () => {
-    expect(parseOpml(doc('<outlines xmlUrl="https://a.test/f"/>'))).toEqual({
+    expect(
+      parseOpml(documentRoot('<outlines xmlUrl="https://a.test/f"/>')),
+    ).toEqual({
       ok: true,
       feeds: [],
     });
@@ -193,13 +201,13 @@ describe('parseOpml robustness', () => {
 
   it('copes with a megabyte of unterminated outlines quickly', () => {
     const started = Date.now();
-    parseOpml(doc('<outline text="x'.repeat(60_000)));
+    parseOpml(documentRoot('<outline text="x'.repeat(60_000)));
     expect(Date.now() - started).toBeLessThan(1000);
   });
 
   it('survives deep nesting, keeping the first eight levels', () => {
     const depth = 5000;
-    const xml = doc(
+    const xml = documentRoot(
       '<outline text="F">'.repeat(depth) +
         '<outline xmlUrl="https://a.test/f"/>' +
         '</outline>'.repeat(depth),

@@ -1,3 +1,5 @@
+const BASE64_URL_PATTERN = /={1,2}$/;
+const FROM_BASE64_URL_PATTERN = /^[A-Za-z0-9_-]*={0,2}$/;
 /**
  * @packageDocumentation
  *
@@ -13,16 +15,16 @@ export function base64Url(bytes: Uint8Array): string {
   return btoa(binary)
     .replaceAll('+', '-')
     .replaceAll('/', '_')
-    .replace(/={1,2}$/, '');
+    .replace(BASE64_URL_PATTERN, '');
 }
 
 /** Unpadded (or padded) base64url as bytes; undefined when it is not base64url. */
 export function fromBase64Url(
   text: string,
 ): Uint8Array<ArrayBuffer> | undefined {
-  if (!/^[A-Za-z0-9_-]*={0,2}$/.test(text)) return undefined;
+  if (!FROM_BASE64_URL_PATTERN.test(text)) return undefined;
   const base64 = text
-    .replace(/={1,2}$/, '')
+    .replace(BASE64_URL_PATTERN, '')
     .replaceAll('-', '+')
     .replaceAll('_', '/');
   try {
@@ -40,9 +42,9 @@ export function randomToken(bytes = 32): string {
 
 /** Lowercase hex of bytes. */
 export function hex(bytes: ArrayBuffer): string {
-  return [...new Uint8Array(bytes)]
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
+  return Array.from(new Uint8Array(bytes), (b) =>
+    b.toString(16).padStart(2, '0'),
+  ).join('');
 }
 
 /** The SHA-256 of a string, as lowercase hex. */

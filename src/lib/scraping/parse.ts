@@ -9,12 +9,55 @@ import { decodeEntities } from '@/utils/html-entities';
 
 import type { ScrapedItem } from './types';
 
+const DECODE_PATTERN = /<!\[CDATA\[([\s\S]*?)\]\]>/g;
+const DECODE_PATTERN_2 = /\s+/g;
+const HOST_OF_PATTERN = /^www\./;
+const TITLEIZE_PATTERN = /[-_]/g;
+const TITLEIZE_PATTERN_2 = /\b\w/g;
+const PAGE_DESCRIPTION_PATTERN =
+  /<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i;
+const IS_BOILERPLATE_PATTERN =
+  /Article URL:|Comments URL:|\bPoints:\s|#\s*Comments:/i;
+const EXTRACT_POINTS_PATTERN = /Points:\s*(\d+)/i;
+const XML_TEXT_PATTERN = /&#(x[0-9a-f]+|\d+);/gi;
+const XML_TEXT_PATTERN_2 = /^x/i;
+const FEED_HEADER_PATTERN = /<!--[\s\S]*?-->/g;
+const FEED_HEADER_PATTERN_2 = /<\?[\s\S]*?\?>/g;
+const FEED_HEADER_PATTERN_3 = /<!DOCTYPE[^>]*>/gi;
+const FEED_HEADER_PATTERN_4 =
+  /(?<![\w:.-])([\w:.-]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
+const FEED_FORMAT_OF_PATTERN = /<rdf:RDF[\s>]/i;
+const FEED_FORMAT_OF_PATTERN_2 = /<rss[\s>]/i;
+const FEED_FORMAT_OF_PATTERN_3 = /<feed[\s>]/i;
+const FEED_DETAILS_PATTERN = /<(?:item|entry)[\s>]/i;
+const FEED_DETAILS_PATTERN_2 = /<image[\s>][\s\S]*?<\/image>/gi;
+const FEED_DETAILS_PATTERN_3 =
+  /<link\b(?=[^>]*\brel=["']alternate["'])[^>]*\bhref=["']([^"']+)["']/i;
+const FEED_DETAILS_PATTERN_4 =
+  /<link\b(?![^>]*\brel=)[^>]*\bhref=["']([^"']+)["']/i;
+const FEED_DETAILS_PATTERN_5 = /<image[\s>][\s\S]*?<url>([\s\S]*?)<\/url>/i;
+const FEED_DETAILS_PATTERN_6 = /<feed\b[^>]*\bxml:lang=["']([^"']+)["']/i;
+const BRACKETED_NAME_PATTERN = /\s/;
+const BRACKETED_NAME_PATTERN_2 = /[\n\r\u2028\u2029]/;
+const ITEM_AUTHOR_PATTERN =
+  /<author[^>]*>[\s\S]*?<name[^>]*>([\s\S]*?)<\/name>/i;
+const ITEM_TAGS_PATTERN = /<category[^>]*>([\s\S]*?)<\/category>/gi;
+const ITEM_TAGS_PATTERN_2 = /<category[^>]*\bterm=["']([^"']+)["']/gi;
+const ITEM_IMAGE_PATTERN = /<img\b[^>]*?\bsrc\s*=\s*["']([^"']+)["']/gi;
+const ITEM_IMAGE_PATTERN_2 = /^https?:/i;
+const PARSE_FEED_PATTERN = /<item[\s>][\s\S]*?<\/item>/gi;
+const PARSE_FEED_PATTERN_2 = /<entry[\s>][\s\S]*?<\/entry>/gi;
+const PARSE_FEED_PATTERN_3 = /<link[^>]*href=["']([^"']+)["']/i;
+const ARTICLE_TEXT_PATTERN =
+  /<(p|h[2-4]|li|blockquote)\b[^>]*>([\s\S]*?)<\/\1>/gi;
+const ARTICLE_TEXT_PATTERN_2 = /^h/i;
+
 /** Most items kept from one fetch of a feed: enough for a full archive, not a runaway one. */
 const MAX_PER_FEED = 100;
 
 export const decode = (s = ''): string =>
-  stripTags(decodeEntities(s.replaceAll(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')))
-    .replaceAll(/\s+/g, ' ')
+  stripTags(decodeEntities(s.replaceAll(DECODE_PATTERN, '$1')))
+    .replaceAll(DECODE_PATTERN_2, ' ')
     .trim();
 
 function tag(block: string, name: string): string {
@@ -27,7 +70,7 @@ function tag(block: string, name: string): string {
 
 export function hostOf(u: string): string {
   try {
-    return new URL(u).hostname.replace(/^www\./, '');
+    return new URL(u).hostname.replace(HOST_OF_PATTERN, '');
   } catch {
     return u;
   }
@@ -69,14 +112,14 @@ const STRIP_SUB = new Set([
 
 const titleize = (s: string): string =>
   s
-    .replaceAll(/[-_]/g, ' ')
-    .replaceAll(/\s+/g, ' ')
+    .replaceAll(TITLEIZE_PATTERN, ' ')
+    .replaceAll(DECODE_PATTERN_2, ' ')
     .trim()
-    .replaceAll(/\b\w/g, (c) => c.toUpperCase())
+    .replaceAll(TITLEIZE_PATTERN_2, (c) => c.toUpperCase())
     .slice(0, 40);
 
 export function domainClean(host: string): string {
-  const h = host.replace(/^www\./, '');
+  const h = host.replace(HOST_OF_PATTERN, '');
   const override = OVERRIDES[h];
   if (override) return override;
   const labels = h.split('.');
@@ -92,14 +135,14 @@ export function domainClean(host: string): string {
   return titleize(nameLabel || h);
 }
 
-function metaContent(html: string, prop: string): string {
+function metaContent(html: string, property: string): string {
   const m =
     new RegExp(
-      `<meta[^>]+(?:property|name)=["']${prop}["'][^>]+content=["']([^"']+)["']`,
+      `<meta[^>]+(?:property|name)=["']${property}["'][^>]+content=["']([^"']+)["']`,
       'i',
     ).exec(html) ??
     new RegExp(
-      `<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${prop}["']`,
+      `<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${property}["']`,
       'i',
     ).exec(html);
   return m?.[1] ?? '';
@@ -124,10 +167,7 @@ export function pageDescription(html: string): string {
     metaContent(html, 'og:description') ||
     metaContent(html, 'twitter:description');
   if (og) return decode(og);
-  const m =
-    /<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i.exec(
-      html,
-    );
+  const m = PAGE_DESCRIPTION_PATTERN.exec(html);
   return m?.[1] ? decode(m[1]) : '';
 }
 
@@ -141,11 +181,11 @@ export function siteName(html: string): string {
 
 // hnrss feeds put HN metadata (not article text) in <description>.
 export const isBoilerplate = (s: string): boolean =>
-  /Article URL:|Comments URL:|\bPoints:\s|#\s*Comments:/i.test(s);
+  IS_BOILERPLATE_PATTERN.test(s);
 
 /** Pull the HN score out of an hnrss description ("... Points: 374 ..."). */
 export function extractPoints(s: string): number {
-  const m = /Points:\s*(\d+)/i.exec(s);
+  const m = EXTRACT_POINTS_PATTERN.exec(s);
   return m?.[1] ? Number(m[1]) : 0;
 }
 
@@ -160,8 +200,8 @@ export interface FeedElement {
 /** Decode the five XML entities and numeric references in a text or attribute. */
 function xmlText(raw: string): string {
   return raw
-    .replaceAll(/&#(x[0-9a-f]+|\d+);/gi, (whole, code: string) => {
-      const n = /^x/i.test(code)
+    .replaceAll(XML_TEXT_PATTERN, (whole, code: string) => {
+      const n = XML_TEXT_PATTERN_2.test(code)
         ? Number.parseInt(code.slice(1), 16)
         : Number(code);
 
@@ -205,9 +245,9 @@ export function feedHeader(xml: string): FeedElement[] {
     children: FeedElement[];
   }
   const source = xml
-    .replaceAll(/<!--[\s\S]*?-->/g, '')
-    .replaceAll(/<\?[\s\S]*?\?>/g, '')
-    .replaceAll(/<!DOCTYPE[^>]*>/gi, '');
+    .replaceAll(FEED_HEADER_PATTERN, '')
+    .replaceAll(FEED_HEADER_PATTERN_2, '')
+    .replaceAll(FEED_HEADER_PATTERN_3, '');
   const root: Open = { name: '', attributes: {}, text: '', children: [] };
   const stack: Open[] = [root];
   let count = 0;
@@ -223,7 +263,7 @@ export function feedHeader(xml: string): FeedElement[] {
         stack.at(-1)!.children.push({
           name: top.name,
           attributes: top.attributes,
-          text: top.text.replaceAll(/\s+/g, ' ').trim(),
+          text: top.text.replaceAll(DECODE_PATTERN_2, ' ').trim(),
           children: top.children,
         });
       }
@@ -231,9 +271,7 @@ export function feedHeader(xml: string): FeedElement[] {
       count += 1;
       if (count > MAX_HEADER_ELEMENTS * 50) break;
       const attributes: Record<string, string> = {};
-      for (const a of (m[4] ?? '').matchAll(
-        /(?<![\w:.-])([\w:.-]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g,
-      )) {
+      for (const a of (m[4] ?? '').matchAll(FEED_HEADER_PATTERN_4)) {
         attributes[a[1] ?? ''] = xmlText(a[2] ?? a[3] ?? '');
       }
       const open: Open = { name, attributes, text: '', children: [] };
@@ -249,7 +287,7 @@ export function feedHeader(xml: string): FeedElement[] {
     stack.at(-1)!.children.push({
       name: top.name,
       attributes: top.attributes,
-      text: top.text.replaceAll(/\s+/g, ' ').trim(),
+      text: top.text.replaceAll(DECODE_PATTERN_2, ' ').trim(),
       children: top.children,
     });
   }
@@ -302,9 +340,9 @@ function absolute(href: string, base: string): string {
 
 /** The format a feed's markup declares, or undefined when it declares none. */
 function feedFormatOf(xml: string): FeedFormat | undefined {
-  if (/<rdf:RDF[\s>]/i.test(xml)) return 'rdf';
-  if (/<rss[\s>]/i.test(xml)) return 'rss';
-  if (/<feed[\s>]/i.test(xml)) return 'atom';
+  if (FEED_FORMAT_OF_PATTERN.test(xml)) return 'rdf';
+  if (FEED_FORMAT_OF_PATTERN_2.test(xml)) return 'rss';
+  if (FEED_FORMAT_OF_PATTERN_3.test(xml)) return 'atom';
   return undefined;
 }
 
@@ -316,13 +354,11 @@ function feedFormatOf(xml: string): FeedFormat | undefined {
  */
 export function feedDetails(xml: string, feedUrl: string): FeedDetails {
   const format = feedFormatOf(xml);
-  const head = xml.split(/<(?:item|entry)[\s>]/i, 1)[0] ?? '';
-  const withoutImage = head.replaceAll(/<image[\s>][\s\S]*?<\/image>/gi, '');
+  const head = xml.split(FEED_DETAILS_PATTERN, 1)[0] ?? '';
+  const withoutImage = head.replaceAll(FEED_DETAILS_PATTERN_2, '');
   const alternate =
-    /<link\b(?=[^>]*\brel=["']alternate["'])[^>]*\bhref=["']([^"']+)["']/i.exec(
-      head,
-    )?.[1] ??
-    /<link\b(?![^>]*\brel=)[^>]*\bhref=["']([^"']+)["']/i.exec(head)?.[1] ??
+    FEED_DETAILS_PATTERN_3.exec(head)?.[1] ??
+    FEED_DETAILS_PATTERN_4.exec(head)?.[1] ??
     '';
   const siteUrl = absolute(tag(withoutImage, 'link') || alternate, feedUrl);
   const changed =
@@ -338,7 +374,7 @@ export function feedDetails(xml: string, feedUrl: string): FeedDetails {
     period && frequency > 0 ? Math.round(period / frequency) : undefined;
   const updateMinutes = cadence ?? (ttl > 0 ? ttl : undefined);
   const image =
-    /<image[\s>][\s\S]*?<url>([\s\S]*?)<\/url>/i.exec(head)?.[1] ??
+    FEED_DETAILS_PATTERN_5.exec(head)?.[1] ??
     (tag(head, 'icon') || tag(head, 'logo'));
   return {
     ...(format ? { format } : {}),
@@ -348,8 +384,7 @@ export function feedDetails(xml: string, feedUrl: string): FeedDetails {
       tag(withoutImage, 'description') || tag(head, 'subtitle')
     ).slice(0, 500),
     language:
-      tag(head, 'language') ||
-      (/<feed\b[^>]*\bxml:lang=["']([^"']+)["']/i.exec(head)?.[1] ?? ''),
+      tag(head, 'language') || (FEED_DETAILS_PATTERN_6.exec(head)?.[1] ?? ''),
     updated_at: date && !Number.isNaN(date.getTime()) ? date.toISOString() : '',
     ...(updateMinutes ? { update_minutes: updateMinutes } : {}),
     icon: absolute(decode(image), feedUrl),
@@ -368,23 +403,24 @@ const MAX_TAGS = 20;
  * (or starts the word after it), and the text must end in `)`.
  */
 export function bracketedName(raw: string): string {
-  const word = raw.search(/\s/);
+  const word = raw.search(BRACKETED_NAME_PATTERN);
   const end = word === -1 ? raw.length : word;
   const at = raw.indexOf('@', 1);
   const closed = raw.endsWith(')');
   if (at === -1 || at + 2 > end || !closed) return raw.trim();
   let gap = end;
-  while (gap < raw.length && /\s/.test(raw.charAt(gap))) gap += 1;
+  while (gap < raw.length && BRACKETED_NAME_PATTERN.test(raw.charAt(gap)))
+    gap += 1;
   const opens = [
     gap,
-    ...Array.from({ length: end - at - 2 }, (_, i) => end - 1 - i),
+    ...Array.from({ length: end - at - 2 }, (_, index) => end - 1 - index),
   ];
   for (const open of opens) {
     const name = raw.slice(open + 1, -1);
     if (
       raw.charAt(open) === '(' &&
       open + 2 < raw.length &&
-      !/[\n\r\u2028\u2029]/.test(name)
+      !BRACKETED_NAME_PATTERN_2.test(name)
     ) {
       return name.trim();
     }
@@ -397,18 +433,15 @@ export function bracketedName(raw: string): string {
  * `<author>` (often `mail@x (Name)`, where the name in brackets is kept).
  */
 export function itemAuthor(block: string): string {
-  const atom = /<author[^>]*>[\s\S]*?<name[^>]*>([\s\S]*?)<\/name>/i.exec(
-    block,
-  );
+  const atom = ITEM_AUTHOR_PATTERN.exec(block);
   const named = bracketedName;
   const many = (name: string): string[] =>
-    [
-      ...block.matchAll(
+    Array.from(
+      block.matchAll(
         new RegExp(String.raw`<${name}[^>]*>([\s\S]*?)</${name}>`, 'gi'),
       ),
-    ]
-      .map((m) => named(decode(m[1] ?? '')))
-      .filter(Boolean);
+      (m) => named(decode(m[1] ?? '')),
+    ).filter(Boolean);
   const creators = many('dc:creator');
   const fallback = creators.length > 0 ? creators : many('author');
   const names = atom?.[1] ? [decode(atom[1])] : fallback;
@@ -418,10 +451,8 @@ export function itemAuthor(block: string): string {
 /** An item's categories: RSS `<category>` text and Atom `term`s, deduplicated. */
 export function itemTags(block: string): string[] {
   const found = [
-    ...[...block.matchAll(/<category[^>]*>([\s\S]*?)<\/category>/gi)].map((m) =>
-      decode(m[1] ?? ''),
-    ),
-    ...[...block.matchAll(/<category[^>]*\bterm=["']([^"']+)["']/gi)].map((m) =>
+    ...Array.from(block.matchAll(ITEM_TAGS_PATTERN), (m) => decode(m[1] ?? '')),
+    ...Array.from(block.matchAll(ITEM_TAGS_PATTERN_2), (m) =>
       decode(m[1] ?? ''),
     ),
   ]
@@ -431,7 +462,7 @@ export function itemTags(block: string): string[] {
 }
 
 /** The attribute `name` of a tag's opening text, entity-decoded. */
-function attr(opening: string, name: string): string {
+function attribute(opening: string, name: string): string {
   const m = new RegExp(
     String.raw`\b${name}\s*=\s*(?:"([^"]*)"|'([^']*)')`,
     'i',
@@ -441,8 +472,8 @@ function attr(opening: string, name: string): string {
 
 /** Whether a tag's `type`/`medium` says it is a picture, or says nothing. */
 const isPicture = (opening: string): boolean => {
-  const type = attr(opening, 'type').toLowerCase();
-  const medium = attr(opening, 'medium').toLowerCase();
+  const type = attribute(opening, 'type').toLowerCase();
+  const medium = attribute(opening, 'medium').toLowerCase();
   return type ? type.startsWith('image/') : !medium || medium === 'image';
 };
 
@@ -453,25 +484,24 @@ const isPicture = (opening: string): boolean => {
  */
 export function itemImage(block: string, base: string): string {
   const urls = (name: string, pictures: boolean): string[] =>
-    [...block.matchAll(new RegExp(String.raw`<${name}\b([^>]*)>`, 'gi'))]
-      .map((m) => m[1] ?? '')
+    Array.from(
+      block.matchAll(new RegExp(String.raw`<${name}\b([^>]*)>`, 'gi')),
+      (m) => m[1] ?? '',
+    )
       .filter((o) => !pictures || isPicture(o))
-      .map((o) => attr(o, 'url'));
-  const content = `${block}${xmlText(block)}`.replaceAll(
-    /<!\[CDATA\[([\s\S]*?)\]\]>/g,
-    '$1',
-  );
+      .map((o) => attribute(o, 'url'));
+  const content = `${block}${xmlText(block)}`.replaceAll(DECODE_PATTERN, '$1');
   const found = [
     ...urls('enclosure', true),
     ...urls('media:content', true),
     ...urls('media:thumbnail', false),
-    ...[...content.matchAll(/<img\b[^>]*?\bsrc\s*=\s*["']([^"']+)["']/gi)].map(
-      (m) => xmlText(m[1] ?? '').trim(),
+    ...Array.from(content.matchAll(ITEM_IMAGE_PATTERN), (m) =>
+      xmlText(m[1] ?? '').trim(),
     ),
   ];
   for (const href of found) {
     const url = absolute(href, base);
-    if (/^https?:/i.test(url)) return url;
+    if (ITEM_IMAGE_PATTERN_2.test(url)) return url;
   }
   return '';
 }
@@ -484,13 +514,11 @@ export function parseFeed(
   const title = tag(xml, 'title') || hostOf(feedUrl);
   const items: ScrapedItem[] = [];
   const blocks =
-    xml.match(/<item[\s>][\s\S]*?<\/item>/gi) ??
-    xml.match(/<entry[\s>][\s\S]*?<\/entry>/gi) ??
-    [];
+    xml.match(PARSE_FEED_PATTERN) ?? xml.match(PARSE_FEED_PATTERN_2) ?? [];
   for (const b of blocks) {
     let link = tag(b, 'link');
     if (!link) {
-      const m = /<link[^>]*href=["']([^"']+)["']/i.exec(b);
+      const m = PARSE_FEED_PATTERN_3.exec(b);
       if (m?.[1]) link = m[1];
     }
     if (!link) continue;
@@ -551,7 +579,7 @@ function region(html: string, name: string): string | undefined {
  */
 export function articleText(html: string): string {
   const clean = html
-    .replaceAll(/<!--[\s\S]*?-->/g, '')
+    .replaceAll(FEED_HEADER_PATTERN, '')
     .replaceAll(NOT_STORY, '');
   const body =
     region(clean, 'article') ??
@@ -559,10 +587,8 @@ export function articleText(html: string): string {
     region(clean, 'body') ??
     clean;
   const blocks: string[] = [];
-  for (const m of body.matchAll(
-    /<(p|h[2-4]|li|blockquote)\b[^>]*>([\s\S]*?)<\/\1>/gi,
-  )) {
-    const heading = /^h/i.test(m[1] ?? '');
+  for (const m of body.matchAll(ARTICLE_TEXT_PATTERN)) {
+    const heading = ARTICLE_TEXT_PATTERN_2.test(m[1] ?? '');
     const raw = decode(m[2] ?? '');
     const text = heading ? withoutPermalink(raw) : raw;
     if (heading ? text : text.split(' ').length >= 4) blocks.push(text);

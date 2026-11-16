@@ -18,6 +18,8 @@ import { CARD } from '@/components/ui/field';
 import { ErrorText } from '@/components/ui/notice';
 import { PageHeader, PageSection } from '@/components/ui/page-header';
 
+const BRIEFING_PAGE_PATTERN = /^[1-9]\d{0,14}$/;
+
 export const dynamic = 'force-dynamic';
 
 /** The tab title of one briefing. */
@@ -36,7 +38,7 @@ export default async function BriefingPage({
   const user = await getCurrentUser();
   if (!user) redirect('/login');
   const { id } = await params;
-  if (!/^[1-9]\d{0,14}$/.test(id)) notFound();
+  if (!BRIEFING_PAGE_PATTERN.test(id)) notFound();
   const repo = new Repository(getDatabase());
   const stored = await repo.getBriefing(user.id, Number(id));
   if (!stored) notFound();
@@ -73,8 +75,8 @@ export default async function BriefingPage({
         <div
           className={`${CARD} mt-8 space-y-4 p-6 font-serif text-base leading-relaxed text-ink sm:text-lg`}
         >
-          {note.map((p, i) => (
-            <p key={i}>{p}</p>
+          {note.map((p, index) => (
+            <p key={index}>{p}</p>
           ))}
         </div>
       ) : null}

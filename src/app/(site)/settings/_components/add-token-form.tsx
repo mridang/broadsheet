@@ -34,7 +34,7 @@ export function AddTokenForm({
 }: Readonly<{
   sections: readonly { id: number; name: string }[];
 }>): ReactElement {
-  const [address, setAddress] = useState<string | undefined>(undefined);
+  const [address, setAddress] = useState<string | undefined>();
   const { busy, error, run } = useApiAction();
   const submit = (event: SubmitEvent<HTMLFormElement>): void => {
     event.preventDefault();
@@ -56,6 +56,7 @@ export function AddTokenForm({
         </p>
         <button
           type="button"
+          // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
           className={buttonClass({ className: 'mt-3' })}
           onClick={() => globalThis.location.reload()}
         >

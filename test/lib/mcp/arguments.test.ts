@@ -13,7 +13,7 @@ describe('ArgumentChecker', () => {
   });
 
   it('treats absent arguments as none, filling in what the tool defaults', () => {
-    expect(checker.check(new CountTool(), undefined)).toEqual({
+    expect(checker.check(new CountTool())).toEqual({
       args: { limit: 0 },
     });
   });

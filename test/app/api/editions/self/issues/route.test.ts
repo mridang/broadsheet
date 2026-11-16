@@ -97,7 +97,7 @@ describe('GET /api/editions/self/issues', () => {
       items: { date: string }[];
       next?: string;
     };
-    expect(second.items.map((i: { date: string }) => i.date)).toEqual([
+    expect(second.items.map((index: { date: string }) => index.date)).toEqual([
       '2026-10-31',
     ]);
     expect(second.next).toBeUndefined();

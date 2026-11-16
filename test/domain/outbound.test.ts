@@ -157,10 +157,10 @@ describe('bodies', () => {
     await main.writeEdition(
       feed.source_id,
       '2026-10-02',
-      Array.from({ length: 95 }, (_, i) =>
+      Array.from({ length: 95 }, (_, index) =>
         story({
-          url: `https://x/${i}`,
-          ...(i ? { body_text: `Body ${i}` } : {}),
+          url: `https://x/${index}`,
+          ...(index ? { body_text: `Body ${index}` } : {}),
         }),
       ),
     );

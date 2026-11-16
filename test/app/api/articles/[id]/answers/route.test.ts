@@ -26,6 +26,8 @@ import {
   tokenFor,
 } from '../../../../../domain/auth/auth-test-kit';
 
+const ANSWERS_429_WITH_RETRY_AFTER_PATTERN = /^\d+$/;
+
 const { POST } = await import('@/app/api/articles/[id]/answers/route');
 
 let restore: () => void;
@@ -162,12 +164,14 @@ describe('POST /api/articles/:id/answers', () => {
   });
 
   it('answers 429 with Retry-After once today’s budget is used up', async () => {
-    for (let i = 0; i < DAILY_LIMITS.answer; i++) {
+    for (let index = 0; index < DAILY_LIMITS.answer; index++) {
       await new Repository(db).recordUsage(7, 'answer');
     }
     const res = await ask(story, '{"question":"Q"}');
     expect(res.status).toBe(429);
-    expect(res.headers.get('retry-after')).toMatch(/^\d+$/);
+    expect(res.headers.get('retry-after')).toMatch(
+      ANSWERS_429_WITH_RETRY_AFTER_PATTERN,
+    );
     expect(run).not.toHaveBeenCalled();
   });
 

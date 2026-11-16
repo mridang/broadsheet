@@ -253,7 +253,7 @@ function parseHistory(value: unknown, errors: string[]): ChatMessage[] {
     errors.push(`history: an array of at most ${HISTORY_TURNS} turns.`);
     return [];
   }
-  return value.flatMap((turn: unknown, i) => {
+  return value.flatMap((turn: unknown, index) => {
     const t = (turn ?? {}) as Record<string, unknown>;
     const extraKey = Object.keys(t).some(
       (k) => k !== 'role' && k !== 'content',
@@ -265,7 +265,7 @@ function parseHistory(value: unknown, errors: string[]): ChatMessage[] {
       extraKey
     ) {
       errors.push(
-        `history[${i}]: must be {role: user|assistant, content} with at most ${MAX_TURN_LENGTH} characters.`,
+        `history[${index}]: must be {role: user|assistant, content} with at most ${MAX_TURN_LENGTH} characters.`,
       );
       return [];
     }
@@ -446,9 +446,9 @@ export function citedIds(
   answer: string,
   allowed: ReadonlySet<number>,
 ): number[] {
-  const ids = [...answer.matchAll(/\[#(\d+)\]/g)]
-    .map((m) => Number(m[1]))
-    .filter((id) => allowed.has(id));
+  const ids = Array.from(answer.matchAll(/\[#(\d+)\]/g), (m) =>
+    Number(m[1]),
+  ).filter((id) => allowed.has(id));
   return [...new Set(ids)];
 }
 
@@ -582,8 +582,8 @@ export async function transcribe(
   audio: Uint8Array,
 ): Promise<string> {
   let binary = '';
-  for (let i = 0; i < audio.length; i += 0x80_00) {
-    binary += String.fromCodePoint(...audio.subarray(i, i + 0x80_00));
+  for (let index = 0; index < audio.length; index += 0x80_00) {
+    binary += String.fromCodePoint(...audio.subarray(index, index + 0x80_00));
   }
   const out = await ask(model, TRANSCRIPTION_MODEL, { audio: btoa(binary) });
   const text = typeof out?.text === 'string' ? out.text.trim() : '';

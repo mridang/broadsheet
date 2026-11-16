@@ -3,42 +3,52 @@ import { describe, expect, it } from '@jest/globals';
 import { ShareButton } from '@/app/(site)/_components/share-button';
 import { html } from '../../../components/render';
 
+const OFFERS_TO_SHARE_A_PATTERN = /^<details class="[^"]*print:hidden/;
+const OFFERS_TO_SHARE_A_PATTERN_2 =
+  /<summary[^>]*aria-label="Share A"[^>]*>Share<\/summary>/;
+const OFFERS_TO_SHARE_A_PATTERN_3 =
+  /<button type="submit"[^>]*>Share<\/button>/;
+const SAYS_A_SHARED_STORY_PATTERN =
+  /<button type="submit"[^>]*>Update<\/button>/;
+const SAYS_A_SHARED_STORY_PATTERN_2 =
+  /<button type="button"[^>]*>Unshare<\/button>/;
+const LABELS_THE_COMMENT_AND_PATTERN = /<label for="[^"]+"[^>]*>Comment/;
+const OPENS_FROM_A_BUTTON_PATTERN =
+  /^<span class="[^"]*print:hidden[^"]*" data-action="share"/;
+const OPENS_FROM_A_BUTTON_PATTERN_2 =
+  /<button type="button" aria-label="Share A"[^>]*>Share<\/button>/;
+const OPENS_FROM_A_BUTTON_PATTERN_3 = /popover="auto" data-popover=""/;
+
 describe('ShareButton', () => {
   it('offers to share a story not yet shared, off paper', () => {
     const out = html(
       <ShareButton articleId={7} shared={false} title="A" inline />,
     );
-    expect(out).toMatch(/^<details class="[^"]*print:hidden/);
-    expect(out).toMatch(
-      /<summary[^>]*aria-label="Share A"[^>]*>Share<\/summary>/,
-    );
-    expect(out).toMatch(/<button type="submit"[^>]*>Share<\/button>/);
+    expect(out).toMatch(OFFERS_TO_SHARE_A_PATTERN);
+    expect(out).toMatch(OFFERS_TO_SHARE_A_PATTERN_2);
+    expect(out).toMatch(OFFERS_TO_SHARE_A_PATTERN_3);
     expect(out).not.toContain('Unshare');
   });
 
   it('says a shared story is shared, and offers to change or stop it', () => {
     const out = html(<ShareButton articleId={7} shared title="A" inline />);
     expect(out).toContain('✓ Shared');
-    expect(out).toMatch(/<button type="submit"[^>]*>Update<\/button>/);
-    expect(out).toMatch(/<button type="button"[^>]*>Unshare<\/button>/);
+    expect(out).toMatch(SAYS_A_SHARED_STORY_PATTERN);
+    expect(out).toMatch(SAYS_A_SHARED_STORY_PATTERN_2);
   });
 
   it('labels the comment and says shares are public', () => {
     const out = html(
       <ShareButton articleId={7} shared={false} title="A" inline />,
     );
-    expect(out).toMatch(/<label for="[^"]+"[^>]*>Comment/);
+    expect(out).toMatch(LABELS_THE_COMMENT_AND_PATTERN);
     expect(out).toContain('Anyone signed in sees your share');
   });
 
   it('opens from a button as a popover outside a menu, off paper', () => {
     const out = html(<ShareButton articleId={7} shared={false} title="A" />);
-    expect(out).toMatch(
-      /^<span class="[^"]*print:hidden[^"]*" data-action="share"/,
-    );
-    expect(out).toMatch(
-      /<button type="button" aria-label="Share A"[^>]*>Share<\/button>/,
-    );
-    expect(out).toMatch(/popover="auto" data-popover=""/);
+    expect(out).toMatch(OPENS_FROM_A_BUTTON_PATTERN);
+    expect(out).toMatch(OPENS_FROM_A_BUTTON_PATTERN_2);
+    expect(out).toMatch(OPENS_FROM_A_BUTTON_PATTERN_3);
   });
 });

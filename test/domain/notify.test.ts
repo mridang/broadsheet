@@ -21,6 +21,10 @@ import type { SafeFetcher, SafeRequestInit } from '@/lib/safe-fetch';
 import { APP_MIGRATIONS } from '../lib/core/db/migrations';
 import { sqliteD1 } from '../lib/core/db/sqlite-d1';
 
+const POSTS_THE_SIGNED_EVENT_PATTERN = /^sha256=[0-9a-f]{64}$/;
+const OPENS_THAT_DAY_S_PAPER_PATTERN = /\/edition\/2026-11-01$/;
+const NAMES_THE_BRIEFING_AND_PATTERN = /\/api\/editions\/self\/briefings\/4$/;
+
 let db: Database;
 
 beforeEach(() => {
@@ -147,7 +151,9 @@ describe('deliverWebhooks', () => {
     expect(calls[0]?.init.headers).toMatchObject({
       'Content-Type': 'application/json',
       'Webhook-Timestamp': String(Math.floor(at.getTime() / 1000)),
-      'Webhook-Signature': expect.stringMatching(/^sha256=[0-9a-f]{64}$/),
+      'Webhook-Signature': expect.stringMatching(
+        POSTS_THE_SIGNED_EVENT_PATTERN,
+      ),
     });
     expect(calls[0]?.init.redirect).toBe('manual');
   });
@@ -219,7 +225,7 @@ async function notifying(
   await repo.writeEdition(
     feed.source_id,
     '2026-10-02',
-    titles.map((t, i) => story(`https://x/${i}`, t)),
+    titles.map((t, index) => story(`https://x/${index}`, t)),
   );
   await new NotificationRepository(db).setFeedNotification(user.id, feed.id, {
     filter,
@@ -385,7 +391,7 @@ describe('notifyNewStories rules and activity', () => {
     await repo.writeEdition(
       feed.source_id,
       '2026-10-02',
-      titles.map((t, i) => story(`https://x/${i}`, t)),
+      titles.map((t, index) => story(`https://x/${index}`, t)),
     );
     return { user, feed };
   }
@@ -468,7 +474,7 @@ describe('notifyNewStories rules and activity', () => {
 describe('issueReadyNotice', () => {
   it('opens that day’s paper', () => {
     expect(issueReadyNotice('2026-11-01').url).toMatch(
-      /\/edition\/2026-11-01$/,
+      OPENS_THAT_DAY_S_PAPER_PATTERN,
     );
   });
 });
@@ -480,7 +486,7 @@ describe('briefingReadyNotice', () => {
       tag: 'briefing-4',
     });
     expect(briefingReadyNotice(4, 'x').url).toMatch(
-      /\/api\/editions\/self\/briefings\/4$/,
+      NAMES_THE_BRIEFING_AND_PATTERN,
     );
   });
 });

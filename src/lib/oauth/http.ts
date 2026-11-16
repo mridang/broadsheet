@@ -8,6 +8,8 @@
 
 import { readFormBody, type FormBody } from '@/lib/core/api';
 
+const BEARER_TOKEN_PATTERN = /^Bearer\s+(\S+)$/i;
+
 /**
  * CORS for endpoints a browser-based client may call. The MCP headers are
  * spelled as the spec writes them (names are case-insensitive to a browser).
@@ -77,7 +79,7 @@ export function oauthError(
 /** The token from an `Authorization: Bearer …` header, if present. */
 export function bearerToken(request: Request): string | undefined {
   const header = request.headers.get('authorization') ?? '';
-  const match = /^Bearer\s+(\S+)$/i.exec(header);
+  const match = BEARER_TOKEN_PATTERN.exec(header);
   return match?.[1];
 }
 

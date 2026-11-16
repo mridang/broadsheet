@@ -17,6 +17,8 @@
 import { base64ToBytes } from '@/utils/base64';
 import { parseUrl } from '@/utils/url';
 
+const DECODE_HEADER_VALUE_PATTERN = /^=\?base64\?(.*)\?=$/;
+
 /** The newest revision, which has no handshake and no sessions. */
 export const MODERN_VERSION = '2026-07-28';
 
@@ -63,7 +65,7 @@ export const ERROR_UNSUPPORTED_VERSION = -32_022;
  * speak it, otherwise the newest older revision. (Only handshake-based versions
  * are offered here; a client that wants the newest revision does not handshake.).
  */
-export function negotiateLegacyVersion(requested: unknown): string {
+export function negotiateLegacyVersion(requested?: unknown): string {
   return typeof requested === 'string' &&
     (LEGACY_VERSIONS as readonly string[]).includes(requested)
     ? requested
@@ -487,7 +489,7 @@ export function decodeHeaderValue(value: string | null): string | undefined {
   if (value === null) {
     return undefined;
   }
-  const encoded = /^=\?base64\?(.*)\?=$/.exec(value)?.[1];
+  const encoded = DECODE_HEADER_VALUE_PATTERN.exec(value)?.[1];
   if (encoded === undefined) {
     return value;
   }
@@ -520,9 +522,7 @@ const ALLOWED_HOSTS: readonly string[] = [
  * `null` are dropped: `*` would switch the check off, and `null` is what any
  * sandboxed frame or local file sends, so it says nothing about who is calling.
  */
-export function parseAllowedOrigins(
-  setting: string | undefined,
-): readonly string[] {
+export function parseAllowedOrigins(setting?: string): readonly string[] {
   return (setting ?? '')
     .split(',')
     .map((entry) => entry.trim())

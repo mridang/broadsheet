@@ -3,7 +3,7 @@ import { describe, expect, it } from '@jest/globals';
 import { collect } from '@/domain/mcp/tools/support';
 
 describe('collect', () => {
-  const rows = Array.from({ length: 250 }, (_, i) => ({ id: 250 - i }));
+  const rows = Array.from({ length: 250 }, (_, index) => ({ id: 250 - index }));
   const fetch = async (before: number | undefined, limit: number) =>
     rows
       .filter((r) => before === undefined || r.id < before)

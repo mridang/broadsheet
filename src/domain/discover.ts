@@ -1,3 +1,13 @@
+const TITLED_PATTERN = /[-_]+/g;
+const TITLED_PATTERN_2 = /\b\w/g;
+const LOOKS_LIKE_FEED_PATTERN =
+  /\/(feed|rss|atom)(\/|\.xml)?$|\.(xml|rss|atom)$/i;
+const CONVERT_TO_FEED_PATTERN = /^[a-z][\w+.-]*:\/\//i;
+const CONVERT_TO_FEED_PATTERN_2 = /^https?:\/\//i;
+const CONVERT_TO_FEED_PATTERN_3 = /^@/;
+const CONVERT_TO_FEED_PATTERN_4 = /^UC[\w-]{22}$/;
+const GOOGLE_NEWS_FEED_PATTERN = /^[a-z]{2}(-[A-Za-z]{2,4})?$/;
+const GOOGLE_NEWS_FEED_PATTERN_2 = /^[A-Z]{2}$/;
 /**
  * @packageDocumentation
  *
@@ -32,14 +42,14 @@ export interface Conversion {
 /** A name from an address segment: dashes to spaces, each word capitalised. */
 function titled(slug: string): string {
   return slug
-    .replaceAll(/[-_]+/g, ' ')
-    .replaceAll(/\b\w/g, (c) => c.toUpperCase())
+    .replaceAll(TITLED_PATTERN, ' ')
+    .replaceAll(TITLED_PATTERN_2, (c) => c.toUpperCase())
     .trim();
 }
 
 /** Whether an address already looks like a feed. */
 function looksLikeFeed(url: string): boolean {
-  return /\/(feed|rss|atom)(\/|\.xml)?$|\.(xml|rss|atom)$/i.test(url);
+  return LOOKS_LIKE_FEED_PATTERN.test(url);
 }
 
 /**
@@ -52,12 +62,17 @@ function looksLikeFeed(url: string): boolean {
  */
 export function convertToFeed(input: string): Conversion | undefined {
   const text = input.trim();
-  if (/^[a-z][\w+.-]*:\/\//i.test(text) && !/^https?:\/\//i.test(text)) {
+  if (
+    CONVERT_TO_FEED_PATTERN.test(text) &&
+    !CONVERT_TO_FEED_PATTERN_2.test(text)
+  ) {
     return undefined;
   }
   let url: URL;
   try {
-    url = new URL(/^https?:\/\//i.test(text) ? text : `https://${text}`);
+    url = new URL(
+      CONVERT_TO_FEED_PATTERN_2.test(text) ? text : `https://${text}`,
+    );
   } catch {
     return undefined;
   }
@@ -81,7 +96,7 @@ export function convertToFeed(input: string): Conversion | undefined {
     return {
       feed_url: `https://medium.com/feed/${first}`,
       platform: 'medium',
-      title: titled(first.replace(/^@/, '')),
+      title: titled(first.replace(CONVERT_TO_FEED_PATTERN_3, '')),
     };
   }
   if (host.endsWith('.ghost.io') || url.pathname.includes('/ghost/')) {
@@ -114,7 +129,7 @@ export function convertToFeed(input: string): Conversion | undefined {
     };
   }
   if (host === 'youtube.com' || host.endsWith('.youtube.com')) {
-    if (first === 'channel' && /^UC[\w-]{22}$/.test(second)) {
+    if (first === 'channel' && CONVERT_TO_FEED_PATTERN_4.test(second)) {
       return {
         feed_url: `https://www.youtube.com/feeds/videos.xml?channel_id=${second}`,
         platform: 'youtube',
@@ -203,8 +218,8 @@ export function googleNewsFeed(
   const language = request.language ?? 'en';
   const region = (request.region ?? 'US').toUpperCase();
   if (
-    !/^[a-z]{2}(-[A-Za-z]{2,4})?$/.test(language) ||
-    !/^[A-Z]{2}$/.test(region)
+    !GOOGLE_NEWS_FEED_PATTERN.test(language) ||
+    !GOOGLE_NEWS_FEED_PATTERN_2.test(region)
   ) {
     return undefined;
   }
@@ -240,7 +255,7 @@ export interface Podcast {
 }
 
 /** A string member, or undefined. */
-function str(value: unknown): string | undefined {
+function asString(value: unknown): string | undefined {
   return typeof value === 'string' && value ? value : undefined;
 }
 
@@ -250,23 +265,25 @@ export function podcastsFrom(body: unknown): Podcast[] {
   if (!Array.isArray(results)) return [];
   return results.flatMap((raw: unknown) => {
     const r = (raw ?? {}) as Record<string, unknown>;
-    const feed = str(r['feedUrl']);
+    const feed = asString(r['feedUrl']);
     if (!feed) return [];
     const episodes = r['trackCount'];
     return [
       {
-        name: str(r['collectionName']) ?? feed,
-        ...(str(r['artistName']) ? { author: str(r['artistName']) } : {}),
-        ...(str(r['artworkUrl100'])
-          ? { artwork: str(r['artworkUrl100']) }
+        name: asString(r['collectionName']) ?? feed,
+        ...(asString(r['artistName'])
+          ? { author: asString(r['artistName']) }
+          : {}),
+        ...(asString(r['artworkUrl100'])
+          ? { artwork: asString(r['artworkUrl100']) }
           : {}),
         feed_url: feed,
-        ...(str(r['primaryGenreName'])
-          ? { genre: str(r['primaryGenreName']) }
+        ...(asString(r['primaryGenreName'])
+          ? { genre: asString(r['primaryGenreName']) }
           : {}),
         ...(typeof episodes === 'number' ? { episodes } : {}),
-        ...(str(r['collectionViewUrl'])
-          ? { link: str(r['collectionViewUrl']) }
+        ...(asString(r['collectionViewUrl'])
+          ? { link: asString(r['collectionViewUrl']) }
           : {}),
       },
     ];
@@ -276,6 +293,6 @@ export function podcastsFrom(body: unknown): Podcast[] {
 /** Drops the trailing slashes; same as `.replace(/\/+$/, '')`, in linear time. */
 function trimTrailingSlashes(text: string): string {
   let end = text.length;
-  while (end > 0 && text[end - 1] === '/') end -= 1;
+  while (end > 0 && text.codePointAt(end - 1) === 47) end -= 1;
   return text.slice(0, end);
 }

@@ -21,6 +21,9 @@ import { verdict, type Verdict } from '@/domain/render/tiers';
 import { Repository, type ArticleSummary } from '@/domain/repository';
 import { sha256Hex } from '@/lib/outbound/tokens';
 
+const WHEN_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const WHEN_PATTERN_2 = /\.\d{3}Z$/;
+
 /** A plain-text refusal. */
 function refuse(status: number, text: string): Response {
   return new Response(`${text}\n`, {
@@ -35,11 +38,11 @@ function refuse(status: number, text: string): Response {
 /** A stored time as RFC 3339, or `fallback`. */
 function when(stored: string | null | undefined, fallback: string): string {
   if (!stored) return fallback;
-  if (/^\d{4}-\d{2}-\d{2}$/.test(stored)) return `${stored}T00:00:00Z`;
+  if (WHEN_PATTERN.test(stored)) return `${stored}T00:00:00Z`;
   const parsed = rfc3339(stored) ?? new Date(stored).toISOString();
   return Number.isNaN(Date.parse(parsed))
     ? fallback
-    : parsed.replace(/\.\d{3}Z$/, 'Z');
+    : parsed.replace(WHEN_PATTERN_2, 'Z');
 }
 
 /** One story as an entry. */
@@ -182,11 +185,12 @@ export async function serveFeed(
   const row = await new OutboundRepository(db).feedTokenByHash(
     await sha256Hex(token),
   );
-  const stamp = now.toISOString().replace(/\.\d{3}Z$/, 'Z');
+  const stamp = now.toISOString().replace(WHEN_PATTERN_2, 'Z');
   const content = row ? await contentOf(db, row, origin, stamp) : undefined;
   if (!row || !content) return refuse(404, 'No such feed.');
   const updated = content.entries.reduce(
-    (latest, e) => (e.updated.localeCompare(latest) > 0 ? e.updated : latest),
+    (latest, event) =>
+      event.updated.localeCompare(latest) > 0 ? event.updated : latest,
     content.entries[0]?.updated ?? stamp,
   );
   return new Response(

@@ -10,7 +10,7 @@ import {
 
 describe('base64', () => {
   it('encodes and decodes every byte value', () => {
-    const bytes = Uint8Array.from({ length: 256 }, (_, i) => i);
+    const bytes = Uint8Array.from({ length: 256 }, (_, index) => index);
     expect(base64ToBytes(bytesToBase64(bytes))).toEqual(bytes);
   });
 
@@ -32,7 +32,7 @@ describe('base64 URL-safe', () => {
 
   it('round-trips at every padding length', () => {
     for (const length of [0, 1, 2, 3, 4, 5]) {
-      const bytes = Uint8Array.from({ length }, (_, i) => 250 - i);
+      const bytes = Uint8Array.from({ length }, (_, index) => 250 - index);
       expect(base64UrlToBytes(bytesToBase64Url(bytes))).toEqual(bytes);
     }
   });

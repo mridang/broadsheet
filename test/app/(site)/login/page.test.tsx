@@ -3,6 +3,10 @@ import { describe, expect, it } from '@jest/globals';
 import LoginPage, { metadata } from '@/app/(site)/login/page';
 import { html } from '../../../components/render';
 
+const OFFERS_ONE_WAY_IN_PATTERN =
+  /<a href="\/auth\/login"[^>]*>[\s\S]*Sign in with Google<\/a>/;
+const OFFERS_ONE_WAY_IN_PATTERN_2 = /href="\/auth\//g;
+
 /** The sign-in page for a visit with the given query string flags. */
 async function page(query: { error?: string } = {}): Promise<string> {
   return html(await LoginPage({ searchParams: Promise.resolve(query) }));
@@ -15,10 +19,8 @@ describe('LoginPage', () => {
 
   it('offers one way in: the Google button, which starts the sign-in flow', async () => {
     const out = await page();
-    expect(out).toMatch(
-      /<a href="\/auth\/login"[^>]*>[\s\S]*Sign in with Google<\/a>/,
-    );
-    expect(out.match(/href="\/auth\//g)).toHaveLength(1);
+    expect(out).toMatch(OFFERS_ONE_WAY_IN_PATTERN);
+    expect(out.match(OFFERS_ONE_WAY_IN_PATTERN_2)).toHaveLength(1);
   });
 
   it('links the privacy policy and the terms under the button', async () => {

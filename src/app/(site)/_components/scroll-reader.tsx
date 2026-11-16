@@ -26,9 +26,8 @@ export function ScrollReader(): null {
         markRead(id);
       }
     });
-    document
-      .querySelectorAll<HTMLElement>(STORY)
-      .forEach((card) => observer.observe(card));
+    for (const card of document.querySelectorAll<HTMLElement>(STORY))
+      observer.observe(card);
     return () => observer.disconnect();
   }, []);
   return null;

@@ -1,3 +1,10 @@
+const UNESCAPE_XML_PATTERN = /&(#x[0-9a-f]+|#\d+|[a-z]+);/gi;
+const ATTRIBUTES_PATTERN =
+  /(?<![\w:.-])([\w:.-]+)\s*=\s*("([^"]*)"|'([^']*)')/g;
+const PARSE_OPML_PATTERN = /<!(DOCTYPE|ENTITY)/i;
+const PARSE_OPML_PATTERN_2 = /<opml[\s>]/i;
+const PARSE_OPML_PATTERN_3 = /^<\/outline\s*>/i;
+const PARSE_OPML_PATTERN_4 = /^<outline[\s/>]/i;
 /**
  * @packageDocumentation
  *
@@ -45,29 +52,24 @@ export function escapeXml(text: string): string {
 }
 
 function unescapeXml(text: string): string {
-  return text.replaceAll(
-    /&(#x[0-9a-f]+|#\d+|[a-z]+);/gi,
-    (whole, name: string) => {
-      if (name.startsWith('#')) {
-        const code =
-          name[1] === 'x' || name[1] === 'X'
-            ? Number.parseInt(name.slice(2), 16)
-            : Number.parseInt(name.slice(1), 10);
+  return text.replaceAll(UNESCAPE_XML_PATTERN, (whole, name: string) => {
+    if (name.startsWith('#')) {
+      const code =
+        name[1] === 'x' || name[1] === 'X'
+          ? Number.parseInt(name.slice(2), 16)
+          : Number.parseInt(name.slice(1), 10);
 
-        return code > 0 && code <= 0x10_ff_ff
-          ? String.fromCodePoint(code)
-          : whole;
-      }
-      return ENTITIES[name.toLowerCase()] ?? whole;
-    },
-  );
+      return code > 0 && code <= 0x10_ff_ff
+        ? String.fromCodePoint(code)
+        : whole;
+    }
+    return ENTITIES[name.toLowerCase()] ?? whole;
+  });
 }
 
 function attributes(text: string): Map<string, string> {
   const found = new Map<string, string>();
-  for (const m of text.matchAll(
-    /(?<![\w:.-])([\w:.-]+)\s*=\s*("([^"]*)"|'([^']*)')/g,
-  )) {
+  for (const m of text.matchAll(ATTRIBUTES_PATTERN)) {
     found.set((m[1] ?? '').toLowerCase(), unescapeXml(m[3] ?? m[4] ?? ''));
   }
   return found;
@@ -76,14 +78,14 @@ function attributes(text: string): Map<string, string> {
 /** The index just past the `>` that ends the tag at `from`, or -1. */
 function tagEnd(text: string, from: number): number {
   let quote = '';
-  for (let i = from; i < text.length; i += 1) {
-    const c = text[i];
+  for (let index = from; index < text.length; index += 1) {
+    const c = text[index];
     if (quote) {
       if (c === quote) quote = '';
     } else if (c === '"' || c === "'") {
       quote = c;
     } else if (c === '>') {
-      return i + 1;
+      return index + 1;
     } else {
       // Any other character leaves the tag open.
     }
@@ -112,10 +114,10 @@ function skipMarkup(text: string, at: number): number | undefined {
  * are skipped, and `>` inside a quoted attribute does not end a tag.
  */
 export function parseOpml(text: string): OpmlParse {
-  if (/<!(DOCTYPE|ENTITY)/i.test(text)) {
+  if (PARSE_OPML_PATTERN.test(text)) {
     return { ok: false, errors: ['body: DOCTYPE and ENTITY are not allowed.'] };
   }
-  if (!/<opml[\s>]/i.test(text)) {
+  if (!PARSE_OPML_PATTERN_2.test(text)) {
     return { ok: false, errors: ['body: not an OPML document.'] };
   }
   const feeds: OpmlFeed[] = [];
@@ -132,19 +134,23 @@ export function parseOpml(text: string): OpmlParse {
       at = text.indexOf('<', skipped);
       continue;
     }
-    if (/^<\/outline\s*>/i.test(text.slice(at, at + 16))) {
+    if (PARSE_OPML_PATTERN_3.test(text.slice(at, at + 16))) {
       if (open.pop()) folders.pop();
-    } else if (/^<outline[\s/>]/i.test(text.slice(at, at + 9))) {
+    } else if (PARSE_OPML_PATTERN_4.test(text.slice(at, at + 9))) {
       const end = tagEnd(text, at + 8);
       if (end < 0) {
         return { ok: false, errors: ['body: not well formed.'] };
       }
       const tag = text.slice(at + 8, end - 1);
-      const attrs = attributes(tag);
-      const url = attrs.get('xmlurl')?.trim();
-      const label = (attrs.get('text') ?? attrs.get('title') ?? '').trim();
+      const attributeList = attributes(tag);
+      const url = attributeList.get('xmlurl')?.trim();
+      const label = (
+        attributeList.get('text') ??
+        attributeList.get('title') ??
+        ''
+      ).trim();
       if (url) {
-        const site = attrs.get('htmlurl')?.trim();
+        const site = attributeList.get('htmlurl')?.trim();
         feeds.push({
           url,
           ...(label ? { title: label } : {}),
@@ -193,16 +199,18 @@ export function buildOpml(
   sections: readonly OpmlSection[],
   now: Date = new Date(),
 ): string {
-  const outline = (e: OpmlEntry, indent: string): string => {
-    const site = e.site_url ? ` htmlUrl="${escapeXml(e.site_url)}"` : '';
-    return `${indent}<outline type="rss" version="RSS" text="${escapeXml(e.title)}" title="${escapeXml(e.title)}" xmlUrl="${escapeXml(e.url)}"${site}/>`;
+  const outline = (event4: OpmlEntry, indent: string): string => {
+    const site = event4.site_url
+      ? ` htmlUrl="${escapeXml(event4.site_url)}"`
+      : '';
+    return `${indent}<outline type="rss" version="RSS" text="${escapeXml(event4.title)}" title="${escapeXml(event4.title)}" xmlUrl="${escapeXml(event4.url)}"${site}/>`;
   };
   const known = new Set(sections.map((s) => s.id));
   const inside = (id: number | null): OpmlEntry[] =>
-    entries.filter((e) =>
+    entries.filter((event3) =>
       id === null
-        ? e.section_id == null || !known.has(e.section_id)
-        : e.section_id === id,
+        ? event3.section_id == null || !known.has(event3.section_id)
+        : event3.section_id === id,
     );
   const folder = (
     section: OpmlSection,
@@ -213,7 +221,7 @@ export function buildOpml(
     const path = new Set(seen).add(section.id);
     const indent = '  '.repeat(depth);
     const body = [
-      ...inside(section.id).map((e) => outline(e, `${indent}  `)),
+      ...inside(section.id).map((event2) => outline(event2, `${indent}  `)),
       ...sections
         .filter((s) => s.parent_id === section.id)
         .flatMap((s) => folder(s, depth + 1, path)),
@@ -232,7 +240,7 @@ export function buildOpml(
     '<opml version="2.0">',
     `  <head><title>${escapeXml(title)}</title><dateCreated>${stamp}</dateCreated><dateModified>${stamp}</dateModified></head>`,
     '  <body>',
-    ...inside(null).map((e) => outline(e, ' '.repeat(4))),
+    ...inside(null).map((event) => outline(event, ' '.repeat(4))),
     ...sections
       .filter((s) => s.parent_id === null || !known.has(s.parent_id))
       .flatMap((s) => folder(s, 2, new Set())),

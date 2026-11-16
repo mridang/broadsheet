@@ -599,9 +599,9 @@ describe('against a real SQLite database', () => {
   });
 
   const tokenRows = (...hashes: readonly string[]) =>
-    hashes.map((hash, i) => ({
+    hashes.map((hash, index) => ({
       hash,
-      kind: i === 0 ? ('access' as const) : ('refresh' as const),
+      kind: index === 0 ? ('access' as const) : ('refresh' as const),
       grantId: 'new',
       expiresAt: 9_999_999_999,
     }));
@@ -649,7 +649,7 @@ describe('against a real SQLite database', () => {
       const store = new D1OAuthStore(db);
       const made = Array.from(
         { length: MAX_LIVE_GRANTS_PER_APP + 2 },
-        (_, i) => `g${String(i).padStart(2, '0')}`,
+        (_, index) => `g${String(index).padStart(2, '0')}`,
       );
       // Made in order, so the first ones are the oldest (ids break a tie in the clock).
       for (const id of made) {

@@ -1,7 +1,9 @@
 import { describe, expect, it } from '@jest/globals';
 
 import { Icon } from '@/components/ui/icons';
-import { classOf, html } from '../render';
+import { cssClassesOf, html } from '../render';
+
+const ICON_PATTERN = /<path d="M[^"]+"/;
 
 describe('Icon', () => {
   it.each(['pencil', 'atom', 'rdf', 'rss'] as const)(
@@ -10,14 +12,14 @@ describe('Icon', () => {
       const out = html(<Icon name={name} />);
       expect(out).toContain('aria-hidden="true"');
       expect(out).toContain('stroke="currentColor"');
-      expect(out).toMatch(/<path d="M[^"]+"/);
+      expect(out).toMatch(ICON_PATTERN);
     },
   );
 
   it('is size-5 unless given a class', () => {
-    expect(classOf(html(<Icon name="atom" />), 'svg')).toContain('size-5');
+    expect(cssClassesOf(html(<Icon name="atom" />), 'svg')).toContain('size-5');
     expect(
-      classOf(html(<Icon name="atom" className="size-3" />), 'svg'),
+      cssClassesOf(html(<Icon name="atom" className="size-3" />), 'svg'),
     ).not.toContain('size-5');
   });
 });

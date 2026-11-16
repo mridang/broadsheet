@@ -7,6 +7,10 @@ import {
 } from '@/components/ui/page-header';
 import { html } from '../render';
 
+const TITLES_THE_PAGE_WITH_PATTERN = /<h1[^>]*>Your feeds<\/h1>/;
+const IS_LABELLED_BY_ITS_PATTERN = /<section aria-labelledby="stories"/;
+const IS_LABELLED_BY_ITS_PATTERN_2 = /<h2 id="stories"[^>]*>Stories<\/h2>/;
+
 describe('PageHeader', () => {
   it('titles the page with its description and actions', () => {
     const out = html(
@@ -16,7 +20,7 @@ describe('PageHeader', () => {
         actions={<button type="button">Go</button>}
       />,
     );
-    expect(out).toMatch(/<h1[^>]*>Your feeds<\/h1>/);
+    expect(out).toMatch(TITLES_THE_PAGE_WITH_PATTERN);
     expect(out).toContain('What it is for.');
     expect(out).toContain('<button type="button">Go</button>');
   });
@@ -34,8 +38,8 @@ describe('PageSection', () => {
         x
       </PageSection>,
     );
-    expect(out).toMatch(/<section aria-labelledby="stories"/);
-    expect(out).toMatch(/<h2 id="stories"[^>]*>Stories<\/h2>/);
+    expect(out).toMatch(IS_LABELLED_BY_ITS_PATTERN);
+    expect(out).toMatch(IS_LABELLED_BY_ITS_PATTERN_2);
   });
 });
 

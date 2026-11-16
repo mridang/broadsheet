@@ -22,7 +22,7 @@ const [WRITE_TOOL = ''] = WRITE_TOOLS;
 
 describe('normaliseScope', () => {
   it('grants everything supported when nothing is asked for', () => {
-    expect(normaliseScope(undefined)).toEqual([SCOPE_READ, SCOPE_WRITE]);
+    expect(normaliseScope()).toEqual([SCOPE_READ, SCOPE_WRITE]);
     expect(normaliseScope('  ')).toEqual([SCOPE_READ, SCOPE_WRITE]);
   });
 

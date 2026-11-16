@@ -6,6 +6,9 @@ import {
 } from '@/app/(site)/search/_components/saved-searches';
 import { html } from '../../../../components/render';
 
+const LINKS_EACH_SEARCH_WITH_PATTERN =
+  /<a [^>]*href="\/search\?q=rust">rust<\/a>/;
+
 describe('searchHref', () => {
   it('runs the search over its feed when it has one', () => {
     expect(searchHref({ query: 'rust lang', feed_id: null })).toBe(
@@ -30,7 +33,7 @@ describe('SavedSearches', () => {
         ]}
       />,
     );
-    expect(out).toMatch(/<a [^>]*href="\/search\?q=rust">rust<\/a>/);
+    expect(out).toMatch(LINKS_EACH_SEARCH_WITH_PATTERN);
     expect(out).toContain('Remove</button>');
   });
 });

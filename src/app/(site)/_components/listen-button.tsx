@@ -59,12 +59,14 @@ export function ListenButton({
   articleId,
   text,
   title,
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
   className = CHIP,
 }: Readonly<{
   articleId: number;
   text: string;
   title: string;
   /** The look of both buttons: a chip by default, a menu row in a menu. */
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
   className?: string;
 }>): ReactElement | null {
   // Support is only known in the browser, so the server renders no button.

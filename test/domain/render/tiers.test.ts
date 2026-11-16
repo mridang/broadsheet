@@ -57,21 +57,23 @@ describe('assignTiers', () => {
   const long = 'x'.repeat(400);
 
   it('promotes the first story to lead when the section is large enough', () => {
-    const arts = Array.from({ length: 6 }, (_, i) =>
-      article({ id: i + 1, image: 'img', summary: long }),
+    const arts = Array.from({ length: 6 }, (_, index) =>
+      article({ id: index + 1, image: 'img', summary: long }),
     );
     expect(assignTiers(arts)[0]).toBe('lead');
   });
 
   it('does not create a lead in a tiny section', () => {
-    const arts = Array.from({ length: 3 }, (_, i) => article({ id: i + 1 }));
+    const arts = Array.from({ length: 3 }, (_, index) =>
+      article({ id: index + 1 }),
+    );
     expect(assignTiers(arts).every((t) => t !== 'lead')).toBe(true);
   });
 
   it('collapses a thin, late story into the In Brief tail', () => {
     const arts = [
-      ...Array.from({ length: 5 }, (_, i) =>
-        article({ id: i + 1, image: 'img', summary: long }),
+      ...Array.from({ length: 5 }, (_, index) =>
+        article({ id: index + 1, image: 'img', summary: long }),
       ),
       article({ id: 6, summary: '' }),
     ];

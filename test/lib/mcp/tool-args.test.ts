@@ -9,10 +9,12 @@ import {
   stringListArg,
 } from '@/lib/mcp';
 
+const collator = new Intl.Collator();
+
 describe('stringArg', () => {
   it('trims a string and gives empty for anything else', () => {
     expect(stringArg('  hi ')).toBe('hi');
-    expect(stringArg(undefined)).toBe('');
+    expect(stringArg()).toBe('');
     expect(stringArg(5)).toBe('');
     expect(stringArg(null)).toBe('');
   });
@@ -22,7 +24,7 @@ describe('stringListArg', () => {
   it('takes one value or a list, splitting commas and dropping blanks', () => {
     expect(stringListArg('a, b')).toEqual(['a', 'b']);
     expect(stringListArg(['a', ' ', 'b,c'])).toEqual(['a', 'b', 'c']);
-    expect(stringListArg(undefined)).toEqual([]);
+    expect(stringListArg()).toEqual([]);
   });
 
   it('counts numbers as strings and ignores other kinds of value', () => {
@@ -43,7 +45,7 @@ describe('numberArg', () => {
 
 describe('limitArg', () => {
   it('defaults to 12 and keeps the limit between 1 and 50', () => {
-    expect(limitArg(undefined)).toBe(12);
+    expect(limitArg()).toBe(12);
     expect(limitArg(0)).toBe(1);
     expect(limitArg(-4)).toBe(1);
     expect(limitArg(500)).toBe(50);
@@ -57,7 +59,7 @@ describe('limitArg', () => {
 
 describe('offsetArg', () => {
   it('defaults to the start and never goes below it', () => {
-    expect(offsetArg(undefined)).toBe(0);
+    expect(offsetArg()).toBe(0);
     expect(offsetArg(-5)).toBe(0);
     expect(offsetArg('abc')).toBe(0);
     expect(offsetArg(null)).toBe(0);
@@ -132,10 +134,9 @@ describe('canonicalArguments', () => {
       unknown
     >;
     const result = canonicalArguments(args);
-    expect(Object.keys(result).toSorted((a, b) => a.localeCompare(b))).toEqual([
-      '__proto__',
-      'name',
-    ]);
+    expect(
+      Object.keys(result).toSorted((a, b) => collator.compare(a, b)),
+    ).toEqual(['__proto__', 'name']);
     expect(Object.getPrototypeOf(result)).toBe(Object.prototype);
   });
 });

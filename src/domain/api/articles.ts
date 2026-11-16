@@ -137,7 +137,7 @@ export function createArticleItem(
     }),
   }).on<null, Article | undefined>({
     method: 'GET',
-    handle: async (_input, { request, uid }) => {
+    handle: async (_input, { request, uid }): Promise<Article | undefined> => {
       const id = parseFeedId(idOf(request));
       if (id === undefined) return undefined;
       const db = getDatabase();
@@ -221,7 +221,10 @@ export function createSimilarArticles(
   }).on<SimilarScope, readonly unknown[] | undefined>({
     method: 'GET',
     decode: similarScope,
-    handle: async (scope, { request, uid }) => {
+    handle: async (
+      scope,
+      { request, uid },
+    ): Promise<readonly unknown[] | undefined> => {
       const id = articleIdOf(request);
       if (id === undefined) return undefined;
       const repo = new Repository(getDatabase());
@@ -265,7 +268,7 @@ export function createArticleExtractions(
     }),
   }).on<null, Article | undefined>({
     method: 'POST',
-    handle: async (_input, { request, uid }) => {
+    handle: async (_input, { request, uid }): Promise<Article | undefined> => {
       const id = articleIdOf(request);
       if (id === undefined) return undefined;
       const db = getDatabase();

@@ -8,6 +8,8 @@ import {
   sha256Hex,
 } from '@/lib/outbound/tokens';
 
+const MAKES_A_FRESH_43_CHARACTER_PATTERN = /^[A-Za-z0-9_-]{43}$/;
+
 describe('base64Url and fromBase64Url', () => {
   it('round-trips bytes without padding or url-unsafe characters', () => {
     const bytes = new Uint8Array([251, 255, 191, 0, 1]);
@@ -29,7 +31,7 @@ describe('base64Url and fromBase64Url', () => {
 describe('randomToken', () => {
   it('makes a fresh 43-character token from 32 bytes each time', () => {
     const a = randomToken();
-    expect(a).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(a).toMatch(MAKES_A_FRESH_43_CHARACTER_PATTERN);
     expect(randomToken()).not.toBe(a);
   });
 });

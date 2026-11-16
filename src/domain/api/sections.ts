@@ -151,7 +151,10 @@ export function createSectionItem(
     .on<SectionChanges, Section | undefined>({
       method: 'PATCH',
       decode: (request) => decodeSection(request, false),
-      handle: async (changes, { request, uid }) => {
+      handle: async (
+        changes,
+        { request, uid },
+      ): Promise<Section | undefined> => {
         const id = parseFeedId(idOf(request));
         const repo = new Repository(getDatabase());
         if (id === undefined || !(await repo.getSection(uid, id))) {

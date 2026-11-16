@@ -87,37 +87,40 @@ export function storyChanges(original: string, current: string): Change[] {
     { length: a.length + 1 },
     () => new Uint16Array(b.length + 1),
   );
-  for (let i = a.length - 1; i >= 0; i--) {
-    for (let j = b.length - 1; j >= 0; j--) {
-      lengths[i]![j] =
-        a[i] === b[j]
-          ? lengths[i + 1]![j + 1]! + 1
-          : Math.max(lengths[i + 1]![j]!, lengths[i]![j + 1]!);
+  for (let index = a.length - 1; index >= 0; index--) {
+    for (let index3 = b.length - 1; index3 >= 0; index3--) {
+      lengths[index]![index3] =
+        a[index] === b[index3]
+          ? lengths[index + 1]![index3 + 1]! + 1
+          : Math.max(
+              lengths[index + 1]![index3]!,
+              lengths[index]![index3 + 1]!,
+            );
     }
   }
   const out: Change[] = [];
-  let i = 0;
-  let j = 0;
-  while (i < a.length && j < b.length) {
-    if (a[i] === b[j]) {
-      push(out, 'same', a[i]!);
-      i++;
-      j++;
-    } else if (lengths[i + 1]![j]! >= lengths[i]![j + 1]!) {
-      push(out, 'del', a[i]!);
-      i++;
+  let index = 0;
+  let index2 = 0;
+  while (index < a.length && index2 < b.length) {
+    if (a[index] === b[index2]) {
+      push(out, 'same', a[index]!);
+      index++;
+      index2++;
+    } else if (lengths[index + 1]![index2]! >= lengths[index]![index2 + 1]!) {
+      push(out, 'del', a[index]!);
+      index++;
     } else {
-      push(out, 'ins', b[j]!);
-      j++;
+      push(out, 'ins', b[index2]!);
+      index2++;
     }
   }
-  while (i < a.length) {
-    push(out, 'del', a[i]!);
-    i++;
+  while (index < a.length) {
+    push(out, 'del', a[index]!);
+    index++;
   }
-  while (j < b.length) {
-    push(out, 'ins', b[j]!);
-    j++;
+  while (index2 < b.length) {
+    push(out, 'ins', b[index2]!);
+    index2++;
   }
   return out;
 }

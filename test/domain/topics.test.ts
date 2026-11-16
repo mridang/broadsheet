@@ -2,11 +2,13 @@ import { describe, expect, it } from '@jest/globals';
 
 import { TOPICS, findTopic } from '@/domain/topics';
 
+const HAS_UNIQUE_IDS_AND_PATTERN = /^[a-z]+$/;
+
 describe('TOPICS', () => {
   it('has unique ids and valid starter feeds', () => {
     expect(new Set(TOPICS.map((t) => t.id)).size).toBe(TOPICS.length);
     for (const topic of TOPICS) {
-      expect(topic.id).toMatch(/^[a-z]+$/);
+      expect(topic.id).toMatch(HAS_UNIQUE_IDS_AND_PATTERN);
       expect(topic.feeds.length).toBeGreaterThan(0);
       for (const feed of topic.feeds) {
         expect(new URL(feed.url).protocol).toBe('https:');

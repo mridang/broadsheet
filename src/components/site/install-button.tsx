@@ -22,6 +22,7 @@ export function InstallButton(): ReactElement {
           className={buttonClass({
             variant: 'outline',
             size: 'sm',
+            // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
             className: 'w-full border-line',
           })}
           onClick={() => void install()}

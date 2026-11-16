@@ -48,7 +48,7 @@ describe('formatName', () => {
   });
 });
 
-const el = (
+const element = (
   name: string,
   text = '',
   attributes: Record<string, string> = {},
@@ -59,16 +59,22 @@ describe('headerFacts', () => {
   it('reads every element but the ones the summary shows, joining repeats', () => {
     expect(
       headerFacts([
-        el('title', 'T'),
-        el('generator', 'https://wordpress.org/?v=7.1.4'),
-        el('sy:updatePeriod', 'hourly'),
-        el('category', 'Tech'),
-        el('category', 'Ops'),
-        el('copyright', '© GitHub'),
-        el('cloud', '', { domain: 'rpc.test', port: '80' }),
-        el('author', '', {}, [el('name', 'Ann'), el('email', 'a@b.test')]),
-        el('skipHours', '', {}, [el('hour', '1'), el('hour', '2')]),
-        el('atom:link', '', { rel: 'self', href: 'https://a.test/f' }),
+        element('title', 'T'),
+        element('generator', 'https://wordpress.org/?v=7.1.4'),
+        element('sy:updatePeriod', 'hourly'),
+        element('category', 'Tech'),
+        element('category', 'Ops'),
+        element('copyright', '© GitHub'),
+        element('cloud', '', { domain: 'rpc.test', port: '80' }),
+        element('author', '', {}, [
+          element('name', 'Ann'),
+          element('email', 'a@b.test'),
+        ]),
+        element('skipHours', '', {}, [
+          element('hour', '1'),
+          element('hour', '2'),
+        ]),
+        element('atom:link', '', { rel: 'self', href: 'https://a.test/f' }),
       ]),
     ).toEqual([
       { label: 'Generator', value: 'https://wordpress.org/?v=7.1.4' },
@@ -87,10 +93,10 @@ describe('headerImage', () => {
   it('reads the RSS image block, else an Atom logo or icon', () => {
     expect(
       headerImage([
-        el('image', '', {}, [
-          el('url', 'https://a.test/i.png'),
-          el('title', 'A'),
-          el('link', 'https://a.test/'),
+        element('image', '', {}, [
+          element('url', 'https://a.test/i.png'),
+          element('title', 'A'),
+          element('link', 'https://a.test/'),
         ]),
       ]),
     ).toEqual({
@@ -98,11 +104,11 @@ describe('headerImage', () => {
       title: 'A',
       link: 'https://a.test/',
     });
-    expect(headerImage([el('logo', 'https://a.test/l.png')])).toEqual({
+    expect(headerImage([element('logo', 'https://a.test/l.png')])).toEqual({
       url: 'https://a.test/l.png',
       title: '',
       link: '',
     });
-    expect(headerImage([el('title', 'x')])).toBeUndefined();
+    expect(headerImage([element('title', 'x')])).toBeUndefined();
   });
 });

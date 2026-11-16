@@ -29,10 +29,10 @@ export function Dialog({
   const ref = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    if (open && !el.open) el.showModal();
-    if (!open && el.open) el.close();
+    const element = ref.current;
+    if (!element) return;
+    if (open && !element.open) element.showModal();
+    if (!open && element.open) element.close();
   }, [open]);
 
   return (

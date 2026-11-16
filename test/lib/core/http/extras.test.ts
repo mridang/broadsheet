@@ -3,7 +3,7 @@ import { describe, expect, it } from '@jest/globals';
 import { SESSION_COOKIE } from '@/domain/auth/app';
 import { GENERIC_CLASSES, EDGE_LIMITS } from '@/lib/core/http';
 
-const classOf = (pathname: string) =>
+const cssOf = (pathname: string) =>
   EDGE_LIMITS.classify(new Request(`https://app.test${pathname}`));
 
 describe('EDGE_LIMITS', () => {
@@ -42,7 +42,7 @@ describe('EDGE_LIMITS', () => {
     ['/auth/callback', 'auth'],
     ['/api/sessions/self', 'auth'],
   ])('puts %s in %s', (pathname, expected) => {
-    expect(classOf(pathname)).toBe(expected);
+    expect(cssOf(pathname)).toBe(expected);
   });
 
   it.each([
@@ -60,12 +60,12 @@ describe('EDGE_LIMITS', () => {
   it.each(['/api/conversations/2', '/api/conversations/2/messages'])(
     'puts a GET of %s in api',
     (pathname) => {
-      expect(classOf(pathname)).toBe('api');
+      expect(cssOf(pathname)).toBe('api');
     },
   );
 
   it('does not count the static files', () => {
-    expect(classOf('/_next/static/chunks/a.js')).toBeUndefined();
-    expect(classOf('/icons/icon-192.png')).toBeUndefined();
+    expect(cssOf('/_next/static/chunks/a.js')).toBeUndefined();
+    expect(cssOf('/icons/icon-192.png')).toBeUndefined();
   });
 });

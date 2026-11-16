@@ -131,7 +131,7 @@ export function subscribePlayer(listener: () => void): () => void {
  */
 export function updatePlayer(change: (player: Player) => Player): void {
   state = change(state);
-  listeners.forEach((listener) => listener());
+  for (const listener of listeners) listener();
   if (!signedIn) return;
   clearTimeout(saving);
   saving = setTimeout(() => {
@@ -154,7 +154,7 @@ export async function loadPlayer(): Promise<void> {
     if (!res.ok) return;
     signedIn = true;
     state = fromResource(await res.json());
-    listeners.forEach((listener) => listener());
+    for (const listener of listeners) listener();
   } catch {
     // Offline or signed out: listening still works for this page.
   }

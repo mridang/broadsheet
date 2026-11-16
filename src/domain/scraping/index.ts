@@ -112,7 +112,7 @@ async function resolveNames(
 ): Promise<void> {
   if (!env.AI || items.length === 0) return;
   const list = items
-    .map((it, i) => `${i}\t${hostOf(it.url)}\t${it.title}`)
+    .map((it, index) => `${index}\t${hostOf(it.url)}\t${it.title}`)
     .join('\n');
   const prompt =
     'For each line `index<TAB>domain<TAB>title`, return the canonical publisher or ' +
@@ -142,13 +142,13 @@ async function resolveNames(
     }
     const names = parsed?.names ?? {};
     let applied = 0;
-    items.forEach((it, i) => {
-      const n = names[String(i)];
+    for (const [index, it] of items.entries()) {
+      const n = names[String(index)];
       if (n && n.trim()) {
         it.source = n.trim().slice(0, 60);
         applied++;
       }
-    });
+    }
     logInfo({ event: 'ai.applied', applied, total: items.length });
   } catch (error) {
     logWarn({
@@ -632,8 +632,8 @@ export async function backfillRecent(
   let filled = 0;
   for (const source of sources) {
     const have = new Set(await repo.editionsForSource(source.id));
-    for (let i = 1; i <= days; i++) {
-      const date = new Date(Date.now() - i * 86_400_000)
+    for (let index = 1; index <= days; index++) {
+      const date = new Date(Date.now() - index * 86_400_000)
         .toISOString()
         .slice(0, 10);
       const items = have.has(date) ? [] : await hnTopForDate(date);

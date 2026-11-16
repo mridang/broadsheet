@@ -29,6 +29,12 @@ import { APP_MIGRATIONS } from '../lib/core/db/migrations';
 import { expectIndexed, recordedDatabase } from '../lib/core/db/plan';
 import { sqliteD1 } from '../lib/core/db/sqlite-d1';
 
+const collator = new Intl.Collator();
+
+const READS_THE_DUE_SOURCES_PATTERN = /SCAN sources/;
+const READS_THE_DUE_SOURCES_PATTERN_2 = /TEMP B-TREE/;
+const FINDS_THE_NOTIFYING_FEEDS_PATTERN = /SCAN feed_notifications/;
+
 // Thin adapters over the Repository handle, so each case reads as a one-liner.
 const upsertUser = (d: Database, p: Profile) => new Repository(d).upsertUser(p);
 const getUser = (d: Database, id: number) => new Repository(d).getUser(id);
@@ -255,7 +261,8 @@ describe('recordFetch', () => {
     expect(await minutesAway(repo)).toBeLessThan(1);
     await repo.recordFetch(source_id, 'down');
     expect(Math.round(await minutesAway(repo))).toBe(1440);
-    for (let i = 0; i < 10; i++) await repo.recordFetch(source_id, 'down');
+    for (let index = 0; index < 10; index++)
+      await repo.recordFetch(source_id, 'down');
     expect(Math.round(await minutesAway(repo))).toBe(MAX_BACKOFF_MINUTES);
   });
 
@@ -318,8 +325,8 @@ describe('dueSources', () => {
       statements.find((s) => s.includes('"sources"'))!,
     );
     expect(plan).toContain('idx_sources_next_fetch');
-    expect(plan).not.toMatch(/SCAN sources/);
-    expect(plan).not.toMatch(/TEMP B-TREE/);
+    expect(plan).not.toMatch(READS_THE_DUE_SOURCES_PATTERN);
+    expect(plan).not.toMatch(READS_THE_DUE_SOURCES_PATTERN_2);
   });
 });
 
@@ -379,7 +386,7 @@ describe('sourceActivity', () => {
       statements.find((s) => s.includes('"feed_notifications"'))!,
     );
     expect(plan).toContain('idx_feed_notifications_subscription');
-    expect(plan).not.toMatch(/SCAN feed_notifications/);
+    expect(plan).not.toMatch(FINDS_THE_NOTIFYING_FEEDS_PATTERN);
   });
 
   it('counts the last month’s distinct stories and the followers', async () => {
@@ -507,7 +514,7 @@ describe('writeEdition, sourceArticles and listEditions', () => {
     expect(
       rows
         .map((r) => r.comments_url)
-        .toSorted((a, b) => String(a).localeCompare(String(b))),
+        .toSorted((a, b) => collator.compare(String(a), String(b))),
     ).toEqual(['https://hn/item?id=1', null]);
   });
 });
@@ -1439,7 +1446,10 @@ describe('custom editions', () => {
     await repo.addCustomEdition(1, { name: 'A' });
     await repo.addCustomEdition(2, { name: 'B' });
     const allCustomEditionsResult = await repo.allCustomEditions();
-    expect(allCustomEditionsResult.map((e) => e.name)).toEqual(['A', 'B']);
+    expect(allCustomEditionsResult.map((event) => event.name)).toEqual([
+      'A',
+      'B',
+    ]);
   });
 });
 
@@ -2079,12 +2089,14 @@ describe('cluster siblings, issue lists and source counts', () => {
     }
     await repo.saveIssue(2, '2026-11-01', '{"groups":[]}', null);
     const listIssuesResult = await repo.listIssues(1, 2);
-    expect(listIssuesResult.map((i) => i.date)).toEqual([
+    expect(listIssuesResult.map((index) => index.date)).toEqual([
       '2026-11-01',
       '2026-10-31',
     ]);
     const listIssuesResult2 = await repo.listIssues(1, 5, '2026-10-31');
-    expect(listIssuesResult2.map((i) => i.date)).toEqual(['2026-10-30']);
+    expect(listIssuesResult2.map((index) => index.date)).toEqual([
+      '2026-10-30',
+    ]);
   });
 
   it('keeps the stories a stored note covers', async () => {
@@ -2688,7 +2700,7 @@ describe('saved tags', () => {
   it('takes a tag off every save, keeping the saves', async () => {
     const repo = new Repository(db);
     await tagged();
-    expect(await repo.retagSaves(1, 'b', undefined)).toBe(2);
+    expect(await repo.retagSaves(1, 'b')).toBe(2);
     expect(await repo.listSaves(1)).toHaveLength(2);
     expect(await repo.savedTagCounts(1)).toEqual([{ tag: 'a', count: 1 }]);
   });
@@ -3218,7 +3230,7 @@ describe('the plans of the statistics, trending and write queries', () => {
     expect(
       sourceArticlesResult7
         .map((a) => a.url)
-        .toSorted((a, b) => a.localeCompare(b)),
+        .toSorted((a, b) => collator.compare(a, b)),
     ).toEqual(['https://x/read', 'https://x/saved']);
   });
 
@@ -3248,7 +3260,7 @@ describe('the plans of the statistics, trending and write queries', () => {
     expect(
       sourceArticlesResult8
         .map((a) => a.url)
-        .toSorted((a, b) => a.localeCompare(b)),
+        .toSorted((a, b) => collator.compare(a, b)),
     ).toEqual(['https://x/1-new', 'https://x/2']);
   });
 

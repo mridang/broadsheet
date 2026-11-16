@@ -188,7 +188,7 @@ describe('objects', () => {
 
   it('spells out only the first few unknown properties and counts the rest', () => {
     const many = Object.fromEntries(
-      Array.from({ length: 50_000 }, (_, i) => [`k${i}`, 1]),
+      Array.from({ length: 50_000 }, (_, index) => [`k${index}`, 1]),
     );
     const found = problems(schema, { a: 'x', ...many });
     expect(found).toHaveLength(1);
@@ -324,7 +324,7 @@ describe('unsupportedKeywords', () => {
 
   it('has nothing to say about a value that is not a schema', () => {
     expect(unsupportedKeywords(5)).toEqual([]);
-    expect(unsupportedKeywords(undefined)).toEqual([]);
+    expect(unsupportedKeywords()).toEqual([]);
   });
 });
 

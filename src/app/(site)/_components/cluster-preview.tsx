@@ -69,7 +69,7 @@ export function ClusterPreview({
       aria-label="Also covered by"
       className="pointer-events-auto relative z-10 mt-3 divide-y divide-line rounded-control border border-line bg-surface"
     >
-      {siblings.map((s, i) => (
+      {siblings.map((s, index) => (
         <li
           key={s.id}
           data-read={read.has(s.id) ? '' : undefined}
@@ -117,9 +117,9 @@ export function ClusterPreview({
                 </span>
               ) : null}
             </span>
-            {pictures[i] ? (
+            {pictures[index] ? (
               <img
-                src={pictures[i]}
+                src={pictures[index]}
                 alt=""
                 loading="lazy"
                 className="h-14 w-20 shrink-0 rounded-control bg-ink/5 object-cover"

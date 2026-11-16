@@ -33,6 +33,11 @@ import {
 } from '@/domain/assistant';
 import type { Message, Passage } from '@/domain/repository';
 
+const PARSE_ANSWER_REQUEST_PATTERN = /^question_id: one of/;
+const PARSE_ANSWER_REQUEST_PATTERN_2 = /^model: one of/;
+const PARSE_ANSWER_REQUEST_PATTERN_3 = /^history\[0\]/;
+const SENDS_ONLY_THE_LAST_PATTERN = /Question: Q$/;
+
 const passage = (id: number, title = `T${id}`): Passage => ({
   id,
   title,
@@ -108,10 +113,16 @@ describe('parseAnswerRequest', () => {
       { question: 'a', question_id: 'bullets' },
       'question_id or question: send exactly one.',
     ],
-    [{ question_id: 'nope' }, expect.stringMatching(/^question_id: one of/)],
+    [
+      { question_id: 'nope' },
+      expect.stringMatching(PARSE_ANSWER_REQUEST_PATTERN),
+    ],
     [{ question: ' ' }, 'question: must not be blank.'],
     [{ question: 'a', extra: 1 }, 'extra: not a member of this request.'],
-    [{ question: 'a', model: 'gpt' }, expect.stringMatching(/^model: one of/)],
+    [
+      { question: 'a', model: 'gpt' },
+      expect.stringMatching(PARSE_ANSWER_REQUEST_PATTERN_2),
+    ],
     [{ question: 'a', thinking: 'yes' }, 'thinking: true or false.'],
     [
       { question: 'a', history: 'x' },
@@ -129,7 +140,7 @@ describe('parseAnswerRequest', () => {
     ],
     [
       { question: 'a', history: [{ role: 'system', content: 'x' }] },
-      expect.stringMatching(/^history\[0\]/),
+      expect.stringMatching(PARSE_ANSWER_REQUEST_PATTERN_3),
     ],
   ])('refuses %j', (body, error) => {
     const input = parseAnswerRequest(body);
@@ -243,13 +254,13 @@ describe('archivePrompt', () => {
   });
 
   it('sends only the last six turns, then the question', () => {
-    const history = Array.from({ length: 8 }, (_, i) =>
-      turn(i + 1, i % 2 ? 'assistant' : 'user'),
+    const history = Array.from({ length: 8 }, (_, index) =>
+      turn(index + 1, index % 2 ? 'assistant' : 'user'),
     );
     const prompt = archivePrompt([], history, 'Q', 'd');
     expect(prompt).toHaveLength(8);
     expect(prompt[1]?.content).toBe('turn 3');
-    expect(prompt.at(-1)?.content).toMatch(/Question: Q$/);
+    expect(prompt.at(-1)?.content).toMatch(SENDS_ONLY_THE_LAST_PATTERN);
   });
 });
 

@@ -14,6 +14,8 @@ import { acceptPush } from '@/domain/scraping/index';
 import { verifyIntent } from '@/domain/websub';
 import { getEnv } from '@/lib/core/runtime';
 
+const SOURCE_ID_PATTERN = /^[1-9]\d{0,15}$/;
+
 export const dynamic = 'force-dynamic';
 
 /** The largest push taken, in bytes. */
@@ -32,7 +34,7 @@ const text = (body: string, status: number): Response =>
 /** The source id in the path, or undefined when it is not one. */
 async function sourceId({ params }: Context): Promise<number | undefined> {
   const { id } = await params;
-  return /^[1-9]\d{0,15}$/.test(id) ? Number(id) : undefined;
+  return SOURCE_ID_PATTERN.test(id) ? Number(id) : undefined;
 }
 
 export async function GET(request: Request, context: Context) {

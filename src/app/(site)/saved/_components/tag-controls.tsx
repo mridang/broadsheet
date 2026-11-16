@@ -42,7 +42,7 @@ export function TagControls({ tag }: Readonly<{ tag: string }>): ReactElement {
         aria-label="Rename tag"
         className={cn(SMALL_FIELD, 'w-40')}
         value={name}
-        onChange={(e) => setName(e.target.value)}
+        onChange={(event2) => setName(event2.target.value)}
       />
       <Button type="submit" variant="outline" size="xs" disabled={action.busy}>
         Rename

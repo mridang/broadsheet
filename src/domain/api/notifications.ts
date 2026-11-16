@@ -86,7 +86,7 @@ export function createNotificationItem(
         }
         return input.value;
       },
-      handle: async (setting, { request, uid }) => {
+      handle: async (setting, { request, uid }): Promise<Stored> => {
         const feedId = parseFeedId(idOf(request));
         if (feedId === undefined) return undefined;
         const stored = await new NotificationRepository(

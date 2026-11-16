@@ -23,6 +23,18 @@ import {
   tokenFor,
 } from './domain/auth/auth-test-kit';
 
+const collator = new Intl.Collator();
+
+const MODULE_PATTERN = /\.ts$/;
+const MODULE_PATTERN_2 = /\/?route$/;
+const MODULE_PATTERN_3 = /\[([a-z_]+)\]/g;
+const VIOLATIONS_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const IS_OPEN_API_3_1_AND_PATTERN = /^3\.1\./;
+const NAMES_ITS_PATHS_AS_PATTERN = /^([a-z]+|\{[a-z_]+\})$/;
+const DESCRIBES_EVERY_OPERATION_FULLY_PATTERN = /^[a-z][A-Za-z0-9]+$/;
+const DESCRIBES_EVERY_OPERATION_FULLY_PATTERN_2 = /\{([a-z_]+)\}/g;
+const CHECK_MEMBERS_PATTERN = /^[a-z][a-z0-9]*(_[a-z0-9]+)*$/;
+
 // The sign-out routes read the session through Next's request cookies.
 jest.unstable_mockModule('next/headers', () => ({ cookies: fakeCookies }));
 
@@ -238,18 +250,18 @@ const ROUTES: Record<string, () => Promise<Record<string, unknown>>> = {
 beforeAll(async () => {
   const files = await routeFiles(API);
   const listed = files.map((file) =>
-    path.relative(API, file).replace(/\.ts$/, ''),
+    path.relative(API, file).replace(MODULE_PATTERN, ''),
   );
   expect(
     listed
-      .filter((rel) => !(rel in ROUTES))
-      .toSorted((a, b) => a.localeCompare(b)),
+      .filter((relation2) => !(relation2 in ROUTES))
+      .toSorted((a, b) => collator.compare(a, b)),
   ).toEqual([]);
-  for (const rel of listed) {
-    const route = `/api/${rel}`
-      .replace(/\/?route$/, '')
-      .replaceAll(/\[([a-z_]+)\]/g, '{$1}');
-    const module = await ROUTES[rel]!();
+  for (const relation of listed) {
+    const route = `/api/${relation}`
+      .replace(MODULE_PATTERN_2, '')
+      .replaceAll(MODULE_PATTERN_3, '{$1}');
+    const module = await ROUTES[relation]!();
     for (const method of METHODS) {
       const handler = module[method.toUpperCase()];
       if (typeof handler === 'function') {
@@ -272,15 +284,15 @@ function deref<T = Json>(node: unknown): T {
 }
 
 /** Every `$ref` in a node. */
-function refs(node: unknown, found: string[] = []): string[] {
+function references(node: unknown, found: string[] = []): string[] {
   if (Array.isArray(node)) {
-    node.forEach((n) => refs(n, found));
+    for (const n of node) references(n, found);
   } else if (node && typeof node === 'object') {
     for (const [key, value] of Object.entries(node)) {
       if (key === '$ref' && typeof value === 'string') {
         found.push(value);
       } else {
-        refs(value, found);
+        references(value, found);
       }
     }
   } else {
@@ -376,7 +388,7 @@ function violations(schema: unknown, value: unknown, at = '$'): string[] {
     if (s['format'] === 'date-time' && !DATE_TIME.test(value)) {
       problems.push(`${at}: ${value} is not an RFC 3339 time`);
     }
-    if (s['format'] === 'date' && !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    if (s['format'] === 'date' && !VIOLATIONS_PATTERN.test(value)) {
       problems.push(`${at}: ${value} is not a date`);
     }
     if (s['format'] === 'uri' && !URL.canParse(value)) {
@@ -392,9 +404,8 @@ function violations(schema: unknown, value: unknown, at = '$'): string[] {
     }
   }
   if (Array.isArray(value) && s['items']) {
-    value.forEach((v, i) =>
-      problems.push(...violations(s['items'], v, `${at}[${i}]`)),
-    );
+    for (const [index, v] of value.entries())
+      problems.push(...violations(s['items'], v, `${at}[${index}]`));
   }
   if (value && typeof value === 'object' && !Array.isArray(value)) {
     const object = value as Json;
@@ -423,14 +434,14 @@ function violations(schema: unknown, value: unknown, at = '$'): string[] {
 
 describe('openapi.json', () => {
   it('is OpenAPI 3.1 and says what it leaves out', () => {
-    expect(spec.openapi).toMatch(/^3\.1\./);
+    expect(spec.openapi).toMatch(IS_OPEN_API_3_1_AND_PATTERN);
     expect(spec.info['title']).toBeTruthy();
     expect(spec.info['version']).toBeTruthy();
     expect(spec.info['description']).toContain('outside `/api`');
   });
 
   it('resolves every $ref', () => {
-    const missing = refs(spec).filter((ref) => {
+    const missing = references(spec).filter((ref) => {
       try {
         return deref<Json | undefined>({ $ref: ref }) === undefined;
       } catch {
@@ -453,7 +464,7 @@ describe('openapi.json', () => {
       path
         .split('/')
         .slice(1)
-        .some((segment) => !/^([a-z]+|\{[a-z_]+\})$/.test(segment)),
+        .some((segment) => !NAMES_ITS_PATHS_AS_PATTERN.test(segment)),
     );
     expect(odd).toEqual([]);
   });
@@ -463,12 +474,12 @@ describe('openapi.json', () => {
     expect(
       routes
         .filter((key) => !operations.has(key))
-        .toSorted((a, b) => a.localeCompare(b)),
+        .toSorted((a, b) => collator.compare(a, b)),
     ).toEqual([]);
     expect(
       [...operations.keys()]
         .filter((key) => !handlers.has(key))
-        .toSorted((a, b) => a.localeCompare(b)),
+        .toSorted((a, b) => collator.compare(a, b)),
     ).toEqual([]);
   });
 
@@ -483,7 +494,7 @@ describe('openapi.json', () => {
     const lacking: string[] = [];
     for (const [key, op] of operations) {
       if (
-        !/^[a-z][A-Za-z0-9]+$/.test(op.operationId) ||
+        !DESCRIBES_EVERY_OPERATION_FULLY_PATTERN.test(op.operationId) ||
         ids.has(op.operationId)
       ) {
         lacking.push(`${key}: operationId`);
@@ -503,7 +514,10 @@ describe('openapi.json', () => {
           .filter((p) => p.in === 'path')
           .map((p) => p.name),
       );
-      const wanted = [...op.path.matchAll(/\{([a-z_]+)\}/g)].map((m) => m[1]);
+      const wanted = Array.from(
+        op.path.matchAll(DESCRIBES_EVERY_OPERATION_FULLY_PATTERN_2),
+        (m) => m[1],
+      );
       if (wanted.some((n) => !names.has(n!)) || names.size !== wanted.length) {
         lacking.push(`${key}: path parameters`);
       }
@@ -571,10 +585,7 @@ describe('openapi.json members and security', () => {
     const checkMembers = (members: object, at: string): void => {
       for (const [name, schema] of Object.entries(members)) {
         // The browser's own PushSubscription member, accepted next to expiration_time.
-        if (
-          !/^[a-z][a-z0-9]*(_[a-z0-9]+)*$/.test(name) &&
-          name !== 'expirationTime'
-        ) {
+        if (!CHECK_MEMBERS_PATTERN.test(name) && name !== 'expirationTime') {
           wrong.push(`${at}: ${name}`);
         }
         const type = (schema as Json)['type'];
@@ -591,7 +602,7 @@ describe('openapi.json members and security', () => {
     };
     const walk = (node: unknown, at: string): void => {
       if (Array.isArray(node)) {
-        node.forEach((n, i) => walk(n, `${at}[${i}]`));
+        for (const [index, n] of node.entries()) walk(n, `${at}[${index}]`);
       } else if (node && typeof node === 'object') {
         for (const [key, value] of Object.entries(node)) {
           if (['example', 'examples', 'enum'].includes(key)) {
@@ -643,7 +654,7 @@ describe('openapi.json members and security', () => {
   });
 
   it('leaves no component unused', () => {
-    const used = new Set(refs(spec));
+    const used = new Set(references(spec));
     const unused = Object.entries(spec.components)
       .filter(([kind]) => kind !== 'securitySchemes')
       .flatMap(([kind, items]) =>
@@ -1023,8 +1034,9 @@ async function call(
 ): Promise<Response> {
   const [method, path] = key.split(' ') as [string, string];
   const params = c.params ?? {};
-  const pathname = path.replaceAll(/\{([a-z_]+)\}/g, (_, name: string) =>
-    encodeURIComponent(params[name] ?? 'x'),
+  const pathname = path.replaceAll(
+    DESCRIBES_EVERY_OPERATION_FULLY_PATTERN_2,
+    (_, name: string) => encodeURIComponent(params[name] ?? 'x'),
   );
   const query = c.query ? `?${c.query}` : '';
   const url = `https://app.test${pathname}${query}`;
@@ -1340,7 +1352,7 @@ describe('the controllers agree with openapi.json', () => {
     expect(
       [...operations.keys()]
         .filter((key) => !(key in VALID))
-        .toSorted((a, b) => a.localeCompare(b)),
+        .toSorted((a, b) => collator.compare(a, b)),
     ).toEqual([]);
     expect(Object.keys(VALID).filter((key) => !operations.has(key))).toEqual(
       [],
@@ -1358,8 +1370,9 @@ describe('every operation agrees with openapi.json', () => {
       expect(done.status).toBe(c.status);
     }
     const wrong: string[] = [];
-    const fail = (what: string, problems: string[]) =>
-      problems.forEach((p) => wrong.push(`${what}: ${p}`));
+    const fail = (what: string, problems: string[]) => {
+      for (const p of problems) wrong.push(`${what}: ${p}`);
+    };
     const isPublic = Array.isArray(op.security) && op.security.length === 0;
     const writes = key.split(' ', 1)[0] !== 'GET';
 

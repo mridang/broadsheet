@@ -84,7 +84,7 @@ describe('the counters of a source', () => {
       seed = (seed * 48_271) % 2_147_483_647;
       return seed % n;
     };
-    for (let i = 0; i < 400; i += 1) {
+    for (let index = 0; index < 400; index += 1) {
       const source = 1 + draw(2);
       const url = `u${draw(6)}`;
       const edition = `2026-10-0${1 + draw(3)}`;
@@ -110,10 +110,10 @@ describe('the counters of a source', () => {
         );
       }
     }
-    [1, 2].forEach((id) => {
+    for (const id of [1, 2]) {
       const { held, counted } = counters(raw, id);
       expect(held).toEqual(counted);
-    });
+    }
     expect(counters(raw, 1).counted).not.toEqual({ f: 0, s: 0 });
   });
 });

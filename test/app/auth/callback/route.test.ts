@@ -42,7 +42,7 @@ const upsertGoogleUser = jest
   .mockResolvedValue(person);
 const afterSignIn = jest
   .fn<(user: unknown) => Promise<void>>()
-  .mockResolvedValue(undefined);
+  .mockResolvedValue();
 /** One stand-in flow for each extra ask the app has. */
 const completed = jest
   .fn<(...args: unknown[]) => Promise<NextResponse>>()
@@ -79,7 +79,7 @@ beforeEach(() => {
   jar.clear();
   upsertGoogleUser.mockClear();
   afterSignIn.mockReset();
-  afterSignIn.mockResolvedValue(undefined);
+  afterSignIn.mockResolvedValue();
   completed.mockClear();
   restore = installEnv();
   jest.spyOn(console, 'error').mockImplementation(() => undefined);
@@ -107,7 +107,7 @@ function callbackRequest(
   cookies: Record<string, string> = trip(),
 ) {
   jar.clear();
-  Object.entries(cookies).forEach(([name, value]) => jar.set(name, value));
+  for (const [name, value] of Object.entries(cookies)) jar.set(name, value);
   return GET(appRequest('GET', `/auth/callback?${query}`));
 }
 

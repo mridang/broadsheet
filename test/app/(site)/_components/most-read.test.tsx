@@ -4,6 +4,8 @@ import { MostRead } from '@/app/(site)/_components/most-read';
 import type { ArticleSummary } from '@/domain/repository';
 import { html } from '../../../components/render';
 
+const LISTS_THE_STORIES_WITH_PATTERN = /<a[^>]*href="\/article\/1">Big<\/a>/;
+
 const article = (id: number, title: string | null) =>
   ({ id, url: `https://x/${id}`, title }) as ArticleSummary;
 
@@ -21,7 +23,7 @@ describe('MostRead', () => {
         ]}
       />,
     );
-    expect(out).toMatch(/<a[^>]*href="\/article\/1">Big<\/a>/);
+    expect(out).toMatch(LISTS_THE_STORIES_WITH_PATTERN);
     expect(out).toContain('3 readers');
     expect(out).toContain('https://x/2</a>');
     expect(out).toContain('1 reader<');

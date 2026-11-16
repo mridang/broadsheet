@@ -3,6 +3,8 @@ import { describe, expect, it } from '@jest/globals';
 import { EmptyState, ErrorText, Notice } from '@/components/ui/notice';
 import { html } from '../render';
 
+const IS_ANNOUNCED_AS_AN_PATTERN = /<p role="alert"[^>]*>Broke<\/p>/;
+
 describe('EmptyState', () => {
   it('says what is missing and what to do about it', () => {
     const out = html(
@@ -19,7 +21,7 @@ describe('EmptyState', () => {
 describe('ErrorText', () => {
   it('is announced as an alert', () => {
     expect(html(<ErrorText>Broke</ErrorText>)).toMatch(
-      /<p role="alert"[^>]*>Broke<\/p>/,
+      IS_ANNOUNCED_AS_AN_PATTERN,
     );
   });
 });

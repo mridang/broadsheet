@@ -37,7 +37,7 @@ export function issuerOf(origin: string): string {
 /** A path without its trailing slashes. */
 const withoutTrailingSlashes = (path: string): string => {
   let end = path.length;
-  while (end > 0 && path[end - 1] === '/') {
+  while (end > 0 && path.codePointAt(end - 1) === 47) {
     end -= 1;
   }
   return path.slice(0, end);
@@ -72,9 +72,7 @@ export function isOurResource(value: string, origin: string): boolean {
  * `resource` must match the URL it was derived from, so any other path has no
  * document. `segments` is the optional catch-all route parameter.
  */
-export function isProtectedResourcePath(
-  segments: readonly string[] | undefined,
-): boolean {
+export function isProtectedResourcePath(segments?: readonly string[]): boolean {
   const path = (segments ?? []).join('/');
   return path === '' || `/${path}` === MCP_PATH;
 }

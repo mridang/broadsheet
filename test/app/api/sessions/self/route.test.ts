@@ -4,13 +4,15 @@ import { DELETE } from '@/app/api/sessions/self/route';
 import { SESSION_COOKIE } from '@/domain/auth/app';
 import { appRequest } from '../../../../domain/auth/auth-test-kit';
 
+const CLEARS_THE_SESSION_COOKIE_PATTERN = /expires=Thu, 01 Jan 1970/i;
+
 describe('DELETE /api/sessions/self', () => {
   it('clears the session cookie and answers 204', async () => {
     const res = await DELETE(appRequest('DELETE', '/api/sessions/self'));
     expect(res.status).toBe(204);
     const cookie = res.headers.get('set-cookie') ?? '';
     expect(cookie).toContain(`${SESSION_COOKIE}=;`);
-    expect(cookie).toMatch(/expires=Thu, 01 Jan 1970/i);
+    expect(cookie).toMatch(CLEARS_THE_SESSION_COOKIE_PATTERN);
   });
 
   it('is idempotent: signing out when already signed out is fine', async () => {

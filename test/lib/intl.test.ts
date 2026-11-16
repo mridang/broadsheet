@@ -22,6 +22,8 @@ import {
   truncate,
 } from '@/lib/intl';
 
+const NEVER_CUTS_AN_EMOJI_PATTERN = /^ab( 👨‍👩‍👧)?…$/;
+
 describe('compareText', () => {
   it('alphabetises accented letters with their base letter', () => {
     expect(
@@ -208,7 +210,7 @@ describe('truncate', () => {
   });
 
   it('never cuts an emoji in half', () => {
-    expect(truncate('ab 👨‍👩‍👧👨‍👩‍👧 cd', 4)).toMatch(/^ab( 👨‍👩‍👧)?…$/);
+    expect(truncate('ab 👨‍👩‍👧👨‍👩‍👧 cd', 4)).toMatch(NEVER_CUTS_AN_EMOJI_PATTERN);
     expect(characterCount('👨‍👩‍👧')).toBe(1);
   });
 });

@@ -4,6 +4,15 @@ import { FeedSummary } from '@/components/feeds/feed-summary';
 import type { Feed } from '@/domain/repository';
 import { html } from '../render';
 
+const SHOWS_THE_NAME_FORMAT_PATTERN = /<h1[^>]*>Shopify Engineering<\/h1>/;
+const SHOWS_THE_NAME_FORMAT_PATTERN_2 = /<span[^>]*>Atom<\/span>/;
+const SHOWS_EVERY_DECLARED_FACT_PATTERN =
+  /<dt[^>]*>Generator<\/dt><dd[^>]*>WordPress<\/dd>/;
+const SHOWS_EVERY_DECLARED_FACT_PATTERN_2 =
+  /<img src="\/img\?url=https%3A%2F%2Fexample\.com%2Fi\.png[^"]*" alt="The Blog"/;
+const SAYS_A_FEED_THAT_PATTERN = /<strong[^>]*>a\.test<\/strong>/;
+const SAYS_A_FEED_THAT_PATTERN_2 = />(Atom|RSS|JSON)[^<]*<\/span>/;
+
 const feed = (over: Partial<Feed> = {}): Feed => ({
   id: 1,
   user_id: 1,
@@ -33,8 +42,8 @@ const feed = (over: Partial<Feed> = {}): Feed => ({
 describe('FeedSummary', () => {
   it('shows the name, format, description, site and facts', async () => {
     const out = html(await FeedSummary({ feed: feed(), heading: true }));
-    expect(out).toMatch(/<h1[^>]*>Shopify Engineering<\/h1>/);
-    expect(out).toMatch(/<span[^>]*>Atom<\/span>/);
+    expect(out).toMatch(SHOWS_THE_NAME_FORMAT_PATTERN);
+    expect(out).toMatch(SHOWS_THE_NAME_FORMAT_PATTERN_2);
     expect(out).toContain('How we build.');
     expect(out).toContain('href="https://a.test/"');
     expect(out).toContain('href="https://a.test/feed"');
@@ -68,10 +77,8 @@ describe('FeedSummary', () => {
         heading: true,
       }),
     );
-    expect(out).toMatch(/<dt[^>]*>Generator<\/dt><dd[^>]*>WordPress<\/dd>/);
-    expect(out).toMatch(
-      /<img src="\/img\?url=https%3A%2F%2Fexample\.com%2Fi\.png[^"]*" alt="The Blog"/,
-    );
+    expect(out).toMatch(SHOWS_EVERY_DECLARED_FACT_PATTERN);
+    expect(out).toMatch(SHOWS_EVERY_DECLARED_FACT_PATTERN_2);
   });
 
   it('says a feed that was never fetched has not been, named by its host', async () => {
@@ -86,8 +93,8 @@ describe('FeedSummary', () => {
         }),
       }),
     );
-    expect(out).toMatch(/<strong[^>]*>a\.test<\/strong>/);
+    expect(out).toMatch(SAYS_A_FEED_THAT_PATTERN);
     expect(out).toContain('Not fetched yet');
-    expect(out).not.toMatch(/>(Atom|RSS|JSON)[^<]*<\/span>/);
+    expect(out).not.toMatch(SAYS_A_FEED_THAT_PATTERN_2);
   });
 });

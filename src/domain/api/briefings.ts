@@ -186,7 +186,7 @@ export function createBriefingItem(
     }),
   }).on<null, Shown | undefined>({
     method: 'GET',
-    handle: async (_input, { request, uid }) => {
+    handle: async (_input, { request, uid }): Promise<Shown | undefined> => {
       const id = parseFeedId(idOf(request));
       if (id === undefined) return undefined;
       const repo = new Repository(getDatabase());

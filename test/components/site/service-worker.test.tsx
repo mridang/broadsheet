@@ -51,7 +51,7 @@ describe('registerWhenLoaded', () => {
     });
     registerWhenLoaded(env);
     expect(env.register).not.toHaveBeenCalled();
-    listeners.forEach((listener) => listener());
+    for (const listener of listeners) listener();
     expect(env.register).toHaveBeenCalledTimes(1);
   });
 

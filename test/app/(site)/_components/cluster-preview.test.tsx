@@ -8,6 +8,10 @@ import {
 import type { Sibling } from '@/domain/render/layout';
 import { html } from '../../../components/render';
 
+const SHOWS_PICTURES_AND_OPENINGS_PATTERN =
+  /src="\/img\?url=https%3A%2F%2Fexample\.com%2Fp\.jpg/;
+const DIMS_THE_COPIES_THE_PATTERN = /data-read=""/g;
+
 const siblings: Sibling[] = [
   {
     id: 8,
@@ -59,13 +63,13 @@ describe('ClusterPreview', () => {
       <ClusterPreview siblings={siblings} expanded pictures={pictures} />,
     );
     expect(out).toContain('The opening.');
-    expect(out).toMatch(/src="\/img\?url=https%3A%2F%2Fexample\.com%2Fp\.jpg/);
+    expect(out).toMatch(SHOWS_PICTURES_AND_OPENINGS_PATTERN);
   });
 
   it('dims the copies the reader read', async () => {
     const out = html(
       <ClusterPreview siblings={siblings} read={new Set([9])} />,
     );
-    expect(out.match(/data-read=""/g)).toHaveLength(1);
+    expect(out.match(DIMS_THE_COPIES_THE_PATTERN)).toHaveLength(1);
   });
 });

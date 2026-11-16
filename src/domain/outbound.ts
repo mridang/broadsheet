@@ -99,8 +99,8 @@ function eventsOf(stored: string): WebhookEvent[] {
   try {
     const parsed: unknown = JSON.parse(stored);
     return Array.isArray(parsed)
-      ? parsed.filter((e): e is WebhookEvent =>
-          (WEBHOOK_EVENTS as readonly unknown[]).includes(e),
+      ? parsed.filter((event2): event2 is WebhookEvent =>
+          (WEBHOOK_EVENTS as readonly unknown[]).includes(event2),
         )
       : [];
   } catch {

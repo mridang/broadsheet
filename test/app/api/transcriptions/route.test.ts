@@ -98,7 +98,7 @@ describe('POST /api/transcriptions', () => {
   });
 
   it('answers 429 once today’s budget is used up', async () => {
-    for (let i = 0; i < DAILY_LIMITS.transcription; i++) {
+    for (let index = 0; index < DAILY_LIMITS.transcription; index++) {
       await repo.recordUsage(7, 'transcription');
     }
     const res = await send(new Uint8Array([1]));

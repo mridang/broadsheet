@@ -61,7 +61,7 @@ export function PhraseTrainer({
         aria-label="What to match"
         className={SMALL_FIELD}
         value={kind}
-        onChange={(e) => setKind(e.target.value as TrainKind)}
+        onChange={(event3) => setKind(event3.target.value as TrainKind)}
       >
         {KINDS.map(([k, label]) => (
           <option key={k} value={k}>
@@ -73,14 +73,14 @@ export function PhraseTrainer({
         aria-label="Phrase"
         className={`${SMALL_FIELD} order-first basis-full`}
         value={value}
-        onChange={(e) => setValue(e.target.value)}
+        onChange={(event2) => setValue(event2.target.value)}
       />{' '}
       {REGEX.has(kind) ? (
         <label className={CHECK_LABEL}>
           <input
             type="checkbox"
             checked={regex}
-            onChange={(e) => setRegex(e.target.checked)}
+            onChange={(event) => setRegex(event.target.checked)}
           />{' '}
           Regex
         </label>

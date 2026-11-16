@@ -1,5 +1,11 @@
 import type { ReactElement, ReactNode } from 'react';
 
+const SAFE_HREF_PATTERN = /^https?:\/\//i;
+const SAFE_HREF_PATTERN_2 = /^\/(?!\/)/;
+const BLOCKS_PATTERN = /^[-*]\s+(\S.*)$/;
+const BLOCKS_PATTERN_2 = /^\d+[.)]\s+(\S.*)$/;
+const BLOCKS_PATTERN_3 = /^#{1,6}\s+(\S.*)$/;
+
 /**
  * @packageDocumentation
  *
@@ -13,7 +19,7 @@ import type { ReactElement, ReactNode } from 'react';
 
 /** Whether a link may be followed: the web, or a path on this app. */
 function safeHref(href: string): boolean {
-  return /^https?:\/\//i.test(href) || /^\/(?!\/)/.test(href);
+  return SAFE_HREF_PATTERN.test(href) || SAFE_HREF_PATTERN_2.test(href);
 }
 
 /** The inline marks, one alternative each, in the order they are tried. */
@@ -78,14 +84,14 @@ export function blocks(markdown: string): Block[] {
   for (const raw of markdown.split('\n')) {
     const line = raw.trim();
     if (!line) continue;
-    const bullet = /^[-*]\s+(\S.*)$/.exec(line);
-    const numbered = /^\d+[.)]\s+(\S.*)$/.exec(line);
-    const heading = /^#{1,6}\s+(\S.*)$/.exec(line);
+    const bullet = BLOCKS_PATTERN.exec(line);
+    const numbered = BLOCKS_PATTERN_2.exec(line);
+    const heading = BLOCKS_PATTERN_3.exec(line);
     const kind = bullet ? 'ul' : numbered && 'ol';
-    const prev = out.at(-1);
+    const previous = out.at(-1);
     if (kind) {
       const item = (bullet ?? numbered)![1]!;
-      if (prev && prev.kind === kind) prev.items.push(item);
+      if (previous && previous.kind === kind) previous.items.push(item);
       else out.push({ kind, items: [item] });
     } else if (heading) out.push({ kind: 'h', text: heading[1]! });
     else out.push({ kind: 'p', text: line });
@@ -96,30 +102,33 @@ export function blocks(markdown: string): Block[] {
 /** An answer written in Markdown, rendered safely. */
 export function Markdown({
   text,
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
   className,
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
 }: Readonly<{ text: string; className?: string }>): ReactElement {
   return (
+    // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
     <div className={className}>
-      {blocks(text).map((block, i) => {
+      {blocks(text).map((block, index) => {
         if (!('items' in block)) {
           if (block.kind === 'p') {
-            return <p key={i}>{inline(block.text, `${i}-`)}</p>;
+            return <p key={index}>{inline(block.text, `${index}-`)}</p>;
           }
           return (
-            <p key={i} className="font-semibold">
-              {inline(block.text, `${i}-`)}
+            <p key={index} className="font-semibold">
+              {inline(block.text, `${index}-`)}
             </p>
           );
         }
-        const items = block.items.map((item, j) => (
-          <li key={j}>{inline(item, `${i}-${j}-`)}</li>
+        const items = block.items.map((item, index2) => (
+          <li key={index2}>{inline(item, `${index}-${index2}-`)}</li>
         ));
         return block.kind === 'ul' ? (
-          <ul key={i} className="list-disc pl-5">
+          <ul key={index} className="list-disc pl-5">
             {items}
           </ul>
         ) : (
-          <ol key={i} className="list-decimal pl-5">
+          <ol key={index} className="list-decimal pl-5">
             {items}
           </ol>
         );

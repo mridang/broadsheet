@@ -11,6 +11,8 @@ import { quietSecurityLogs } from '../../../lib/oauth/quiet-logs';
 import { APP_MIGRATIONS } from '../../../lib/core/db/migrations';
 import urls from '../../../fixtures/insecure-urls.json' with { type: 'json' };
 
+const ANSWERS_429_WITH_RETRY_AFTER_PATTERN = /^\d+$/;
+
 const body = JSON.stringify({
   client_name: 'Assistant',
   redirect_uris: ['https://app.example/cb'],
@@ -156,11 +158,13 @@ describe('POST /oauth/register', () => {
   it('answers 429 with Retry-After once an address has registered too much, and stores nothing more', async () => {
     const statuses: number[] = [];
     // One at a time, as a real caller would: each registration is a D1 write.
-    for (let i = 0; i < 21; i += 1) {
+    for (let index = 0; index < 21; index += 1) {
       const res = await post(body);
       statuses.push(res.status);
       if (res.status === 429) {
-        expect(res.headers.get('retry-after')).toMatch(/^\d+$/);
+        expect(res.headers.get('retry-after')).toMatch(
+          ANSWERS_429_WITH_RETRY_AFTER_PATTERN,
+        );
         expect(await res.json()).toMatchObject({
           error: 'temporarily_unavailable',
         });
@@ -172,7 +176,7 @@ describe('POST /oauth/register', () => {
   });
 
   it('counts each address separately', async () => {
-    for (let i = 0; i < 20; i += 1) {
+    for (let index = 0; index < 20; index += 1) {
       await post(body);
     }
     const again = await post(body);
@@ -182,8 +186,8 @@ describe('POST /oauth/register', () => {
   });
 
   it('counts every address of one IPv6 network as the same caller', async () => {
-    for (let i = 0; i < 20; i += 1) {
-      await post(body, { 'cf-connecting-ip': `2001:db8:1:2:${i}::1` });
+    for (let index = 0; index < 20; index += 1) {
+      await post(body, { 'cf-connecting-ip': `2001:db8:1:2:${index}::1` });
     }
     const sameNetwork = await post(body, {
       'cf-connecting-ip': '2001:db8:1:2:ffff::9',

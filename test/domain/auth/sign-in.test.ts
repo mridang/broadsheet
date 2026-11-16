@@ -5,6 +5,9 @@ import type { User } from '@/domain/auth/store';
 import { SESSION_SECRET, appRequest } from './auth-test-kit';
 import { installFakeTracing } from '../../lib/core/observability/fake-tracing';
 
+const REFUSES_A_GOOGLE_ACCOUNT_PATTERN = /email/;
+const FAILS_CLOSED_WITHOUT_A_PATTERN = /SESSION_SECRET/;
+
 /** A value that is not there, for fields the test leaves out on purpose. */
 const unset = (): undefined => undefined;
 
@@ -25,7 +28,7 @@ const upsertGoogleUser = jest
   .mockResolvedValue(person);
 const afterSignIn = jest
   .fn<(user: unknown) => Promise<void>>()
-  .mockResolvedValue(undefined);
+  .mockResolvedValue();
 
 jest.unstable_mockModule('@/domain/auth/store', () => ({
   upsertGoogleUser,
@@ -145,7 +148,7 @@ describe('completeSignIn', () => {
 
   it('refuses a Google account with no email address, recording nothing', async () => {
     await expect(completeSignIn(context(), { sub: 'g1' })).rejects.toThrow(
-      /email/,
+      REFUSES_A_GOOGLE_ACCOUNT_PATTERN,
     );
     expect(upsertGoogleUser).not.toHaveBeenCalled();
   });
@@ -156,7 +159,7 @@ describe('completeSignIn', () => {
         sub: 'g1',
         email: 'ada@example.com',
       }),
-    ).rejects.toThrow(/SESSION_SECRET/);
+    ).rejects.toThrow(FAILS_CLOSED_WITHOUT_A_PATTERN);
     expect(upsertGoogleUser).not.toHaveBeenCalled();
     expect(afterSignIn).not.toHaveBeenCalled();
   });

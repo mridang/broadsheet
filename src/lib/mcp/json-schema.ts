@@ -426,7 +426,7 @@ export function validateJson(
  * unchecked, so a test requires this to be empty for every tool.
  * @param schema - A schema (anything that is not an object has no keywords).
  */
-export function unsupportedKeywords(schema: unknown): readonly string[] {
+export function unsupportedKeywords(schema?: unknown): readonly string[] {
   if (!isJsonObject(schema)) {
     return [];
   }

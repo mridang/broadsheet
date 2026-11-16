@@ -1,3 +1,7 @@
+const NORMALISE_TITLE_PATTERN = /[-/]/g;
+const NORMALISE_TITLE_PATTERN_2 = /[^\p{L}\p{N}\s]/gu;
+const NORMALISE_TITLE_PATTERN_3 = /\s+/g;
+const SIGNIFICANT_WORDS_PATTERN = /^\d+$/;
 /**
  * @packageDocumentation
  *
@@ -33,9 +37,9 @@ const STOPWORDS = new Set(
 export function normaliseTitle(title: string | null): string {
   return (title ?? '')
     .toLowerCase()
-    .replaceAll(/[-/]/g, ' ')
-    .replaceAll(/[^\p{L}\p{N}\s]/gu, '')
-    .replaceAll(/\s+/g, ' ')
+    .replaceAll(NORMALISE_TITLE_PATTERN, ' ')
+    .replaceAll(NORMALISE_TITLE_PATTERN_2, '')
+    .replaceAll(NORMALISE_TITLE_PATTERN_3, ' ')
     .trim();
 }
 
@@ -58,7 +62,12 @@ export function significantWords(
   return new Set(
     normaliseTitle(title)
       .split(' ')
-      .filter((w) => w.length > 1 && !/^\d+$/.test(w) && !STOPWORDS.has(w))
+      .filter(
+        (w) =>
+          w.length > 1 &&
+          !SIGNIFICANT_WORDS_PATTERN.test(w) &&
+          !STOPWORDS.has(w),
+      )
       .map((w) => stem(w))
       .filter((w) => !own.has(w)),
   );

@@ -48,6 +48,7 @@ export {
   type CspSurface,
   cspSurfaceFor,
   forwardedHeaders,
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- newNonce is an exported name of the module's public surface, so it is not renamed
   newNonce,
   nonceOf,
 } from './csp';

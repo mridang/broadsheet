@@ -10,6 +10,11 @@
 
 import { parseUrl } from '@/utils/url';
 
+const IPV4_OCTETS_PATTERN = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+const MAPPED_IPV4_PATTERN = /^\[::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})\]$/;
+const IS_PRIVATE_HOST_PATTERN = /^\[(f[cd][0-9a-f]{2}|fe[89ab][0-9a-f]):/;
+const IS_ACCEPTABLE_REDIRECT_URI_PATTERN = /^[\u0021-\u007E]+$/;
+
 /** Schemes that can run script or read files; never a valid redirect target, dotted or not. */
 const FORBIDDEN_SCHEMES: ReadonlySet<string> = new Set([
   'javascript:',
@@ -65,13 +70,13 @@ const PRIVATE_SUFFIXES = [
 
 /** The four numbers of a dotted IPv4 address, or undefined if the host is not one. */
 function ipv4Octets(host: string): readonly number[] | undefined {
-  const match = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
+  const match = IPV4_OCTETS_PATTERN.exec(host);
   return match ? match.slice(1).map(Number) : undefined;
 }
 
 /** The IPv4 address an IPv4-mapped IPv6 host (`[::ffff:7f00:1]`, as `URL` writes it) stands for, as a dotted string. */
 function mappedIpv4(host: string): string | undefined {
-  const match = /^\[::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})\]$/.exec(host);
+  const match = MAPPED_IPV4_PATTERN.exec(host);
   if (!match) {
     return undefined;
   }
@@ -114,7 +119,7 @@ export function isPrivateHost(host: string): boolean {
     ].some(Boolean);
   }
   if (host.startsWith('[')) {
-    return /^\[(f[cd][0-9a-f]{2}|fe[89ab][0-9a-f]):/.test(host);
+    return IS_PRIVATE_HOST_PATTERN.test(host);
   }
   return (
     !host.includes('.') ||
@@ -157,7 +162,7 @@ export function isAcceptableRedirectUri(uri: string): boolean {
   // Printable ASCII only. RFC 3986 requires anything else to be percent-encoded,
   // and a raw look-alike letter or direction-changing character would make the
   // address we show differ from the one a person reads.
-  if (!/^[\u0021-\u007E]+$/.test(uri)) {
+  if (!IS_ACCEPTABLE_REDIRECT_URI_PATTERN.test(uri)) {
     return false;
   }
   const url = parseUrl(uri);

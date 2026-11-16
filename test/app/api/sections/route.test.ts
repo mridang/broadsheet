@@ -10,6 +10,8 @@ import {
 } from '../../../lib/core/db/sqlite-d1';
 import { SESSION_SECRET, tokenFor } from '../../../domain/auth/auth-test-kit';
 
+const ANSWERS_400_NAMING_PARENT_ID_PATTERN = /^parent_id:/;
+
 const { POST } = await import('@/app/api/sections/route');
 
 let restore: () => void;
@@ -66,7 +68,7 @@ describe('POST /api/sections', () => {
     const res = await post(JSON.stringify({ name: 'AI', parent_id: '999' }));
     expect(res.status).toBe(400);
     expect(((await res.json()) as { errors: string[] }).errors[0]).toMatch(
-      /^parent_id:/,
+      ANSWERS_400_NAMING_PARENT_ID_PATTERN,
     );
     expect(await new Repository(db).listSections(7)).toHaveLength(0);
   });

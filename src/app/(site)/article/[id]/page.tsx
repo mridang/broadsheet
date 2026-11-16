@@ -119,8 +119,8 @@ export default async function ArticlePage({
       </div>
       {paragraphs.length > 0 ? (
         <div className="mt-8 space-y-5 font-serif text-lg leading-8 text-ink/90">
-          {paragraphs.map((text, i) => (
-            <p key={i}>{text}</p>
+          {paragraphs.map((text, index) => (
+            <p key={index}>{text}</p>
           ))}
         </div>
       ) : (

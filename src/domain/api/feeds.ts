@@ -287,7 +287,7 @@ export function createFeedItem(
         }
         return input.changes;
       },
-      handle: async (changes, { request, uid }) => {
+      handle: async (changes, { request, uid }): Promise<Feed | undefined> => {
         const id = parseFeedId(idOf(request));
         if (id === undefined) return undefined;
         const repo = new Repository(getDatabase());
@@ -738,7 +738,7 @@ export function createFeedRetries(
     }),
   }).on<null, Response | undefined>({
     method: 'POST',
-    handle: async (_input, { request, uid }) => {
+    handle: async (_input, { request, uid }): Promise<Response | undefined> => {
       const id = statisticsId(request);
       const repo = new Repository(getDatabase());
       const feed = id === undefined ? undefined : await repo.getFeed(uid, id);

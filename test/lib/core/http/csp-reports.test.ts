@@ -2,6 +2,8 @@ import { describe, expect, it } from '@jest/globals';
 
 import { MAX_REPORTS_PER_REQUEST, summariseReports } from '@/lib/core/http';
 
+const CUTS_EVERY_FIELD_SHORT_PATTERN = /[\r\n]/;
+
 /** A Reporting API report. */
 const modern = (body: Record<string, unknown>, type = 'csp-violation') => ({
   type,
@@ -108,7 +110,7 @@ describe('summariseReports', () => {
     ]);
     expect(report?.sample).toHaveLength(80);
     expect(report?.directive).toHaveLength(60);
-    expect(report?.blocked).not.toMatch(/[\r\n]/);
+    expect(report?.blocked).not.toMatch(CUTS_EVERY_FIELD_SHORT_PATTERN);
     expect(JSON.stringify(report)).not.toContain(String.raw`\n`);
   });
 

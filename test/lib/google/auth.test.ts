@@ -2,6 +2,9 @@ import { afterEach, describe, expect, it, jest } from '@jest/globals';
 
 import { GoogleOAuthClient, SIGN_IN_SCOPES } from '@/lib/google';
 
+const REPORTS_GOOGLE_S_ANSWER_WHEN_PATTERN = /invalid_grant/;
+const REFUSES_A_TOKEN_EXCHANGE_PATTERN = /clientSecret is required/;
+
 const client = new GoogleOAuthClient({
   clientId: 'client-id',
   clientSecret: 'client-secret',
@@ -101,7 +104,7 @@ describe('exchangeCode', () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.status).toBe(400);
-      expect(result.raw).toMatch(/invalid_grant/);
+      expect(result.raw).toMatch(REPORTS_GOOGLE_S_ANSWER_WHEN_PATTERN);
     }
   });
 
@@ -144,7 +147,7 @@ describe('a client with no secret', () => {
     const noSecret = new GoogleOAuthClient({ clientId: 'client-id' });
     await expect(
       noSecret.exchangeCode({ code: 'c', redirectUri: 'https://app.test/cb' }),
-    ).rejects.toThrow(/clientSecret is required/);
+    ).rejects.toThrow(REFUSES_A_TOKEN_EXCHANGE_PATTERN);
   });
 });
 

@@ -11,6 +11,8 @@ import {
   RARELY_CHANGING,
 } from '@/lib/core/http';
 
+const collator = new Intl.Collator();
+
 describe('site settings', () => {
   it('lets the edge keep the same pages that may be indexed', () => {
     expect([...EDGE_CACHED_PAGES]).toEqual([...PUBLIC_PAGES]);
@@ -58,16 +60,16 @@ describe('site settings', () => {
     for (const path of RARELY_CHANGING) {
       expect(OPEN_FILES.test(path)).toBe(true);
     }
-    expect([...RARELY_CHANGING].toSorted((a, b) => a.localeCompare(b))).toEqual(
-      [
-        '/apple-icon.png',
-        '/favicon.ico',
-        '/icon.svg',
-        '/manifest.webmanifest',
-        '/opengraph-image.png',
-        '/twitter-image.png',
-      ],
-    );
+    expect(
+      [...RARELY_CHANGING].toSorted((a, b) => collator.compare(a, b)),
+    ).toEqual([
+      '/apple-icon.png',
+      '/favicon.ico',
+      '/icon.svg',
+      '/manifest.webmanifest',
+      '/opengraph-image.png',
+      '/twitter-image.png',
+    ]);
   });
 
   it('adds no directives of its own', () => {

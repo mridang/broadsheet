@@ -8,6 +8,8 @@ import {
 } from '../../../lib/core/db/sqlite-d1';
 import { SESSION_SECRET, tokenFor } from '../../../domain/auth/auth-test-kit';
 
+const PAGES_WITH_A_CURSOR_PATTERN = /cursor=/;
+
 const { GET, POST } = await import('@/app/api/conversations/route');
 
 let restore: () => void;
@@ -87,7 +89,7 @@ describe('GET /api/conversations', () => {
     await start();
     const res = await list('?limit=1');
     const body = (await res.json()) as { next?: string };
-    expect(body.next).toMatch(/cursor=/);
+    expect(body.next).toMatch(PAGES_WITH_A_CURSOR_PATTERN);
   });
 
   it('answers 400 as a problem for a bad cursor', async () => {

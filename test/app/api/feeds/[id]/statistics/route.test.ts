@@ -20,6 +20,8 @@ import {
   tokenFor,
 } from '../../../../../domain/auth/auth-test-kit';
 
+const REPORTS_THE_LAST_FETCH_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
+
 const refreshSource = jest.fn<(...args: unknown[]) => Promise<unknown>>(
   async () => ({ ok: true, n: 0 }),
 );
@@ -63,9 +65,7 @@ describe('GET /api/feeds/:id/statistics', () => {
     const res = await get(String(feed.id));
     expect(res.status).toBe(200);
     expect(await res.json()).toMatchObject({
-      last_fetched_at: expect.stringMatching(
-        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/,
-      ),
+      last_fetched_at: expect.stringMatching(REPORTS_THE_LAST_FETCH_PATTERN),
       last_error: 'timeout',
       fail_count: 1,
       stories_per_day: [],
@@ -97,8 +97,8 @@ describe('GET /api/feeds/:id/statistics', () => {
     await repo.writeEdition(
       feed.source_id,
       '2026-10-02',
-      ['Rust wins', 'Go news', 'Cats'].map((title, i) => ({
-        url: `https://x/${i}`,
+      ['Rust wins', 'Go news', 'Cats'].map((title, index) => ({
+        url: `https://x/${index}`,
         title,
         source: 'Src',
         favicon: '',

@@ -59,8 +59,8 @@ export function ShareButton({
   const form = (
     <form
       className={inline ? 'px-3 pt-1 pb-2' : 'p-2.5'}
-      onSubmit={(e) => {
-        e.preventDefault();
+      onSubmit={(event2) => {
+        event2.preventDefault();
         void run(true);
       }}
     >
@@ -72,7 +72,7 @@ export function ShareButton({
         rows={3}
         maxLength={5000}
         value={comments}
-        onChange={(e) => setComments(e.target.value)}
+        onChange={(event) => setComments(event.target.value)}
         className="mt-1.5"
       />
       <p className={HINT}>Anyone signed in sees your share and your name.</p>

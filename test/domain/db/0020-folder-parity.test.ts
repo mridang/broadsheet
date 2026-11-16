@@ -7,6 +7,8 @@ import type { DatabaseSync } from 'node:sqlite';
 import { APP_MIGRATIONS } from '../../lib/core/db/migrations';
 import { sqliteD1 } from '../../lib/core/db/sqlite-d1';
 
+const FILES_A_FEED_IN_PATTERN = /UNIQUE|PRIMARY/;
+
 let raw: DatabaseSync;
 
 /** A database just before the migration, with a section and a feed in it. */
@@ -45,6 +47,6 @@ describe('0020_folder_parity.sql', () => {
       'INSERT INTO subscription_sections (subscription_id, section_id) VALUES (1, 2)',
     );
     insert.run();
-    expect(() => insert.run()).toThrow(/UNIQUE|PRIMARY/);
+    expect(() => insert.run()).toThrow(FILES_A_FEED_IN_PATTERN);
   });
 });

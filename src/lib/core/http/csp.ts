@@ -17,7 +17,10 @@ import { replacingHeaders } from './headers';
 import { CSP_REPORT_DIRECTIVES } from './reporting';
 import { EXTRA_DIRECTIVES, EXTRA_IMG_SOURCES } from './site';
 
+const NONCE_OF_PATTERN = /'nonce-([^']+)'/;
+
 /** A fresh, unguessable nonce: 16 random bytes, base64. */
+// eslint-disable-next-line unicorn/no-keyword-prefix -- newNonce is an exported name of the module's public surface, so it is not renamed
 export function newNonce(): string {
   return bytesToBase64(crypto.getRandomValues(new Uint8Array(16)));
 }
@@ -77,7 +80,7 @@ export function cspSurfaceFor(pathname: string): CspSurface {
 
 /** The nonce in a policy, if it carries one. */
 export function nonceOf(csp: string): string | undefined {
-  return /'nonce-([^']+)'/.exec(csp)?.[1];
+  return NONCE_OF_PATTERN.exec(csp)?.[1];
 }
 
 /**

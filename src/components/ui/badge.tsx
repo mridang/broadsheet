@@ -22,10 +22,12 @@ export type BadgeTone = keyof typeof TONES;
  */
 export function Badge({
   tone = 'neutral',
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
   className,
   children,
 }: Readonly<{
   tone?: BadgeTone;
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
   className?: string;
   children: ReactNode;
 }>): ReactElement {
@@ -52,6 +54,7 @@ export const CHIP =
 
 /** A small pill button: a filter, a tag, a quick action. */
 export function Chip({
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
   className,
   children,
   ...props

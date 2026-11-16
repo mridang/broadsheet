@@ -288,7 +288,10 @@ export function createSaveTagItem(
         }
         return input.name;
       },
-      handle: async (name, { request, uid }) => {
+      handle: async (
+        name,
+        { request, uid },
+      ): Promise<SaveTagResource | undefined> => {
         const repo = new Repository(getDatabase());
         if (!(await repo.retagSaves(uid, tagOf(request), name))) {
           return undefined;
@@ -305,11 +308,7 @@ export function createSaveTagItem(
     .on<null, number>({
       method: 'DELETE',
       handle: (_input, { request, uid }) =>
-        new Repository(getDatabase()).retagSaves(
-          uid,
-          tagOf(request),
-          undefined,
-        ),
+        new Repository(getDatabase()).retagSaves(uid, tagOf(request)),
       encode: (changed) => (changed ? noContent() : problems.notFound('tag')),
     });
 }

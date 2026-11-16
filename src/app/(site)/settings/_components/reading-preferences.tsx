@@ -57,9 +57,9 @@ export function ReadingPreferences({
           aria-label="Which stories to show"
           value={level}
           disabled={action.busy}
-          onChange={(e) => {
-            setLevel(e.target.value);
-            void save({ intelligence: e.target.value });
+          onChange={(event4) => {
+            setLevel(event4.target.value);
+            void save({ intelligence: event4.target.value });
           }}
         >
           {LEVELS.map(([value, label]) => (
@@ -74,9 +74,9 @@ export function ReadingPreferences({
           label="Mark a story read when I open it"
           checked={onOpen}
           disabled={action.busy}
-          onChange={(e) => {
-            setOnOpen(e.target.checked);
-            void save({ mark_read_on_open: e.target.checked });
+          onChange={(event3) => {
+            setOnOpen(event3.target.checked);
+            void save({ mark_read_on_open: event3.target.checked });
           }}
         />
       </div>
@@ -85,9 +85,9 @@ export function ReadingPreferences({
           label="Mark stories read as I scroll past them"
           checked={onScroll}
           disabled={action.busy}
-          onChange={(e) => {
-            setOnScroll(e.target.checked);
-            void save({ mark_read_on_scroll: e.target.checked });
+          onChange={(event2) => {
+            setOnScroll(event2.target.checked);
+            void save({ mark_read_on_scroll: event2.target.checked });
           }}
         />
       </div>
@@ -104,7 +104,7 @@ export function ReadingPreferences({
             max={365}
             value={days}
             disabled={action.busy}
-            onChange={(e) => setDays(e.target.value)}
+            onChange={(event) => setDays(event.target.value)}
             onBlur={() => void save({ auto_mark_read_days: Number(days) })}
           />
           days

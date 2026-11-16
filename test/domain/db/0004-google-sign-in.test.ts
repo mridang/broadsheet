@@ -6,6 +6,9 @@ import type { DatabaseSync } from 'node:sqlite';
 
 import { sqliteD1 } from '../../lib/core/db/sqlite-d1';
 
+const KEEPS_THE_GOOGLE_ACCOUNT_PATTERN = /UNIQUE/;
+const KEEPS_THE_GOOGLE_ACCOUNT_PATTERN_2 = /NOT NULL/;
+
 let raw: DatabaseSync;
 
 /** The database as it was before the migration, with people, feeds and articles in it. */
@@ -21,11 +24,11 @@ beforeEach(async () => {
   const feed = raw.prepare(
     'INSERT INTO feeds (id, user_id, url) VALUES (?, ?, ?)',
   );
-  [1, 2, 3, 4].forEach((id) => feed.run(id, id, `https://f/${id}`));
+  for (const id of [1, 2, 3, 4]) feed.run(id, id, `https://f/${id}`);
   const article = raw.prepare(
     "INSERT INTO articles (feed_id, url, edition) VALUES (?, ?, '2026-10-20')",
   );
-  [1, 2, 3, 4].forEach((id) => article.run(id, `https://x/${id}`));
+  for (const id of [1, 2, 3, 4]) article.run(id, `https://x/${id}`);
   raw.exec(
     await readFile(
       path.join(process.cwd(), 'migrations', '0004_google_sign_in.sql'),
@@ -79,8 +82,12 @@ describe('0004_google_sign_in.sql', () => {
     const insert = raw.prepare(
       'INSERT INTO users (google_sub, email) VALUES (?, ?)',
     );
-    expect(() => insert.run('google-1', 'again@example.com')).toThrow(/UNIQUE/);
-    expect(() => insert.run('google-2', null)).toThrow(/NOT NULL/);
+    expect(() => insert.run('google-1', 'again@example.com')).toThrow(
+      KEEPS_THE_GOOGLE_ACCOUNT_PATTERN,
+    );
+    expect(() => insert.run('google-2', null)).toThrow(
+      KEEPS_THE_GOOGLE_ACCOUNT_PATTERN_2,
+    );
   });
 
   it('starts every account on epoch 0 and numbers new ones after the highest id kept', () => {

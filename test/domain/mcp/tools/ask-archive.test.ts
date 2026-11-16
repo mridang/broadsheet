@@ -103,7 +103,7 @@ describe('ask_archive', () => {
 
   it('refuses once today’s assistant budget is used up', async () => {
     const repo = new Repository(db);
-    for (let i = 0; i < DAILY_LIMITS.assistant; i++) {
+    for (let index = 0; index < DAILY_LIMITS.assistant; index++) {
       await repo.recordUsage(ctx.user.id, 'assistant');
     }
     ctx = asCaller(1, answering('x'));

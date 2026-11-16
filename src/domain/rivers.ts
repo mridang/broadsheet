@@ -16,6 +16,9 @@ import { editionIssueFor } from '@/domain/issues';
 import { storyIds } from '@/domain/render/layout';
 import { Repository, type ArticleSummary } from '@/domain/repository';
 
+const PARSE_RIVER_ID_PATTERN =
+  /^(feed|section|search|edition):([1-9]\d{0,14})$/;
+
 /** The columns a river can sit in. */
 export const RIVER_SIDES = ['left', 'right'] as const;
 
@@ -50,7 +53,7 @@ export type RiverTarget =
 /** Read a river id, or undefined when it names nothing a river can list. */
 export function parseRiverId(riverId: string): RiverTarget | undefined {
   if (riverId === 'all' || riverId === 'saves') return { kind: riverId };
-  const match = /^(feed|section|search|edition):([1-9]\d{0,14})$/.exec(riverId);
+  const match = PARSE_RIVER_ID_PATTERN.exec(riverId);
   return match
     ? {
         kind: match[1] as RiverSource,
@@ -262,7 +265,10 @@ export async function riverChoices(
       river_id: `search:${s.id}`,
       label: `Search: ${s.query}`,
     })),
-    ...editions.map((e) => ({ river_id: `edition:${e.id}`, label: e.name })),
+    ...editions.map((event) => ({
+      river_id: `edition:${event.id}`,
+      label: event.name,
+    })),
   ];
 }
 

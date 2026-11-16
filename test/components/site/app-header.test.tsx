@@ -4,6 +4,17 @@ import { AccountPanel, AppHeader } from '@/components/site/app-header';
 import type { User } from '@/domain/repository';
 import { html } from '../render';
 
+const OFFERS_TO_SIGN_IN_PATTERN =
+  /<a class="[^"]*" href="\/login">Sign in<\/a>/;
+const OPENS_AN_ACCOUNT_MENU_PATTERN =
+  /<button type="button" aria-label="Account"/;
+const NAMES_THE_PERSON_AND_PATTERN =
+  /<button type="button" class="[^"]*">Sign out<\/button>/;
+const SEARCHES_THE_ARCHIVE_WITH_PATTERN =
+  /<form role="search"[^>]*action="\/search" method="get"/;
+const PUTS_THE_MENU_IN_PATTERN =
+  /<details[^>]*>[\s\S]*Menu[\s\S]*the menu[\s\S]*<\/details>/;
+
 const user = (overrides: Partial<User> = {}): User => ({
   id: 1,
   google_sub: 'g1',
@@ -18,13 +29,13 @@ const user = (overrides: Partial<User> = {}): User => ({
 describe('AppHeader', () => {
   it('offers to sign in when nobody is', () => {
     const out = html(<AppHeader user={null} menu={null} />);
-    expect(out).toMatch(/<a class="[^"]*" href="\/login">Sign in<\/a>/);
+    expect(out).toMatch(OFFERS_TO_SIGN_IN_PATTERN);
     expect(out).not.toContain('Sign out');
   });
 
   it('opens an account menu for a signed-in person', () => {
     const out = html(<AppHeader user={user()} menu={null} />);
-    expect(out).toMatch(/<button type="button" aria-label="Account"/);
+    expect(out).toMatch(OPENS_AN_ACCOUNT_MENU_PATTERN);
     expect(out).not.toContain('href="/login"');
   });
 });
@@ -33,9 +44,7 @@ describe('AccountPanel', () => {
   it('names the person and lets them sign out', () => {
     const out = html(<AccountPanel user={user()} />);
     expect(out).toContain('Ada Lovelace');
-    expect(out).toMatch(
-      /<button type="button" class="[^"]*">Sign out<\/button>/,
-    );
+    expect(out).toMatch(NAMES_THE_PERSON_AND_PATTERN);
     expect(out).toContain('href="/settings"');
   });
 
@@ -49,14 +58,12 @@ describe('AccountPanel', () => {
 describe('AppHeader search', () => {
   it('searches the archive with a plain GET form', () => {
     expect(html(<AppHeader user={null} menu={null} />)).toMatch(
-      /<form role="search"[^>]*action="\/search" method="get"/,
+      SEARCHES_THE_ARCHIVE_WITH_PATTERN,
     );
   });
 
   it('puts the menu in a drawer for phones', () => {
     const out = html(<AppHeader user={null} menu={<p>the menu</p>} />);
-    expect(out).toMatch(
-      /<details[^>]*>[\s\S]*Menu[\s\S]*the menu[\s\S]*<\/details>/,
-    );
+    expect(out).toMatch(PUTS_THE_MENU_IN_PATTERN);
   });
 });

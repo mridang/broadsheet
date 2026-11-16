@@ -46,7 +46,7 @@ export function needsSubscription(
 }
 
 /** A fresh secret for a hub to sign its pushes with. */
-function newSecret(): string {
+function nextSecret(): string {
   return Array.from(crypto.getRandomValues(new Uint8Array(24)), (byte) =>
     byte.toString(16).padStart(2, '0'),
   ).join('');
@@ -62,7 +62,7 @@ export async function subscribeToHub(
   sourceId: number,
   links: Required<WebSubLinks>,
 ): Promise<boolean> {
-  const secret = newSecret();
+  const secret = nextSecret();
   await db
     .update(sources)
     .set({

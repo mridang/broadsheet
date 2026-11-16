@@ -3,9 +3,11 @@ import type { ReactElement } from 'react';
 import { elementLabel } from '@/domain/render/feed-details';
 import type { FeedElement } from '@/lib/scraping';
 
+const VALUE_PATTERN = /^https?:\/\//i;
+
 /** A value that is an address, shown as a link to it. */
 function Value({ text }: { readonly text: string }): ReactElement {
-  return /^https?:\/\//i.test(text) ? (
+  return VALUE_PATTERN.test(text) ? (
     <a
       href={text}
       target="_blank"
@@ -40,17 +42,17 @@ export function FeedMetadata({
           : 'divide-y divide-line rounded-card border border-line bg-surface text-sm'
       }
     >
-      {elements.map((e, i) => (
-        <div key={i} className={nested ? 'min-w-0' : 'min-w-0 px-5 py-3'}>
+      {elements.map((event, index) => (
+        <div key={index} className={nested ? 'min-w-0' : 'min-w-0 px-5 py-3'}>
           <dt className="text-xs font-medium text-subtle">
-            {elementLabel(e.name)}{' '}
-            <code className="font-mono text-xs text-subtle">{e.name}</code>
+            {elementLabel(event.name)}{' '}
+            <code className="font-mono text-xs text-subtle">{event.name}</code>
           </dt>
           <dd className="mt-0.5 wrap-break-word text-ink">
-            {e.text ? <Value text={e.text} /> : null}
-            {Object.entries(e.attributes).length > 0 ? (
+            {event.text ? <Value text={event.text} /> : null}
+            {Object.entries(event.attributes).length > 0 ? (
               <ul className="mt-1 space-y-0.5 text-xs text-muted">
-                {Object.entries(e.attributes).map(([name, value]) => (
+                {Object.entries(event.attributes).map(([name, value]) => (
                   <li key={name}>
                     <code className="font-mono text-subtle">{name}</code>{' '}
                     <Value text={value} />
@@ -58,8 +60,8 @@ export function FeedMetadata({
                 ))}
               </ul>
             ) : null}
-            {e.children.length > 0 ? (
-              <FeedMetadata elements={e.children} nested />
+            {event.children.length > 0 ? (
+              <FeedMetadata elements={event.children} nested />
             ) : null}
           </dd>
         </div>

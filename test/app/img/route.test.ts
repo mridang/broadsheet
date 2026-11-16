@@ -7,6 +7,9 @@ import {
   jest,
 } from '@jest/globals';
 
+const SENDS_A_PICTURE_SEALED_PATTERN =
+  /^public, max-age=\d+, s-maxage=\d+, immutable$/;
+
 /** The secret the mocked Worker holds; the route signs and checks with it. */
 const SECRET = 'test-secret';
 
@@ -81,7 +84,7 @@ describe('GET /img', () => {
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toBe('image/jpeg');
     expect(res.headers.get('cache-control')).toMatch(
-      /^public, max-age=\d+, s-maxage=\d+, immutable$/,
+      SENDS_A_PICTURE_SEALED_PATTERN,
     );
     expect(res.headers.get('content-security-policy')).toContain('sandbox');
     expect(res.headers.get('content-disposition')).toBe('inline');

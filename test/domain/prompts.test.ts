@@ -134,7 +134,8 @@ describe('scorePrompts', () => {
   });
 
   it('stops at the daily budget', async () => {
-    for (let i = 0; i < 499; i++) await repo.recordUsage(uid, 'classifier');
+    for (let index = 0; index < 499; index++)
+      await repo.recordUsage(uid, 'classifier');
     await repo.addClassifier(uid, { kind: 'prompt', value: 'p', score: 1 });
     expect(await scorePrompts(ai().env, repo, uid, DAY)).toBe(1);
   });

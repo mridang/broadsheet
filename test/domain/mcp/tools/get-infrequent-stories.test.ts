@@ -77,7 +77,9 @@ describe('get_infrequent_stories', () => {
     await new Repository(db).writeEdition(
       busy.source_id,
       today,
-      Array.from({ length: 5 }, (_, i) => item(`https://b.test/${i}`, `B${i}`)),
+      Array.from({ length: 5 }, (_, index) =>
+        item(`https://b.test/${index}`, `B${index}`),
+      ),
     );
     const found = (await run('get_infrequent_stories', {
       stories_per_month: 3,

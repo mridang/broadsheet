@@ -7,6 +7,10 @@ import {
 } from '@/app/(site)/discover/_components/discover-tabs';
 import { html } from '../../../../components/render';
 
+const MARKS_ONLY_THE_CURRENT_PATTERN = /aria-current="page"/g;
+const MARKS_ONLY_THE_CURRENT_PATTERN_2 =
+  /aria-current="page"[^>]*href="\/discover\?tab=podcasts"/;
+
 describe('tabOf', () => {
   it.each(TABS.map(([id]) => id))('reads the %s tab', (id) => {
     expect(tabOf(id)).toBe(id);
@@ -24,20 +28,17 @@ describe('DiscoverTabs', () => {
   const out = html(<DiscoverTabs current="podcasts" />);
 
   it('links each tab to its own address', () => {
-    TABS.forEach(([id, label]) =>
+    for (const [id, label] of TABS)
       expect(out).toMatch(
         new RegExp(
           String.raw`<a[^>]*href="/discover\?tab=${id}"[^>]*>${label}</a>`,
         ),
-      ),
-    );
+      );
   });
 
   it('marks only the current tab', () => {
-    expect(out.match(/aria-current="page"/g)).toHaveLength(1);
-    expect(out).toMatch(
-      /aria-current="page"[^>]*href="\/discover\?tab=podcasts"/,
-    );
+    expect(out.match(MARKS_ONLY_THE_CURRENT_PATTERN)).toHaveLength(1);
+    expect(out).toMatch(MARKS_ONLY_THE_CURRENT_PATTERN_2);
   });
 
   it('is a navigation landmark, with no buttons', () => {

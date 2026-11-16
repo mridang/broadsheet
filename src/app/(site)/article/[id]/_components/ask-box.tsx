@@ -32,7 +32,7 @@ import { countOf } from '@/lib/intl';
 export function AskBox({ id }: Readonly<{ id: number }>): ReactElement {
   const { busy, error, run } = useApiAction();
   const [turns, setTurns] = useState<readonly AskTurn[]>([]);
-  const [remaining, setRemaining] = useState<number | undefined>(undefined);
+  const [remaining, setRemaining] = useState<number | undefined>();
   const [model, setModel] = useState<AnswerModelName>('fast');
   const [thinking, setThinking] = useState(false);
   const field = useRef<HTMLInputElement>(null);
@@ -78,9 +78,9 @@ export function AskBox({ id }: Readonly<{ id: number }>): ReactElement {
           </Chip>
         ))}
       </p>
-      {turns.map((turn, i) => (
+      {turns.map((turn, index) => (
         <div
-          key={i}
+          key={index}
           className={
             turn.role === 'user'
               ? 'mt-4 text-sm font-semibold text-ink'

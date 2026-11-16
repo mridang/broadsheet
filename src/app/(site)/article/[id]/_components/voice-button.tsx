@@ -45,7 +45,7 @@ export function VoiceButton({
     const rec = new MediaRecorder(stream);
     rec.ondataavailable = (event) => chunks.push(event.data);
     rec.onstop = () => {
-      stream.getTracks().forEach((track) => track.stop());
+      for (const track of stream.getTracks()) track.stop();
       const audio = new Blob(chunks, { type: rec.mimeType || 'audio/webm' });
       void run(
         async () => onText(await transcribeAudio(audio)),

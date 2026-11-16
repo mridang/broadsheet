@@ -42,6 +42,10 @@ import {
   type Training,
 } from '@/domain/render/tiers';
 
+const CLOCK_MINUTES_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;
+const SOURCES_FOR_PATTERN = /^section:([1-9]\d*)$/;
+const EXTRA_SECTIONS_PATTERN = /\s+/;
+
 /** The fixed slots of a reader's day, as minutes after midnight. */
 export const SLOTS = {
   morning: 8 * 60 + 30,
@@ -108,7 +112,7 @@ export function localTime(now: Date, zone: string): LocalTime {
 
 /** Minutes after midnight for a time written HH:MM, or undefined. */
 export function clockMinutes(time: string): number | undefined {
-  const m = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(time);
+  const m = CLOCK_MINUTES_PATTERN.exec(time);
   return m ? Number(m[1]) * 60 + Number(m[2]) : undefined;
 }
 
@@ -329,7 +333,7 @@ async function sourcesFor(
   userId: number,
   sources: string,
 ): Promise<number[] | undefined> {
-  const m = /^section:([1-9]\d*)$/.exec(sources);
+  const m = SOURCES_FOR_PATTERN.exec(sources);
   if (!m) return undefined;
   const sections = await repo.listSections(userId);
   const ids = sectionAndDescendants(sections, Number(m[1]));
@@ -347,13 +351,15 @@ async function extraSections(
   since: string,
 ): Promise<Map<CustomSection | GlobalSection, Article[]>> {
   const extra = new Map<CustomSection | GlobalSection, Article[]>();
-  for (const [i, prompt] of prefs.briefing_prompts.entries()) {
-    const key = customSection(i);
+  for (const [index, prompt] of prefs.briefing_prompts.entries()) {
+    const key = customSection(index);
     if (!sectionOn(key, prefs) || !prompt.trim()) continue;
     // A phrase search first, then every word of three letters or more.
     let found = await repo.searchSince(userId, prompt, since);
     if (found.length === 0) {
-      const words = prompt.split(/\s+/).filter((w) => w.length >= 3);
+      const words = prompt
+        .split(EXTRA_SECTIONS_PATTERN)
+        .filter((w) => w.length >= 3);
       if (words.length > 0) {
         found = await repo.searchSince(userId, words.join(' '), since);
       }

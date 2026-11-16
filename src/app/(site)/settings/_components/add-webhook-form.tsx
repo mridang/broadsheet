@@ -10,7 +10,7 @@ import { ErrorText } from '@/components/ui/notice';
 
 /** The box for adding a webhook; shows the signing secret once it is made. */
 export function AddWebhookForm(): ReactElement {
-  const [secret, setSecret] = useState<string | undefined>(undefined);
+  const [secret, setSecret] = useState<string | undefined>();
   const { busy, error, run } = useApiAction();
   const submit = (event: SubmitEvent<HTMLFormElement>): void => {
     event.preventDefault();
@@ -33,6 +33,7 @@ export function AddWebhookForm(): ReactElement {
         </p>
         <button
           type="button"
+          // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
           className={buttonClass({ className: 'mt-3' })}
           onClick={() => globalThis.location.reload()}
         >

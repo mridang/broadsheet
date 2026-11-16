@@ -1,3 +1,13 @@
+const HEADER_LINK_PATTERN = /,(?=\s*<)/;
+const HEADER_LINK_PATTERN_2 = /^\s*<([^>]+)>(.*)$/;
+const HEADER_LINK_PATTERN_3 = /;\s*rel\s*=\s*"?([^";]+)"?/i;
+const HEADER_LINK_PATTERN_4 = /\s+/;
+const FEED_LINK_PATTERN = /<(?:item|entry)[\s>]/i;
+const FEED_LINK_PATTERN_2 = /<(?:atom:)?link\b[^>]*>/gi;
+const FEED_LINK_PATTERN_3 = /\brel\s*=\s*["']([^"']+)["']/i;
+const FEED_LINK_PATTERN_4 = /\bhref\s*=\s*["']([^"']+)["']/i;
+const SIGNATURE_MATCHES_PATTERN = /^(sha1|sha256|sha384|sha512)=([0-9a-f]+)$/i;
+const SIGNATURE_MATCHES_PATTERN_2 = /../g;
 /**
  * The pure parts of WebSub (PubSubHubbub): finding a feed's hub and self
  * links, and checking a push's `X-Hub-Signature`.
@@ -13,11 +23,17 @@ export interface WebSubLinks {
 export const LEASE_SECONDS = 10 * 24 * 60 * 60;
 
 /** The address of the `rel` link in an HTTP `Link` header. */
-function headerLink(header: string | null, rel: string): string | undefined {
-  for (const part of (header ?? '').split(/,(?=\s*<)/)) {
-    const match = /^\s*<([^>]+)>(.*)$/.exec(part);
-    const rels = /;\s*rel\s*=\s*"?([^";]+)"?/i.exec(match?.[2] ?? '')?.[1];
-    if (match?.[1] && rels?.toLowerCase().split(/\s+/).includes(rel)) {
+function headerLink(
+  header: string | null,
+  relation2: string,
+): string | undefined {
+  for (const part of (header ?? '').split(HEADER_LINK_PATTERN)) {
+    const match = HEADER_LINK_PATTERN_2.exec(part);
+    const rels = HEADER_LINK_PATTERN_3.exec(match?.[2] ?? '')?.[1];
+    if (
+      match?.[1] &&
+      rels?.toLowerCase().split(HEADER_LINK_PATTERN_4).includes(relation2)
+    ) {
       return match[1];
     }
   }
@@ -25,12 +41,15 @@ function headerLink(header: string | null, rel: string): string | undefined {
 }
 
 /** The address of the feed's own `<link rel>` (RSS `atom:link` or Atom). */
-function feedLink(xml: string, rel: string): string | undefined {
-  const head = xml.split(/<(?:item|entry)[\s>]/i, 1)[0] ?? '';
-  for (const [tag] of head.matchAll(/<(?:atom:)?link\b[^>]*>/gi)) {
-    const rels = /\brel\s*=\s*["']([^"']+)["']/i.exec(tag)?.[1];
-    const href = /\bhref\s*=\s*["']([^"']+)["']/i.exec(tag)?.[1];
-    if (href && rels?.toLowerCase().split(/\s+/).includes(rel)) {
+function feedLink(xml: string, relation: string): string | undefined {
+  const head = xml.split(FEED_LINK_PATTERN, 1)[0] ?? '';
+  for (const [tag] of head.matchAll(FEED_LINK_PATTERN_2)) {
+    const rels = FEED_LINK_PATTERN_3.exec(tag)?.[1];
+    const href = FEED_LINK_PATTERN_4.exec(tag)?.[1];
+    if (
+      href &&
+      rels?.toLowerCase().split(HEADER_LINK_PATTERN_4).includes(relation)
+    ) {
       return href.replaceAll('&amp;', '&');
     }
   }
@@ -87,9 +106,7 @@ export async function signatureMatches(
   body: Uint8Array<ArrayBuffer>,
   signature: string | null,
 ): Promise<boolean> {
-  const match = /^(sha1|sha256|sha384|sha512)=([0-9a-f]+)$/i.exec(
-    signature?.trim() ?? '',
-  );
+  const match = SIGNATURE_MATCHES_PATTERN.exec(signature?.trim() ?? '');
   const hash = match?.[1] && ALGORITHMS[match[1].toLowerCase()];
   if (!match?.[2] || !hash || match[2].length % 2) return false;
   const key = await crypto.subtle.importKey(
@@ -99,8 +116,9 @@ export async function signatureMatches(
     false,
     ['verify'],
   );
-  const given = Uint8Array.from(match[2].match(/../g) ?? [], (byte) =>
-    Number.parseInt(byte, 16),
+  const given = Uint8Array.from(
+    match[2].match(SIGNATURE_MATCHES_PATTERN_2) ?? [],
+    (byte) => Number.parseInt(byte, 16),
   );
   return crypto.subtle.verify('HMAC', key, given, body);
 }

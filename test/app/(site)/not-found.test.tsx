@@ -3,6 +3,11 @@ import { describe, expect, it } from '@jest/globals';
 import SiteNotFound, { metadata } from '@/app/(site)/not-found';
 import { html } from '../../components/render';
 
+const IS_A_LEVEL_ONE_HEADING_PATTERN =
+  /<h1[^>]*>We couldn&#x27;t find that page<\/h1>/;
+const OFFERS_THE_WAY_BACK_PATTERN = /href="\/"[^>]*>Back to the front page/;
+const OFFERS_THE_WAY_BACK_PATTERN_2 = /href="\/search"[^>]*>Search the archive/;
+
 describe('SiteNotFound', () => {
   const out = html(<SiteNotFound />);
 
@@ -12,12 +17,12 @@ describe('SiteNotFound', () => {
   });
 
   it('is a level-one heading saying so, with no header of its own', () => {
-    expect(out).toMatch(/<h1[^>]*>We couldn&#x27;t find that page<\/h1>/);
+    expect(out).toMatch(IS_A_LEVEL_ONE_HEADING_PATTERN);
     expect(out).not.toContain('<header');
   });
 
   it('offers the way back to the front page and to search', () => {
-    expect(out).toMatch(/href="\/"[^>]*>Back to the front page/);
-    expect(out).toMatch(/href="\/search"[^>]*>Search the archive/);
+    expect(out).toMatch(OFFERS_THE_WAY_BACK_PATTERN);
+    expect(out).toMatch(OFFERS_THE_WAY_BACK_PATTERN_2);
   });
 });

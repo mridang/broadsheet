@@ -28,7 +28,7 @@ export interface ApiAction {
  */
 export function useApiAction(onSuccess?: () => void): ApiAction {
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | undefined>(undefined);
+  const [error, setError] = useState<string | undefined>();
   const run: ApiAction['run'] = async (request, failure) => {
     setBusy(true);
     setError(undefined);

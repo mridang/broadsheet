@@ -1,3 +1,4 @@
+const TAGS_IN_PATTERN = /^W\//;
 /**
  * @packageDocumentation
  *
@@ -26,7 +27,7 @@ export async function entityTag(text: string): Promise<string> {
 function tagsIn(header: string): readonly string[] {
   return header
     .split(',')
-    .map((t) => t.trim().replace(/^W\//, ''))
+    .map((t) => t.trim().replace(TAGS_IN_PATTERN, ''))
     .filter(Boolean);
 }
 

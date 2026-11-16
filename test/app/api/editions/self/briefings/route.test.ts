@@ -20,6 +20,8 @@ import {
   tokenFor,
 } from '../../../../../domain/auth/auth-test-kit';
 
+const ANSWERS_201_WITH_THE_PATTERN = /\/api\/editions\/self\/briefings\/\d+$/;
+
 const { GET, POST } = await import('@/app/api/editions/self/briefings/route');
 
 let restore: () => void;
@@ -78,9 +80,7 @@ describe('POST /api/editions/self/briefings', () => {
   it('answers 201 with the briefing and its Location', async () => {
     const res = await write();
     expect(res.status).toBe(201);
-    expect(res.headers.get('location')).toMatch(
-      /\/api\/editions\/self\/briefings\/\d+$/,
-    );
+    expect(res.headers.get('location')).toMatch(ANSWERS_201_WITH_THE_PATTERN);
     const body = (await res.json()) as {
       summary: string;
       stories: { read: boolean }[];

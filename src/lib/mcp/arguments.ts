@@ -49,7 +49,7 @@ export class ArgumentChecker {
    * @throws {InvalidToolArgumentsError} If `arguments` is not an object at all,
    *   which is a malformed request rather than a mistaken call.
    */
-  check(tool: AnyMcpTool, rawArgs: unknown): CheckedArguments {
+  check(tool: AnyMcpTool, rawArgs?: unknown): CheckedArguments {
     const given = rawArgs === undefined ? {} : rawArgs;
     if (!isJsonObject(given)) {
       throw new InvalidToolArgumentsError(['`arguments` must be an object.']);

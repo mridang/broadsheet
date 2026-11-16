@@ -26,6 +26,8 @@ import { verifyIntent } from '@/domain/websub';
 import { APP_MIGRATIONS } from '../../lib/core/db/migrations';
 import { sqliteD1 } from '../../lib/core/db/sqlite-d1';
 
+const collator = new Intl.Collator();
+
 const FEED = `<rss><channel><title>A</title>
   <item><title>Story</title><link>https://a.test/story</link></item>
 </channel></rss>`;
@@ -468,7 +470,7 @@ describe('WebSub', () => {
       '2026-11-01',
     );
     const urls = articles.map((a) => a.url);
-    expect(urls.toSorted((a, b) => a.localeCompare(b))).toEqual([
+    expect(urls.toSorted((a, b) => collator.compare(a, b))).toEqual([
       'https://a.test/new',
       'https://a.test/story',
     ]);

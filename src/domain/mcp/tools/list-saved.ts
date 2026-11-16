@@ -14,6 +14,8 @@ import { Repository } from '@/domain/repository';
 import { READS, type ToolAnnotations } from '@/lib/mcp';
 import { z } from 'zod';
 
+const collator = new Intl.Collator();
+
 /** What `list_saved` accepts. */
 const SCHEMA = z.object({
   tag: z.string().optional().describe('Only stories saved with this tag.'),
@@ -50,7 +52,7 @@ export class ListSavedTool extends JsonTool<'list_saved', typeof SCHEMA> {
     return {
       saves: shown.slice(0, MAX_SEARCH).map((s) => saveResource(s)),
       tags: [...new Set((all ?? shown).flatMap((s) => s.tags))].toSorted(
-        (a, b) => a.localeCompare(b),
+        (a, b) => collator.compare(a, b),
       ),
     };
   }

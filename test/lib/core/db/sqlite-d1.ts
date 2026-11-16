@@ -76,11 +76,10 @@ export function sqliteD1(...migrations: readonly string[]): {
   readonly raw: DatabaseSync;
 } {
   const raw = new DatabaseSync(':memory:');
-  migrations.forEach((file) =>
+  for (const file of migrations)
     raw.exec(
       readFileSync(path.join(process.cwd(), 'migrations', file), 'utf8'),
-    ),
-  );
+    );
   const d1 = {
     prepare: (sql: string) => new Statement(raw, sql),
     batch: async (statements: readonly Statement[]) => {

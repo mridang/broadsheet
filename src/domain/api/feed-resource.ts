@@ -14,6 +14,11 @@ import {
   type IconResource,
 } from '@/domain/api/icon-resource';
 
+const SQLITE_TIME_PATTERN =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/i;
+const RFC3339_PATTERN = /^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2})$/;
+const PARSE_FEED_ID_PATTERN = /^[1-9]\d{0,14}$/;
+
 /** Longest feed address accepted, in characters. */
 export const MAX_FEED_URL_LENGTH = 2048;
 
@@ -69,11 +74,7 @@ const MAX_FEED_POSITION = 10_000;
  * or undefined when it is not one.
  */
 export function sqliteTime(text: string): string | undefined {
-  if (
-    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/i.test(
-      text,
-    )
-  ) {
+  if (!SQLITE_TIME_PATTERN.test(text)) {
     return undefined;
   }
   const ms = Date.parse(text);
@@ -90,7 +91,7 @@ export const MAX_NAME_LENGTH = 200;
  * RFC 3339, or undefined when it is not one.
  */
 export function rfc3339(stored: string): string | undefined {
-  const match = /^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2})$/.exec(stored);
+  const match = RFC3339_PATTERN.exec(stored);
   if (!match) {
     return undefined;
   }
@@ -164,7 +165,7 @@ export function parseFeedInput(
 
 /** The id in a `/api/feeds/:id` path, or undefined when it cannot name a feed. */
 export function parseFeedId(raw: string): number | undefined {
-  return /^[1-9]\d{0,14}$/.test(raw) ? Number(raw) : undefined;
+  return PARSE_FEED_ID_PATTERN.test(raw) ? Number(raw) : undefined;
 }
 
 /** A checked `PATCH /api/feeds/:id` body, or what was wrong with it. */

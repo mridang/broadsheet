@@ -10,11 +10,13 @@ export function PageHeader({
   title,
   description,
   actions,
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
   className,
 }: Readonly<{
   title: ReactNode;
   description?: ReactNode;
   actions?: ReactNode;
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
   className?: string;
 }>): ReactElement {
   return (
@@ -74,6 +76,7 @@ export function SectionHeader({
   title,
   description,
   actions,
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
   className,
 }: Readonly<{
   id?: string;
@@ -81,6 +84,7 @@ export function SectionHeader({
   title: ReactNode;
   description?: ReactNode;
   actions?: ReactNode;
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
   className?: string;
 }>): ReactElement {
   return (

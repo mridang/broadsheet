@@ -115,6 +115,7 @@ export function EditionForm({
         maxLength={50}
       />
       <button
+        // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
         className={buttonClass({ className: 'justify-self-start' })}
         type="submit"
         disabled={busy}

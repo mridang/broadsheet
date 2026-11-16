@@ -147,7 +147,7 @@ export const ASSISTANT_TOOLS: readonly ToolDefinition[] = [
 ];
 
 /** A string argument, or undefined. */
-function str(value: unknown): string | undefined {
+function asString(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined;
 }
 
@@ -161,7 +161,7 @@ function count(value: unknown, fallback: number, max: number): number {
 
 /** A day argument, or undefined when it is not YYYY-MM-DD. */
 function day(value: unknown): string | undefined {
-  const s = str(value);
+  const s = asString(value);
   return s && DAY.test(s) ? s : undefined;
 }
 
@@ -194,13 +194,13 @@ export class ToolRunner {
     const args = call.arguments;
     switch (call.name) {
       case 'search_stories': {
-        const query = str(args['query']);
+        const query = asString(args['query']);
         if (!query) return 'search_stories needs a query.';
         return this.show(
           await this.#repo.retrievePassages(this.#uid, query, {
             since: day(args['since']),
             until: day(args['until']),
-            source: str(args['source']),
+            source: asString(args['source']),
             limit: count(args['limit'], 8, MAX_RESULTS),
           }),
         );
@@ -208,8 +208,8 @@ export class ToolRunner {
       case 'search_saved_stories': {
         return this.show(
           await this.#repo.savedPassages(this.#uid, {
-            query: str(args['query']),
-            tag: str(args['tag']),
+            query: asString(args['query']),
+            tag: asString(args['tag']),
             limit: count(args['limit'], 10, MAX_RESULTS),
           }),
         );
@@ -222,7 +222,7 @@ export class ToolRunner {
       case 'search_shared_stories': {
         return this.show(
           await this.#repo.sharedPassages({
-            query: str(args['query']),
+            query: asString(args['query']),
             limit: count(args['limit'], 10, MAX_RESULTS),
           }),
         );

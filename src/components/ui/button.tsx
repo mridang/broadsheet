@@ -3,6 +3,8 @@ import type { ComponentProps, ReactElement, ReactNode } from 'react';
 
 import { cn } from '@/components/ui/cn';
 
+const TEXT_LINK_PATTERN = /^https?:/;
+
 /** The colours of each kind of button. */
 const VARIANTS = {
   primary: 'bg-ink text-on-ink hover:bg-ink/85 active:bg-ink/75',
@@ -31,6 +33,7 @@ const SIZES = {
 type Look = Readonly<{
   variant?: keyof typeof VARIANTS;
   size?: keyof typeof SIZES;
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
   className?: string;
 }>;
 
@@ -38,6 +41,7 @@ type Look = Readonly<{
 export function buttonClass({
   variant = 'primary',
   size = 'md',
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
   className,
 }: Look): string {
   return cn(
@@ -58,6 +62,7 @@ export function buttonClass({
 export function Button({
   variant,
   size,
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
   className,
   children,
   ...props
@@ -65,6 +70,7 @@ export function Button({
   return (
     <button
       type="button"
+      // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
       className={buttonClass({ variant, size, className })}
       {...props}
     >
@@ -87,6 +93,7 @@ export function isServerHref(href: string): boolean {
 export function ButtonLink({
   variant,
   size,
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
   className,
   href,
   children,
@@ -95,6 +102,7 @@ export function ButtonLink({
     <TextLink
       href={href}
       bare
+      // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
       className={buttonClass({ variant, size, className })}
     >
       {children}
@@ -115,6 +123,7 @@ const ICON_SIZES = {
 export function IconButton({
   label,
   size = 'sm',
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
   className,
   children,
   ...props
@@ -162,6 +171,7 @@ export function TextLink({
   tone = 'ink',
   bare = false,
   external,
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
   className,
   children,
   ...props
@@ -172,18 +182,20 @@ export function TextLink({
     bare?: boolean;
     /** Opens in a new tab; on by default for another site's address. */
     external?: boolean;
+    // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
     className?: string;
     children: ReactNode;
   } & Omit<ComponentProps<'a'>, 'href' | 'className' | 'children'>
 >): ReactElement {
   const classes = bare
-    ? className
+    ? // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
+      className
     : cn(
         'focus-ring rounded-sm underline-offset-4 transition-colors',
         LINK_TONES[tone],
         className,
       );
-  const outside = external ?? /^https?:/.test(href);
+  const outside = external ?? TEXT_LINK_PATTERN.test(href);
   if (outside) {
     return (
       <a

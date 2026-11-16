@@ -45,7 +45,9 @@ export type IconName = keyof typeof PATHS;
  */
 export function Icon({
   name,
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
   className,
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
 }: Readonly<{ name: IconName; className?: string }>): ReactElement {
   return (
     <svg
@@ -56,6 +58,7 @@ export function Icon({
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
+      // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
       className={cn('shrink-0', className ?? 'size-5')}
     >
       <path d={PATHS[name]} />

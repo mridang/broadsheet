@@ -1,19 +1,21 @@
 import { describe, expect, it } from '@jest/globals';
 
 import { Card, List, ListItem } from '@/components/ui/card';
-import { classOf, html } from '../render';
+import { cssClassesOf, html } from '../render';
 
 describe('Card', () => {
   it('is a padded panel with a hairline edge', () => {
-    const classes = classOf(html(<Card>x</Card>), 'div');
+    const classes = cssClassesOf(html(<Card>x</Card>), 'div');
     expect(classes).toContain('rounded-card');
     expect(classes).toContain('border-line');
     expect(classes).toContain('p-5');
   });
 
   it('lifts under the pointer only when it is interactive', () => {
-    expect(classOf(html(<Card>x</Card>), 'div')).not.toContain('hover:shadow');
-    expect(classOf(html(<Card interactive>x</Card>), 'div')).toContain(
+    expect(cssClassesOf(html(<Card>x</Card>), 'div')).not.toContain(
+      'hover:shadow',
+    );
+    expect(cssClassesOf(html(<Card interactive>x</Card>), 'div')).toContain(
       'hover:shadow-raised',
     );
   });
@@ -24,7 +26,7 @@ describe('Card', () => {
         x
       </Card>,
     );
-    expect(classOf(out, 'section')).not.toContain('p-5');
+    expect(cssClassesOf(out, 'section')).not.toContain('p-5');
   });
 });
 

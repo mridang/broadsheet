@@ -1,3 +1,6 @@
+const SHORT_PATTERN = /\s+/g;
+const BLOCKED_OF_PATTERN =
+  /^(?:inline|eval|self|trusted-types-sink|wasm-eval)$/;
 /**
  * @packageDocumentation
  *
@@ -52,13 +55,11 @@ function short(value: unknown, limit: number): string {
   }
   // Control characters (a line break in a log line could pass for another line) become spaces.
   const head = value.slice(0, limit * 2);
-  const printable = [...head]
-    .map((char) => {
-      const code = char.codePointAt(0) ?? 0;
-      return code < 32 || code === 127 ? ' ' : char;
-    })
-    .join('');
-  return printable.replaceAll(/\s+/g, ' ').trim().slice(0, limit);
+  const printable = Array.from(head, (char) => {
+    const code = char.codePointAt(0) ?? 0;
+    return code < 32 || code === 127 ? ' ' : char;
+  }).join('');
+  return printable.replaceAll(SHORT_PATTERN, ' ').trim().slice(0, limit);
 }
 
 /** The first of `keys` in `body` that holds text. */
@@ -86,10 +87,7 @@ function pathOf(address: string): string {
  * keywords browsers use (`inline`, `eval`, `self`), or just the origin.
  */
 function blockedOf(address: string): string {
-  if (
-    address === '' ||
-    /^(?:inline|eval|self|trusted-types-sink|wasm-eval)$/.test(address)
-  ) {
+  if (address === '' || BLOCKED_OF_PATTERN.test(address)) {
     return address;
   }
   try {

@@ -15,6 +15,15 @@ import {
 } from '@/components/ui/popover';
 import { html, htmlAt } from '../render';
 
+const POPOVER_PATTERN = /id="([^"]+)" popover="auto"/;
+const IS_A_BUTTON_THAT_PATTERN =
+  /<button[^>]*aria-label="Menu"[^>]*>Open<\/button>/;
+const TIES_THE_BUTTON_TO_PATTERN = /popovertarget/i;
+const KEEPS_THE_PANEL_IN_PATTERN =
+  /<div[^>]*popover="auto"[^>]*data-popover=""/;
+const IS_PLAIN_TEXT_THAT_PATTERN =
+  /^<p role="status"[^>]*>Google Drive connected<\/p>$/;
+
 describe('PopoverSeparator', () => {
   it('is a thin rule that assistive technology knows is a separator', () => {
     const out = html(<PopoverSeparator />);
@@ -41,10 +50,10 @@ describe('Popover', () => {
       <a href="/x">Inside</a>
     </Popover>,
   );
-  const panelId = /id="([^"]+)" popover="auto"/.exec(out)?.[1];
+  const panelId = POPOVER_PATTERN.exec(out)?.[1];
 
   it('is a button that says the panel is closed, named for what it opens', () => {
-    expect(out).toMatch(/<button[^>]*aria-label="Menu"[^>]*>Open<\/button>/);
+    expect(out).toMatch(IS_A_BUTTON_THAT_PATTERN);
     expect(out).toContain('aria-expanded="false"');
     expect(out).toContain('data-state="closed"');
   });
@@ -52,11 +61,11 @@ describe('Popover', () => {
   it('ties the button to the panel for assistive technology, but does not let the browser open it before React is listening', () => {
     expect(panelId).toBeDefined();
     expect(out).toContain(`aria-controls="${panelId}"`);
-    expect(out).not.toMatch(/popovertarget/i);
+    expect(out).not.toMatch(TIES_THE_BUTTON_TO_PATTERN);
   });
 
   it('keeps the panel in the page as a popover the browser hides until it is opened', () => {
-    expect(out).toMatch(/<div[^>]*popover="auto"[^>]*data-popover=""/);
+    expect(out).toMatch(KEEPS_THE_PANEL_IN_PATTERN);
   });
 
   it('keeps what is inside the panel out of the page until it is opened', () => {
@@ -160,7 +169,7 @@ describe('isOpenOn', () => {
 describe('PopoverStatus', () => {
   it('is plain text that is announced politely, not a button', () => {
     const out = html(<PopoverStatus>Google Drive connected</PopoverStatus>);
-    expect(out).toMatch(/^<p role="status"[^>]*>Google Drive connected<\/p>$/);
+    expect(out).toMatch(IS_PLAIN_TEXT_THAT_PATTERN);
     expect(out).not.toContain('<button');
     expect(out).not.toContain('disabled');
   });

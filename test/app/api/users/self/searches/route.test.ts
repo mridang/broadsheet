@@ -13,6 +13,8 @@ import {
   tokenFor,
 } from '../../../../../domain/auth/auth-test-kit';
 
+const collator = new Intl.Collator();
+
 const { GET, POST } = await import('@/app/api/users/self/searches/route');
 
 const URL = 'https://app.test/api/users/self/searches';
@@ -117,7 +119,7 @@ describe('GET /api/users/self/searches', () => {
     expect(
       [...page.items, ...rest.items]
         .map((s) => s.query)
-        .toSorted((a, b) => a.localeCompare(b)),
+        .toSorted((a, b) => collator.compare(a, b)),
     ).toEqual(['one', 'two']);
   });
 

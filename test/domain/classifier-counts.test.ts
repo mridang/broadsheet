@@ -65,8 +65,8 @@ describe('feedClassifierCounts', () => {
     await repo.writeEdition(
       feed.source_id,
       '2026-10-02',
-      ['Rust', 'Go'].map((title, i) => ({
-        url: `https://x/${i}`,
+      ['Rust', 'Go'].map((title, index) => ({
+        url: `https://x/${index}`,
         title,
         source: 'Src',
         favicon: '',
