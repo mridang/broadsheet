@@ -5,7 +5,7 @@
  * it, the arguments it accepts, and what it does when called.
  */
 
-import { type ToolContext } from '@/domain/mcp/tool-context';
+import type { ToolContext } from '@/domain/mcp/tool-context';
 import { ToolFailureError } from '@/domain/mcp/tool-failure';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { feedScope, id, MAX_MARK } from '@/domain/mcp/tools/support';
@@ -96,7 +96,9 @@ export class MarkReadTool extends JsonTool<'mark_read', typeof SCHEMA> {
       0,
       MAX_MARK,
     );
-    const outcomes = await Promise.all(ids.map((a) => repo.markRead(uid, a)));
+    const outcomes = await Promise.all(
+      ids.map(async (a) => repo.markRead(uid, a)),
+    );
     return {
       marked: outcomes.filter((o) => o === true).length,
       already_read: outcomes.filter((o) => o === false).length,

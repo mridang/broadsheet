@@ -57,7 +57,7 @@ beforeEach(async () => {
 
 afterEach(() => restore());
 
-const list = (query = '') =>
+const list = async (query = '') =>
   GET(
     new Request(`https://app.test/api/users/self/saves${query}`, {
       headers: { ...auth },
@@ -67,7 +67,8 @@ const list = (query = '') =>
 
 const items = async (query = '') => {
   const res = await list(query);
-  return ((await res.json()) as { items: unknown[] }).items;
+  const { items } = await res.json<{ items: unknown[] }>();
+  return items;
 };
 
 describe('GET /api/users/self/saves', () => {

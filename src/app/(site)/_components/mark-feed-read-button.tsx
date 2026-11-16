@@ -18,7 +18,10 @@ export function MarkFeedReadButton({
         size="sm"
         disabled={action.busy}
         onClick={() =>
-          void action.run(() => markFeedRead(feedId), 'Could not mark read.')
+          void action.run(
+            async () => markFeedRead(feedId),
+            'Could not mark read.',
+          )
         }
       >
         Mark read

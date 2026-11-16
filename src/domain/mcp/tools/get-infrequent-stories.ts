@@ -6,7 +6,7 @@
  */
 
 import { articleResource } from '@/domain/api/article-resource';
-import { type ToolContext } from '@/domain/mcp/tool-context';
+import type { ToolContext } from '@/domain/mcp/tool-context';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { collect, MAX_SEARCH } from '@/domain/mcp/tools/support';
 import { verdict } from '@/domain/render/tiers';
@@ -86,7 +86,7 @@ export class GetInfrequentStoriesTool extends JsonTool<
       args.include_hidden ? [] : repo.listClassifiers(uid),
     ]);
     const { items, next } = await collect(
-      (before, limit) =>
+      async (before, limit) =>
         repo.searchArticles(uid, {
           feeds: quiet,
           limit,

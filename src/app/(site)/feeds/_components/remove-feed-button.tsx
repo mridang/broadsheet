@@ -19,7 +19,7 @@ export function RemoveFeedButton({
         className={buttonClass({ variant: 'danger', size: 'sm' })}
         disabled={busy}
         onClick={() =>
-          void run(() => unfollowFeed(id), 'Could not remove that feed.')
+          void run(async () => unfollowFeed(id), 'Could not remove that feed.')
         }
       >
         Remove

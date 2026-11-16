@@ -67,7 +67,10 @@ const URL = 'https://app.test/api/feeds';
 const JSON_HEADERS: Record<string, string> = {
   'content-type': 'application/json',
 };
-const post = (body: string, headers: Record<string, string> = JSON_HEADERS) =>
+const post = async (
+  body: string,
+  headers: Record<string, string> = JSON_HEADERS,
+) =>
   POST(
     new Request(URL, {
       method: 'POST',
@@ -78,10 +81,10 @@ const post = (body: string, headers: Record<string, string> = JSON_HEADERS) =>
 
 /** The body of a response, as the fields these tests read. */
 const body = async (res: Response) =>
-  (await res.json()) as { id: string; errors?: string[] };
+  res.json<{ id: string; errors?: string[] }>();
 
 /** A POST of `{ url }`. */
-const follow = (url: string) => post(JSON.stringify({ url }));
+const follow = async (url: string) => post(JSON.stringify({ url }));
 
 /** The feeds stored for a person. */
 const stored = (id: number) =>
@@ -183,7 +186,7 @@ describe('POST /api/feeds', () => {
   });
 });
 
-const list = (query = '', headers: Record<string, string> = {}) =>
+const list = async (query = '', headers: Record<string, string> = {}) =>
   GET(new Request(`${URL}${query}`, { headers: { ...auth, ...headers } }));
 
 describe('GET /api/feeds', () => {
@@ -193,10 +196,10 @@ describe('GET /api/feeds', () => {
     const res = await list();
     expect(res.status).toBe(200);
     expect(res.headers.get('vary')).toBe('Accept');
-    const page = (await res.json()) as {
+    const page = await res.json<{
       self: string;
       items: { url: string }[];
-    };
+    }>();
     expect(page.items.map((f) => f.url)).toEqual([
       'https://a.test/1',
       'https://a.test/2',
@@ -207,15 +210,15 @@ describe('GET /api/feeds', () => {
     await follow('https://a.test/1');
     await follow('https://a.test/2');
     const firstRes = await list('?limit=1');
-    const first = (await firstRes.json()) as {
+    const first = await firstRes.json<{
       next: string;
       items: unknown[];
-    };
+    }>();
     expect(first.items).toHaveLength(1);
     const secondRes = await list(
       `?limit=1&cursor=${new globalThis.URL(first.next).searchParams.get('cursor')}`,
     );
-    const second = (await secondRes.json()) as { items: { url: string }[] };
+    const second = await secondRes.json<{ items: { url: string }[] }>();
     expect(second.items.map((f) => f.url)).toEqual(['https://a.test/2']);
     const badCursor = await list('?cursor=!!');
     expect(badCursor.status).toBe(400);

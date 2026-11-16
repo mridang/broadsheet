@@ -12,7 +12,7 @@ const post = (body: string, type = 'application/json') =>
 /** The status and problem type of a refused body. */
 async function refusal(result: { ok: boolean; response?: Response }) {
   expect(result.ok).toBe(false);
-  const response = result.response as Response;
+  const response = result.response!;
   const body: { detail?: string } = await response.json();
   return { status: response.status, body };
 }

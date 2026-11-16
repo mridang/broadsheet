@@ -62,7 +62,7 @@
     "@emnapi/runtime": "^1.11.3",
     "@eslint/compat": "^2.1.1",
     "@jest/globals": "^30.0.3",
-    "@mridang/eslint-defaults": "^2.3.0",
+    "@mridang/eslint-defaults": "^2.4.0",
     "@tailwindcss/postcss": "^4",
     "@tsconfig/node24": "^24.0.5",
     "@types/jest": "^30.0.0",

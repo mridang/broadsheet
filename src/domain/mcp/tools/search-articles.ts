@@ -9,7 +9,7 @@ import {
   articleResource,
   MAX_QUERY_LENGTH,
 } from '@/domain/api/article-resource';
-import { type ToolContext } from '@/domain/mcp/tool-context';
+import type { ToolContext } from '@/domain/mcp/tool-context';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import {
   collect,
@@ -19,7 +19,8 @@ import {
   MAX_SEARCH,
 } from '@/domain/mcp/tools/support';
 import { verdict } from '@/domain/render/tiers';
-import { ArticleSummary, Repository } from '@/domain/repository';
+import type { ArticleSummary } from '@/domain/repository';
+import { Repository } from '@/domain/repository';
 import { READS, type ToolAnnotations } from '@/lib/mcp';
 import { z } from 'zod';
 
@@ -121,7 +122,7 @@ export class SearchArticlesTool extends JsonTool<
           (args.read_filter === 'read')) &&
       verdict(a, training) >= 0;
     const { items, next } = await collect(
-      (before, limit) =>
+      async (before, limit) =>
         repo.searchArticles(uid, {
           q: args.query,
           limit,

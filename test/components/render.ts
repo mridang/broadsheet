@@ -42,7 +42,7 @@ export function htmlAt(
         { value: pathname },
         createElement(
           SearchParamsContext.Provider,
-          { value: new URLSearchParams(search) as never },
+          { value: new URLSearchParams(search) },
           element,
         ),
       ),

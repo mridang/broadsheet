@@ -31,7 +31,7 @@ export async function FeedRail({
 }): Promise<ReactElement> {
   const signer = imageSigner();
   const icons = await Promise.all(
-    feeds.map((f) => (f.icon ? pictureSrc(f.icon, 32, signer) : null)),
+    feeds.map(async (f) => (f.icon ? pictureSrc(f.icon, 32, signer) : null)),
   );
   return (
     <nav aria-label="Your feeds">

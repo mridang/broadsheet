@@ -5,7 +5,7 @@ import {
   OPTIONS,
 } from '@/app/.well-known/oauth-protected-resource/[[...path]]/route';
 
-const get = (path?: readonly string[]) =>
+const get = async (path?: readonly string[]) =>
   GET(
     new Request(
       `https://app.test/.well-known/oauth-protected-resource/${(path ?? []).join('/')}`,

@@ -419,7 +419,7 @@ export function createFeedRefreshes(
       const env = getEnv();
       const feeds = await new Repository(db).listFeeds(uid);
       const outcomes = await Promise.all(
-        feeds.map((feed) =>
+        feeds.map(async (feed) =>
           refreshSource(db, env, sourceOf(feed))
             .then((result) => result.ok)
             .catch(() => false),
@@ -779,7 +779,7 @@ function feedIdsOf(body: Readonly<Record<string, unknown>>): number[] | string {
   const inRange =
     ids !== undefined && ids.length > 0 && ids.length <= MAX_BATCH;
   return inRange && ids.every((id) => id !== undefined)
-    ? (ids as number[])
+    ? ids
     : `feed_ids: a list of 1 to ${MAX_BATCH} feed ids.`;
 }
 

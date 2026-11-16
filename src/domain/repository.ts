@@ -28,7 +28,7 @@ import {
   type SQL,
 } from 'drizzle-orm';
 
-import { type Database } from '@/domain/db/client';
+import type { Database } from '@/domain/db/client';
 import {
   aiUsage,
   answers,
@@ -839,7 +839,7 @@ export class Repository {
     return rows[0]!;
   }
 
-  getUser(id: number): Promise<User | undefined> {
+  async getUser(id: number): Promise<User | undefined> {
     return this.#db.query.users.findFirst({ where: eq(users.id, id) });
   }
 
@@ -1076,7 +1076,7 @@ export class Repository {
   }
 
   /** Every source somebody follows: what the daily scrape fetches. */
-  allSources(): Promise<Source[]> {
+  async allSources(): Promise<Source[]> {
     return this.#db
       .selectDistinct(getTableColumns(sources))
       .from(sources)
@@ -1171,7 +1171,7 @@ export class Repository {
   }
 
   /** A source by its id. */
-  sourceById(sourceId: number): Promise<Source | undefined> {
+  async sourceById(sourceId: number): Promise<Source | undefined> {
     return this.#db.query.sources.findFirst({
       where: eq(sources.id, sourceId),
     });
@@ -1323,7 +1323,7 @@ export class Repository {
   }
 
   /** The person's section with this id, or undefined when it is not theirs. */
-  getSection(userId: number, id: number): Promise<Section | undefined> {
+  async getSection(userId: number, id: number): Promise<Section | undefined> {
     return this.#db.query.sections.findFirst({
       where: and(eq(sections.id, id), eq(sections.user_id, userId)),
     });
@@ -1651,7 +1651,7 @@ export class Repository {
    * is listed. Asks for one more than `limit`, so the caller can tell whether
    * another page follows.
    */
-  searchArticles(
+  async searchArticles(
     userId: number,
     {
       q = '',
@@ -1786,7 +1786,7 @@ export class Repository {
   }
 
   /** The person's saved searches, newest first. */
-  listSearches(userId: number): Promise<SavedSearch[]> {
+  async listSearches(userId: number): Promise<SavedSearch[]> {
     return this.#db
       .select()
       .from(savedSearches)
@@ -1795,7 +1795,10 @@ export class Repository {
   }
 
   /** The person's saved search with this id, or undefined. */
-  getSearch(userId: number, id: number): Promise<SavedSearch | undefined> {
+  async getSearch(
+    userId: number,
+    id: number,
+  ): Promise<SavedSearch | undefined> {
     return this.#db.query.savedSearches.findFirst({
       where: and(eq(savedSearches.id, id), eq(savedSearches.user_id, userId)),
     });
@@ -1855,7 +1858,7 @@ export class Repository {
   }
 
   /** The person's classifiers, newest first. */
-  listClassifiers(userId: number): Promise<Classifier[]> {
+  async listClassifiers(userId: number): Promise<Classifier[]> {
     return this.#db
       .select()
       .from(classifiers)
@@ -2104,7 +2107,7 @@ export class Repository {
       )
       .where(eq(subscriptions.user_id, userId))
       .groupBy(subscriptions.id);
-    return new Map(rows.map((r) => [r.feed_id, Number(r.count)]));
+    return new Map(rows.map((r) => [r.feed_id, r.count]));
   }
 
   /**
@@ -2131,7 +2134,7 @@ export class Repository {
       .innerJoin(articles, eq(articles.source_id, subscriptions.source_id))
       .where(and(eq(subscriptions.user_id, userId), this.#notRead(userId)))
       .groupBy(subscriptions.id);
-    return new Map(rows.map((r) => [r.feed_id, Number(r.count)]));
+    return new Map(rows.map((r) => [r.feed_id, r.count]));
   }
 
   /**
@@ -2181,7 +2184,7 @@ export class Repository {
     const editions = new Set<string>();
     let total = 0;
     for (const day of days) {
-      const n = Number(day.count);
+      const n = day.count;
       total += n;
       counts.set(day.source_id, (counts.get(day.source_id) ?? 0) + n);
       if (day.edition !== null) editions.add(day.edition);
@@ -2192,8 +2195,8 @@ export class Repository {
       editions: editions.size,
       oldest_edition: ordered[0] ?? null,
       newest_edition: ordered.at(-1) ?? null,
-      saved: Number(saved?.count ?? 0),
-      read: Number(read?.count ?? 0),
+      saved: saved?.count ?? 0,
+      read: read?.count ?? 0,
       feeds: feeds
         .map((f) => ({
           feed_id: f.id,
@@ -2234,7 +2237,7 @@ export class Repository {
       .groupBy(articles.edition);
     const dated = perEdition
       .flatMap((r) =>
-        r.edition === null ? [] : [{ date: r.edition, count: Number(r.count) }],
+        r.edition === null ? [] : [{ date: r.edition, count: r.count }],
       )
       .toSorted((a, b) => (a.date < b.date ? 1 : -Number(a.date > b.date)));
     const rows = dated.slice(0, days);
@@ -2264,19 +2267,19 @@ export class Repository {
       .groupBy(sql`strftime('%H', ${articles.published_at})`);
     const hours = new Map(
       byHour.flatMap((r) =>
-        r.key === null ? [] : [[r.key, Number(r.count)] as const],
+        r.key === null ? [] : [[r.key, r.count] as const],
       ),
     );
     const totals = {
-      total: perEdition.reduce((n, r) => n + Number(r.count), 0),
+      total: perEdition.reduce((n, r) => n + r.count, 0),
       recent: perEdition.reduce(
         (n, r) =>
           r.edition !== null && Date.parse(r.edition) >= Date.parse(r.cutoff)
-            ? n + Number(r.count)
+            ? n + r.count
             : n,
         0,
       ),
-      archived: byHour.reduce((n, r) => n + Number(r.archived), 0),
+      archived: byHour.reduce((n, r) => n + r.archived, 0),
     };
     // All followers are the source's counter; only the unmuted need counting.
     const [followers] = await this.#db
@@ -2297,12 +2300,12 @@ export class Repository {
       fail_count: source.fail_count,
       update_minutes: source.update_minutes,
       subscribers: source.follower_count,
-      active_subscribers: Number(followers?.active ?? 0),
+      active_subscribers: followers?.active ?? 0,
       story_count: totals.total,
       stories_last_month: totals.recent,
       stories_per_day: rows.map((r) => ({
         date: r.date ?? '',
-        count: Number(r.count),
+        count: r.count,
       })),
       stories_per_month: months,
       average_stories_per_month:
@@ -2342,7 +2345,7 @@ export class Repository {
   }
 
   /** Every article of one edition, from every source, for clustering. */
-  editionArticles(edition: string): Promise<Clusterable[]> {
+  async editionArticles(edition: string): Promise<Clusterable[]> {
     return this.windowArticles(edition, edition);
   }
 
@@ -2350,7 +2353,7 @@ export class Repository {
    * Every article of the editions from `from` to `to` (YYYY-MM-DD, both
    * included), from every source, for clustering across days.
    */
-  windowArticles(from: string, to: string): Promise<Clusterable[]> {
+  async windowArticles(from: string, to: string): Promise<Clusterable[]> {
     return this.#db
       .select({
         id: articles.id,
@@ -2370,7 +2373,7 @@ export class Repository {
    * cluster its members point at, and every other article of the edition
    * belongs to none.
    */
-  writeClusters(
+  async writeClusters(
     edition: string,
     groups: readonly (readonly number[])[],
   ): Promise<void> {
@@ -2506,7 +2509,10 @@ export class Repository {
   }
 
   /** A person's stored paper for one day, if one was laid out. */
-  getIssue(userId: number, date: string): Promise<StoredIssue | undefined> {
+  async getIssue(
+    userId: number,
+    date: string,
+  ): Promise<StoredIssue | undefined> {
     return this.#db.query.issues.findFirst({
       where: and(eq(issues.user_id, userId), eq(issues.date, date)),
     });
@@ -2717,14 +2723,12 @@ export class Repository {
     const byId = new Map(rows.map((r) => [r.article.id, r]));
     const ranked = rows
       .flatMap((r) => {
-        const seconds = r.seconds
-          ? String(r.seconds).split(',').map(Number)
-          : [];
+        const seconds = r.seconds ? r.seconds.split(',').map(Number) : [];
         const scored = rank(order, {
           id: r.article.id,
           seconds,
-          savers: Number(r.savers),
-          words: Number(r.words),
+          savers: r.savers,
+          words: r.words,
         });
         return scored ? [scored] : [];
       })
@@ -2740,7 +2744,7 @@ export class Repository {
         topic: topicOf(r.article.title ?? ''),
         cluster: r.article.cluster_id,
         title: titleKey(r.article.title ?? ''),
-        followers: Number(r.followers),
+        followers: r.followers,
       };
     });
     const served = diversify(
@@ -2831,13 +2835,13 @@ export class Repository {
         .where(and(sql`${reads.created_at} >= ${since}`, fresh))
         .groupBy(sources.id);
       for (const { people, score, ...source } of rows) {
-        if (Number(people) >= MIN_PEOPLE) {
-          scored.push({ source, count: Number(score) });
+        if (people >= MIN_PEOPLE) {
+          scored.push({ source, count: score });
         }
       }
     }
     return scored
-      .filter(({ source }) => Number(source.followers) >= MIN_PEOPLE)
+      .filter(({ source }) => source.followers >= MIN_PEOPLE)
       .filter(
         ({ source, count }) =>
           !after ||
@@ -2848,7 +2852,7 @@ export class Repository {
       .slice(0, limit + 1)
       .map(({ source, count }) => ({
         ...source,
-        followers: Number(source.followers),
+        followers: source.followers,
         count,
       }));
   }
@@ -2956,7 +2960,7 @@ export class Repository {
   ): Promise<SourceSuggestion[]> {
     const peer = alias(subscriptions, 'peer');
     const theirs = alias(subscriptions, 'theirs');
-    const rows = await this.#db
+    return this.#db
       .select({
         id: sources.id,
         url: sources.url,
@@ -2982,7 +2986,6 @@ export class Repository {
       .groupBy(sources.id)
       .orderBy(sql`count(distinct ${theirs.user_id}) desc`, asc(sources.id))
       .limit(limit);
-    return rows.map((r) => ({ ...r, followers: Number(r.followers) }));
   }
 
   /**
@@ -3002,7 +3005,7 @@ export class Repository {
           and(inArray(articles.source_id, part), gte(articles.edition, since)),
         )
         .groupBy(articles.source_id);
-      for (const r of rows) counts.set(r.id, Number(r.n));
+      for (const r of rows) counts.set(r.id, r.n);
     }
     return counts;
   }
@@ -3099,7 +3102,7 @@ export class Repository {
       .groupBy(articles.id)
       .orderBy(desc(count), desc(articles.id))
       .limit(limit);
-    return rows.map((r) => ({ article: r.article, count: Number(r.count) }));
+    return rows.map((r) => ({ article: r.article, count: r.count }));
   }
 
   /** Store a briefing, replacing the one for the same slot and day. */
@@ -3118,7 +3121,7 @@ export class Repository {
   }
 
   /** A person's briefing for a slot and day, if one was written. */
-  findBriefing(
+  async findBriefing(
     userId: number,
     slot: string,
     localDate: string,
@@ -3133,7 +3136,10 @@ export class Repository {
   }
 
   /** One of a person's briefings by id. */
-  getBriefing(userId: number, id: number): Promise<StoredBriefing | undefined> {
+  async getBriefing(
+    userId: number,
+    id: number,
+  ): Promise<StoredBriefing | undefined> {
     return this.#db.query.briefings.findFirst({
       where: and(eq(briefings.user_id, userId), eq(briefings.id, id)),
     });
@@ -3143,7 +3149,7 @@ export class Repository {
    * Briefings newest first, at most `limit`, each with a smaller id than
    * `before` when given: one person's (`userId`), or everyone's.
    */
-  listBriefings(
+  async listBriefings(
     userId: number | undefined,
     limit: number,
     before?: number,
@@ -3180,9 +3186,7 @@ export class Repository {
         and(eq(briefings.user_id, userId), gte(briefings.created_at, since)),
       );
     return rows
-      .filter(
-        (r) => !(except && r.slot === except.slot && r.date === except.date),
-      )
+      .filter((r) => !(except?.slot === r.slot && except.date === r.date))
       .map((r) => r.stories);
   }
 
@@ -3316,14 +3320,15 @@ export class Repository {
     articleId: number,
   ): Promise<number[]> {
     const article = await this.getArticle(userId, articleId);
-    if (!article || article.cluster_id === null) return [];
+    const clusterId = article?.cluster_id;
+    if (clusterId === undefined || clusterId === null) return [];
     const rows = await this.#db
       .selectDistinct({ id: articles.id })
       .from(articles)
       .innerJoin(subscriptions, eq(articles.source_id, subscriptions.source_id))
       .where(
         and(
-          eq(articles.cluster_id, article.cluster_id),
+          eq(articles.cluster_id, clusterId),
           eq(subscriptions.user_id, userId),
         ),
       );
@@ -3334,7 +3339,7 @@ export class Repository {
    * A person's stored issues, newest first: at most `limit`, each before the
    * date `before` when given.
    */
-  listIssues(
+  async listIssues(
     userId: number,
     limit: number,
     before?: string,
@@ -3568,11 +3573,11 @@ export class Repository {
       .limit(5);
     const archive = await this.archiveSummary(userId);
     return {
-      saves: Number(total?.n ?? 0),
+      saves: total?.n ?? 0,
       tags: archive.tags,
       top_sources: sourcesSaved.map((r) => ({
         source: r.source ?? '',
-        count: Number(r.count),
+        count: r.count,
       })),
       recent,
     };
@@ -3634,15 +3639,15 @@ export class Repository {
       .orderBy(desc(count), asc(sql`json_each.value`))
       .limit(10);
     return {
-      sources: Number(followed?.n ?? 0),
-      articles: Number(stories?.n ?? 0),
-      saves: Number(saved?.n ?? 0),
-      reads: Number(read?.n ?? 0),
+      sources: followed?.n ?? 0,
+      articles: stories?.n ?? 0,
+      saves: saved?.n ?? 0,
+      reads: read?.n ?? 0,
       top_sources: top.map((r) => ({
         source: r.source ?? '',
-        count: Number(r.count),
+        count: r.count,
       })),
-      tags: tags.map((r) => ({ tag: String(r.tag), count: Number(r.count) })),
+      tags: tags.map((r) => ({ tag: r.tag, count: r.count })),
     };
   }
 
@@ -3716,11 +3721,11 @@ export class Repository {
           sql`${aiUsage.created_at} >= ${since}`,
         ),
       );
-    return Number(row?.n ?? 0);
+    return row?.n ?? 0;
   }
 
   /** The person's conversations, last active first. */
-  listConversations(userId: number): Promise<ConversationSummary[]> {
+  async listConversations(userId: number): Promise<ConversationSummary[]> {
     return this.#db
       .select()
       .from(conversations)
@@ -3794,7 +3799,7 @@ export class Repository {
     return Promise.all(
       rows.map(async (r) => ({
         ...r,
-        followers: Number(r.followers),
+        followers: r.followers,
         stories: await this.#db
           .select({ id: articles.id, title: articles.title })
           .from(articles)
@@ -3818,7 +3823,7 @@ export class Repository {
   ): Promise<DiscoveredArticle[] | undefined> {
     const article = await this.reachableArticle(userId, articleId);
     if (!article) return undefined;
-    const match = anyWordQuery(`${article.title ?? ''}`);
+    const match = anyWordQuery(article.title ?? '');
     if (!match) return [];
     const followedRows = await this.#followed(userId);
     const followed = new Set(followedRows.map((r) => r.id));
@@ -3863,7 +3868,7 @@ export class Repository {
   async savedSourceCounts(
     userId: number,
   ): Promise<{ readonly source_id: number; readonly count: number }[]> {
-    return await this.#db
+    return this.#db
       .select({ source_id: articles.source_id, count: sql<number>`count(*)` })
       .from(saves)
       .innerJoin(articles, eq(saves.article_id, articles.id))
@@ -4079,7 +4084,7 @@ export class Repository {
       .limit(limit);
     return rows.map((r) => ({
       ...r,
-      followers: Number(r.followers),
+      followers: r.followers,
       followed: followed.has(r.id),
     }));
   }
@@ -4158,7 +4163,7 @@ export class Repository {
    * Sources anyone follows whose title or address holds `q` (NewsBlur's feed
    * autocomplete), most followed first.
    */
-  searchSources(
+  async searchSources(
     userId: number,
     q: string,
     limit: number,
@@ -4196,7 +4201,7 @@ export class Repository {
   }
 
   /** Recommendations with this status: approved ones last decided first, others newest first. */
-  listRecommendations(
+  async listRecommendations(
     status: 'pending' | 'approved' | 'declined',
   ): Promise<FeedRecommendation[]> {
     return this.#db

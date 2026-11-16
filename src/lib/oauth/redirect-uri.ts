@@ -212,11 +212,7 @@ export function redirectUriMatches(
     return true;
   }
   const want = parseUrl(requested);
-  if (
-    !want ||
-    want.protocol !== 'http:' ||
-    !LOOPBACK_HOSTS.has(want.hostname)
-  ) {
+  if (want?.protocol !== 'http:' || !LOOPBACK_HOSTS.has(want.hostname)) {
     return false;
   }
   return registered.some((r) => {

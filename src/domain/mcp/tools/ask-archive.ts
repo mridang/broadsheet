@@ -13,7 +13,7 @@ import {
   MAX_QUESTION_LENGTH,
 } from '@/domain/assistant';
 import { answerTurn } from '@/domain/assistant-tools';
-import { type ToolContext } from '@/domain/mcp/tool-context';
+import type { ToolContext } from '@/domain/mcp/tool-context';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { id } from '@/domain/mcp/tools/support';
 import { Repository } from '@/domain/repository';

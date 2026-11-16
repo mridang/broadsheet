@@ -19,7 +19,10 @@ export function RemoveSearchButton({
         className={buttonClass({ variant: 'danger', size: 'xs' })}
         disabled={busy}
         onClick={() =>
-          void run(() => removeSearch(id), 'Could not remove that search.')
+          void run(
+            async () => removeSearch(id),
+            'Could not remove that search.',
+          )
         }
       >
         Remove

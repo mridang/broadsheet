@@ -36,7 +36,7 @@ function fakeRate(): RateLimitDeps {
 const ORIGIN = 'https://app.test';
 
 /** Answer a request as a caller with this authentication. */
-function respond(request: Request, auth: McpAuth): Promise<Response> {
+async function respond(request: Request, auth: McpAuth): Promise<Response> {
   return respondToMcp(request, ORIGIN, async () => auth, fakeRate());
 }
 

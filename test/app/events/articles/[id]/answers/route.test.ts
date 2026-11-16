@@ -70,7 +70,7 @@ beforeEach(async () => {
 
 afterEach(() => restore());
 
-const ask = (id: string | number, body: string, headers = {}) =>
+const ask = async (id: string | number, body: string, headers = {}) =>
   POST(
     new Request(`https://app.test/events/articles/${id}/answers`, {
       method: 'POST',

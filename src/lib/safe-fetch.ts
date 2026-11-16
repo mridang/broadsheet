@@ -91,7 +91,7 @@ export type SafeFetcher = (
 ) => Promise<Response>;
 
 /** The real `fetch`, looked up when called so a test can replace the global. */
-const realFetch: SafeFetcher = (url, init) => fetch(url, init);
+const realFetch: SafeFetcher = async (url, init) => fetch(url, init);
 
 /** How to fetch: the limits, and what is acceptable. */
 export interface CappedFetchOptions {

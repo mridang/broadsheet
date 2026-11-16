@@ -58,9 +58,9 @@ export async function subscribeToPush(
     await environment.fetch('/api/push/configuration'),
     'Reading the push configuration',
   );
-  const { vapid_public_key: key } = (await configuration.json()) as {
+  const { vapid_public_key: key } = await configuration.json<{
     vapid_public_key: string;
-  };
+  }>();
   const subscription = await environment.pushManager.subscribe({
     userVisibleOnly: true,
     applicationServerKey: applicationServerKey(key),

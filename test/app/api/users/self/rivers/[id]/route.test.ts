@@ -45,7 +45,7 @@ beforeEach(async () => {
 
 afterEach(() => restore());
 
-const remove = (id: string | number) =>
+const remove = async (id: string | number) =>
   DELETE(
     new Request(`https://app.test/api/users/self/rivers/${id}`, {
       method: 'DELETE',

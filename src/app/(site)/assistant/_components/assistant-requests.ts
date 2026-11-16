@@ -26,7 +26,8 @@ export interface Turn {
 export async function startConversation(): Promise<string> {
   const res = await fetch('/api/conversations', { method: 'POST' });
   await ensureOk(res);
-  return ((await res.json()) as { id: string }).id;
+  const { id } = await res.json<{ id: string }>();
+  return id;
 }
 
 /** Ask a question in a conversation (`POST /api/conversations/:id/messages`); the answer. */
@@ -40,7 +41,7 @@ export async function sendMessage(
     body: JSON.stringify({ content }),
   });
   await ensureOk(res);
-  return (await res.json()) as Turn;
+  return res.json<Turn>();
 }
 
 /** Remove a conversation (`DELETE /api/conversations/:id`). */

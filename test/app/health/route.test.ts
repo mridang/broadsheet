@@ -25,7 +25,7 @@ describe('GET /health', () => {
   it('answers 200 with ok, the database binding and a timestamp', async () => {
     const res = await GET();
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { ok: boolean; db: boolean; ts: string };
+    const body = await res.json<{ ok: boolean; db: boolean; ts: string }>();
     expect(body.ok).toBe(true);
     expect(body.db).toBe(true);
     expect(new Date(body.ts).toISOString()).toBe(body.ts);
@@ -40,13 +40,14 @@ describe('GET /health', () => {
     app.bound = false;
     const res = await GET();
     expect(res.status).toBe(200);
-    expect(((await res.json()) as { db: boolean }).db).toBe(false);
+    const { db } = await res.json<{ db: boolean }>();
+    expect(db).toBe(false);
   });
 
   it('adds what the app reports about itself to the body', async () => {
     app.health = { ok: true, details: { movies: 3 } };
     const reply = await GET();
-    const body = (await reply.json()) as { movies: number };
+    const body = await reply.json<{ movies: number }>();
     expect(body.movies).toBe(3);
   });
 
@@ -54,7 +55,7 @@ describe('GET /health', () => {
     app.health = { ok: false, details: { stale: true } };
     const res = await GET();
     expect(res.status).toBe(503);
-    const body = (await res.json()) as { ok: boolean; stale: boolean };
+    const body = await res.json<{ ok: boolean; stale: boolean }>();
     expect(body).toMatchObject({ ok: false, stale: true });
     expect(res.headers.get('cache-control')).toBe('no-store');
   });

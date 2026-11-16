@@ -44,7 +44,7 @@ export async function askArticle(
     body: JSON.stringify(input),
   });
   await ensureOk(res);
-  return (await res.json()) as AskAnswer;
+  return res.json<AskAnswer>();
 }
 
 /** Turn a recorded question into text (`POST /api/transcriptions`). */
@@ -55,5 +55,6 @@ export async function transcribeAudio(audio: Blob): Promise<string> {
     body: audio,
   });
   await ensureOk(res);
-  return ((await res.json()) as { text: string }).text;
+  const { text } = await res.json<{ text: string }>();
+  return text;
 }

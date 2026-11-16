@@ -105,7 +105,7 @@ describe('subscribeToHub', () => {
 });
 
 describe('verifyIntent', () => {
-  const ask = (params: Record<string, string>) =>
+  const ask = async (params: Record<string, string>) =>
     verifyIntent(db, sourceId, new URLSearchParams(params), NOW);
 
   beforeEach(async () => {

@@ -37,10 +37,10 @@ export async function failureOf(response: Response): Promise<string> {
     return 'You have asked for too many briefings. Try again in a minute.';
   }
   try {
-    const problem = (await response.json()) as {
+    const problem = await response.json<{
       detail?: string;
       title?: string;
-    };
+    }>();
     return (
       problem.detail || problem.title || 'The briefing could not be written.'
     );

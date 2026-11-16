@@ -1293,7 +1293,7 @@ describe('oauthSweeps', () => {
         return { bind: () => ({ run: async () => ({}) }) };
       },
     };
-    const sweeps = oauthSweeps(Object.assign(db, { $client: d1 }) as never);
+    const sweeps = oauthSweeps(Object.assign(db, { $client: d1 }));
     await sweeps.purgeOAuth();
     await sweeps.purgeRateLimits();
     expect(statements).toEqual([

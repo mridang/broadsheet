@@ -37,7 +37,7 @@ export async function clusterPictures(
 ): Promise<(string | null)[]> {
   const signer = imageSigner();
   return Promise.all(
-    siblings.map((s) =>
+    siblings.map(async (s) =>
       expanded && s.image
         ? pictureSrc(s.image, PREVIEW_WIDTH, signer)
         : Promise.resolve(null),

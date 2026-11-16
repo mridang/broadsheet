@@ -9,11 +9,20 @@ import {
 } from '@/app/(site)/settings/_components/settings-requests';
 import { buttonClass } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/notice';
+import { z } from 'zod';
+
+/** The fields the token form posts. */
+const tokenForm = z.object({
+  feed: z.string().default('saves'),
+  filter: z.string().default('all'),
+  tag: z.string().default(''),
+});
 
 /** The request a filled-in token form makes. */
 export function tokenRequest(form: FormData): TokenRequest {
-  const choice = String(form.get('feed') ?? 'saves');
-  const filter = String(form.get('filter') ?? 'all');
+  const fields = tokenForm.parse(Object.fromEntries(form));
+  const choice = fields.feed;
+  const filter = fields.filter;
   const filtered = filter === 'all' ? {} : { filter };
   if (choice.startsWith('section:')) {
     return {
@@ -24,7 +33,7 @@ export function tokenRequest(form: FormData): TokenRequest {
   }
   if (choice === 'edition') return { scope: 'edition', ...filtered };
   if (choice === 'highlights') return { scope: 'highlights' };
-  const tag = String(form.get('tag') ?? '').trim();
+  const tag = fields.tag.trim();
   return tag ? { scope: 'saves', tag } : { scope: 'saves' };
 }
 

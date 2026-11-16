@@ -7,6 +7,10 @@ import { addWebhook } from '@/app/(site)/settings/_components/settings-requests'
 import { buttonClass } from '@/components/ui/button';
 import { CHECK_LABEL } from '@/components/ui/field';
 import { ErrorText } from '@/components/ui/notice';
+import { z } from 'zod';
+
+/** The one text field the webhook form posts. */
+const webhookForm = z.object({ url: z.string().default('') });
 
 /** The box for adding a webhook; shows the signing secret once it is made. */
 export function AddWebhookForm(): ReactElement {
@@ -15,7 +19,7 @@ export function AddWebhookForm(): ReactElement {
   const submit = (event: SubmitEvent<HTMLFormElement>): void => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const url = String(form.get('url') ?? '');
+    const { url } = webhookForm.parse(Object.fromEntries(form));
     const events = form.getAll('events').map(String);
     void run(
       async () => setSecret(await addWebhook(url, events)),

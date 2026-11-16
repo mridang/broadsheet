@@ -93,7 +93,7 @@ export function PhraseTrainer({
           disabled={action.busy || !value.trim()}
           onClick={() =>
             void action.run(
-              () => train(kind, value, score, regex && REGEX.has(kind)),
+              async () => train(kind, value, score, regex && REGEX.has(kind)),
               'Could not train.',
             )
           }

@@ -110,7 +110,7 @@ export async function handleTokenRequest(
         [`${origin}/oauth/token`, origin],
         {
           fetchJwks: context.fetchJwks ?? fetchJwks,
-          claimAssertion: (id, jti, expiresAt) =>
+          claimAssertion: async (id, jti, expiresAt) =>
             store.claimAssertion(id, jti, expiresAt),
         },
         now,

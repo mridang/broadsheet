@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
+import type { DueBriefing } from '@/lib/core/worker-extras';
+import type { WorkflowStep } from 'cloudflare:workers';
 
 const calls: string[] = [];
 const failing = new Set<number>();
@@ -216,14 +218,20 @@ const step = {
     const run = rest.at(-1) as () => Promise<unknown>;
     return run();
   },
-};
+} as unknown as WorkflowStep;
 
 /** Run the Workflow as if started on 1 November 2026. */
-const run = (payload: { fetchOnly?: boolean } = {}) =>
-  Reflect.apply(DailyScrape.prototype.run, { env: { DB: {} } }, [
-    { timestamp: new Date('2026-11-01T06:00:00Z'), payload },
+const run = async (payload: { fetchOnly?: boolean } = {}) =>
+  DailyScrape.prototype.run.call(
+    { env: { DB: {} } },
+    {
+      payload,
+      timestamp: new Date('2026-11-01T06:00:00Z'),
+      instanceId: 'run',
+      workflowName: 'daily-scrape',
+    },
     step,
-  ]) as Promise<{ sources: number; ok: number; articles: number }>;
+  );
 
 afterEach(() => {
   failingChunks.clear();
@@ -378,15 +386,19 @@ describe('isDailyRun', () => {
 });
 
 describe('scheduled', () => {
-  const fire = (
+  const fire = async (
     create: (options: unknown) => Promise<{ id: string }>,
     time = '2026-11-01T06:00:00Z',
   ) =>
-    Reflect.apply(extraHandlers.scheduled as never, undefined, [
-      { cron: '*/5 * * * *', scheduledTime: Date.parse(time) },
-      { DAILY_SCRAPE: { create } },
-      { waitUntil: () => undefined },
-    ]) as Promise<void>;
+    Reflect.apply<undefined, unknown[], Promise<void>>(
+      extraHandlers.scheduled as never,
+      undefined,
+      [
+        { cron: '*/5 * * * *', scheduledTime: Date.parse(time) },
+        { DAILY_SCRAPE: { create } },
+        { waitUntil: () => undefined },
+      ],
+    );
 
   it('starts the whole daily run at 06:00 UTC', async () => {
     jest.spyOn(console, 'log').mockImplementation(() => undefined);
@@ -419,15 +431,19 @@ describe('scheduled', () => {
 });
 
 describe('scheduled clean-up', () => {
-  const fire = () =>
-    Reflect.apply(extraHandlers.scheduled as never, undefined, [
-      {
-        cron: '*/5 * * * *',
-        scheduledTime: Date.parse('2026-11-08T13:35:00Z'),
-      },
-      { DAILY_SCRAPE: { create: async () => ({ id: 'run' }) } },
-      { waitUntil: () => undefined },
-    ]) as Promise<void>;
+  const fire = async () =>
+    Reflect.apply<undefined, unknown[], Promise<void>>(
+      extraHandlers.scheduled as never,
+      undefined,
+      [
+        {
+          cron: '*/5 * * * *',
+          scheduledTime: Date.parse('2026-11-08T13:35:00Z'),
+        },
+        { DAILY_SCRAPE: { create: async () => ({ id: 'run' }) } },
+        { waitUntil: () => undefined },
+      ],
+    );
 
   it('deletes expired OAuth codes and tokens and week-old imports', async () => {
     jest.spyOn(console, 'log').mockImplementation(() => undefined);
@@ -454,11 +470,17 @@ describe('FeedImportRun', () => {
     Array.from({ length: n }, (_v, index) => ({
       url: `https://f.test/${index}`,
     }));
-  const importRun = (n: number) =>
-    Reflect.apply(FeedImportRun.prototype.run, { env: { DB: {} } }, [
-      { payload: { id: 'imp', user: 7, feeds: feeds(n) } },
+  const importRun = async (n: number) =>
+    FeedImportRun.prototype.run.call(
+      { env: { DB: {} } },
+      {
+        payload: { id: 'imp', user: 7, feeds: feeds(n) },
+        timestamp: new Date('2026-11-01T06:00:00Z'),
+        instanceId: 'imp',
+        workflowName: 'feed-import',
+      },
       step,
-    ]) as Promise<{ added: number }>;
+    );
 
   it('follows the entries a chunk per step, marks it complete, then fetches the new feeds', async () => {
     jest.spyOn(console, 'log').mockImplementation(() => undefined);
@@ -520,11 +542,17 @@ describe('dueBriefings', () => {
 });
 
 describe('BriefingRun', () => {
-  const brief = (due: { user: number; slot: string; date: string }[]) =>
-    Reflect.apply(BriefingRun.prototype.run, { env: { DB: {} } }, [
-      { payload: { due, at: '2026-11-01T08:30:00Z' } },
+  const brief = async (due: DueBriefing[]) =>
+    BriefingRun.prototype.run.call(
+      { env: { DB: {} } },
+      {
+        payload: { due, at: '2026-11-01T08:30:00Z' },
+        timestamp: new Date('2026-11-01T08:30:00Z'),
+        instanceId: 'brief',
+        workflowName: 'briefings',
+      },
       step,
-    ]) as Promise<{ due: number; written: number }>;
+    );
 
   it('writes each due briefing as its own step and pushes a notice', async () => {
     jest.spyOn(console, 'log').mockImplementation(() => undefined);
@@ -575,15 +603,19 @@ describe('scheduled briefings', () => {
   const scrape = jest.fn<(opts: unknown) => Promise<{ id: string }>>(
     async () => ({ id: 'scrape' }),
   );
-  const fire = (create: (opts: unknown) => Promise<{ id: string }>) =>
-    Reflect.apply(extraHandlers.scheduled as never, undefined, [
-      {
-        cron: '*/5 * * * *',
-        scheduledTime: Date.parse('2026-11-01T08:30:00Z'),
-      },
-      { DB: {}, DAILY_SCRAPE: { create: scrape }, BRIEFINGS: { create } },
-      { waitUntil: () => undefined },
-    ]) as Promise<void>;
+  const fire = async (create: (opts: unknown) => Promise<{ id: string }>) =>
+    Reflect.apply<undefined, unknown[], Promise<void>>(
+      extraHandlers.scheduled as never,
+      undefined,
+      [
+        {
+          cron: '*/5 * * * *',
+          scheduledTime: Date.parse('2026-11-01T08:30:00Z'),
+        },
+        { DB: {}, DAILY_SCRAPE: { create: scrape }, BRIEFINGS: { create } },
+        { waitUntil: () => undefined },
+      ],
+    );
 
   it('starts a briefing run with what came due, after the scrape', async () => {
     jest.spyOn(console, 'log').mockImplementation(() => undefined);

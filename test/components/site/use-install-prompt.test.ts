@@ -25,7 +25,7 @@ describe('isInstallPromptEvent', () => {
     expect(
       isInstallPromptEvent(
         Object.assign(new Event('beforeinstallprompt'), {
-          prompt: () => Promise.resolve(),
+          prompt: async () => {},
         }),
       ),
     ).toBe(true);

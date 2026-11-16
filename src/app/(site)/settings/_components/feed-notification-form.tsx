@@ -10,11 +10,15 @@ import {
 import { buttonClass } from '@/components/ui/button';
 import { CHECK_LABEL, SMALL_FIELD } from '@/components/ui/field';
 import { ErrorText } from '@/components/ui/notice';
+import { z } from 'zod';
+
+/** The one text field the notification form posts. */
+const notificationForm = z.object({ filter: z.string().default('unread') });
 
 /** The request a filled-in notification form makes. */
 export function notificationRequest(form: FormData): NotificationRequest {
   return {
-    filter: String(form.get('filter') ?? 'unread'),
+    filter: notificationForm.parse(Object.fromEntries(form)).filter,
     channels: form.getAll('channels').map(String),
   };
 }
@@ -43,7 +47,7 @@ export function FeedNotificationForm({
     event.preventDefault();
     const request = notificationRequest(new FormData(event.currentTarget));
     void run(
-      () => setNotification(feedId, request),
+      async () => setNotification(feedId, request),
       'Could not save those notifications.',
     );
   };

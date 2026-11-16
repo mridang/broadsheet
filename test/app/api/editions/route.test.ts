@@ -35,7 +35,7 @@ beforeEach(async () => {
 
 afterEach(() => restore());
 
-const post = (body: string, headers = {}) =>
+const post = async (body: string, headers = {}) =>
   POST(
     new Request('https://app.test/api/editions', {
       method: 'POST',
@@ -44,7 +44,7 @@ const post = (body: string, headers = {}) =>
     }),
   );
 
-const editions = () => new Repository(db).listCustomEditions(7);
+const editions = async () => new Repository(db).listCustomEditions(7);
 
 describe('POST /api/editions', () => {
   it('answers 201 with the new edition and where to find it', async () => {
@@ -58,7 +58,7 @@ describe('POST /api/editions', () => {
       }),
     );
     expect(res.status).toBe(201);
-    const edition = (await res.json()) as { id: string };
+    const edition = await res.json<{ id: string }>();
     expect(edition).toMatchObject({
       name: 'Weekend',
       section_ids: [String(mine)],
@@ -73,9 +73,8 @@ describe('POST /api/editions', () => {
     const res = await post('{}');
     expect(res.status).toBe(400);
     expect(res.headers.get('content-type')).toBe('application/problem+json');
-    expect(((await res.json()) as { errors: string[] }).errors).toEqual([
-      'name: required.',
-    ]);
+    const { errors } = await res.json<{ errors: string[] }>();
+    expect(errors).toEqual(['name: required.']);
   });
 
   it('answers 400 for a section that is not the caller’s, storing nothing', async () => {
@@ -83,9 +82,8 @@ describe('POST /api/editions', () => {
       JSON.stringify({ name: 'Spy', section_ids: [String(theirs)] }),
     );
     expect(res.status).toBe(400);
-    expect(((await res.json()) as { errors: string[] }).errors).toEqual([
-      `section_ids: no section ${theirs}.`,
-    ]);
+    const { errors } = await res.json<{ errors: string[] }>();
+    expect(errors).toEqual([`section_ids: no section ${theirs}.`]);
     expect(await editions()).toHaveLength(0);
   });
 

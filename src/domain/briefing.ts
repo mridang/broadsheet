@@ -351,7 +351,7 @@ export function selectStories(
     const key = personalSection(candidate, used);
     return {
       candidate,
-      category: sectionOn(key, prefs) ? key : ('top_stories' as Category),
+      category: sectionOn(key, prefs) ? key : 'top_stories',
     };
   });
   const order = sectionOrder(prefs);
@@ -496,7 +496,7 @@ export function modelFor(choice: string | null | undefined): string {
 }
 
 /** Wait `ms` milliseconds. */
-const pause = (ms: number): Promise<void> =>
+const pause = async (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
 /** A note as the model wrote it, and what writing it took. */

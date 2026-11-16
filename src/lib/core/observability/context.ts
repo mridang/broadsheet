@@ -44,7 +44,7 @@ let loaded: ContextTracing | null | undefined;
  * exists only in the Workers runtime, and a failure is remembered. The ignore
  * comments keep the app's bundlers from trying to resolve it.
  */
-function load(): Promise<ContextTracing | null> {
+async function load(): Promise<ContextTracing | null> {
   return import(
     /* webpackIgnore: true */ /* turbopackIgnore: true */ 'cloudflare:workers'
   )
@@ -58,7 +58,9 @@ function load(): Promise<ContextTracing | null> {
  * context set in a handler that does not wait is still on the span when the
  * invocation ends. Never rejects.
  */
-function withActiveSpan(apply: (span: ContextSpan) => void): Promise<void> {
+async function withActiveSpan(
+  apply: (span: ContextSpan) => void,
+): Promise<void> {
   const run = (tracing: ContextTracing | null): void => {
     try {
       const span = tracing?.getActiveSpan();
@@ -71,9 +73,9 @@ function withActiveSpan(apply: (span: ContextSpan) => void): Promise<void> {
   };
   if (loaded !== undefined) {
     run(loaded);
-    return Promise.resolve();
+    return;
   }
-  return load()
+  await load()
     .then(run)
     .catch(() => undefined);
 }
@@ -102,19 +104,21 @@ function accepted(attributes: ContextAttributes): [string, ContextValue][] {
  * so where the caller is async it should wait for the result; the returned
  * promise never rejects.
  */
-export function setErrorContext(attributes: ContextAttributes): Promise<void> {
+export async function setErrorContext(
+  attributes: ContextAttributes,
+): Promise<void> {
   try {
     const kept = accepted(attributes);
     if (kept.length === 0) {
-      return Promise.resolve();
+      return;
     }
-    return withActiveSpan((span) => {
+    await withActiveSpan((span) => {
       for (const [key, value] of kept) {
         span.setAttribute(key, value);
       }
     });
   } catch {
-    return Promise.resolve();
+    return;
   }
 }
 
@@ -123,7 +127,7 @@ export function setErrorContext(attributes: ContextAttributes): Promise<void> {
  * `name`. Only the two fixed words are sent, never text that came from a
  * request, a person or a provider.
  */
-export function recordErrorOnSpan(
+export async function recordErrorOnSpan(
   name: string,
   message: string,
 ): Promise<void> {

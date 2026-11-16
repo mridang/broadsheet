@@ -12,7 +12,7 @@ import {
 
 /** Read a response's JSON body as a record. */
 async function body(response: Response): Promise<Record<string, unknown>> {
-  return (await response.json()) as Record<string, unknown>;
+  return response.json<Record<string, unknown>>();
 }
 
 describe('ApiController', () => {

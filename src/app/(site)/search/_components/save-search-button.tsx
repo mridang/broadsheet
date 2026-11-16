@@ -21,7 +21,7 @@ export function SaveSearchButton({
         disabled={busy}
         onClick={() =>
           void run(
-            () => saveSearch(query, feedId),
+            async () => saveSearch(query, feedId),
             'Could not save that search.',
           )
         }

@@ -22,7 +22,7 @@ beforeEach(async () => {
 });
 
 /** Send one request and read its reply. */
-const call = (method: string, params: Record<string, unknown> = {}) =>
+const call = async (method: string, params: Record<string, unknown> = {}) =>
   handleMcpMessage(
     user,
     { jsonrpc: '2.0', id: 1, method, params },
@@ -97,7 +97,7 @@ describe('tools/list', () => {
         (tool) =>
           !tool.title ||
           !tool.description ||
-          tool.inputSchema['type'] !== 'object',
+          tool.inputSchema.type !== 'object',
       ),
     ).toEqual([]);
   });

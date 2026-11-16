@@ -57,7 +57,7 @@ beforeEach(async () => {
 
 afterEach(() => restore());
 
-const list = () =>
+const list = async () =>
   GET(
     new Request('https://app.test/api/users/self/saves/tags', {
       headers: { ...auth },

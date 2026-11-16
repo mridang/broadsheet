@@ -9,7 +9,7 @@
 
 import { and, desc, eq, gt, sql } from 'drizzle-orm';
 
-import { type Database } from '@/domain/db/client';
+import type { Database } from '@/domain/db/client';
 import {
   articles,
   feedNotifications,
@@ -266,7 +266,7 @@ export class NotificationRepository {
    * The stories of a source's edition the person has not been told about,
    * newest first.
    */
-  undeliveredStories(
+  async undeliveredStories(
     userId: number,
     sourceId: number,
     edition: string,
@@ -331,7 +331,7 @@ export class NotificationRepository {
           gt(notificationDeliveries.created_at, sql`datetime('now', '-1 day')`),
         ),
       );
-    return Number(row?.n ?? 0);
+    return row?.n ?? 0;
   }
 
   /** Count a story the person emailed to `recipients` people. */
@@ -357,7 +357,7 @@ export class NotificationRepository {
           gt(storyEmails.created_at, sql`datetime('now', '-1 day')`),
         ),
       );
-    return Number(row?.n ?? 0);
+    return row?.n ?? 0;
   }
 
   /**

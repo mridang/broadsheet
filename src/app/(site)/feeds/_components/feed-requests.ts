@@ -128,7 +128,7 @@ const POLL_MS = 1500;
 export async function importOpml(
   file: Blob,
   onProgress: (progress: ImportProgress) => void = () => undefined,
-  wait: (ms: number) => Promise<void> = (ms) =>
+  wait: (ms: number) => Promise<void> = async (ms) =>
     new Promise((resolve) => setTimeout(resolve, ms)),
 ): Promise<ImportResult> {
   const res = await fetch('/api/feeds/imports', {
@@ -137,15 +137,15 @@ export async function importOpml(
     body: file,
   });
   await ensureOk(res);
-  if (res.status !== 202) return (await res.json()) as ImportResult;
+  if (res.status !== 202) return res.json<ImportResult>();
   const location = res.headers.get('location') ?? '';
-  let progress = (await res.json()) as ImportProgress;
+  let progress = await res.json<ImportProgress>();
   onProgress(progress);
   while (progress.status === 'running') {
     await wait(POLL_MS);
     const look = await fetch(location, { cache: 'no-store' });
     await ensureOk(look);
-    progress = (await look.json()) as ImportProgress;
+    progress = await look.json<ImportProgress>();
     onProgress(progress);
   }
   if (progress.status === 'failed') {

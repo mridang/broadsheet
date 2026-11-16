@@ -61,7 +61,7 @@ afterEach(() => restore());
 const at = (name: string) =>
   `https://app.test/api/users/self/saves/tags/${encodeURIComponent(name)}`;
 
-const rename = (name: string, body: string, headers = {}) =>
+const rename = async (name: string, body: string, headers = {}) =>
   PATCH(
     new Request(at(name), {
       method: 'PATCH',
@@ -71,7 +71,7 @@ const rename = (name: string, body: string, headers = {}) =>
     { params: Promise.resolve({ name }) },
   );
 
-const remove = (name: string) =>
+const remove = async (name: string) =>
   DELETE(new Request(at(name), { method: 'DELETE', headers: { ...auth } }), {
     params: Promise.resolve({ name }),
   });

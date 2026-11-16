@@ -58,7 +58,7 @@ export default async function AuthorizePage({
   const params = flatten(await searchParams);
   const origin = appOriginFromHeaders(await headers());
   const store = new D1OAuthStore(getDatabase());
-  const check = await validateAuthorizeRequest(params, origin, (id) =>
+  const check = await validateAuthorizeRequest(params, origin, async (id) =>
     store.findClient(id),
   );
   if (!check.ok) {

@@ -17,8 +17,8 @@ import {
   UnknownToolError,
   isPlainObject,
   negotiateLegacyVersion,
+  type JsonRpcResponse,
   type ToolArgs,
-  JsonRpcResponse,
 } from '@/lib/mcp';
 
 export type { JsonRpcResponse } from '@/lib/mcp';

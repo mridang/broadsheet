@@ -44,9 +44,9 @@ beforeEach(async () => {
 
 afterEach(() => restore());
 
-const edition = () => new Repository(db).getCustomEdition(7, mine);
+const edition = async () => new Repository(db).getCustomEdition(7, mine);
 
-const patch = (id: string | number, body: string) =>
+const patch = async (id: string | number, body: string) =>
   PATCH(
     new Request(`https://app.test/api/editions/${id}`, {
       method: 'PATCH',
@@ -56,7 +56,7 @@ const patch = (id: string | number, body: string) =>
     { params: Promise.resolve({ id: String(id) }) },
   );
 
-const remove = (id: string | number) =>
+const remove = async (id: string | number) =>
   DELETE(
     new Request(`https://app.test/api/editions/${id}`, {
       method: 'DELETE',

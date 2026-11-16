@@ -55,7 +55,7 @@ async function nextCode(): Promise<string> {
 const DEFAULT_CALLER = { 'cf-connecting-ip': '203.0.113.7' };
 
 /** A token request with the given form fields. */
-const token = (
+const token = async (
   fields: Record<string, string>,
   headers: Record<string, string> = DEFAULT_CALLER,
 ) =>
@@ -77,7 +77,7 @@ async function redeem(): Promise<Record<string, string>> {
     code_verifier: VERIFIER,
   });
   expect(res.status).toBe(200);
-  return (await res.json()) as Record<string, string>;
+  return res.json<Record<string, string>>();
 }
 
 describe('POST /oauth/token', () => {
@@ -241,7 +241,7 @@ describe('POST /oauth/token, bodies and rate limits', () => {
 
   it('rotates a refresh token, and answers a retry with the old one inside the grace window', async () => {
     const first = await redeem();
-    const refresh = (value: string) =>
+    const refresh = async (value: string) =>
       token({
         grant_type: 'refresh_token',
         client_id: 'client-1',
@@ -263,7 +263,7 @@ describe('POST /oauth/token, bodies and rate limits', () => {
 
   it('revokes the grant when a spent refresh token comes back after the grace window', async () => {
     const first = await redeem();
-    const refresh = () =>
+    const refresh = async () =>
       token({
         grant_type: 'refresh_token',
         client_id: 'client-1',
@@ -301,7 +301,7 @@ describe('POST /oauth/token, bodies and rate limits', () => {
   });
 
   it('answers 429 with Retry-After when an address asks too often, and counts addresses separately', async () => {
-    const hit = (ip: string) =>
+    const hit = async (ip: string) =>
       token(
         { grant_type: 'password', client_id: 'c' },
         { 'cf-connecting-ip': ip },

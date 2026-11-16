@@ -10,6 +10,14 @@ import {
   addRule,
   type RuleRequest,
 } from '@/app/(site)/settings/_components/settings-requests';
+import { z } from 'zod';
+
+/** The fields the rule form posts. */
+const ruleForm = z.object({
+  where: z.string().default('all'),
+  kind: z.string().default('title'),
+  value: z.string().default(''),
+});
 
 /** The scope a rule's "Where to look" choice names. */
 function scopeOf(where: string) {
@@ -24,11 +32,12 @@ function scopeOf(where: string) {
 
 /** The request a filled-in rule form makes. */
 export function ruleRequest(form: FormData): RuleRequest {
-  const where = String(form.get('where') ?? 'all');
+  const fields = ruleForm.parse(Object.fromEntries(form));
+  const where = fields.where;
   const scope = scopeOf(where);
   return {
-    kind: String(form.get('kind') ?? 'title'),
-    value: String(form.get('value') ?? ''),
+    kind: fields.kind,
+    value: fields.value,
     is_regex: form.get('is_regex') === 'on',
     ...scope,
     channels: form.getAll('channels').map(String),
@@ -54,7 +63,7 @@ export function AddRuleForm({
   const submit = (event: SubmitEvent<HTMLFormElement>): void => {
     event.preventDefault();
     const request = ruleRequest(new FormData(event.currentTarget));
-    void run(() => addRule(request), 'Could not add that rule.');
+    void run(async () => addRule(request), 'Could not add that rule.');
   };
   return (
     <>

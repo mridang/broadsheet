@@ -328,7 +328,7 @@ export async function handleMcpPost(
   }
 
   const replies = await Promise.all(
-    messages.map((m) => handleMcpMessage(user, m)),
+    messages.map(async (m) => handleMcpMessage(user, m)),
   );
   const headers = { ...cors, ...NO_STORE };
   if (isBatch) {

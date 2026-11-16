@@ -16,6 +16,6 @@ export interface AppHealth {
 }
 
 /** The app's own check: nothing beyond the Worker answering. */
-export function appHealth(): Promise<AppHealth> {
-  return Promise.resolve({ ok: true, details: {} });
+export async function appHealth(): Promise<AppHealth> {
+  return { ok: true, details: {} };
 }

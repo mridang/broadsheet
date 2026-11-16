@@ -16,6 +16,7 @@ import {
   toggleQueued,
   updatePlayer,
 } from '@/app/(site)/_components/player';
+import { z } from 'zod';
 
 const real = globalThis.fetch;
 afterEach(() => {
@@ -131,7 +132,7 @@ describe('the page’s player', () => {
 
   it('keeps a signed-out person’s player on the page only', async () => {
     const fetch = jest.fn(async () => new Response(null, { status: 401 }));
-    globalThis.fetch = fetch as never;
+    globalThis.fetch = fetch;
     await loadPlayer();
     jest.useFakeTimers();
     updatePlayer((p) => ({ ...p, rate: 1 }));
@@ -154,7 +155,7 @@ describe('the page’s player', () => {
     jest.runAllTimers();
     const puts = fetch.mock.calls.filter(([, init]) => init?.method === 'PUT');
     expect(puts).toHaveLength(1);
-    expect(JSON.parse(String(puts[0]?.[1]?.body))).toEqual({
+    expect(JSON.parse(z.string().parse(puts[0]?.[1]?.body))).toEqual({
       rate: 1.25,
       current: { article_id: '7', position: 2 },
       queue: [],
@@ -165,7 +166,7 @@ describe('the page’s player', () => {
   it('keeps working when the server cannot be reached', async () => {
     globalThis.fetch = jest.fn(async () => {
       throw new Error('offline');
-    }) as never;
+    });
     await expect(loadPlayer()).resolves.toBeUndefined();
   });
 });

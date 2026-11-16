@@ -18,9 +18,11 @@ const SECRET = 'test-session-secret-value';
 
 // Thin adapters over the SessionTokens handle, so each case reads as a
 // one-line sign/verify.
-const createSessionToken = (payload: NewSession, secret: string = SECRET) =>
-  new SessionTokens(secret).create(payload);
-const verifySessionToken = (token: string, secret: string = SECRET) =>
+const createSessionToken = async (
+  payload: NewSession,
+  secret: string = SECRET,
+) => new SessionTokens(secret).create(payload);
+const verifySessionToken = async (token: string, secret: string = SECRET) =>
   new SessionTokens(secret).verify(token);
 
 describe('session tokens', () => {

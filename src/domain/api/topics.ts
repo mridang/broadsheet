@@ -19,7 +19,7 @@ import { TOPICS } from '@/domain/topics';
  */
 export function createTopicsCollection(
   resolver: CurrentUserResolver = requestCookieResolver,
-): ApiController<Request> {
+): ApiController {
   return new ApiController<Request>({
     context: async (request) => {
       await liveUid(request, resolver);

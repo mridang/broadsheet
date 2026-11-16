@@ -11,6 +11,14 @@ import {
 import { buttonClass } from '@/components/ui/button';
 import { CHECK_LABEL } from '@/components/ui/field';
 import { ErrorText } from '@/components/ui/notice';
+import { z } from 'zod';
+
+/** The text fields the edition form posts. */
+const editionForm = z.object({
+  name: z.string().default(''),
+  query: z.string().default(''),
+  tag: z.string().default(''),
+});
 
 /** A section an edition may print. */
 export interface SectionOption {
@@ -37,12 +45,12 @@ export const BLANK: EditionDraft = {
 
 /** What the form holds, as the API takes it. */
 export function editionOf(data: FormData): EditionEdit {
-  const text = (key: string) => String(data.get(key) ?? '').trim();
+  const fields = editionForm.parse(Object.fromEntries(data));
   return {
-    name: text('name'),
+    name: fields.name.trim(),
     section_ids: data.getAll('section').map(String),
-    query: text('query') || null,
-    tag: text('tag') || null,
+    query: fields.query.trim() || null,
+    tag: fields.tag.trim() || null,
   };
 }
 
@@ -64,7 +72,8 @@ export function EditionForm({
     event.preventDefault();
     const edition = editionOf(new FormData(event.currentTarget));
     void run(
-      () => (id === undefined ? addEdition(edition) : editEdition(id, edition)),
+      async () =>
+        id === undefined ? addEdition(edition) : editEdition(id, edition),
       'Could not save that edition.',
     );
   };

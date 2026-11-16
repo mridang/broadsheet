@@ -52,14 +52,15 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
-const list = () =>
+const list = async () =>
   GET(new Request('https://app.test/api/news/topics', { headers: auth }));
 
 describe('GET /api/news/topics', () => {
   it('answers 200 with the Google News topics', async () => {
     const res = await list();
     expect(res.status).toBe(200);
-    expect(((await res.json()) as { items: unknown[] }).items).toContainEqual({
+    const { items } = await res.json<{ items: unknown[] }>();
+    expect(items).toContainEqual({
       id: 'SCIENCE',
       name: 'Science',
     });

@@ -86,11 +86,11 @@ describe('Popover', () => {
 
 describe('supportsPopover', () => {
   it('is true for an element in a browser that has the Popover API', () => {
-    expect(supportsPopover(Object.create({ popover: null }))).toBe(true);
+    expect(supportsPopover({ __proto__: { popover: null } })).toBe(true);
   });
 
   it('is false in a browser that does not, so the component shows the panel itself', () => {
-    expect(supportsPopover(Object.create({ hidden: false }))).toBe(false);
+    expect(supportsPopover({ __proto__: { hidden: false } })).toBe(false);
   });
 });
 

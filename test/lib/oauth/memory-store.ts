@@ -80,7 +80,7 @@ export class MemoryStore implements OAuthStore {
     tokens: readonly TokenRow[],
   ) {
     const token = this.tokens.get(hash);
-    if (!token || token.usedAt !== null) {
+    if (token?.usedAt !== null) {
       return false;
     }
     this.tokens.set(hash, { ...token, usedAt: now });

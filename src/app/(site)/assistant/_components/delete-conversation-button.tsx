@@ -22,7 +22,7 @@ export function DeleteConversationButton({
         disabled={busy}
         onClick={() =>
           void run(
-            () => deleteConversation(id),
+            async () => deleteConversation(id),
             'Could not delete that conversation.',
           )
         }

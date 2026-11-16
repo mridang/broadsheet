@@ -76,7 +76,9 @@ export async function composeLayout(
     readerId === undefined ? [] : repo.listClassifiers(readerId),
     repo.listSections(ownerId),
     repo.getPreferences(readerId ?? ownerId),
-    readerId === undefined ? new Map() : repo.promptMatches(readerId),
+    readerId === undefined
+      ? new Map<number, Set<number>>()
+      : repo.promptMatches(readerId),
   ]);
   // A picked section takes in the sections nested under it.
   const picked = new Set(

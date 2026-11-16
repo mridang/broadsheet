@@ -172,10 +172,7 @@ export class ApiController<Ctx = Request> {
 
   /** Register an endpoint for its method. */
   on<Input, Output>(endpoint: Endpoint<Input, Output, Ctx>): this {
-    this.#endpoints.set(
-      endpoint.method,
-      endpoint as Endpoint<unknown, unknown, Ctx>,
-    );
+    this.#endpoints.set(endpoint.method, endpoint);
     return this;
   }
 
@@ -216,7 +213,7 @@ export class ApiController<Ctx = Request> {
   handlers(): Record<HttpMethod, RouteHandler> {
     const handlers: Partial<Record<HttpMethod, RouteHandler>> = {};
     for (const [method, endpoint] of this.#endpoints) {
-      handlers[method] = (request, route = {}) =>
+      handlers[method] = async (request, route = {}) =>
         this.#run(endpoint, request, route);
     }
     return handlers as Record<HttpMethod, RouteHandler>;

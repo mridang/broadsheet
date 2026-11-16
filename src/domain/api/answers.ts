@@ -87,7 +87,7 @@ export function assistantUnavailable(error: unknown): Response {
 
 /** The `AI` binding as the answer model, or undefined when it is not bound. */
 export function answerModel(): AnswerModel | undefined {
-  return getEnv().AI as unknown as AnswerModel | undefined;
+  return getEnv().AI;
 }
 
 /** Read a JSON object body and the question in it under `key`, or throw the 4xx. */

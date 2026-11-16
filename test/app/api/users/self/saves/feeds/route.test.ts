@@ -59,7 +59,7 @@ beforeEach(async () => {
 
 afterEach(() => restore());
 
-const list = () =>
+const list = async () =>
   GET(
     new Request('https://app.test/api/users/self/saves/feeds', {
       headers: { ...auth },

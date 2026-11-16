@@ -23,11 +23,11 @@ describe('signing out', () => {
 
   /** Click the button with a stand-in browser, and wait for it to finish. */
   async function click(fetchResult: Promise<Response>): Promise<jest.Mock> {
-    const fetchSpy = jest.fn(() => fetchResult);
+    const fetchSpy = jest.fn(async () => fetchResult);
     Object.assign(globalThis, {
       window: { location: { assign } },
     });
-    jest.spyOn(globalThis, 'fetch').mockImplementation(fetchSpy as never);
+    jest.spyOn(globalThis, 'fetch').mockImplementation(fetchSpy);
     const { props } = SignOutButton();
     await (props as { onClick: () => Promise<void> | void }).onClick();
     await new Promise((resolve) => setTimeout(resolve, 0));

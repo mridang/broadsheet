@@ -45,9 +45,9 @@ describe('problems', () => {
   });
 
   it('lists per-field errors for a bad request', async () => {
-    const body = (await problems
+    const body = await problems
       .badRequest('Invalid.', ['name: required.'])
-      .json()) as { errors: string[] };
+      .json<{ errors: string[] }>();
     expect(body.errors).toEqual(['name: required.']);
   });
 });

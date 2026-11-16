@@ -25,7 +25,7 @@ export function b64uDecode(input: string): Uint8Array {
 export function b64uEncode(bytes: Uint8Array): string {
   let s = '';
   for (const byte of bytes) {
-    s += String.fromCodePoint(byte!);
+    s += String.fromCodePoint(byte);
   }
   return btoa(s)
     .replaceAll('+', '-')

@@ -30,7 +30,7 @@ beforeEach(async () => {
 
 afterEach(() => restore());
 
-const start = (headers: Record<string, string> = {}) =>
+const start = async (headers: Record<string, string> = {}) =>
   POST(
     new Request('https://app.test/api/conversations', {
       method: 'POST',
@@ -47,7 +47,7 @@ describe('POST /api/conversations', () => {
 
   it('answers with the conversation’s Location', async () => {
     const res = await start();
-    const { id } = (await res.json()) as { id: string };
+    const { id } = await res.json<{ id: string }>();
     expect(res.headers.get('location')).toMatch(
       new RegExp(`/api/conversations/${id}$`),
     );
@@ -65,7 +65,7 @@ describe('POST /api/conversations', () => {
   });
 });
 
-const list = (query = '') =>
+const list = async (query = '') =>
   GET(
     new Request(`https://app.test/api/conversations${query}`, {
       headers: auth,
@@ -75,12 +75,12 @@ const list = (query = '') =>
 describe('GET /api/conversations', () => {
   it('answers 200 with the person’s conversations, newest first', async () => {
     const firstRes = await start();
-    const first = (await firstRes.json()) as { id: string };
+    const first = await firstRes.json<{ id: string }>();
     const secondRes = await start();
-    const second = (await secondRes.json()) as { id: string };
+    const second = await secondRes.json<{ id: string }>();
     const res = await list();
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { items: { id: string }[] };
+    const body = await res.json<{ items: { id: string }[] }>();
     expect(body.items.map((c) => c.id)).toEqual([second.id, first.id]);
   });
 
@@ -88,7 +88,7 @@ describe('GET /api/conversations', () => {
     await start();
     await start();
     const res = await list('?limit=1');
-    const body = (await res.json()) as { next?: string };
+    const body = await res.json<{ next?: string }>();
     expect(body.next).toMatch(PAGES_WITH_A_CURSOR_PATTERN);
   });
 

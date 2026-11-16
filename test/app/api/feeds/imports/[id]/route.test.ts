@@ -36,7 +36,7 @@ beforeEach(async () => {
 
 afterEach(() => restore());
 
-const get = (id: string, headers: Record<string, string> = auth) =>
+const get = async (id: string, headers: Record<string, string> = auth) =>
   route.GET(new Request(`${origin}/api/feeds/imports/${id}`, { headers }));
 
 describe('GET /api/feeds/imports/:id', () => {

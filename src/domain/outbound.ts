@@ -9,7 +9,7 @@
 
 import { and, desc, eq, getTableColumns, inArray, or } from 'drizzle-orm';
 
-import { type Database } from '@/domain/db/client';
+import type { Database } from '@/domain/db/client';
 import {
   articles,
   feedTokens,
@@ -190,7 +190,7 @@ export class OutboundRepository {
   }
 
   /** The person's browsers, newest first. */
-  pushSubscriptions(userId: number): Promise<PushSubscription[]> {
+  async pushSubscriptions(userId: number): Promise<PushSubscription[]> {
     return this.#db
       .select()
       .from(pushSubscriptions)

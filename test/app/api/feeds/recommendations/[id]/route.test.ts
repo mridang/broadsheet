@@ -56,7 +56,7 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
-const decide = (id: string | number, body: string) =>
+const decide = async (id: string | number, body: string) =>
   PATCH(
     new Request(`https://app.test/api/feeds/recommendations/${id}`, {
       method: 'PATCH',

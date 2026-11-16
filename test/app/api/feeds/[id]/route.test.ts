@@ -22,9 +22,10 @@ import {
 } from '../../../../domain/auth/auth-test-kit';
 import insecure from '../../../../fixtures/insecure-urls.json';
 
-const addFeed = (d: Database, u: number, url: string, t?: string) =>
+const addFeed = async (d: Database, u: number, url: string, t?: string) =>
   new Repository(d).addFeed(u, url, t);
-const listFeeds = (d: Database, u: number) => new Repository(d).listFeeds(u);
+const listFeeds = async (d: Database, u: number) =>
+  new Repository(d).listFeeds(u);
 
 const refreshSource = jest.fn<(...args: unknown[]) => Promise<unknown>>(
   async () => ({ ok: true, n: 0 }),
@@ -66,7 +67,7 @@ beforeEach(async () => {
 
 afterEach(() => restore());
 
-const remove = (id: string | number) =>
+const remove = async (id: string | number) =>
   DELETE(
     new Request(`https://app.test/api/feeds/${id}`, {
       method: 'DELETE',
@@ -116,7 +117,7 @@ describe('DELETE /api/feeds/:id', () => {
   });
 });
 
-const patch = (id: string | number, body: string, headers = {}) =>
+const patch = async (id: string | number, body: string, headers = {}) =>
   PATCH(
     new Request(`https://app.test/api/feeds/${id}`, {
       method: 'PATCH',
@@ -172,9 +173,8 @@ describe('PATCH /api/feeds/:id', () => {
       JSON.stringify({ section_id: String(section.id) }),
     );
     expect(res.status).toBe(400);
-    expect(((await res.json()) as { errors: string[] }).errors).toEqual([
-      'section_id: no such section.',
-    ]);
+    const { errors } = await res.json<{ errors: string[] }>();
+    expect(errors).toEqual(['section_id: no such section.']);
   });
 
   it('files the feed in several of the caller’s sections', async () => {
@@ -200,9 +200,8 @@ describe('PATCH /api/feeds/:id', () => {
       JSON.stringify({ section_ids: [String(a.id), String(theirs.id)] }),
     );
     expect(res.status).toBe(400);
-    expect(((await res.json()) as { errors: string[] }).errors).toEqual([
-      'section_ids: no such section.',
-    ]);
+    const { errors } = await res.json<{ errors: string[] }>();
+    expect(errors).toEqual(['section_ids: no such section.']);
   });
 
   it('gives the feed its own icon and auto mark-read days', async () => {
@@ -285,9 +284,8 @@ describe('PATCH /api/feeds/:id with a new address', () => {
       JSON.stringify({ url: 'https://none.test/' }),
     );
     expect(res.status).toBe(400);
-    expect(((await res.json()) as { errors: string[] }).errors).toEqual([
-      'url: no feed was found at this address.',
-    ]);
+    const { errors } = await res.json<{ errors: string[] }>();
+    expect(errors).toEqual(['url: no feed was found at this address.']);
     const feeds = await listFeeds(db, 7);
     expect(feeds[0]?.url).toBe('https://a.test/feed.xml');
   });

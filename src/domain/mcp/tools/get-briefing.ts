@@ -8,7 +8,7 @@
 import { issueResource } from '@/domain/api/issue-resource';
 import { ToolFailureError } from '@/domain/mcp/tool-failure';
 import { isIssueDate, issueFor } from '@/domain/issues';
-import { type ToolContext } from '@/domain/mcp/tool-context';
+import type { ToolContext } from '@/domain/mcp/tool-context';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { Repository } from '@/domain/repository';
 import { todayEdition } from '@/domain/scraping/index';

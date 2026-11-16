@@ -263,7 +263,7 @@ export class GoogleAuthKit {
   }
 
   /** The signed-in user for the current request, or null. */
-  currentUser(): Promise<User | null> {
+  async currentUser(): Promise<User | null> {
     return getCurrentUser();
   }
 }

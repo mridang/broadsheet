@@ -254,7 +254,7 @@ describe('clusterEdition', () => {
   });
 
   /** An env whose model embeds by title and whose index starts empty. */
-  function env(stored: Map<string, number[]> = new Map()) {
+  function env(stored = new Map<string, number[]>()) {
     const upsert = jest.fn(
       async (vectors: { id: string; values: number[] }[]) => {
         for (const v of vectors) stored.set(v.id, v.values);

@@ -20,19 +20,15 @@ class FakeStore implements PushSubscriptionStore {
   public readonly removed: string[] = [];
   public readonly marked: string[] = [];
   public constructor(private readonly records: PushSubscriptionRecord[]) {}
-  public listAll(): Promise<readonly PushSubscriptionRecord[]> {
-    return Promise.resolve(this.records);
+  public async listAll(): Promise<readonly PushSubscriptionRecord[]> {
+    return this.records;
   }
-  public upsert(): Promise<void> {
-    return Promise.resolve();
-  }
-  public remove(endpoint: string): Promise<void> {
+  public async upsert(): Promise<void> {}
+  public async remove(endpoint: string): Promise<void> {
     this.removed.push(endpoint);
-    return Promise.resolve();
   }
-  public markSent(endpoint: string): Promise<void> {
+  public async markSent(endpoint: string): Promise<void> {
     this.marked.push(endpoint);
-    return Promise.resolve();
   }
 }
 
@@ -41,13 +37,15 @@ function senderReturning(
   statusByEndpoint: Readonly<Record<string, number>>,
 ): WebPushSender {
   return {
-    send: (subscription: PushSubscriptionRecord): Promise<DeliveryResult> => {
+    send: async (
+      subscription: PushSubscriptionRecord,
+    ): Promise<DeliveryResult> => {
       const status = statusByEndpoint[subscription.endpoint] ?? 201;
-      return Promise.resolve({
+      return {
         endpoint: subscription.endpoint,
         status,
         gone: status === 404 || status === 410,
-      });
+      };
     },
   } as unknown as WebPushSender;
 }

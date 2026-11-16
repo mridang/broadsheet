@@ -73,7 +73,7 @@ export class GoogleOAuthClient {
   constructor(credentials: GoogleOAuthCredentials, fetcher?: typeof fetch) {
     this.#credentials = credentials;
     // Resolve the global fetch lazily so a test that swaps it still takes effect.
-    this.#fetch = fetcher ?? ((input, init) => fetch(input, init));
+    this.#fetch = fetcher ?? (async (input, init) => fetch(input, init));
     // Each method passes an absolute endpoint as the path, so the base is empty.
     this.#http = new JsonClient('', this.#fetch);
   }
@@ -153,7 +153,7 @@ export class GoogleOAuthClient {
   }
 
   /** Fetch the signed-in user's identity from the OpenID userinfo endpoint. */
-  getUserInfo(accessToken: string): Promise<Result<GoogleUserResponse>> {
+  async getUserInfo(accessToken: string): Promise<Result<GoogleUserResponse>> {
     return this.#http.request(
       {
         path: USERINFO_ENDPOINT,

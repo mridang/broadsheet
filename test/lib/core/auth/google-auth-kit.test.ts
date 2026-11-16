@@ -121,7 +121,7 @@ afterEach(() => {
 });
 
 /** Run the callback for a browser that holds `cookie`, at `query`. */
-function runCallback(query: string, cookie?: string): Promise<Response> {
+async function runCallback(query: string, cookie?: string): Promise<Response> {
   jar.clear();
   if (cookie) {
     jar.set(STATE_COOKIE, cookie);

@@ -11,7 +11,7 @@ export function RevokeTokenButton({
 }: Readonly<{ id: number }>): ReactElement {
   return (
     <RemoveButton
-      remove={() => revokeToken(id)}
+      remove={async () => revokeToken(id)}
       label="Revoke"
       failure="Could not revoke that feed."
     />

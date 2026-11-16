@@ -7,7 +7,7 @@
 
 import { classifierResource } from '@/domain/api/classifier-resource';
 import { ToolFailureError } from '@/domain/mcp/tool-failure';
-import { type ToolContext } from '@/domain/mcp/tool-context';
+import type { ToolContext } from '@/domain/mcp/tool-context';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { id } from '@/domain/mcp/tools/support';
 import { Repository } from '@/domain/repository';

@@ -38,7 +38,10 @@ function TrendingRow({ feed }: Readonly<{ feed: TrendingFeed }>): ReactElement {
         className={buttonClass({ variant: 'outline', size: 'sm' })}
         disabled={busy}
         onClick={() =>
-          void run(() => followFeed(feed.url), 'Could not follow that feed.')
+          void run(
+            async () => followFeed(feed.url),
+            'Could not follow that feed.',
+          )
         }
       >
         Follow

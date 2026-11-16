@@ -39,7 +39,7 @@ export function installEnv(
 }
 
 /** A signed session token for a person, optionally under a given epoch or expiry. */
-export function tokenFor(
+export async function tokenFor(
   user: Readonly<{ id: number; email?: string }>,
   options: Readonly<{ ep?: number; exp?: number; secret?: string }> = {},
 ): Promise<string> {
@@ -76,7 +76,7 @@ export function answerFetch(
 ): string[] {
   const requested: string[] = [];
   jest.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
-    const url = String(input);
+    const url = input instanceof Request ? input.url : String(input);
     requested.push(`${init?.method ?? 'GET'} ${url}`);
     const key = Object.keys(answers).find((prefix) => url.startsWith(prefix));
     if (!key) {

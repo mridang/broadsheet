@@ -1,5 +1,7 @@
 import { countOf } from '@/lib/intl';
 
+const CODE_POINT_PATTERN = /./gsu;
+
 /**
  * @packageDocumentation
  *
@@ -222,7 +224,7 @@ function stringProblems(
   subject: string,
 ): readonly string[] {
   // JSON Schema counts characters as code points, not UTF-16 units.
-  const length = [...value].length;
+  const length = (value.match(CODE_POINT_PATTERN) ?? []).length;
   return [
     ...(schema.minLength !== undefined && length < schema.minLength
       ? [`${subject} must be at least ${characters(schema.minLength)} long.`]

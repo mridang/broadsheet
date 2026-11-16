@@ -55,7 +55,7 @@ beforeEach(async () => {
 
 afterEach(() => restore());
 
-const list = (query = '') =>
+const list = async (query = '') =>
   GET(new Request(`https://app.test/api/shares${query}`, { headers: auth }), {
     params: Promise.resolve({}),
   });
@@ -68,7 +68,7 @@ describe('GET /api/shares', () => {
   it('lists everyone’s shares to anyone signed in', async () => {
     auth = await cookieFor(8);
     const res = await list();
-    const body = (await res.json()) as { items: unknown[] };
+    const body = await res.json<{ items: unknown[] }>();
     expect(body.items).toEqual([
       expect.objectContaining({ comments: 'Good', sharer: { id: '7' } }),
     ]);
@@ -76,25 +76,25 @@ describe('GET /api/shares', () => {
 
   it('lists only the people named', async () => {
     const res = await list('?user_id=8');
-    const body = (await res.json()) as {
+    const body = await res.json<{
       items: unknown[];
-    };
+    }>();
     expect(body.items).toEqual([]);
   });
 
   it('pages newest first with a cursor', async () => {
     await new ShareRepository(db).share(8, story, 'Later');
     const firstRes = await list('?limit=1');
-    const first = (await firstRes.json()) as {
+    const first = await firstRes.json<{
       next: string;
       items: { comments: string }[];
-    };
+    }>();
     const cursor = new URL(first.next).searchParams.get('cursor');
     const secondRes = await list(`?limit=1&cursor=${cursor}`);
-    const second = (await secondRes.json()) as {
+    const second = await secondRes.json<{
       next?: string;
       items: { comments: string }[];
-    };
+    }>();
     expect([first.items[0]!.comments, second.items[0]!.comments]).toEqual([
       'Later',
       'Good',

@@ -351,7 +351,7 @@ function addressesOf(to: unknown): string[] | undefined {
   if (typeof to === 'string')
     return to.split(ADDRESSES_OF_PATTERN).filter(Boolean);
   if (Array.isArray(to) && to.every((a) => typeof a === 'string')) {
-    return (to as string[]).map((a) => a.trim()).filter(Boolean);
+    return to.map((a) => a.trim()).filter(Boolean);
   }
   return undefined;
 }

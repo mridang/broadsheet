@@ -12,6 +12,6 @@ import { appOrigin } from '@/lib/core/origin';
 
 export const dynamic = 'force-dynamic';
 
-export function GET(request: Request): Promise<Response> {
+export async function GET(request: Request): Promise<Response> {
   return serveFeed(request, getDatabase(), appOrigin(request));
 }

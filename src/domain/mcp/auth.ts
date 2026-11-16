@@ -61,9 +61,9 @@ function liveDeps(): McpAuthDeps {
   const db = getDatabase();
   const store = new D1OAuthStore(db);
   return {
-    identify: (token, resource, now) =>
+    identify: async (token, resource, now) =>
       authenticateAccessToken(store, token, resource, now),
-    findUser: (id) => getUserById(db, id),
+    findUser: async (id) => getUserById(db, id),
     now: () => Math.floor(Date.now() / 1000),
   };
 }

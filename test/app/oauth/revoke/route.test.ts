@@ -28,7 +28,7 @@ afterEach(() => restore());
 
 const DEFAULT_CALLER = { 'cf-connecting-ip': '203.0.113.7' };
 
-const revoke = (
+const revoke = async (
   body: URLSearchParams,
   headers: Record<string, string> = DEFAULT_CALLER,
 ) =>
@@ -77,7 +77,7 @@ describe('POST /oauth/revoke', () => {
 
 describe('POST /oauth/revoke limits and body rules', () => {
   it('answers 429 with Retry-After when an address asks too often, and counts addresses separately', async () => {
-    const hit = (ip: string) =>
+    const hit = async (ip: string) =>
       revoke(new URLSearchParams({ token: 'cdn_at_x' }), {
         'cf-connecting-ip': ip,
       });

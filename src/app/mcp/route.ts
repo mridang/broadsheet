@@ -16,7 +16,7 @@ import { appOrigin } from '@/lib/core/origin';
 export const dynamic = 'force-dynamic';
 
 /** Answer any request to the endpoint with the real token check. */
-function respond(request: Request): Promise<Response> {
+async function respond(request: Request): Promise<Response> {
   return respondToMcp(request, appOrigin(request), authenticateMcpRequest);
 }
 

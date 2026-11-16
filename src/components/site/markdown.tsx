@@ -91,7 +91,7 @@ export function blocks(markdown: string): Block[] {
     const previous = out.at(-1);
     if (kind) {
       const item = (bullet ?? numbered)![1]!;
-      if (previous && previous.kind === kind) previous.items.push(item);
+      if (previous?.kind === kind) previous.items.push(item);
       else out.push({ kind, items: [item] });
     } else if (heading) out.push({ kind: 'h', text: heading[1]! });
     else out.push({ kind: 'p', text: line });

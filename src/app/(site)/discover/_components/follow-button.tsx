@@ -27,7 +27,7 @@ export function FollowButton({
         })}
         disabled={busy || followed}
         onClick={() =>
-          void run(() => followFeed(url), 'Could not follow that feed.')
+          void run(async () => followFeed(url), 'Could not follow that feed.')
         }
       >
         {followed ? 'Following' : 'Follow'}

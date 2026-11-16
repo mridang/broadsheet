@@ -43,7 +43,7 @@ const good: AuthorizeParams = {
 // An absent parameter: a key set to this overrides the valid default with undefined.
 let unset: string | undefined;
 
-const check = (overrides: AuthorizeParams = {}) =>
+const check = async (overrides: AuthorizeParams = {}) =>
   validateAuthorizeRequest({ ...good, ...overrides }, ORIGIN, resolve);
 
 describe('validateAuthorizeRequest', () => {
@@ -63,13 +63,13 @@ describe('validateAuthorizeRequest', () => {
   it('shows an error, without redirecting, for an unknown client', async () => {
     const result = await check({ client_id: 'nobody' });
     expect(result).toMatchObject({ ok: false, error: 'invalid_client' });
-    expect(result.ok === false && result.redirect).toBeFalsy();
+    expect(!result.ok && result.redirect).toBeFalsy();
   });
 
   it('shows an error, without redirecting, for a redirect URI the client never registered', async () => {
     const result = await check({ redirect_uri: 'https://evil.example/cb' });
     expect(result).toMatchObject({ ok: false, error: 'invalid_request' });
-    expect(result.ok === false && result.redirect).toBeFalsy();
+    expect(!result.ok && result.redirect).toBeFalsy();
   });
 
   it('shows an error, without redirecting, for a redirect URI the rules no longer allow', async () => {
@@ -85,7 +85,7 @@ describe('validateAuthorizeRequest', () => {
         async () => old,
       );
       expect(result).toMatchObject({ ok: false, error: 'invalid_request' });
-      expect(result.ok === false && result.redirect).toBeFalsy();
+      expect(!result.ok && result.redirect).toBeFalsy();
     }
   });
 
@@ -112,13 +112,13 @@ describe('validateAuthorizeRequest', () => {
       error: 'temporarily_unavailable',
       retryAfterSeconds: 17,
     });
-    expect(result.ok === false && result.redirect).toBeFalsy();
+    expect(!result.ok && result.redirect).toBeFalsy();
   });
 
   it('shows an error when there is no client_id', async () => {
     const result = await check({ client_id: unset });
     expect(result).toMatchObject({ ok: false, error: 'invalid_request' });
-    expect(result.ok === false && result.redirect).toBeFalsy();
+    expect(!result.ok && result.redirect).toBeFalsy();
   });
 
   it('uses the only registered redirect URI when none is sent', async () => {
@@ -180,7 +180,7 @@ describe('which errors may be sent to the redirect address without the person ch
     clientId: 'https://claude.ai/oauth/meta.json',
     kind: 'cimd',
   };
-  const against = (chosen: OAuthClient) =>
+  const against = async (chosen: OAuthClient) =>
     validateAuthorizeRequest(
       { ...good, client_id: chosen.clientId, response_type: 'token' },
       ORIGIN,

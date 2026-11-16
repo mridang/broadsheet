@@ -54,10 +54,10 @@ function serve(
 ): void {
   jest.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     requests.push({
-      url: String(input),
+      url: input instanceof Request ? input.url : String(input),
       headers: (init?.headers ?? {}) as Record<string, string>,
     });
-    const page = pages[String(input)];
+    const page = pages[input instanceof Request ? input.url : String(input)];
     if (page === undefined) throw new Error('offline');
     return typeof page === 'function'
       ? page((init?.headers ?? {}) as Record<string, string>)

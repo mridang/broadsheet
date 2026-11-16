@@ -39,7 +39,7 @@ beforeEach(async () => {
 
 afterEach(() => restore());
 
-const post = (body: unknown) =>
+const post = async (body: unknown) =>
   POST(
     new Request(URL, {
       method: 'POST',
@@ -48,14 +48,14 @@ const post = (body: unknown) =>
     }),
   );
 
-const list = (query = '') =>
+const list = async (query = '') =>
   GET(new Request(`${URL}${query}`, { headers: auth }));
 
 describe('POST /api/users/self/searches', () => {
   it('answers 201 with the search and where to find it', async () => {
     const res = await post({ query: 'rust' });
     expect(res.status).toBe(201);
-    const search = (await res.json()) as { id: string };
+    const search = await res.json<{ id: string }>();
     expect(search).toMatchObject({
       query: 'rust',
       articles: '/api/articles?q=rust',
@@ -65,12 +65,13 @@ describe('POST /api/users/self/searches', () => {
 
   it('answers 200 with the search kept before', async () => {
     const firstRes = await post({ query: 'rust' });
-    const first = (await firstRes.json()) as {
+    const first = await firstRes.json<{
       id: string;
-    };
+    }>();
     const again = await post({ query: 'rust' });
     expect(again.status).toBe(200);
-    expect(((await again.json()) as { id: string }).id).toBe(first.id);
+    const { id } = await again.json<{ id: string }>();
+    expect(id).toBe(first.id);
   });
 
   it('keeps a search within one of the person’s feeds', async () => {
@@ -84,9 +85,8 @@ describe('POST /api/users/self/searches', () => {
     const feed = (await new Repository(db).addFeed(8, 'https://a.test/f'))!;
     const res = await post({ query: 'rust', feed_id: String(feed.id) });
     expect(res.status).toBe(400);
-    expect(((await res.json()) as { errors: string[] }).errors).toEqual([
-      'feed_id: no such feed.',
-    ]);
+    const { errors } = await res.json<{ errors: string[] }>();
+    expect(errors).toEqual(['feed_id: no such feed.']);
   });
 
   it('answers 400 naming the field for a bad body', async () => {
@@ -107,15 +107,15 @@ describe('GET /api/users/self/searches', () => {
     await post({ query: 'one' });
     await post({ query: 'two' });
     const pageRes = await list('?limit=1');
-    const page = (await pageRes.json()) as {
+    const page = await pageRes.json<{
       next?: string;
       items: { query: string }[];
-    };
+    }>();
     expect(page.items).toHaveLength(1);
     const restRes = await list(new globalThis.URL(page.next!).search);
-    const rest = (await restRes.json()) as {
+    const rest = await restRes.json<{
       items: { query: string }[];
-    };
+    }>();
     expect(
       [...page.items, ...rest.items]
         .map((s) => s.query)

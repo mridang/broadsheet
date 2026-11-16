@@ -10,7 +10,10 @@ import {
 function answering(status: number) {
   const calls: { input: string; init?: RequestInit }[] = [];
   jest.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
-    calls.push({ input: String(input), init });
+    calls.push({
+      input: input instanceof Request ? input.url : String(input),
+      init,
+    });
     return new Response(null, { status });
   });
   return calls;
@@ -58,7 +61,10 @@ describe('addRule and removeRule', () => {
     jest
       .mocked(globalThis.fetch)
       .mockImplementationOnce(async (input, init) => {
-        calls.push({ input: String(input), init });
+        calls.push({
+          input: input instanceof Request ? input.url : String(input),
+          init,
+        });
         return Response.json({ id: '1' }, { status: 201 });
       });
     await addRule(rule);

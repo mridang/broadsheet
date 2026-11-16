@@ -19,5 +19,5 @@ export function createDatabase<S extends Record<string, unknown>>(
   d1: D1Database,
   schema: S,
 ): Database<S> {
-  return drizzle(d1, { schema }) as Database<S>;
+  return drizzle(d1, { schema });
 }

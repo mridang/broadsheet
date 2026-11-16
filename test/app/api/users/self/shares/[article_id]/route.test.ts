@@ -59,7 +59,7 @@ beforeEach(async () => {
 
 afterEach(() => restore());
 
-const call = (
+const call = async (
   method: 'POST' | 'DELETE',
   id: string | number,
   init: RequestInit = {},
@@ -78,7 +78,7 @@ const json = (body: string) => ({
   headers: { 'Content-Type': 'application/json' },
 });
 
-const shares = () => new ShareRepository(db).list({ limit: 10 });
+const shares = async () => new ShareRepository(db).list({ limit: 10 });
 describe('POST /api/users/self/shares/:article_id', () => {
   it('answers 201 with no body, sharing the story without a comment', async () => {
     const res = await call('POST', story);
