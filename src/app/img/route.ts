@@ -33,12 +33,12 @@ export async function GET(request: Request): Promise<Response> {
   const access: ImageAccess = {
     // Nobody is turned away before the address is looked at: the signature is
     // the rule.
-    authenticate: () => Promise.resolve(undefined),
+    authenticate: async () => undefined,
     // With no secret nothing is accepted, rather than trusting any signature.
-    signatureValid: (url, signature) =>
+    signatureValid: async (url, signature) =>
       signer ? signer.verify(url, signature) : Promise.resolve(false),
     // A signed address may be fetched.
-    mayFetch: () => Promise.resolve(true),
+    mayFetch: async () => true,
   };
   return new ImageService({
     access,

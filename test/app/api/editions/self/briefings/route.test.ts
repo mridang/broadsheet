@@ -68,9 +68,9 @@ afterEach(() => restore());
 const URL_ = 'https://app.test/api/editions/self/briefings';
 const ctx = { params: Promise.resolve({}) };
 
-const list = (query = '') =>
+const list = async (query = '') =>
   GET(new Request(`${URL_}${query}`, { headers: { ...auth } }), ctx);
-const write = (headers: Record<string, string> = {}) =>
+const write = async (headers: Record<string, string> = {}) =>
   POST(
     new Request(URL_, { method: 'POST', headers: { ...auth, ...headers } }),
     ctx,
@@ -81,10 +81,10 @@ describe('POST /api/editions/self/briefings', () => {
     const res = await write();
     expect(res.status).toBe(201);
     expect(res.headers.get('location')).toMatch(ANSWERS_201_WITH_THE_PATTERN);
-    const body = (await res.json()) as {
+    const body = await res.json<{
       summary: string;
       stories: { read: boolean }[];
-    };
+    }>();
     expect(body.summary).toBe('A briefing.');
     expect(body.stories).toHaveLength(3);
   });
@@ -120,10 +120,10 @@ describe('GET /api/editions/self/briefings', () => {
   it('lists the briefings newest first, a page at a time', async () => {
     await write();
     const listed = await list('?limit=1');
-    const page = (await listed.json()) as {
+    const page = await listed.json<{
       items: { summary: string }[];
       next?: string;
-    };
+    }>();
     expect(page.items.map((b) => b.summary)).toEqual(['A briefing.']);
     expect(page.next).toBeUndefined();
   });

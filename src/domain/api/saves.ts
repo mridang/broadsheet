@@ -307,7 +307,7 @@ export function createSaveTagItem(
     })
     .on<null, number>({
       method: 'DELETE',
-      handle: (_input, { request, uid }) =>
+      handle: async (_input, { request, uid }) =>
         new Repository(getDatabase()).retagSaves(uid, tagOf(request)),
       encode: (changed) => (changed ? noContent() : problems.notFound('tag')),
     });

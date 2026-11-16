@@ -154,9 +154,9 @@ export function createPushSubscriptionsCollection(
     { subscription: PushSubscription; created: boolean }
   >({
     method: 'POST',
-    decode: (request) =>
+    decode: async (request) =>
       decodeWith(request, 'push subscription', parsePushSubscriptionInput),
-    handle: (input, { uid }) =>
+    handle: async (input, { uid }) =>
       new OutboundRepository(getDatabase()).addPushSubscription(uid, input),
     encode: ({ subscription, created: isNew }) => {
       const body = pushSubscriptionResource(subscription);
@@ -179,7 +179,7 @@ export const createPushSubscriptionItem = (
 ) =>
   removal(
     'push subscription',
-    (repo, uid, id) => repo.removePushSubscription(uid, id),
+    async (repo, uid, id) => repo.removePushSubscription(uid, id),
     resolver,
   );
 
@@ -199,8 +199,9 @@ export function createWebhooksCollection(
     Webhook
   >({
     method: 'POST',
-    decode: (request) => decodeWith(request, 'webhook', parseWebhookInput),
-    handle: ({ url, events }, { uid }) =>
+    decode: async (request) =>
+      decodeWith(request, 'webhook', parseWebhookInput),
+    handle: async ({ url, events }, { uid }) =>
       new OutboundRepository(getDatabase()).addWebhook(
         uid,
         url,
@@ -222,7 +223,11 @@ export const webhooksCollection = createWebhooksCollection();
 export const createWebhookItem = (
   resolver: CurrentUserResolver = requestCookieResolver,
 ) =>
-  removal('webhook', (repo, uid, id) => repo.removeWebhook(uid, id), resolver);
+  removal(
+    'webhook',
+    async (repo, uid, id) => repo.removeWebhook(uid, id),
+    resolver,
+  );
 
 /** The webhook item bound to the production resolver. */
 export const webhookItem = createWebhookItem();
@@ -241,7 +246,8 @@ export function createTokensCollection(
     { row: FeedToken; token: string }
   >({
     method: 'POST',
-    decode: (request) => decodeWith(request, 'token', parseFeedTokenInput),
+    decode: async (request) =>
+      decodeWith(request, 'token', parseFeedTokenInput),
     handle: async (input, { uid }) => {
       const db = getDatabase();
       if (
@@ -283,7 +289,11 @@ export const tokensCollection = createTokensCollection();
 export const createTokenItem = (
   resolver: CurrentUserResolver = requestCookieResolver,
 ) =>
-  removal('token', (repo, uid, id) => repo.removeFeedToken(uid, id), resolver);
+  removal(
+    'token',
+    async (repo, uid, id) => repo.removeFeedToken(uid, id),
+    resolver,
+  );
 
 /** The token item bound to the production resolver. */
 export const tokenItem = createTokenItem();

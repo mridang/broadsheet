@@ -34,9 +34,9 @@ export default async function SearchPage({
   searchParams: Promise<{ q?: string; cursor?: string; feed_id?: string }>;
 }>): Promise<ReactElement> {
   const { q = '', cursor, feed_id: feedId } = await searchParams;
-  const params = new URLSearchParams({ q: String(q) });
-  if (cursor) params.set('cursor', String(cursor));
-  if (feedId) params.set('feed_id', String(feedId));
+  const params = new URLSearchParams({ q: q });
+  if (cursor) params.set('cursor', cursor);
+  if (feedId) params.set('feed_id', feedId);
   const input = parseArticleQuery(params);
   const query = input.ok ? input.query : { q: '', limit: 20 };
   const user = await getCurrentUser();

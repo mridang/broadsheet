@@ -269,12 +269,12 @@ describe('the plans of the notification queries', () => {
   it.each([
     [
       'undeliveredStories',
-      (repo: NotificationRepository) =>
+      async (repo: NotificationRepository) =>
         repo.undeliveredStories(1, 1, '2026-10-02'),
     ],
     [
       'undeliveredFollowedStories',
-      (repo: NotificationRepository) =>
+      async (repo: NotificationRepository) =>
         repo.undeliveredFollowedStories(1, '2026-10-02'),
     ],
   ])(

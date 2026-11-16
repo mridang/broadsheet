@@ -50,7 +50,7 @@ beforeEach(async () => {
 
 afterEach(() => restore());
 
-const get = (query: string, headers = auth) =>
+const get = async (query: string, headers = auth) =>
   GET(new Request(`https://app.test/api/articles${query}`, { headers }));
 
 interface Page {
@@ -63,7 +63,7 @@ describe('GET /api/articles', () => {
   it('finds articles holding the words, newest first, without their text', async () => {
     const res = await get('?q=rust');
     expect(res.status).toBe(200);
-    const page = (await res.json()) as Page;
+    const page = await res.json<Page>();
     expect(page.self).toBe('https://app.test/api/articles?q=rust');
     expect(page.items.map((a) => a.title)).toEqual([
       'Rust news 3',
@@ -75,11 +75,11 @@ describe('GET /api/articles', () => {
 
   it('links the next page with a cursor', async () => {
     const firstRes = await get('?limit=2');
-    const first = (await firstRes.json()) as Page;
+    const first = await firstRes.json<Page>();
     expect(first.items).toHaveLength(2);
     const next = new URL(first.next!);
     const restRes = await get(next.search);
-    const rest = (await restRes.json()) as Page;
+    const rest = await restRes.json<Page>();
     expect(rest.items.map((a) => a.title)).toEqual(['Rust news 1']);
   });
 
@@ -110,9 +110,9 @@ describe('GET /api/articles?order=reads', () => {
 
   it('ranks by distinct readers with counts only, paging with a cursor', async () => {
     const firstRes = await get('?limit=3');
-    const first = (await firstRes.json()) as {
+    const first = await firstRes.json<{
       items: { id: string }[];
-    };
+    }>();
     const ids = first.items.map((a) => Number(a.id));
     for (const id of ids.slice(0, 2)) {
       await readAs(7, id);
@@ -120,39 +120,41 @@ describe('GET /api/articles?order=reads', () => {
     }
     const res = await get('?order=reads&window=day&limit=1');
     expect(res.status).toBe(200);
-    const page = (await res.json()) as Page & {
-      items: Record<string, unknown>[];
-    };
+    const page = await res.json<
+      Page & {
+        items: Record<string, unknown>[];
+      }
+    >();
     expect(page.items).toHaveLength(1);
     expect(Object.keys(page.items[0]!)).not.toContain('user_id');
     expect(page.items[0]).toMatchObject({ read_count: 2 });
     const nextRes = await GET(new Request(page.next!, { headers: auth }));
-    const next = (await nextRes.json()) as Page;
+    const next = await nextRes.json<Page>();
     expect(next.items).toHaveLength(1);
     expect(next).not.toHaveProperty('next');
   });
 
   it('never lists a story only one person read', async () => {
     const firstRes = await get('?limit=1');
-    const first = (await firstRes.json()) as {
+    const first = await firstRes.json<{
       items: { id: string }[];
-    };
+    }>();
     await readAs(8, Number(first.items[0]!.id));
     const pageRes = await get('?order=reads');
-    const page = (await pageRes.json()) as Page;
+    const page = await pageRes.json<Page>();
     expect(page.items).toEqual([]);
   });
 
   it('leaves out what the caller read with read=false', async () => {
     const firstRes = await get('?limit=1');
-    const first = (await firstRes.json()) as {
+    const first = await firstRes.json<{
       items: { id: string }[];
-    };
+    }>();
     const id = Number(first.items[0]!.id);
     await readAs(7, id);
     await readAs(8, id);
     const pageRes = await get('?order=reads&read=false');
-    const page = (await pageRes.json()) as Page;
+    const page = await pageRes.json<Page>();
     expect(page.items).toEqual([]);
   });
 

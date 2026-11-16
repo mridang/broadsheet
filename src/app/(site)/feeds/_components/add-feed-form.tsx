@@ -6,14 +6,20 @@ import { followFeed } from '@/app/(site)/feeds/_components/feed-requests';
 import { useFeedAction } from '@/app/(site)/feeds/_components/use-feed-action';
 import { buttonClass } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/notice';
+import { z } from 'zod';
+
+/** The one field the add-feed form posts. */
+const addFeedForm = z.object({ url: z.string().default('') });
 
 /** The box at the top of the feed manager for following another feed. */
 export function AddFeedForm(): ReactElement {
   const { busy, error, run } = useFeedAction();
   const submit = (event: SubmitEvent<HTMLFormElement>): void => {
     event.preventDefault();
-    const url = String(new FormData(event.currentTarget).get('url') ?? '');
-    void run(() => followFeed(url), 'Could not add that feed.');
+    const { url } = addFeedForm.parse(
+      Object.fromEntries(new FormData(event.currentTarget)),
+    );
+    void run(async () => followFeed(url), 'Could not add that feed.');
   };
   return (
     <>

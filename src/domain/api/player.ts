@@ -49,7 +49,8 @@ export function createPlayerItem(
   })
     .on<null, PlayerState>({
       method: 'GET',
-      handle: (_input, { uid }) => new PlayerRepository(getDatabase()).get(uid),
+      handle: async (_input, { uid }) =>
+        new PlayerRepository(getDatabase()).get(uid),
       encode: (state) => ok(playerResource(state)),
     })
     .on<PlayerState, PlayerState>({
@@ -74,7 +75,7 @@ export function createPlayerItem(
     })
     .on<null, boolean>({
       method: 'DELETE',
-      handle: (_input, { uid }) =>
+      handle: async (_input, { uid }) =>
         new PlayerRepository(getDatabase()).clear(uid),
       encode: (removed) =>
         removed ? noContent() : problems.notFound('player'),

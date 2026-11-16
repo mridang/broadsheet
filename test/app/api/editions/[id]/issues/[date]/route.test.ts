@@ -44,7 +44,7 @@ beforeEach(async () => {
 
 afterEach(() => restore());
 
-const get = (id: string | number, date: string) =>
+const get = async (id: string | number, date: string) =>
   GET(
     new Request(`https://app.test/api/editions/${id}/issues/${date}`, {
       headers: auth,

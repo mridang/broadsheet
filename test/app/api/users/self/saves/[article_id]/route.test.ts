@@ -58,7 +58,7 @@ beforeEach(async () => {
 
 afterEach(() => restore());
 
-const call = (
+const call = async (
   method: 'POST' | 'DELETE',
   id: string | number,
   init: RequestInit = {},
@@ -77,7 +77,7 @@ const json = (body: string) => ({
   headers: { 'Content-Type': 'application/json' },
 });
 
-const saves = () => new Repository(db).listSaves(7);
+const saves = async () => new Repository(db).listSaves(7);
 
 describe('POST /api/users/self/saves/:article_id', () => {
   it('answers 201 with no body, saving the story untagged', async () => {

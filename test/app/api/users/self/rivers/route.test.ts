@@ -42,7 +42,7 @@ beforeEach(async () => {
 
 afterEach(() => restore());
 
-const send = (method: 'POST' | 'PUT', body: string, headers = {}) =>
+const send = async (method: 'POST' | 'PUT', body: string, headers = {}) =>
   (method === 'POST' ? POST : PUT)(
     new Request('https://app.test/api/users/self/rivers', {
       method,
@@ -51,7 +51,7 @@ const send = (method: 'POST' | 'PUT', body: string, headers = {}) =>
     }),
   );
 
-const rivers = () => new RiverRepository(db).list(7);
+const rivers = async () => new RiverRepository(db).list(7);
 
 describe('POST /api/users/self/rivers', () => {
   it('answers 201 with the pinned river and where to find it', async () => {
@@ -60,7 +60,7 @@ describe('POST /api/users/self/rivers', () => {
       JSON.stringify({ river_id: `feed:${mine}`, side: 'left', position: 0 }),
     );
     expect(res.status).toBe(201);
-    const river = (await res.json()) as { id: string };
+    const river = await res.json<{ id: string }>();
     expect(river).toMatchObject({ river_id: `feed:${mine}`, side: 'left' });
     expect(res.headers.get('location')).toBe(
       `https://app.test/api/users/self/rivers/${river.id}`,
@@ -88,9 +88,8 @@ describe('POST /api/users/self/rivers', () => {
       }),
     );
     expect(res.status).toBe(400);
-    expect(((await res.json()) as { errors: string[] }).errors).toEqual([
-      `river_id: no such section:${theirs}.`,
-    ]);
+    const { errors } = await res.json<{ errors: string[] }>();
+    expect(errors).toEqual([`river_id: no such section:${theirs}.`]);
     expect(await rivers()).toEqual([]);
   });
 
@@ -131,11 +130,8 @@ describe('PUT /api/users/self/rivers', () => {
       }),
     );
     expect(res.status).toBe(200);
-    expect(
-      ((await res.json()) as { items: { river_id: string }[] }).items.map(
-        (r) => r.river_id,
-      ),
-    ).toEqual([`feed:${mine}`, 'saves']);
+    const { items } = await res.json<{ items: { river_id: string }[] }>();
+    expect(items.map((r) => r.river_id)).toEqual([`feed:${mine}`, 'saves']);
   });
 
   it('answers 400 and changes nothing when one river is not the caller’s', async () => {
@@ -164,9 +160,8 @@ describe('GET /api/users/self/rivers', () => {
       new Request('https://app.test/api/users/self/rivers', { headers: auth }),
     );
     expect(res.status).toBe(200);
-    expect(
-      ((await res.json()) as { items: { river_id: string }[] }).items,
-    ).toMatchObject([{ river_id: 'saves', side: 'right' }]);
+    const { items } = await res.json<{ items: { river_id: string }[] }>();
+    expect(items).toMatchObject([{ river_id: 'saves', side: 'right' }]);
   });
 
   it('answers 401 when nobody is signed in', async () => {

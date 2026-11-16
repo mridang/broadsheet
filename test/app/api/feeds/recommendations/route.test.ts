@@ -56,14 +56,14 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
-const list = (query = '') =>
+const list = async (query = '') =>
   GET(
     new Request(`https://app.test/api/feeds/recommendations${query}`, {
       headers: auth,
     }),
   );
 
-const recommend = (body: string) =>
+const recommend = async (body: string) =>
   POST(
     new Request('https://app.test/api/feeds/recommendations', {
       method: 'POST',
@@ -79,7 +79,7 @@ describe('POST /api/feeds/recommendations', () => {
     auth = await cookieFor(8);
     const res = await recommend(good);
     expect(res.status).toBe(201);
-    const body = (await res.json()) as { id: string; status: string };
+    const body = await res.json<{ id: string; status: string }>();
     expect(body.status).toBe('pending');
     expect(res.headers.get('location')).toMatch(
       new RegExp(`/api/feeds/recommendations/${body.id}$`),
@@ -108,19 +108,15 @@ describe('GET /api/feeds/recommendations', () => {
     await repo.decideRecommendation(a.id, 'approved');
     const res = await list();
     expect(res.status).toBe(200);
-    expect(
-      ((await res.json()) as { items: { url: string }[] }).items.map(
-        (r) => r.url,
-      ),
-    ).toEqual(['https://a']);
+    const { items } = await res.json<{ items: { url: string }[] }>();
+    expect(items.map((r) => r.url)).toEqual(['https://a']);
   });
 
   it('lets a curator list pending ones', async () => {
     await repo.addRecommendation(8, { url: 'https://b', description: 'd' });
     const listed = await list('?status=pending');
-    expect(((await listed.json()) as { items: unknown[] }).items).toHaveLength(
-      1,
-    );
+    const { items } = await listed.json<{ items: unknown[] }>();
+    expect(items).toHaveLength(1);
   });
 
   it('answers 403 when someone else asks for pending ones', async () => {

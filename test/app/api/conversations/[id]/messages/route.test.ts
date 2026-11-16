@@ -74,7 +74,7 @@ beforeEach(async () => {
 
 afterEach(() => restore());
 
-const send = (id: string | number, body: string, headers = {}) =>
+const send = async (id: string | number, body: string, headers = {}) =>
   POST(
     new Request(`https://app.test/api/conversations/${id}/messages`, {
       method: 'POST',
@@ -84,7 +84,7 @@ const send = (id: string | number, body: string, headers = {}) =>
     { params: Promise.resolve({ id: String(id) }) },
   );
 
-const turns = () => new Repository(db).listMessages(conversation);
+const turns = async () => new Repository(db).listMessages(conversation);
 
 describe('POST /api/conversations/:id/messages', () => {
   it('answers 201 with the answer citing the story it drew on', async () => {

@@ -128,7 +128,7 @@ export function createReadItem(
         return { id, first };
       },
       encode: (result) => {
-        if (!result || result.first === undefined) {
+        if (result?.first === undefined) {
           return problems.notFound('article');
         }
         const body: ReadResource = { article_id: String(result.id) };

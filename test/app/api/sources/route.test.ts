@@ -53,7 +53,7 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
-const search = (query: string) =>
+const search = async (query: string) =>
   GET(new Request(`https://app.test/api/sources${query}`, { headers: auth }));
 
 describe('GET /api/sources', () => {

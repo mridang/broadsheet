@@ -75,7 +75,7 @@ async function get(url: string, ms = 15_000): Promise<string> {
 }
 
 /** Fetch an icon candidate, following redirects, giving up after a few seconds. */
-const fetchIcon: IconFetcher = (url) =>
+const fetchIcon: IconFetcher = async (url) =>
   fetch(url, {
     headers: { 'user-agent': UA, accept: 'image/*,*/*;q=0.5' },
     redirect: 'follow',
@@ -128,7 +128,7 @@ async function resolveNames(
     const resp = (out as { response?: unknown }).response;
     let parsed: { names?: Record<string, string> } | null = null;
     if (resp && typeof resp === 'object') {
-      parsed = resp as { names?: Record<string, string> };
+      parsed = resp;
     } else if (typeof resp === 'string') {
       // The first '{' through the last '}', as the pattern `\{[\s\S]*\}` matched.
       const start = resp.indexOf('{');
@@ -144,7 +144,7 @@ async function resolveNames(
     let applied = 0;
     for (const [index, it] of items.entries()) {
       const n = names[String(index)];
-      if (n && n.trim()) {
+      if (n?.trim()) {
         it.source = n.trim().slice(0, 60);
         applied++;
       }
@@ -321,7 +321,7 @@ export async function scrapeSource(
   const id = answer.movedTo
     ? await repo.moveSource(source.id, answer.movedTo)
     : source.id;
-  const nextFetch = () => nextFetchMinutes(repo, id, random);
+  const nextFetch = async () => nextFetchMinutes(repo, id, random);
   if (answer.status === 304) {
     await repo.recordFetch(id, { nextFetch: await nextFetch(), ...took() });
     return { articles: 0 };

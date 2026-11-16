@@ -107,7 +107,8 @@ export function createRiversCollection(
   })
     .on<null, River[]>({
       method: 'GET',
-      handle: (_input, { uid }) => new RiverRepository(getDatabase()).list(uid),
+      handle: async (_input, { uid }) =>
+        new RiverRepository(getDatabase()).list(uid),
       encode: listPage,
     })
     .on<RiverInput, { river: River; created: boolean }>({

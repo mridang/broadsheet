@@ -66,9 +66,9 @@ afterEach(() => restore());
 const URL_ = 'https://app.test/api/editions/self/issues';
 const ctx = { params: Promise.resolve({}) };
 
-const list = (query = '') =>
+const list = async (query = '') =>
   GET(new Request(`${URL_}${query}`, { headers: { ...auth } }), ctx);
-const publish = (body: unknown, headers: Record<string, string> = {}) =>
+const publish = async (body: unknown, headers: Record<string, string> = {}) =>
   POST(
     new Request(URL_, {
       method: 'POST',
@@ -84,19 +84,19 @@ describe('GET /api/editions/self/issues', () => {
     await repo.saveIssue(7, '2026-10-31', '{"groups":[]}', 'Old.');
     await repo.saveIssue(7, DAY, '{"groups":[]}', 'New.');
     const listed = await list('?limit=1');
-    const first = (await listed.json()) as {
+    const first = await listed.json<{
       items: unknown[];
       next: string;
-    };
+    }>();
     expect(first.items).toEqual([
       { date: DAY, briefing: 'New.', created_at: expect.any(String) },
     ]);
     const next = new URL(first.next);
     const listedNext = await list(next.search);
-    const second = (await listedNext.json()) as {
+    const second = await listedNext.json<{
       items: { date: string }[];
       next?: string;
-    };
+    }>();
     expect(second.items.map((index: { date: string }) => index.date)).toEqual([
       '2026-10-31',
     ]);
@@ -122,10 +122,10 @@ describe('POST /api/editions/self/issues', () => {
     expect(res.headers.get('location')).toMatch(
       new RegExp(`/api/editions/self/issues/${DAY}$`),
     );
-    const body = (await res.json()) as {
+    const body = await res.json<{
       briefing: string;
       briefing_stories: unknown[];
-    };
+    }>();
     expect(body.briefing).toBe('A fresh note.');
     expect(body.briefing_stories).toHaveLength(3);
   });

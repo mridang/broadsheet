@@ -654,8 +654,8 @@ const IDLE_COUNTER_SECONDS = 24 * 60 * 60;
 /** The clean-ups a request may start in the background (see `sweepSometimes`): stale OAuth rows and idle rate-limit counters. */
 export function oauthSweeps(db: Database): Sweeps {
   return {
-    purgeOAuth: () => purgeOAuthData(db),
-    purgeRateLimits: () =>
+    purgeOAuth: async () => purgeOAuthData(db),
+    purgeRateLimits: async () =>
       purgeRateLimits(new D1RateLimitStore(db.$client), IDLE_COUNTER_SECONDS),
   };
 }

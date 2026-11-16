@@ -100,7 +100,7 @@ export function createEditionsCollection(
     }),
   }).on<EditionChanges, CustomEdition>({
     method: 'POST',
-    decode: (request) => decodeEdition(request, true),
+    decode: async (request) => decodeEdition(request, true),
     handle: async (changes, { uid }) => {
       const repo = new Repository(getDatabase());
       await checkSections(repo, uid, changes);
@@ -135,7 +135,7 @@ export function createEditionItem(
   })
     .on<EditionChanges, CustomEdition | undefined>({
       method: 'PATCH',
-      decode: (request) => decodeEdition(request, false),
+      decode: async (request) => decodeEdition(request, false),
       handle: async (
         changes,
         { request, uid },

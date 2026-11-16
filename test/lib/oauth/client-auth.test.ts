@@ -46,7 +46,7 @@ beforeAll(async () => {
 });
 
 /** Sign an assertion with the client's key; every claim can be overridden or listed in `drop` to be left out. */
-function sign(
+async function sign(
   claims: Record<string, unknown> = {},
   key: CryptoKey = privateKey,
   alg = 'RS256',
@@ -84,7 +84,7 @@ function deps(keys: unknown = jwks): AssertionDeps & { used: Set<string> } {
   };
 }
 
-const verify = (
+const verify = async (
   assertion: string | undefined,
   d: AssertionDeps = deps(),
   assertionType: string | undefined = CLIENT_ASSERTION_TYPE,
@@ -148,19 +148,25 @@ describe('verifyClientAssertion', () => {
   });
 
   it.each([
-    ['signed with another key', () => sign({}, otherKey)],
-    ['from another issuer', () => sign({ iss: 'https://evil.example/c.json' })],
-    ['about another subject', () => sign({ sub: 'someone-else' })],
-    ['for another audience', () => sign({ aud: 'https://evil.example/token' })],
-    ['expired', () => sign({ exp: NOW - 120 })],
-    ['not yet valid', () => sign({ nbf: NOW + 600 })],
-    ['without an expiry', () => sign({}, privateKey, 'RS256', ['exp'])],
-    ['without a jti', () => sign({}, privateKey, 'RS256', ['jti'])],
-    ['with an empty jti', () => sign({ jti: '' })],
-    ['with a jti that is too long', () => sign({ jti: 'j'.repeat(300) })],
+    ['signed with another key', async () => sign({}, otherKey)],
+    [
+      'from another issuer',
+      async () => sign({ iss: 'https://evil.example/c.json' }),
+    ],
+    ['about another subject', async () => sign({ sub: 'someone-else' })],
+    [
+      'for another audience',
+      async () => sign({ aud: 'https://evil.example/token' }),
+    ],
+    ['expired', async () => sign({ exp: NOW - 120 })],
+    ['not yet valid', async () => sign({ nbf: NOW + 600 })],
+    ['without an expiry', async () => sign({}, privateKey, 'RS256', ['exp'])],
+    ['without a jti', async () => sign({}, privateKey, 'RS256', ['jti'])],
+    ['with an empty jti', async () => sign({ jti: '' })],
+    ['with a jti that is too long', async () => sign({ jti: 'j'.repeat(300) })],
     [
       'valid for too long',
-      () => sign({ exp: NOW + MAX_ASSERTION_LIFETIME_SECONDS + 60 }),
+      async () => sign({ exp: NOW + MAX_ASSERTION_LIFETIME_SECONDS + 60 }),
     ],
     ['not a JWT', async () => 'not-a-jwt'],
     [
@@ -252,9 +258,9 @@ describe('fetchJwks', () => {
   });
 
   it('gives up when the request fails', async () => {
-    const failing: typeof fetch = jest.fn(() =>
-      Promise.reject(new Error('offline')),
-    ) as never;
+    const failing: typeof fetch = jest.fn(async () => {
+      throw new Error('offline');
+    });
     expect(await fetchJwks(JWKS_URI, failing)).toBeUndefined();
   });
 });

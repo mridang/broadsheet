@@ -64,7 +64,7 @@ beforeEach(async () => {
 
 afterEach(() => restore());
 
-const post = (
+const post = async (
   body: string,
   type: string,
   headers: Record<string, string> = auth,
@@ -130,9 +130,8 @@ describe('POST /api/feeds/imports', () => {
     const res = await post(body, 'application/json');
     expect(res.status).toBe(400);
     expect(res.headers.get('content-type')).toBe('application/problem+json');
-    expect(((await res.json()) as { errors: string[] }).errors[0]).toMatch(
-      POST_API_FEEDS_IMPORTS_PATTERN,
-    );
+    const { errors } = await res.json<{ errors: string[] }>();
+    expect(errors[0]).toMatch(POST_API_FEEDS_IMPORTS_PATTERN);
   });
 
   it('answers 400 for OPML that is not OPML, or declares entities', async () => {
@@ -184,7 +183,7 @@ describe('POST /api/feeds/imports', () => {
     ).join('');
     const res = await post(opml(many), 'text/x-opml');
     expect(res.status).toBe(202);
-    const body = (await res.json()) as { id: string };
+    const body = await res.json<{ id: string }>();
     expect(res.headers.get('location')).toBe(
       `${origin}/api/feeds/imports/${body.id}`,
     );

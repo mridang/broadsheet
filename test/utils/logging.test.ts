@@ -10,7 +10,7 @@ type ConsoleSpy = jest.SpiedFunction<typeof console.log>;
 
 /** Parses the first line the spy captured, asserting that one was emitted. */
 function firstLine(spy: ConsoleSpy): string {
-  const line = spy.mock.calls[0]?.[0];
+  const line: unknown = spy.mock.calls[0]?.[0];
   expect(typeof line).toBe('string');
   return String(line);
 }

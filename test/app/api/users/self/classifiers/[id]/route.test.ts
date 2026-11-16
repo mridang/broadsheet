@@ -65,7 +65,7 @@ beforeEach(async () => {
   mine = added.classifier.id;
 });
 
-const remove = (id: string | number) =>
+const remove = async (id: string | number) =>
   DELETE(
     new Request(`https://app.test/api/users/self/classifiers/${id}`, {
       method: 'DELETE',
@@ -74,7 +74,7 @@ const remove = (id: string | number) =>
     { params: Promise.resolve({ id: String(id) }) },
   );
 
-const classifiers = () => new Repository(db).listClassifiers(7);
+const classifiers = async () => new Repository(db).listClassifiers(7);
 
 describe('DELETE /api/users/self/classifiers/:id', () => {
   it('answers 204 and the classifier is gone', async () => {

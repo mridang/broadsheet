@@ -18,7 +18,7 @@ export function RetryFeedButton({
         className={buttonClass({ variant: 'outline', size: 'sm' })}
         disabled={busy}
         onClick={() =>
-          void run(() => retryFeed(id), 'Could not fetch that feed.')
+          void run(async () => retryFeed(id), 'Could not fetch that feed.')
         }
       >
         Retry now

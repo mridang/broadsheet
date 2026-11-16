@@ -373,7 +373,7 @@ export async function exchangeRefreshToken(
 ): Promise<TokenResponse | OAuthFailure> {
   const hash = await hashSecret(request.refreshToken);
   const token = await store.findToken(hash);
-  if (!token || token.kind !== 'refresh') {
+  if (token?.kind !== 'refresh') {
     return fail('invalid_grant', 'The refresh token is not valid.');
   }
   const { grant, usedAt, expiresAt } = token;
@@ -472,7 +472,7 @@ export async function authenticateAccessToken(
   now: number,
 ): Promise<AccessIdentity | undefined> {
   const token = await store.findToken(await hashSecret(accessToken));
-  if (!token || token.kind !== 'access' || token.expiresAt <= now) {
+  if (token?.kind !== 'access' || token.expiresAt <= now) {
     return undefined;
   }
   const { grant } = token;

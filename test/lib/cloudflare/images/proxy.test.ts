@@ -99,7 +99,7 @@ describe('fetchImage', () => {
       };
       await fetchImage('https://a.com/x.jpg', 640, {
         fetcher: returning(image()),
-        images: spy as never,
+        images: spy,
       });
       await fetchImage('https://a.com/x.gif', 640, {
         fetcher: returning(
@@ -107,7 +107,7 @@ describe('fetchImage', () => {
             headers: { 'content-type': 'image/gif' },
           }),
         ),
-        images: spy as never,
+        images: spy,
       });
       expect(used).toBe(false);
     });

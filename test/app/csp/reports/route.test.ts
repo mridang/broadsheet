@@ -22,7 +22,7 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
-const send = (body: BodyInit, contentType = 'application/reports+json') =>
+const send = async (body: BodyInit, contentType = 'application/reports+json') =>
   POST(
     new Request('https://app.test/csp/reports', {
       method: 'POST',

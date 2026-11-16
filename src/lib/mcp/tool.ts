@@ -156,7 +156,7 @@ export abstract class McpTool<
       unknown
     >;
     delete schema['$schema'];
-    return schema as JsonSchema;
+    return schema;
   }
 
   /** The shape of the structured content this tool returns, where it has one. */
@@ -232,4 +232,4 @@ export abstract class McpTool<
  * anything. This is the type to ask for when a collaborator reads what a tool
  * says about itself and never calls it, as a catalogue or a scope policy does.
  */
-export type AnyMcpTool = McpTool<string, never, unknown, z.ZodObject>;
+export type AnyMcpTool = McpTool<string, never, unknown>;

@@ -148,7 +148,7 @@ export function createTrendingFeeds(
       }
       return { kind, days, limit: p.limit };
     },
-    handle: ({ kind, days, limit }, { uid }) =>
+    handle: async ({ kind, days, limit }, { uid }) =>
       new Repository(getDatabase()).trendingSites(uid, kind, days, limit),
     encode: (items) =>
       page(
@@ -374,9 +374,10 @@ export function recommendationResource(
 
 /** Whether this person may approve and decline recommendations. */
 export function isCurator(user: Pick<User, 'email'>): boolean {
-  const listed = String(
-    (getEnv() as unknown as Record<string, unknown>)['CURATOR_EMAILS'] ?? '',
-  )
+  const configured = (getEnv() as unknown as Record<string, unknown>)[
+    'CURATOR_EMAILS'
+  ];
+  const listed = (typeof configured === 'string' ? configured : '')
     .split(',')
     .map((event) => event.trim().toLowerCase())
     .filter(Boolean);
@@ -471,7 +472,7 @@ export function createRecommendationsCollection(
         }
         return status as 'pending' | 'approved' | 'declined';
       },
-      handle: (status) =>
+      handle: async (status) =>
         new Repository(getDatabase()).listRecommendations(status),
       encode: (items) =>
         page(
@@ -500,7 +501,7 @@ export function createRecommendationsCollection(
         }
         return input.value;
       },
-      handle: (input, { user }) =>
+      handle: async (input, { user }) =>
         new Repository(getDatabase()).addRecommendation(user.id, input),
       encode: (r) =>
         created(
@@ -552,7 +553,7 @@ export function createRecommendationItem(
       }
       return status;
     },
-    handle: (status, { request }) => {
+    handle: async (status, { request }) => {
       const id = parseFeedId(idOf(request));
       return id === undefined
         ? undefined

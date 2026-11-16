@@ -45,7 +45,7 @@ beforeEach(async () => {
 
 afterEach(() => restore());
 
-const post = (body: string, headers = {}) =>
+const post = async (body: string, headers = {}) =>
   POST(
     new Request('https://app.test/api/feeds/removals', {
       method: 'POST',
@@ -54,8 +54,10 @@ const post = (body: string, headers = {}) =>
     }),
   );
 
-const errors = async (res: Response) =>
-  ((await res.json()) as { errors: string[] }).errors;
+const errors = async (res: Response) => {
+  const body = await res.json<{ errors: string[] }>();
+  return body.errors;
+};
 
 describe('POST /api/feeds/removals', () => {
   it('unfollows the caller’s feeds, skipping others’, and counts them', async () => {

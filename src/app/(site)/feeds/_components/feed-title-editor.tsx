@@ -14,6 +14,10 @@ import { useFeedAction } from '@/app/(site)/feeds/_components/use-feed-action';
 import { buttonClass, IconButton, TextLink } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icons';
 import { ErrorText } from '@/components/ui/notice';
+import { z } from 'zod';
+
+/** The one field the rename form posts. */
+const renameForm = z.object({ title: z.string().default('') });
 
 /**
  * The title a feed is saved under for what was typed: trimmed, and null (the
@@ -59,9 +63,11 @@ export function FeedTitleEditor({
   }
   const submit = (event: SubmitEvent<HTMLFormElement>): void => {
     event.preventDefault();
-    const typed = String(new FormData(event.currentTarget).get('title') ?? '');
+    const typed = renameForm.parse(
+      Object.fromEntries(new FormData(event.currentTarget)),
+    ).title;
     void run(
-      () => editFeed(id, { title: editedTitle(typed) }),
+      async () => editFeed(id, { title: editedTitle(typed) }),
       'Could not rename that feed.',
     );
   };

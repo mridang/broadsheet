@@ -20,6 +20,8 @@ import { parseUrl } from '@/utils/url';
 const SANITISE_DISPLAY_NAME_PATTERN = /\s+/gu;
 const ASCII_ONLY_PATTERN = /^[\u0021-\u007E]$/;
 
+const segmenter = new Intl.Segmenter();
+
 /** The longest client name we show. */
 export const MAX_DISPLAY_NAME_LENGTH = 100;
 
@@ -58,7 +60,11 @@ export function sanitiseDisplayName(
     .replaceAll(SANITISE_DISPLAY_NAME_PATTERN, ' ')
     .replaceAll(INVISIBLE, '')
     .trim();
-  const capped = [...cleaned].slice(0, maxLength).join('').trim();
+  const capped = [...segmenter.segment(cleaned)]
+    .slice(0, maxLength)
+    .map((part) => part.segment)
+    .join('')
+    .trim();
   return capped || fallback;
 }
 

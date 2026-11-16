@@ -56,7 +56,7 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
-const list = (query = '') =>
+const list = async (query = '') =>
   GET(
     new Request(`https://app.test/api/feeds/trending${query}`, {
       headers: auth,

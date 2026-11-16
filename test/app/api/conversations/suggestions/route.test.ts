@@ -39,7 +39,7 @@ beforeEach(async () => {
 
 afterEach(() => restore());
 
-const list = () =>
+const list = async () =>
   GET(
     new Request('https://app.test/api/conversations/suggestions', {
       headers: auth,
@@ -65,9 +65,8 @@ describe('GET /api/conversations/suggestions', () => {
     await repo.saveArticle(7, a!.id, ['rust']);
     const res = await list();
     expect(res.status).toBe(200);
-    expect(((await res.json()) as { items: string[] }).items).toContain(
-      'Summarise what I saved under "rust"',
-    );
+    const { items } = await res.json<{ items: string[] }>();
+    expect(items).toContain('Summarise what I saved under "rust"');
   });
 
   it('answers 401 when nobody is signed in', async () => {

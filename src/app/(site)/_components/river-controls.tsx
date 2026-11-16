@@ -6,6 +6,10 @@ import { useApiAction } from '@/components/api/use-api-action';
 import { buttonClass } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/notice';
 import { pinRiver, unpinRiver } from '@/app/(site)/_components/river-requests';
+import { z } from 'zod';
+
+/** The one field the pin form posts. */
+const pinForm = z.object({ river_id: z.string().default('') });
 
 /** Something a river can list, as the picker offers it. */
 export interface RiverOption {
@@ -25,9 +29,10 @@ export function RiverPicker({
   const submit = (event: SubmitEvent<HTMLFormElement>): void => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
+    const { river_id: riverId } = pinForm.parse(Object.fromEntries(data));
     const side = data.get('side') === 'right' ? 'right' : 'left';
     void run(
-      () => pinRiver(String(data.get('river_id')), side, next[side]),
+      async () => pinRiver(riverId, side, next[side]),
       'Could not pin that river.',
     );
   };
@@ -74,7 +79,7 @@ export function UnpinRiverButton({
         className={buttonClass({ variant: 'danger', size: 'sm' })}
         disabled={busy}
         onClick={() =>
-          void run(() => unpinRiver(id), 'Could not unpin that river.')
+          void run(async () => unpinRiver(id), 'Could not unpin that river.')
         }
       >
         Unpin

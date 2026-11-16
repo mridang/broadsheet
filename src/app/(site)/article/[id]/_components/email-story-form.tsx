@@ -8,6 +8,14 @@ import { useApiAction } from '@/components/api/use-api-action';
 import { Button, TextLink } from '@/components/ui/button';
 import { CARD, CHECK_LABEL } from '@/components/ui/field';
 import { ErrorText } from '@/components/ui/notice';
+import { z } from 'zod';
+
+/** The fields the email form posts. */
+const emailForm = z.object({
+  comment: z.string().default(''),
+  from_name: z.string().default(''),
+  to: z.string().default(''),
+});
 
 /** The body a filled-in email form posts. */
 export function emailRequest(form: FormData): {
@@ -16,10 +24,11 @@ export function emailRequest(form: FormData): {
   readonly copy_me: boolean;
   readonly from_name?: string;
 } {
-  const comment = String(form.get('comment') ?? '').trim();
-  const name = String(form.get('from_name') ?? '').trim();
+  const fields = emailForm.parse(Object.fromEntries(form));
+  const comment = fields.comment.trim();
+  const name = fields.from_name.trim();
   return {
-    to: String(form.get('to') ?? ''),
+    to: fields.to,
     ...(comment ? { comment } : {}),
     ...(name ? { from_name: name } : {}),
     copy_me: form.get('copy_me') === 'on',

@@ -34,7 +34,7 @@ async function token(input: FeedTokenInput): Promise<string> {
   return 't';
 }
 
-const fetchFeed = (query: string) =>
+const fetchFeed = async (query: string) =>
   serveFeed(
     new Request(`${ORIGIN}/feed.xml${query}`),
     db,

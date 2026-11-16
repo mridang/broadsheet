@@ -135,115 +135,124 @@ const handlers = new Map<string, Handler>();
  * line here fails the test below, so none can escape the contract.
  */
 const ROUTES: Record<string, () => Promise<Record<string, unknown>>> = {
-  'articles/[id]/answers/route': () =>
+  'articles/[id]/answers/route': async () =>
     import('@/app/api/articles/[id]/answers/route'),
-  'articles/[id]/emails/route': () =>
+  'articles/[id]/emails/route': async () =>
     import('@/app/api/articles/[id]/emails/route'),
-  'articles/[id]/extractions/route': () =>
+  'articles/[id]/extractions/route': async () =>
     import('@/app/api/articles/[id]/extractions/route'),
-  'articles/[id]/route': () => import('@/app/api/articles/[id]/route'),
-  'articles/[id]/similar/route': () =>
+  'articles/[id]/route': async () => import('@/app/api/articles/[id]/route'),
+  'articles/[id]/similar/route': async () =>
     import('@/app/api/articles/[id]/similar/route'),
-  'articles/route': () => import('@/app/api/articles/route'),
-  'conversations/[id]/messages/route': () =>
+  'articles/route': async () => import('@/app/api/articles/route'),
+  'conversations/[id]/messages/route': async () =>
     import('@/app/api/conversations/[id]/messages/route'),
-  'conversations/[id]/route': () =>
+  'conversations/[id]/route': async () =>
     import('@/app/api/conversations/[id]/route'),
-  'conversations/route': () => import('@/app/api/conversations/route'),
-  'conversations/suggestions/route': () =>
+  'conversations/route': async () => import('@/app/api/conversations/route'),
+  'conversations/suggestions/route': async () =>
     import('@/app/api/conversations/suggestions/route'),
-  'editions/[id]/issues/[date]/route': () =>
+  'editions/[id]/issues/[date]/route': async () =>
     import('@/app/api/editions/[id]/issues/[date]/route'),
-  'editions/[id]/route': () => import('@/app/api/editions/[id]/route'),
-  'editions/route': () => import('@/app/api/editions/route'),
-  'editions/self/briefings/[id]/route': () =>
+  'editions/[id]/route': async () => import('@/app/api/editions/[id]/route'),
+  'editions/route': async () => import('@/app/api/editions/route'),
+  'editions/self/briefings/[id]/route': async () =>
     import('@/app/api/editions/self/briefings/[id]/route'),
-  'editions/self/briefings/route': () =>
+  'editions/self/briefings/route': async () =>
     import('@/app/api/editions/self/briefings/route'),
-  'editions/self/issues/[date]/route': () =>
+  'editions/self/issues/[date]/route': async () =>
     import('@/app/api/editions/self/issues/[date]/route'),
-  'editions/self/issues/route': () =>
+  'editions/self/issues/route': async () =>
     import('@/app/api/editions/self/issues/route'),
-  'feeds/[id]/refreshes/route': () =>
+  'feeds/[id]/refreshes/route': async () =>
     import('@/app/api/feeds/[id]/refreshes/route'),
-  'feeds/[id]/route': () => import('@/app/api/feeds/[id]/route'),
-  'feeds/[id]/similar/route': () =>
+  'feeds/[id]/route': async () => import('@/app/api/feeds/[id]/route'),
+  'feeds/[id]/similar/route': async () =>
     import('@/app/api/feeds/[id]/similar/route'),
-  'feeds/[id]/statistics/route': () =>
+  'feeds/[id]/statistics/route': async () =>
     import('@/app/api/feeds/[id]/statistics/route'),
-  'feeds/conversions/route': () => import('@/app/api/feeds/conversions/route'),
-  'feeds/imports/[id]/route': () =>
+  'feeds/conversions/route': async () =>
+    import('@/app/api/feeds/conversions/route'),
+  'feeds/imports/[id]/route': async () =>
     import('@/app/api/feeds/imports/[id]/route'),
-  'feeds/imports/route': () => import('@/app/api/feeds/imports/route'),
-  'feeds/moves/route': () => import('@/app/api/feeds/moves/route'),
-  'feeds/recommendations/[id]/route': () =>
+  'feeds/imports/route': async () => import('@/app/api/feeds/imports/route'),
+  'feeds/moves/route': async () => import('@/app/api/feeds/moves/route'),
+  'feeds/recommendations/[id]/route': async () =>
     import('@/app/api/feeds/recommendations/[id]/route'),
-  'feeds/recommendations/route': () =>
+  'feeds/recommendations/route': async () =>
     import('@/app/api/feeds/recommendations/route'),
-  'feeds/refreshes/route': () => import('@/app/api/feeds/refreshes/route'),
-  'feeds/removals/route': () => import('@/app/api/feeds/removals/route'),
-  'feeds/route': () => import('@/app/api/feeds/route'),
-  'feeds/suggestions/route': () => import('@/app/api/feeds/suggestions/route'),
-  'feeds/trending/route': () => import('@/app/api/feeds/trending/route'),
-  'news/topics/route': () => import('@/app/api/news/topics/route'),
-  'podcasts/route': () => import('@/app/api/podcasts/route'),
-  'push/configuration/route': () =>
+  'feeds/refreshes/route': async () =>
+    import('@/app/api/feeds/refreshes/route'),
+  'feeds/removals/route': async () => import('@/app/api/feeds/removals/route'),
+  'feeds/route': async () => import('@/app/api/feeds/route'),
+  'feeds/suggestions/route': async () =>
+    import('@/app/api/feeds/suggestions/route'),
+  'feeds/trending/route': async () => import('@/app/api/feeds/trending/route'),
+  'news/topics/route': async () => import('@/app/api/news/topics/route'),
+  'podcasts/route': async () => import('@/app/api/podcasts/route'),
+  'push/configuration/route': async () =>
     import('@/app/api/push/configuration/route'),
-  'sections/[id]/route': () => import('@/app/api/sections/[id]/route'),
-  'sections/route': () => import('@/app/api/sections/route'),
-  'sessions/route': () => import('@/app/api/sessions/route'),
-  'sessions/self/route': () => import('@/app/api/sessions/self/route'),
-  'shares/route': () => import('@/app/api/shares/route'),
-  'sources/[id]/pushes/route': () =>
+  'sections/[id]/route': async () => import('@/app/api/sections/[id]/route'),
+  'sections/route': async () => import('@/app/api/sections/route'),
+  'sessions/route': async () => import('@/app/api/sessions/route'),
+  'sessions/self/route': async () => import('@/app/api/sessions/self/route'),
+  'shares/route': async () => import('@/app/api/shares/route'),
+  'sources/[id]/pushes/route': async () =>
     import('@/app/api/sources/[id]/pushes/route'),
-  'sources/route': () => import('@/app/api/sources/route'),
-  'topics/route': () => import('@/app/api/topics/route'),
-  'transcriptions/route': () => import('@/app/api/transcriptions/route'),
-  'users/self/classifiers/[id]/route': () =>
+  'sources/route': async () => import('@/app/api/sources/route'),
+  'topics/route': async () => import('@/app/api/topics/route'),
+  'transcriptions/route': async () => import('@/app/api/transcriptions/route'),
+  'users/self/classifiers/[id]/route': async () =>
     import('@/app/api/users/self/classifiers/[id]/route'),
-  'users/self/classifiers/route': () =>
+  'users/self/classifiers/route': async () =>
     import('@/app/api/users/self/classifiers/route'),
-  'users/self/notifications/[feed_id]/route': () =>
+  'users/self/notifications/[feed_id]/route': async () =>
     import('@/app/api/users/self/notifications/[feed_id]/route'),
-  'users/self/notifications/rules/[id]/route': () =>
+  'users/self/notifications/rules/[id]/route': async () =>
     import('@/app/api/users/self/notifications/rules/[id]/route'),
-  'users/self/notifications/rules/route': () =>
+  'users/self/notifications/rules/route': async () =>
     import('@/app/api/users/self/notifications/rules/route'),
-  'users/self/player/route': () => import('@/app/api/users/self/player/route'),
-  'users/self/preferences/route': () =>
+  'users/self/player/route': async () =>
+    import('@/app/api/users/self/player/route'),
+  'users/self/preferences/route': async () =>
     import('@/app/api/users/self/preferences/route'),
-  'users/self/push/subscriptions/[id]/route': () =>
+  'users/self/push/subscriptions/[id]/route': async () =>
     import('@/app/api/users/self/push/subscriptions/[id]/route'),
-  'users/self/push/subscriptions/route': () =>
+  'users/self/push/subscriptions/route': async () =>
     import('@/app/api/users/self/push/subscriptions/route'),
-  'users/self/reads/[article_id]/route': () =>
+  'users/self/reads/[article_id]/route': async () =>
     import('@/app/api/users/self/reads/[article_id]/route'),
-  'users/self/reads/route': () => import('@/app/api/users/self/reads/route'),
-  'users/self/rivers/[id]/route': () =>
+  'users/self/reads/route': async () =>
+    import('@/app/api/users/self/reads/route'),
+  'users/self/rivers/[id]/route': async () =>
     import('@/app/api/users/self/rivers/[id]/route'),
-  'users/self/rivers/route': () => import('@/app/api/users/self/rivers/route'),
-  'users/self/saves/[article_id]/route': () =>
+  'users/self/rivers/route': async () =>
+    import('@/app/api/users/self/rivers/route'),
+  'users/self/saves/[article_id]/route': async () =>
     import('@/app/api/users/self/saves/[article_id]/route'),
-  'users/self/saves/feeds/route': () =>
+  'users/self/saves/feeds/route': async () =>
     import('@/app/api/users/self/saves/feeds/route'),
-  'users/self/saves/route': () => import('@/app/api/users/self/saves/route'),
-  'users/self/saves/tags/[name]/route': () =>
+  'users/self/saves/route': async () =>
+    import('@/app/api/users/self/saves/route'),
+  'users/self/saves/tags/[name]/route': async () =>
     import('@/app/api/users/self/saves/tags/[name]/route'),
-  'users/self/saves/tags/route': () =>
+  'users/self/saves/tags/route': async () =>
     import('@/app/api/users/self/saves/tags/route'),
-  'users/self/searches/[id]/route': () =>
+  'users/self/searches/[id]/route': async () =>
     import('@/app/api/users/self/searches/[id]/route'),
-  'users/self/searches/route': () =>
+  'users/self/searches/route': async () =>
     import('@/app/api/users/self/searches/route'),
-  'users/self/shares/[article_id]/route': () =>
+  'users/self/shares/[article_id]/route': async () =>
     import('@/app/api/users/self/shares/[article_id]/route'),
-  'users/self/tokens/[id]/route': () =>
+  'users/self/tokens/[id]/route': async () =>
     import('@/app/api/users/self/tokens/[id]/route'),
-  'users/self/tokens/route': () => import('@/app/api/users/self/tokens/route'),
-  'users/self/usage/route': () => import('@/app/api/users/self/usage/route'),
-  'users/self/webhooks/[id]/route': () =>
+  'users/self/tokens/route': async () =>
+    import('@/app/api/users/self/tokens/route'),
+  'users/self/usage/route': async () =>
+    import('@/app/api/users/self/usage/route'),
+  'users/self/webhooks/[id]/route': async () =>
     import('@/app/api/users/self/webhooks/[id]/route'),
-  'users/self/webhooks/route': () =>
+  'users/self/webhooks/route': async () =>
     import('@/app/api/users/self/webhooks/route'),
 };
 
@@ -327,7 +336,7 @@ function flat(schema: unknown): Json {
 
 /** The parameters of an operation, its path's included. */
 function parametersOf(op: Operation & { path: string }): Parameter[] {
-  const item = spec.paths[op.path] as Json;
+  const item = spec.paths[op.path]!;
   return [
     ...((item['parameters'] as Json[] | undefined) ?? []),
     ...(op.parameters ?? []),
@@ -604,7 +613,8 @@ describe('openapi.json members and security', () => {
       if (Array.isArray(node)) {
         for (const [index, n] of node.entries()) walk(n, `${at}[${index}]`);
       } else if (node && typeof node === 'object') {
-        for (const [key, value] of Object.entries(node)) {
+        for (const [key, entry] of Object.entries(node)) {
+          const value: unknown = entry;
           if (['example', 'examples', 'enum'].includes(key)) {
             continue;
           }
@@ -647,9 +657,7 @@ describe('openapi.json members and security', () => {
     ]);
     expect(spec.security).toEqual([{ session: [] }]);
     expect(
-      String(
-        (spec.components['securitySchemes']!['session'] as Json)['description'],
-      ),
+      String(spec.components['securitySchemes']!['session']!['description']),
     ).toContain('curator capability');
   });
 
@@ -1073,7 +1081,7 @@ async function make(key: string, body?: unknown): Promise<Json> {
   if (res.status >= 300) {
     throw new Error(`${key} answered ${res.status}: ${await res.text()}`);
   }
-  return (await res.json()) as Json;
+  return res.json<Json>();
 }
 
 /** A fresh database with one person who has something of everything. */
@@ -1308,7 +1316,7 @@ async function wrongAnswer(op: Operation, res: Response): Promise<string[]> {
     wrong.push(`${res.status} ${type} is not documented`);
   }
   if (entry?.['schema'] && type.endsWith('json')) {
-    const body = (await res.clone().json()) as unknown;
+    const body = await res.clone().json<unknown>();
     wrong.push(
       ...violations(entry['schema'], body).map((v) => `${res.status} ${v}`),
     );
@@ -1430,9 +1438,9 @@ describe('every operation agrees with openapi.json', () => {
     for (const p of parameters.filter((x) => x.in === 'query')) {
       const bad = wrongValue(p.schema);
       // Everything in a query is text, so only a number, a flag or a choice can be wrong.
-      if (bad !== undefined && typeof bad !== 'number') {
+      if (typeof bad === 'string') {
         const query = new URLSearchParams(valid.query ?? '');
-        query.set(p.name, String(bad));
+        query.set(p.name, bad);
         await refused(
           `bad ${p.name}`,
           { ...valid, query: query.toString() },
@@ -1543,7 +1551,7 @@ describe('every operation agrees with openapi.json', () => {
       }
     }
     if (json && valid.body && typeof valid.body === 'object') {
-      const names = new Set(Object.keys(valid.body as Json));
+      const names = new Set(Object.keys(valid.body));
       const declared =
         (flat((json[1] as Json)['schema'])['properties'] as Json | undefined) ??
         {};

@@ -13,8 +13,8 @@
 import { articleResource } from '@/domain/api/article-resource';
 import { ToolFailureError } from '@/domain/mcp/tool-failure';
 import { isIssueDate } from '@/domain/issues';
-import { Repository, type Section } from '@/domain/repository';
-import { type SharedStory } from '@/domain/shares';
+import type { Repository, Section } from '@/domain/repository';
+import type { SharedStory } from '@/domain/shares';
 import { z } from 'zod';
 
 /** A positive whole-number id. */

@@ -82,7 +82,7 @@ export async function handleConsent(
   const check = await validateAuthorizeRequest(
     authorizeParamsFrom(form),
     origin,
-    (id) => resolveClient(db, id, fetch, { origin, address }),
+    async (id) => resolveClient(db, id, fetch, { origin, address }),
   );
   if (!check.ok) {
     // Only redirect when the redirect target was verified.

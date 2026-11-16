@@ -23,7 +23,10 @@ export function RemoveSectionButton({
         className={cssName}
         disabled={busy}
         onClick={() =>
-          void run(() => removeSection(id), 'Could not remove that section.')
+          void run(
+            async () => removeSection(id),
+            'Could not remove that section.',
+          )
         }
       >
         Remove
@@ -34,7 +37,7 @@ export function RemoveSectionButton({
         disabled={busy}
         onClick={() =>
           void run(
-            () => removeSection(id, true),
+            async () => removeSection(id, true),
             'Could not remove that section.',
           )
         }

@@ -75,7 +75,7 @@ afterEach(() => restore());
 const SAME_ORIGIN = { 'sec-fetch-site': 'same-origin' };
 
 /** A consent form post with the usual fields, overridable. */
-function consent(
+async function consent(
   fields: Record<string, string | undefined> = {},
   headers: Record<string, string> = SAME_ORIGIN,
 ): Promise<Response> {
@@ -245,7 +245,7 @@ describe('POST /oauth/consent', () => {
       const info = jest.spyOn(console, 'info').mockImplementation(() => {});
       await consent({ access: 'read' });
       expect(
-        info.mock.calls.map(([line]) => JSON.parse(String(line))),
+        info.mock.calls.map(([line]): unknown => JSON.parse(String(line))),
       ).toContainEqual(
         expect.objectContaining({
           event: 'oauth.scope_narrowed',
@@ -262,7 +262,7 @@ describe('POST /oauth/consent', () => {
     const info = jest.spyOn(console, 'info').mockImplementation(() => {});
     await consent({ decision: 'deny' });
     expect(
-      info.mock.calls.map(([line]) => JSON.parse(String(line))),
+      info.mock.calls.map(([line]): unknown => JSON.parse(String(line))),
     ).toContainEqual(
       expect.objectContaining({
         event: 'oauth.consent_denied',

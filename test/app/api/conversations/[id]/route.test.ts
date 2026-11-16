@@ -44,7 +44,7 @@ beforeEach(async () => {
 
 afterEach(() => restore());
 
-const read = (id: string | number) =>
+const read = async (id: string | number) =>
   GET(
     new Request(`https://app.test/api/conversations/${id}`, { headers: auth }),
     { params: Promise.resolve({ id: String(id) }) },
@@ -85,7 +85,7 @@ describe('GET /api/conversations/:id', () => {
   });
 });
 
-const remove = (id: string | number) =>
+const remove = async (id: string | number) =>
   DELETE(
     new Request(`https://app.test/api/conversations/${id}`, {
       method: 'DELETE',

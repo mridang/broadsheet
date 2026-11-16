@@ -11,7 +11,7 @@ export function RemoveRuleButton({
 }: Readonly<{ id: number }>): ReactElement {
   return (
     <RemoveButton
-      remove={() => removeRule(id)}
+      remove={async () => removeRule(id)}
       failure="Could not remove that rule."
     />
   );

@@ -36,7 +36,7 @@ export class ImageSigner {
   }
 
   /** The HMAC-SHA-256 key for the secret, imported once and reused. */
-  #hmacKey(): Promise<CryptoKey> {
+  async #hmacKey(): Promise<CryptoKey> {
     this.#key ??= crypto.subtle.importKey(
       'raw',
       bufferSource(new TextEncoder().encode(this.#secret)),

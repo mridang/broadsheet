@@ -36,7 +36,7 @@ export default async function AssistantPage({
   if (!user) redirect('/login');
   const repo = new Repository(getDatabase());
   const query = await searchParams;
-  const id = parseFeedId(String(query.c ?? ''));
+  const id = parseFeedId(query.c ?? '');
   const open =
     id === undefined ? undefined : await repo.getConversation(user.id, id);
   const turns = open ? await repo.listMessages(open.id) : [];

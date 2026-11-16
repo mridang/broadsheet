@@ -40,7 +40,7 @@ beforeEach(async () => {
 
 afterEach(() => restore());
 
-const list = () =>
+const list = async () =>
   GET(new Request('https://app.test/api/feeds/suggestions', { headers: auth }));
 
 describe('GET /api/feeds/suggestions', () => {

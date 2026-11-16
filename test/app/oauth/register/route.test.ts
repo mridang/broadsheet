@@ -18,7 +18,7 @@ const body = JSON.stringify({
   redirect_uris: ['https://app.example/cb'],
 });
 
-const post = (text: string, headers: Record<string, string> = {}) =>
+const post = async (text: string, headers: Record<string, string> = {}) =>
   POST(
     new Request('https://app.test/oauth/register', {
       method: 'POST',
@@ -49,7 +49,7 @@ describe('POST /oauth/register', () => {
     const res = await post(body);
     expect(res.status).toBe(201);
     expect(res.headers.get('cache-control')).toBe('no-store');
-    const json = (await res.json()) as Record<string, unknown>;
+    const json = await res.json<Record<string, unknown>>();
     expect(json).toMatchObject({
       client_name: 'Assistant',
       redirect_uris: ['https://app.example/cb'],

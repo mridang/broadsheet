@@ -5,7 +5,7 @@
  * it, the arguments it accepts, and what it does when called.
  */
 
-import { type ToolContext } from '@/domain/mcp/tool-context';
+import type { ToolContext } from '@/domain/mcp/tool-context';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { collect, MAX_SEARCH, shareResource } from '@/domain/mcp/tools/support';
 import { Repository } from '@/domain/repository';
@@ -71,7 +71,7 @@ export class GetSharedStoriesTool extends JsonTool<
         : await new Repository(db).readState(uid);
     const shares = new ShareRepository(db);
     const { items, next } = await collect(
-      (after, batch) =>
+      async (after, batch) =>
         shares.list({
           limit: batch,
           ...(sharer_ids ? { userIds: sharer_ids } : {}),

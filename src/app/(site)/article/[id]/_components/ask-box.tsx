@@ -23,6 +23,10 @@ import { Button } from '@/components/ui/button';
 import { CARD, CHECK_LABEL, SMALL_FIELD } from '@/components/ui/field';
 import { ErrorText } from '@/components/ui/notice';
 import { countOf } from '@/lib/intl';
+import { z } from 'zod';
+
+/** The one field the question form posts. */
+const questionForm = z.object({ question: z.string().default('') });
 
 /**
  * "Ask about this story": one-click preset questions and a box for the
@@ -56,7 +60,9 @@ export function AskBox({ id }: Readonly<{ id: number }>): ReactElement {
   const submit = (event: SubmitEvent<HTMLFormElement>): void => {
     event.preventDefault();
     const form = event.currentTarget;
-    const question = String(new FormData(form).get('question') ?? '');
+    const { question } = questionForm.parse(
+      Object.fromEntries(new FormData(form)),
+    );
     ask({ question }, turns.length > 0);
     form.reset();
   };

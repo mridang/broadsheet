@@ -36,8 +36,8 @@ afterEach(() => restore());
 const URL_ = 'https://app.test/api/users/self/preferences';
 const ctx = { params: Promise.resolve({}) };
 
-const get = () => GET(new Request(URL_, { headers: { ...auth } }), ctx);
-const patch = (body: unknown, headers: Record<string, string> = {}) =>
+const get = async () => GET(new Request(URL_, { headers: { ...auth } }), ctx);
+const patch = async (body: unknown, headers: Record<string, string> = {}) =>
   PATCH(
     new Request(URL_, {
       method: 'PATCH',
@@ -74,9 +74,9 @@ describe('PATCH /api/users/self/preferences', () => {
     const res = await patch({ briefing: { style: 'editorial' } });
     expect(res.status).toBe(200);
     const current = await get();
-    const body = (await current.json()) as {
+    const body = await current.json<{
       briefing: { style: string };
-    };
+    }>();
     expect(body.briefing.style).toBe('editorial');
   });
 
@@ -84,9 +84,8 @@ describe('PATCH /api/users/self/preferences', () => {
     const res = await patch({ cluster_mode: 'meaning' });
     expect(res.status).toBe(400);
     expect(res.headers.get('content-type')).toBe('application/problem+json');
-    expect(((await res.json()) as { errors: string[] }).errors).toEqual([
-      'cluster_mode: must be title or related.',
-    ]);
+    const { errors } = await res.json<{ errors: string[] }>();
+    expect(errors).toEqual(['cluster_mode: must be title or related.']);
   });
 
   it('answers 400 for a body that is not an object', async () => {
@@ -125,9 +124,8 @@ describe('PATCH /api/users/self/preferences briefing sources', () => {
   it('answers 400 for a section that is not the person’s', async () => {
     const res = await patch({ briefing: { sources: 'section:999' } });
     expect(res.status).toBe(400);
-    expect(((await res.json()) as { errors: string[] }).errors).toEqual([
-      'briefing.sources: no such section.',
-    ]);
+    const { errors } = await res.json<{ errors: string[] }>();
+    expect(errors).toEqual(['briefing.sources: no such section.']);
   });
 
   it('keeps a change to the schedule', async () => {
@@ -135,9 +133,7 @@ describe('PATCH /api/users/self/preferences briefing sources', () => {
       briefing: { sources: 'all', frequency: 'weekly' },
     });
     expect(res.status).toBe(200);
-    expect(
-      ((await res.json()) as { briefing: { frequency: string } }).briefing
-        .frequency,
-    ).toBe('weekly');
+    const { briefing } = await res.json<{ briefing: { frequency: string } }>();
+    expect(briefing.frequency).toBe('weekly');
   });
 });

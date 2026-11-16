@@ -117,7 +117,7 @@ async function pushToBrowsers(
     // Through safe-fetch, so a stored endpoint can only reach the public web.
     fetcher: async (url, init) => {
       const answer = await post(
-        String(url),
+        url instanceof Request ? url.url : String(url),
         (init?.headers ?? {}) as Record<string, string>,
         init?.body ?? '',
         fetcher,
@@ -170,7 +170,7 @@ export function briefingReadyNotice(id: number, title: string) {
  * Tell every browser the person subscribed that the issue for `edition`
  * (YYYY-MM-DD) is ready. Does nothing when the VAPID keys are not set.
  */
-export function sendIssueReady(
+export async function sendIssueReady(
   env: PushEnvironment,
   db: Database,
   userId: number,
@@ -190,7 +190,7 @@ export function sendIssueReady(
  * Tell every browser the person subscribed that a briefing (`title`, stored
  * as `id`) is ready. Does nothing when the VAPID keys are not set.
  */
-export function sendBriefingReady(
+export async function sendBriefingReady(
   env: PushEnvironment,
   db: Database,
   userId: number,

@@ -50,7 +50,8 @@ describe('overBudget', () => {
     expect(res?.status).toBe(429);
     expect(res?.headers.get('content-type')).toBe('application/problem+json');
     expect(Number(res?.headers.get('retry-after'))).toBeGreaterThan(0);
-    expect(((await res?.json()) as { detail: string }).detail).toContain(
+    const body = await res?.json<{ detail: string }>();
+    expect(body?.detail).toContain(
       `all ${DAILY_LIMITS.assistant} assistant questions`,
     );
   });

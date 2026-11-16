@@ -16,6 +16,10 @@ import { MAX_QUESTION_LENGTH } from '@/domain/assistant';
 import { CARD } from '@/components/ui/field';
 import { ErrorText } from '@/components/ui/notice';
 import { cn } from '@/components/ui/cn';
+import { z } from 'zod';
+
+/** The one field the message form posts. */
+const messageForm = z.object({ content: z.string().default('') });
 
 /** One turn as the chat shows it, with links to the stories it cites. */
 function TurnView({ turn }: Readonly<{ turn: Turn }>): ReactElement {
@@ -86,7 +90,9 @@ export function AssistantChat({
   const submit = (event: SubmitEvent<HTMLFormElement>): void => {
     event.preventDefault();
     const form = event.currentTarget;
-    const content = String(new FormData(form).get('content') ?? '').trim();
+    const content = messageForm
+      .parse(Object.fromEntries(new FormData(form)))
+      .content.trim();
     if (content) send(content, form);
   };
   return (

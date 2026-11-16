@@ -36,7 +36,7 @@ const isFailure = (r: TokenResponse | OAuthFailure): r is OAuthFailure =>
 const isOurs = (r: string) => r === RESOURCE;
 
 /** Exchange a refresh token, with this suite's idea of "our resource". */
-const exchangeRefreshToken = (
+const exchangeRefreshToken = async (
   store: MemoryStore,
   request: Parameters<typeof exchangeRefresh>[1],
   now: number,
@@ -64,7 +64,7 @@ async function nextCode(overrides: Partial<CodeRecord> = {}) {
   );
 }
 
-const redeem = (
+const redeem = async (
   c: string,
   overrides: Record<string, string | undefined> = {},
 ) =>
@@ -276,7 +276,7 @@ describe('authenticateAccessToken', () => {
 
 // eslint-disable-next-line sonarjs/max-lines-per-function -- one suite covers the whole refresh grant; splitting it is a large restructure
 describe('exchangeRefreshToken', () => {
-  const refresh = (
+  const refresh = async (
     token: string,
     overrides: Record<string, string | undefined> = {},
   ) =>
@@ -338,7 +338,7 @@ describe('exchangeRefreshToken', () => {
   });
 
   describe('grace window', () => {
-    const retryAt = (token: string, now: number) =>
+    const retryAt = async (token: string, now: number) =>
       exchangeRefreshToken(
         store,
         { refreshToken: token, clientId: 'client-1', scope: absent },
@@ -438,9 +438,9 @@ describe('exchangeRefreshToken', () => {
       const first = (await redeem(code)) as TokenResponse;
       // The other process rotates the token between our read and our write.
       const racing = new Proxy(store, {
-        get(target, property) {
+        get(target, property): unknown {
           if (property !== 'rotateRefreshToken') {
-            const value = Reflect.get(target, property, target);
+            const value: unknown = Reflect.get(target, property, target);
             return typeof value === 'function' ? value.bind(target) : value;
           }
           return async (hash: string, now: number) => {
@@ -458,18 +458,18 @@ describe('exchangeRefreshToken', () => {
         },
         NOW + 100,
       );
-      expect(isFailure(result as TokenResponse | OAuthFailure)).toBe(false);
+      expect(isFailure(result)).toBe(false);
       expect(store.grants.values().next().value?.revoked).toBe(false);
     });
 
     it('revokes when rotation fails and nothing explains why', async () => {
       const first = (await redeem(code)) as TokenResponse;
       const failing = new Proxy(store, {
-        get(target, property) {
+        get(target, property): unknown {
           if (property === 'rotateRefreshToken') {
             return async () => false;
           }
-          const value = Reflect.get(target, property, target);
+          const value: unknown = Reflect.get(target, property, target);
           return typeof value === 'function' ? value.bind(target) : value;
         },
       });
@@ -677,7 +677,7 @@ describe('redirect_uri at the token endpoint (OAuth 2.1 4.1.3)', () => {
 });
 
 describe('refresh scope and resource', () => {
-  const refreshWith = (
+  const refreshWith = async (
     token: string,
     extra: { scope?: string; resource?: string },
   ) =>
@@ -763,7 +763,7 @@ describe('security events', () => {
 
   it('warns when a spent refresh token is replayed after the grace window, and notes a retry inside it', async () => {
     const first = (await redeem(code)) as TokenResponse;
-    const rotate = (at: number) =>
+    const rotate = async (at: number) =>
       exchangeRefreshToken(
         store,
         {

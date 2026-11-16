@@ -39,7 +39,7 @@ beforeEach(async () => {
 
 afterEach(() => restore());
 
-const similar = (id: string | number) =>
+const similar = async (id: string | number) =>
   GET(
     new Request(`https://app.test/api/feeds/${id}/similar`, { headers: auth }),
     { params: Promise.resolve({ id: String(id) }) },
@@ -63,10 +63,10 @@ describe('GET /api/feeds/:id/similar', () => {
     for (let index = 0; index < 6; index++)
       await repo.addFeed(8, `https://extra${index}.test/f`);
     const listed = await similar(mine.id);
-    const first = (await listed.json()) as {
+    const first = await listed.json<{
       next?: string;
       items: unknown[];
-    };
+    }>();
     expect(first.items).toHaveLength(5);
     const cursor = new URL(first.next!).searchParams.get('cursor')!;
     const secondPage = await GET(
@@ -76,10 +76,10 @@ describe('GET /api/feeds/:id/similar', () => {
       ),
       { params: Promise.resolve({ id: String(mine.id) }) },
     );
-    const second = (await secondPage.json()) as {
+    const second = await secondPage.json<{
       next?: string;
       items: unknown[];
-    };
+    }>();
     expect([second.items.length, second.next]).toEqual([1, undefined]);
   });
 

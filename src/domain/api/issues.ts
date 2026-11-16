@@ -44,7 +44,7 @@ import { getEnv } from '@/lib/core/runtime';
 export type Publisher = (userId: number, date: string) => Promise<unknown>;
 
 /** The production publisher: Workers AI and D1 from the Worker's bindings. */
-const publishWithEnv: Publisher = (userId, date) =>
+const publishWithEnv: Publisher = async (userId, date) =>
   publishIssue(getDatabase(), getEnv(), userId, date);
 
 /** What `uid` has done that marks an issue's copies. */

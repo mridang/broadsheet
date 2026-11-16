@@ -7,6 +7,14 @@ import { useFeedAction } from '@/app/(site)/feeds/_components/use-feed-action';
 import { buttonClass } from '@/components/ui/button';
 import { CHECK_LABEL } from '@/components/ui/field';
 import { ErrorText } from '@/components/ui/notice';
+import { z } from 'zod';
+
+/** The fields the feed settings form posts. */
+const feedSettingsForm = z.object({
+  section_id: z.string().default(''),
+  url: z.string().default(''),
+  title: z.string().default(''),
+});
 
 /** A section a feed can be filed under. */
 export interface SectionOption {
@@ -34,13 +42,14 @@ export function FeedSettingsForm({
   const submit = (event: SubmitEvent<HTMLFormElement>): void => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const section = String(form.get('section_id') ?? '');
-    const address = String(form.get('url') ?? '').trim();
+    const fields = feedSettingsForm.parse(Object.fromEntries(form));
+    const section = fields.section_id;
+    const address = fields.url.trim();
     void run(
-      () =>
+      async () =>
         editFeed(id, {
           ...(address && address !== url ? { url: address } : {}),
-          title: String(form.get('title') ?? '').trim() || null,
+          title: fields.title.trim() || null,
           muted: form.get('muted') === 'on',
           section_id: section || null,
         }),

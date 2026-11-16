@@ -21,7 +21,7 @@ export function TopicPicker({
   const submit = (event: SubmitEvent<HTMLFormElement>): void => {
     event.preventDefault();
     const ids = new FormData(event.currentTarget).getAll('topic').map(String);
-    void run(() => importTopics(ids), 'Could not follow those topics.');
+    void run(async () => importTopics(ids), 'Could not follow those topics.');
   };
   return (
     <form onSubmit={submit}>

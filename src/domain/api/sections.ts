@@ -94,7 +94,7 @@ export function createSectionsCollection(
     }),
   }).on<SectionChanges, Section>({
     method: 'POST',
-    decode: (request) => decodeSection(request, true),
+    decode: async (request) => decodeSection(request, true),
     handle: async (
       { name, position, parent_id: parent, ...settings },
       { uid },
@@ -150,7 +150,7 @@ export function createSectionItem(
   })
     .on<SectionChanges, Section | undefined>({
       method: 'PATCH',
-      decode: (request) => decodeSection(request, false),
+      decode: async (request) => decodeSection(request, false),
       handle: async (
         changes,
         { request, uid },

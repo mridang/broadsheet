@@ -75,7 +75,7 @@ beforeEach(async () => {
 
 afterEach(() => restore());
 
-const get = (date: string) =>
+const get = async (date: string) =>
   GET(
     new Request(`https://app.test/api/editions/self/issues/${date}`, {
       headers: { ...auth },
@@ -85,9 +85,9 @@ const get = (date: string) =>
 
 type Copy = Record<string, unknown>;
 const copyOf = async (res: Response): Promise<Copy> => {
-  const body = (await res.json()) as {
+  const body = await res.json<{
     sections: { desks: { stories: { covered_by: Copy[] }[] }[] }[];
-  };
+  }>();
   return body.sections[0]!.desks[0]!.stories[0]!.covered_by[0]!;
 };
 

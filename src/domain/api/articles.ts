@@ -108,7 +108,7 @@ export function createArticlesCollection(
       }
       return input;
     },
-    handle: ({ query, trending }, { uid }) => {
+    handle: async ({ query, trending }, { uid }) => {
       const repo = new Repository(getDatabase());
       return trending
         ? trendingPage(repo, uid, trending)

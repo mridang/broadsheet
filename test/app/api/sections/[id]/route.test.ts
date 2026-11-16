@@ -44,9 +44,9 @@ beforeEach(async () => {
 
 afterEach(() => restore());
 
-const sections = () => new Repository(db).listSections(7);
+const sections = async () => new Repository(db).listSections(7);
 
-const patch = (id: string | number, body: string, headers = {}) =>
+const patch = async (id: string | number, body: string, headers = {}) =>
   PATCH(
     new Request(`https://app.test/api/sections/${id}`, {
       method: 'PATCH',
@@ -56,7 +56,7 @@ const patch = (id: string | number, body: string, headers = {}) =>
     { params: Promise.resolve({ id: String(id) }) },
   );
 
-const remove = (id: string | number, query = '') =>
+const remove = async (id: string | number, query = '') =>
   DELETE(
     new Request(`https://app.test/api/sections/${id}${query}`, {
       method: 'DELETE',
@@ -91,9 +91,8 @@ describe('PATCH /api/sections/:id', () => {
       JSON.stringify({ parent_id: String(child.id) }),
     );
     expect(res.status).toBe(400);
-    expect(((await res.json()) as { errors: string[] }).errors[0]).toMatch(
-      ANSWERS_400_NAMING_PARENT_ID_PATTERN,
-    );
+    const { errors } = await res.json<{ errors: string[] }>();
+    expect(errors[0]).toMatch(ANSWERS_400_NAMING_PARENT_ID_PATTERN);
   });
 
   it('answers 400 for another person’s section as the parent', async () => {
@@ -160,9 +159,8 @@ describe('DELETE /api/sections/:id', () => {
   it('answers 400 naming feeds for another value, removing nothing', async () => {
     const res = await remove(mine, '?feeds=all');
     expect(res.status).toBe(400);
-    expect(((await res.json()) as { errors: string[] }).errors).toEqual([
-      'feeds: must be keep or unfollow.',
-    ]);
+    const { errors } = await res.json<{ errors: string[] }>();
+    expect(errors).toEqual(['feeds: must be keep or unfollow.']);
     expect(await sections()).toHaveLength(1);
   });
 

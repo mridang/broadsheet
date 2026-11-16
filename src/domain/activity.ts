@@ -36,6 +36,6 @@ export async function noteActivity(
 /** Note the person's activity after the response has gone. */
 export function noteActivityLater(userId: number): void {
   runInBackground(
-    Promise.resolve().then(() => noteActivity(getDatabase(), userId)),
+    Promise.resolve().then(async () => noteActivity(getDatabase(), userId)),
   );
 }

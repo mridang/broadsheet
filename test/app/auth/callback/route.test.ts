@@ -102,7 +102,7 @@ const trip = (state = STATE, extra: Record<string, string> = {}) => ({
 });
 
 /** A callback request from Google, from a browser holding `cookies`. */
-function callbackRequest(
+async function callbackRequest(
   query: string,
   cookies: Record<string, string> = trip(),
 ) {

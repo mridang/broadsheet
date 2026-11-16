@@ -10,7 +10,7 @@
  * becomes a refusal the assistant can act on rather than a protocol error.
  */
 
-import { type ToolContent, type ToolContext } from '@/domain/mcp/tool-context';
+import type { ToolContent, ToolContext } from '@/domain/mcp/tool-context';
 import { ToolFailureError } from '@/domain/mcp/tool-failure';
 import { checked } from '@/domain/mcp/tools/support';
 import { McpTool } from '@/lib/mcp';
@@ -19,7 +19,7 @@ import {
   errorResult,
   type ToolResult,
 } from '@/domain/mcp/tool-results';
-import { z } from 'zod';
+import type { z } from 'zod';
 
 /** A tool that answers with the facts it read. */
 export abstract class JsonTool<
@@ -30,7 +30,7 @@ export abstract class JsonTool<
   override async handle(
     args: z.infer<TInput>,
     context: ToolContext,
-  ): Promise<ToolResult<ToolContent>> {
+  ): Promise<ToolResult> {
     try {
       const data = await this.runParsed(args, context);
       return dataResult(JSON.stringify(data), data as ToolContent);

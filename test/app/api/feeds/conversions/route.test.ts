@@ -52,7 +52,7 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
-const convert = (body: string, headers = {}) =>
+const convert = async (body: string, headers = {}) =>
   POST(
     new Request('https://app.test/api/feeds/conversions', {
       method: 'POST',

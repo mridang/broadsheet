@@ -12,7 +12,7 @@ const SAYS_WHAT_TO_EXPECT_PATTERN_2 = /In scope/;
 const SAYS_WHAT_TO_EXPECT_PATTERN_3 = /Out of scope/;
 const SAYS_WHAT_TO_EXPECT_PATTERN_4 = /good faith/;
 
-const read = (name: string) =>
+const read = async (name: string) =>
   readFile(path.join(process.cwd(), 'public', name), 'utf8');
 
 /** Plain-text files are served without a charset, so they must be ASCII. */

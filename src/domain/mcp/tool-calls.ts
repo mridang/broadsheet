@@ -48,7 +48,7 @@ export async function callTool(
   user: Readonly<User>,
   params: ToolArgs | undefined,
   services?: ToolServices,
-): Promise<ToolResult<ToolContent>> {
+): Promise<ToolResult> {
   return INVOKER.invoke(params, toolContext(user, services));
 }
 
@@ -64,6 +64,6 @@ export async function callToolOrExplain(
   user: Readonly<User>,
   params: ToolArgs | undefined,
   services?: ToolServices,
-): Promise<ToolResult<ToolContent>> {
+): Promise<ToolResult> {
   return INVOKER.invokeOrExplain(params, toolContext(user, services));
 }

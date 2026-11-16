@@ -115,7 +115,7 @@ export class DailyScrape extends WorkflowEntrypoint<
         const result = await step.do(
           `fetch source ${source.id}`,
           FETCH_STEP,
-          () => scrapeSource(db, this.env, source, edition),
+          async () => scrapeSource(db, this.env, source, edition),
         );
         articles += result.articles;
         if (!result.failed) ok++;
@@ -138,7 +138,7 @@ export class DailyScrape extends WorkflowEntrypoint<
       });
       return { sources: sources.length, ok, articles };
     }
-    const clustered = await step.do('cluster edition', AI_STEP, () =>
+    const clustered = await step.do('cluster edition', AI_STEP, async () =>
       clusterEdition(db, this.env, edition),
     );
     const notified = await step.do('list notified readers', async () => {
@@ -153,7 +153,7 @@ export class DailyScrape extends WorkflowEntrypoint<
     });
     for (const reader of notified) {
       try {
-        await step.do(`notify new stories for user ${reader}`, () =>
+        await step.do(`notify new stories for user ${reader}`, async () =>
           notifyNewStories(this.env, db, reader, edition),
         );
       } catch (error) {
@@ -167,13 +167,13 @@ export class DailyScrape extends WorkflowEntrypoint<
     await step.do('backfill recent editions', async () => {
       await backfillRecent(db, this.env, 7);
     });
-    const readers = await step.do('list readers', () =>
+    const readers = await step.do('list readers', async () =>
       new Repository(db).readerIds(),
     );
     let issues = 0;
     for (const reader of readers) {
       try {
-        await step.do(`lay out issue for user ${reader}`, AI_STEP, () =>
+        await step.do(`lay out issue for user ${reader}`, AI_STEP, async () =>
           publishIssue(db, this.env, reader, edition),
         );
         issues++;
@@ -186,7 +186,7 @@ export class DailyScrape extends WorkflowEntrypoint<
         continue;
       }
       try {
-        await step.do(`notify user ${reader}`, () =>
+        await step.do(`notify user ${reader}`, async () =>
           sendIssueReady(this.env, db, reader, edition),
         );
       } catch (error) {
@@ -197,13 +197,15 @@ export class DailyScrape extends WorkflowEntrypoint<
         });
       }
     }
-    const papers = await step.do('list custom editions', () =>
+    const papers = await step.do('list custom editions', async () =>
       new Repository(db).allCustomEditions(),
     );
     for (const paper of papers) {
       try {
-        await step.do(`lay out issue for edition ${paper.id}`, AI_STEP, () =>
-          publishEditionIssue(db, this.env, paper, edition),
+        await step.do(
+          `lay out issue for edition ${paper.id}`,
+          AI_STEP,
+          async () => publishEditionIssue(db, this.env, paper, edition),
         );
         issues++;
       } catch (error) {
@@ -292,14 +294,14 @@ export class BriefingRun extends WorkflowEntrypoint<CloudflareEnv> {
               date,
               at,
             );
-            return briefing && briefing.status === 'complete'
+            return briefing?.status === 'complete'
               ? { id: briefing.id, title: briefing.title }
               : null;
           },
         );
         if (!done) continue;
         written++;
-        await step.do(`notify user ${user} of briefing ${done.id}`, () =>
+        await step.do(`notify user ${user} of briefing ${done.id}`, async () =>
           sendBriefingReady(this.env, db, user, done.id, done.title).then(
             () => null,
           ),
@@ -358,13 +360,15 @@ export class FeedImportRun extends WorkflowEntrypoint<
       for (let start = 0; start < feeds.length; start += IMPORT_CHUNK) {
         const chunk = feeds.slice(start, start + IMPORT_CHUNK);
         added.push(
-          ...(await step.do(`import feeds from ${start}`, FETCH_STEP, () =>
-            runs.importChunk(id, user, chunk),
+          ...(await step.do(
+            `import feeds from ${start}`,
+            FETCH_STEP,
+            async () => runs.importChunk(id, user, chunk),
           )),
         );
       }
     } catch (error) {
-      await step.do('mark failed', () => runs.finish(id, 'failed'));
+      await step.do('mark failed', async () => runs.finish(id, 'failed'));
       logError({
         event: 'import.failed',
         import: id,
@@ -372,10 +376,10 @@ export class FeedImportRun extends WorkflowEntrypoint<
       });
       return { added: added.length };
     }
-    await step.do('mark complete', () => runs.finish(id, 'complete'));
+    await step.do('mark complete', async () => runs.finish(id, 'complete'));
     for (const source of added.slice(0, FIRST_FETCHES)) {
       try {
-        await step.do(`fetch source ${source.id}`, FETCH_STEP, () =>
+        await step.do(`fetch source ${source.id}`, FETCH_STEP, async () =>
           refreshSource(db, this.env, source).then(() => null),
         );
       } catch (error) {

@@ -16,7 +16,7 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
     body: JSON.stringify(body),
   });
   await ensureOk(res);
-  return (await res.json()) as T;
+  return res.json();
 }
 
 /** Add a webhook (`POST /api/users/self/webhooks`); its secret, shown once. */

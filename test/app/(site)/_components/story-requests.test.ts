@@ -44,7 +44,7 @@ describe('markUnread', () => {
   it('swallows a failure', async () => {
     globalThis.fetch = jest.fn(async () => {
       throw new Error('offline');
-    }) as never;
+    });
     expect(() => markUnread(4)).not.toThrow();
     await Promise.resolve();
   });
@@ -114,7 +114,7 @@ describe('setShared', () => {
           status: 404,
           headers: { 'Content-Type': 'application/problem+json' },
         }),
-    ) as never;
+    );
     await expect(setShared(4, true)).rejects.toThrow();
   });
 });

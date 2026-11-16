@@ -10,8 +10,8 @@ import {
 import { logSecurityEvent, type SecurityEvent } from '@/lib/oauth';
 
 describe('logSecurityEvent', () => {
-  let info: ReturnType<typeof jest.spyOn>;
-  let warn: ReturnType<typeof jest.spyOn>;
+  let info: jest.SpiedFunction<typeof console.info>;
+  let warn: jest.SpiedFunction<typeof console.warn>;
 
   beforeEach(() => {
     info = jest.spyOn(console, 'info').mockImplementation(() => {});

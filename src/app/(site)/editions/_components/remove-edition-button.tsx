@@ -19,7 +19,10 @@ export function RemoveEditionButton({
         className={buttonClass({ variant: 'danger', size: 'sm' })}
         disabled={busy}
         onClick={() =>
-          void run(() => removeEdition(id), 'Could not remove that edition.')
+          void run(
+            async () => removeEdition(id),
+            'Could not remove that edition.',
+          )
         }
       >
         Remove

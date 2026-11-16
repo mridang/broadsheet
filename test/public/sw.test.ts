@@ -251,7 +251,7 @@ async function push(
 ) {
   const waited: Promise<unknown>[] = [];
   worker.listeners.get('push')?.({
-    data: data === null ? null : { json: () => JSON.parse(data) },
+    data: data === null ? null : { json: (): unknown => JSON.parse(data) },
     waitUntil: (p: Promise<unknown>) => waited.push(p),
   } as never);
   await Promise.all(waited);
@@ -289,7 +289,7 @@ describe('public/sw.js: push', () => {
     });
     const waited: Promise<unknown>[] = [];
     worker.listeners.get('push')?.({
-      data: { json: () => JSON.parse('not json') },
+      data: { json: (): unknown => JSON.parse('not json') },
       waitUntil: (p: Promise<unknown>) => waited.push(p),
     } as never);
     await Promise.all(waited);

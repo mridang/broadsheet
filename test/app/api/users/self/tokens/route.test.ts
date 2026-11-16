@@ -35,7 +35,7 @@ beforeEach(async () => {
 
 afterEach(() => restore());
 
-const post = (body: unknown) =>
+const post = async (body: unknown) =>
   POST(
     new Request('https://app.test/api/users/self/tokens', {
       method: 'POST',
@@ -60,7 +60,8 @@ describe('POST /api/users/self/tokens', () => {
     const { search } = await new Repository(db).addSearch(8, 'rust', null);
     const res = await post({ scope: 'search', search_id: String(search.id) });
     expect(res.status).toBe(400);
-    expect(((await res.json()) as { errors: string[] }).errors).toEqual([
+    const { errors } = await res.json<{ errors: string[] }>();
+    expect(errors).toEqual([
       'search_id: must name one of your saved searches.',
     ]);
   });

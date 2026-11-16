@@ -133,11 +133,10 @@ async function etagOf(bytes: ArrayBuffer): Promise<string> {
 /** Whether an `If-None-Match` header names `etag` (or everything). */
 function isCurrent(ifNoneMatch: string | null, etag: string): boolean {
   return (
-    ifNoneMatch !== null &&
     ifNoneMatch
-      .split(',')
+      ?.split(',')
       .map((tag) => tag.trim().replace(IS_CURRENT_PATTERN, ''))
-      .some((tag) => tag === '*' || tag === etag)
+      .some((tag) => tag === '*' || tag === etag) ?? false
   );
 }
 

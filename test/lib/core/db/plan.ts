@@ -31,7 +31,7 @@ export function recordedDatabase(): RecordedDatabase {
   const { d1, raw } = sqliteD1(...APP_MIGRATIONS);
   const statements: string[] = [];
   const recording = {
-    ...d1,
+    batch: async (items: D1PreparedStatement[]) => d1.batch(items),
     prepare: (text: string) => {
       statements.push(text);
       return d1.prepare(text);

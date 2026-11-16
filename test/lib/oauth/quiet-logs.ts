@@ -26,7 +26,7 @@ export function quietSecurityLogs(): {
     spies.warn?.mockRestore();
   });
   return {
-    info: () => spies.info as LogSpy,
-    warn: () => spies.warn as LogSpy,
+    info: () => spies.info!,
+    warn: () => spies.warn!,
   };
 }

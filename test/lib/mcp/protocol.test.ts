@@ -380,7 +380,7 @@ describe('checkRequestHeaders', () => {
 
   it('refuses a body version we do not speak', () => {
     const message = modern('tools/list');
-    message.params._meta[META] = '2099-01-01' as typeof MODERN_VERSION;
+    message.params._meta[META] = '2099-01-01';
     expect(
       checkRequestHeaders(
         headers({ 'mcp-protocol-version': '2099-01-01' }),

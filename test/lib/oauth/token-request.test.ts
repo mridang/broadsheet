@@ -275,7 +275,7 @@ describe('handleTokenRequest', () => {
     if (!first.ok) {
       throw new Error('expected tokens');
     }
-    const refresh = (resource: string) =>
+    const refresh = async (resource: string) =>
       handleTokenRequest(
         form({
           client_id: 'client-1',
@@ -336,7 +336,7 @@ describe('handleTokenRequest for a client that signs its requests', () => {
     });
   });
 
-  const assertion = (claims: Record<string, unknown> = {}) =>
+  const assertion = async (claims: Record<string, unknown> = {}) =>
     new SignJWT({
       iss: CLIENT,
       sub: CLIENT,
@@ -448,7 +448,7 @@ describe('handleTokenRequest for a client that signs its requests', () => {
   it('asks a refresh to be signed too', async () => {
     const issued = await exchange(await signedFields());
     const refreshToken = issued.ok ? issued.tokens.refresh_token : '';
-    const refresh = (extra: Record<string, string>) =>
+    const refresh = async (extra: Record<string, string>) =>
       handleTokenRequest(
         form({
           client_id: CLIENT,

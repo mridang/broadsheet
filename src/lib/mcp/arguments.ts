@@ -62,7 +62,7 @@ export class ArgumentChecker {
     }
     const parsed = tool.input.safeParse(args);
     return parsed.success
-      ? { args: parsed.data as ToolArgs }
+      ? { args: parsed.data }
       : {
           refusal: this.#refusal(
             tool.name,

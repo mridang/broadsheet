@@ -292,7 +292,7 @@ export async function answerTurn(
     model,
     archivePrompt(passages, history, question, today),
     ASSISTANT_TOOLS,
-    (call) => tools.run(call),
+    async (call) => tools.run(call),
   );
   await repo.recordUsage(uid, 'assistant');
   await repo.addMessage(conversationId, 'user', question);

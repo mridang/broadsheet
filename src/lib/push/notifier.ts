@@ -9,7 +9,7 @@
  * itself; {@link PushNotifier.broadcast} is the convenience that sends to all.
  */
 
-import { WebPushSender } from './send';
+import type { WebPushSender } from './send';
 import type {
   PushPayload,
   PushSubscriptionRecord,

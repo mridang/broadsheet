@@ -20,7 +20,7 @@ async function environment(): Promise<PushEnvironment> {
   const registration = await navigator.serviceWorker.ready;
   return {
     pushManager: registration.pushManager,
-    fetch: (input, init) => fetch(input, init),
+    fetch: async (input, init) => fetch(input, init),
   };
 }
 
@@ -41,7 +41,7 @@ export function PushSettings({
     const supported =
       'serviceWorker' in navigator && 'PushManager' in globalThis;
     void (supported ? environment() : Promise.reject(new Error('unsupported')))
-      .then((env) => env.pushManager.getSubscription())
+      .then(async (env) => env.pushManager.getSubscription())
       .then((current) => {
         const known = subscriptions.find(
           (s) => s.endpoint === current?.endpoint,
@@ -55,7 +55,7 @@ export function PushSettings({
     return <Notice>This browser cannot receive notifications.</Notice>;
   }
   const on = typeof state === 'object';
-  const toggle = (): Promise<void> =>
+  const toggle = async (): Promise<void> =>
     run(
       async () => {
         const env = await environment();

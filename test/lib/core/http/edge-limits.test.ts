@@ -90,7 +90,7 @@ describe('counterKey', () => {
   });
 
   it('gives different cookies different keys and the same cookie the same key', async () => {
-    const of = (value: string) =>
+    const of = async (value: string) =>
       counterKey(
         'person',
         new Headers({ cookie: `app_session=${value}` }),

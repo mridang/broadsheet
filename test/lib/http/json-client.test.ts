@@ -11,10 +11,10 @@ function fetcherOf(
   status = 200,
 ): { fetcher: typeof fetch; seen: string[] } {
   const seen: string[] = [];
-  const fetcher = ((url: URL | RequestInfo) => {
-    seen.push(String(url));
-    return Promise.resolve(new Response(body, { status }));
-  }) as unknown as typeof fetch;
+  const fetcher = async (url: URL | RequestInfo) => {
+    seen.push(url instanceof Request ? url.url : String(url));
+    return new Response(body, { status });
+  };
   return { fetcher, seen };
 }
 
@@ -64,8 +64,9 @@ describe('JsonClient.request', () => {
   });
 
   it('fails without a status when the fetch itself throws', async () => {
-    const fetcher = (() =>
-      Promise.reject(new Error('offline'))) as unknown as typeof fetch;
+    const fetcher = (async () => {
+      throw new Error('offline');
+    }) as unknown as typeof fetch;
     const result = await new JsonClient('https://api.test', fetcher).request(
       { path: '/x' },
       Thing,

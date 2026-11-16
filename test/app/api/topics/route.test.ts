@@ -45,18 +45,18 @@ beforeEach(async () => {
 
 afterEach(() => restore());
 
-const get = (headers: Record<string, string> = auth) =>
+const get = async (headers: Record<string, string> = auth) =>
   route.GET(new Request(`${origin}/api/topics`, { headers }));
 
 describe('GET /api/topics', () => {
   it('lists the topics with starter feeds as one page', async () => {
     const res = await get();
     expect(res.status).toBe(200);
-    const body = (await res.json()) as {
+    const body = await res.json<{
       self: string;
       next?: string;
       items: { id: string; feeds: unknown[] }[];
-    };
+    }>();
     expect(body.self).toBe(`${origin}/api/topics`);
     expect(body.next).toBeUndefined();
     expect(body.items.length).toBeGreaterThan(0);
@@ -73,9 +73,9 @@ describe('GET /api/topics', () => {
 describe('GET /api/topics descriptions', () => {
   it('describes every topic', async () => {
     const res = await get();
-    const body = (await res.json()) as {
+    const body = await res.json<{
       items: { description: string }[];
-    };
+    }>();
     expect(body.items.every((t) => t.description.length > 0)).toBe(true);
   });
 });

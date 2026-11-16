@@ -60,7 +60,7 @@ beforeEach(async () => {
 
 afterEach(() => restore());
 
-const readMany = (body: unknown) =>
+const readMany = async (body: unknown) =>
   POST(
     new Request('https://app.test/api/users/self/reads', {
       method: 'POST',
@@ -130,7 +130,8 @@ describe('POST /api/users/self/reads with copies', () => {
 
 const items = async (body: unknown) => {
   const res = await readMany(body);
-  return ((await res.json()) as { items: unknown[] }).items;
+  const { items } = await res.json<{ items: unknown[] }>();
+  return items;
 };
 
 describe('POST /api/users/self/reads with a scope', () => {

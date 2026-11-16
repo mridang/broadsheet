@@ -54,7 +54,7 @@ beforeEach(async () => {
 
 afterEach(() => restore());
 
-const post = (body: string, headers = {}) =>
+const post = async (body: string, headers = {}) =>
   POST(
     new Request('https://app.test/api/users/self/classifiers', {
       method: 'POST',
@@ -64,7 +64,7 @@ const post = (body: string, headers = {}) =>
     { params: Promise.resolve({}) },
   );
 
-const list = (query = '') =>
+const list = async (query = '') =>
   GET(
     new Request(`https://app.test/api/users/self/classifiers${query}`, {
       headers: { ...auth },
@@ -83,7 +83,7 @@ describe('POST /api/users/self/classifiers', () => {
 
   it('answers with the new classifier’s Location', async () => {
     const res = await post(liked);
-    const { id } = (await res.json()) as { id: string };
+    const { id } = await res.json<{ id: string }>();
     expect(res.headers.get('location')).toMatch(
       new RegExp(`/api/users/self/classifiers/${id}$`),
     );
@@ -120,7 +120,7 @@ describe('GET /api/users/self/classifiers', () => {
   it('answers 200 with the person’s classifiers as a page', async () => {
     await post(liked);
     const res = await list();
-    const body = (await res.json()) as { items: unknown[] };
+    const body = await res.json<{ items: unknown[] }>();
     expect(body.items).toHaveLength(1);
   });
 
@@ -128,7 +128,7 @@ describe('GET /api/users/self/classifiers', () => {
     await post(liked);
     await post(JSON.stringify({ kind: 'title', value: 'y', score: 'like' }));
     const res = await list('?limit=1');
-    const body = (await res.json()) as { next?: string };
+    const body = await res.json<{ next?: string }>();
     expect(body.next).toContain('cursor=');
   });
 
@@ -136,7 +136,8 @@ describe('GET /api/users/self/classifiers', () => {
     await post(liked);
     auth = await cookieFor(8);
     const res = await list();
-    expect(((await res.json()) as { items: unknown[] }).items).toEqual([]);
+    const { items } = await res.json<{ items: unknown[] }>();
+    expect(items).toEqual([]);
   });
 
   it('answers 400 for a cursor it did not issue', async () => {
@@ -152,7 +153,7 @@ describe('GET /api/users/self/classifiers', () => {
 });
 
 describe('POST /api/users/self/classifiers feeds and scopes', () => {
-  const feeds = () => new Repository(db).listFeeds(7);
+  const feeds = async () => new Repository(db).listFeeds(7);
 
   it('answers 201 for a feed classifier on the person’s own feed', async () => {
     const [feed] = await feeds();

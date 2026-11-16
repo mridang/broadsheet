@@ -11,7 +11,7 @@ export function RemoveWebhookButton({
 }: Readonly<{ id: number }>): ReactElement {
   return (
     <RemoveButton
-      remove={() => removeWebhook(id)}
+      remove={async () => removeWebhook(id)}
       failure="Could not remove that webhook."
     />
   );

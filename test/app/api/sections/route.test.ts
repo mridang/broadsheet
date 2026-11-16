@@ -34,7 +34,7 @@ beforeEach(async () => {
 
 afterEach(() => restore());
 
-const post = (body: string, headers = {}) =>
+const post = async (body: string, headers = {}) =>
   POST(
     new Request('https://app.test/api/sections', {
       method: 'POST',
@@ -47,7 +47,7 @@ describe('POST /api/sections', () => {
   it('answers 201 with the new section and where to find it', async () => {
     const res = await post(JSON.stringify({ name: 'Tech' }));
     expect(res.status).toBe(201);
-    const section = (await res.json()) as { id: string };
+    const section = await res.json<{ id: string }>();
     expect(section).toMatchObject({ name: 'Tech', position: 0 });
     expect(res.headers.get('location')).toBe(
       `https://app.test/api/sections/${section.id}`,
@@ -67,9 +67,8 @@ describe('POST /api/sections', () => {
   it('answers 400 naming parent_id for a parent that is not the caller’s', async () => {
     const res = await post(JSON.stringify({ name: 'AI', parent_id: '999' }));
     expect(res.status).toBe(400);
-    expect(((await res.json()) as { errors: string[] }).errors[0]).toMatch(
-      ANSWERS_400_NAMING_PARENT_ID_PATTERN,
-    );
+    const { errors } = await res.json<{ errors: string[] }>();
+    expect(errors[0]).toMatch(ANSWERS_400_NAMING_PARENT_ID_PATTERN);
     expect(await new Repository(db).listSections(7)).toHaveLength(0);
   });
 
@@ -92,9 +91,8 @@ describe('POST /api/sections', () => {
     const res = await post('{}');
     expect(res.status).toBe(400);
     expect(res.headers.get('content-type')).toBe('application/problem+json');
-    expect(((await res.json()) as { errors: string[] }).errors).toEqual([
-      'name: required.',
-    ]);
+    const { errors } = await res.json<{ errors: string[] }>();
+    expect(errors).toEqual(['name: required.']);
   });
 
   it('answers 415 for a body that is not JSON', async () => {

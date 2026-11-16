@@ -12,10 +12,10 @@ import { TOOL_REGISTRY } from '@/domain/mcp/tools';
 
 /** The tools that only look, and the ones that change something. */
 const READ_ONLY_TOOLS = TOOL_REGISTRY.all
-  .filter((tool) => tool.annotations.readOnlyHint === true)
+  .filter((tool) => tool.annotations.readOnlyHint)
   .map((tool) => tool.name);
 const WRITE_TOOLS = TOOL_REGISTRY.all
-  .filter((tool) => tool.annotations.readOnlyHint !== true)
+  .filter((tool) => !tool.annotations.readOnlyHint)
   .map((tool) => tool.name);
 const [READ_TOOL = ''] = READ_ONLY_TOOLS;
 const [WRITE_TOOL = ''] = WRITE_TOOLS;

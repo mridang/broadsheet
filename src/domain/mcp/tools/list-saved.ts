@@ -7,7 +7,7 @@
 
 import { MAX_QUERY_LENGTH } from '@/domain/api/article-resource';
 import { saveResource } from '@/domain/api/save-resource';
-import { type ToolContext } from '@/domain/mcp/tool-context';
+import type { ToolContext } from '@/domain/mcp/tool-context';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { MAX_SEARCH } from '@/domain/mcp/tools/support';
 import { Repository } from '@/domain/repository';

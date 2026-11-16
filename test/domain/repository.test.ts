@@ -36,19 +36,25 @@ const READS_THE_DUE_SOURCES_PATTERN_2 = /TEMP B-TREE/;
 const FINDS_THE_NOTIFYING_FEEDS_PATTERN = /SCAN feed_notifications/;
 
 // Thin adapters over the Repository handle, so each case reads as a one-liner.
-const upsertUser = (d: Database, p: Profile) => new Repository(d).upsertUser(p);
-const getUser = (d: Database, id: number) => new Repository(d).getUser(id);
-const getSessionEpoch = (d: Database, id: number) =>
+const upsertUser = async (d: Database, p: Profile) =>
+  new Repository(d).upsertUser(p);
+const getUser = async (d: Database, id: number) =>
+  new Repository(d).getUser(id);
+const getSessionEpoch = async (d: Database, id: number) =>
   new Repository(d).getSessionEpoch(id);
-const bumpSessionEpoch = (d: Database, id: number) =>
+const bumpSessionEpoch = async (d: Database, id: number) =>
   new Repository(d).bumpSessionEpoch(id);
-const listFeeds = (d: Database, userId: number) =>
+const listFeeds = async (d: Database, userId: number) =>
   new Repository(d).listFeeds(userId);
-const addFeed = (d: Database, userId: number, url: string, title?: string) =>
-  new Repository(d).addFeed(userId, url, title);
-const getFeedByUrl = (d: Database, userId: number, url: string) =>
+const addFeed = async (
+  d: Database,
+  userId: number,
+  url: string,
+  title?: string,
+) => new Repository(d).addFeed(userId, url, title);
+const getFeedByUrl = async (d: Database, userId: number, url: string) =>
   new Repository(d).getFeedByUrl(userId, url);
-const removeFeed = (d: Database, userId: number, id: number) =>
+const removeFeed = async (d: Database, userId: number, id: number) =>
   new Repository(d).removeFeed(userId, id);
 
 /** A minimal scraped story numbered `n`. */
@@ -313,7 +319,7 @@ describe('dueSources', () => {
     const { d1, raw } = sqliteD1(...APP_MIGRATIONS);
     const statements: string[] = [];
     const recording = {
-      ...d1,
+      batch: async (items: D1PreparedStatement[]) => d1.batch(items),
       prepare: (text: string) => {
         statements.push(text);
         return d1.prepare(text);
@@ -374,7 +380,7 @@ describe('sourceActivity', () => {
     const { d1, raw } = sqliteD1(...APP_MIGRATIONS);
     const statements: string[] = [];
     const recording = {
-      ...d1,
+      batch: async (items: D1PreparedStatement[]) => d1.batch(items),
       prepare: (text: string) => {
         statements.push(text);
         return d1.prepare(text);
@@ -744,7 +750,7 @@ describe('searchArticles and getArticle', () => {
   it('keep the summary a story first had once a fetch changes it', async () => {
     const repo = new Repository(db);
     const { source_id } = (await addFeed(db, 1, 'https://a.test/f'))!;
-    const write = (summary: string) =>
+    const write = async (summary: string) =>
       repo.writeEdition(source_id, '2026-10-01', [story({ summary })]);
     await write('First');
     await write('First');
@@ -1111,7 +1117,7 @@ describe('feedStatistics fetch timing and archive', () => {
         published_at: '',
         points: 0,
         body_text: 'Full text.',
-      } as never,
+      },
     ]);
     expect((await repo.feedStatistics(1, feed.id))!.archive_count).toBe(1);
   });
@@ -1542,7 +1548,7 @@ describe('trendingArticles', () => {
       await read(b, id);
     }
     const repo = new Repository(db);
-    const page = (query: object) =>
+    const page = async (query: object) =>
       repo.trendingArticles(a, {
         order: 'reads',
         since: EVER,
@@ -1792,7 +1798,8 @@ describe('trendingSources', () => {
   it('ranks new followers, counting older ones less, from a score of four', async () => {
     const repo = new Repository(db);
     const { people, sources } = await seed();
-    const ranked = () => repo.trendingSources({ ...query, order: 'follows' });
+    const ranked = async () =>
+      repo.trendingSources({ ...query, order: 'follows' });
     // Three people followed today: a score of 3, under the threshold.
     expect(await ranked()).toEqual([]);
     const upsertUserResult4 = await upsertUser(db, {

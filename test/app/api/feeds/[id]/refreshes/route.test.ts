@@ -64,7 +64,10 @@ beforeEach(async () => {
 
 afterEach(() => restore());
 
-const retry = (id: string | number, headers: Record<string, string> = auth) =>
+const retry = async (
+  id: string | number,
+  headers: Record<string, string> = auth,
+) =>
   POST(
     new Request(`https://app.test/api/feeds/${id}/refreshes`, {
       method: 'POST',
@@ -85,9 +88,8 @@ describe('POST /api/feeds/:id/refreshes', () => {
     const res = await retry(mine);
     expect(res.status).toBe(502);
     expect(res.headers.get('content-type')).toBe('application/problem+json');
-    expect(((await res.json()) as { detail: string }).detail).toContain(
-      'HTTP 404',
-    );
+    const { detail } = await res.json<{ detail: string }>();
+    expect(detail).toContain('HTTP 404');
     const stats = await repo.feedStatistics(7, mine);
     expect(stats?.fail_count).toBe(1);
   });

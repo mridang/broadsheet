@@ -67,7 +67,7 @@ export type BodyResult = JsonBody;
  * as soon as it grows past the limit, so a big upload is never held in memory.
  * Text that is not valid UTF-8 or not valid JSON is `unparseable`.
  */
-export function readJsonBody(request: Request): Promise<BodyResult> {
+export async function readJsonBody(request: Request): Promise<BodyResult> {
   return readJsonBodyUpTo(request, MAX_BODY_BYTES);
 }
 
@@ -197,7 +197,7 @@ export async function checkRateLimits(
  * so without this a token holder could send junk without end; the generous
  * general limit leaves a client with the odd bug plenty of room.
  */
-export function chargeRefusedBody(
+export async function chargeRefusedBody(
   user: Readonly<User>,
   deps: RateLimitDeps = liveRateLimitDeps(),
 ): Promise<ProtocolRefusal | null> {

@@ -73,10 +73,10 @@ describe('GET /api/articles/:id/similar', () => {
   it('lists the stories most like the article as one page', async () => {
     const res = await get(String(id), 7);
     expect(res.status).toBe(200);
-    const page = (await res.json()) as {
+    const page = await res.json<{
       next?: string;
       items: { title: string }[];
-    };
+    }>();
     expect(page.items.map((a) => a.title)).toEqual([
       'Faster builds for the Rust compiler',
     ]);
@@ -101,9 +101,9 @@ describe('GET /api/articles/:id/similar', () => {
   it('with scope=all, lists similar stories from any source, saying which are followed', async () => {
     const res = await get(String(id), 7, '?scope=all');
     expect(res.status).toBe(200);
-    const page = (await res.json()) as {
+    const page = await res.json<{
       items: { url: string; followed: boolean; source_url: string }[];
-    };
+    }>();
     expect(page.items).toContainEqual(
       expect.objectContaining({
         url: 'https://y/1',
@@ -118,9 +118,9 @@ describe('GET /api/articles/:id/similar', () => {
 
   it('leaves stories from sources the caller does not follow out by default', async () => {
     const response = await get(String(id), 7);
-    const page = (await response.json()) as {
+    const page = await response.json<{
       items: { url: string }[];
-    };
+    }>();
     expect(page.items.map((a) => a.url)).not.toContain('https://y/1');
   });
 

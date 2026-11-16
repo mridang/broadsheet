@@ -20,6 +20,7 @@ import { base64Url } from '@/lib/outbound/tokens';
 import type { SafeFetcher, SafeRequestInit } from '@/lib/safe-fetch';
 import { APP_MIGRATIONS } from '../lib/core/db/migrations';
 import { sqliteD1 } from '../lib/core/db/sqlite-d1';
+import { z } from 'zod';
 
 const POSTS_THE_SIGNED_EVENT_PATTERN = /^sha256=[0-9a-f]{64}$/;
 const OPENS_THAT_DAY_S_PAPER_PATTERN = /\/edition\/2026-11-01$/;
@@ -43,22 +44,18 @@ function answering(...statuses: number[]) {
 
 /** VAPID keys and a browser's keys, as real P-256 pairs. */
 async function keys() {
-  const signing = (await crypto.subtle.generateKey(
+  const signing = await crypto.subtle.generateKey(
     { name: 'ECDSA', namedCurve: 'P-256' },
     true,
     ['sign'],
-  )) as CryptoKeyPair;
-  const browser = (await crypto.subtle.generateKey(
+  );
+  const browser = await crypto.subtle.generateKey(
     { name: 'ECDH', namedCurve: 'P-256' },
     true,
     ['deriveBits'],
-  )) as CryptoKeyPair;
+  );
   const raw = async (key: CryptoKey) =>
-    base64Url(
-      new Uint8Array(
-        (await crypto.subtle.exportKey('raw', key)) as ArrayBuffer,
-      ),
-    );
+    base64Url(new Uint8Array(await crypto.subtle.exportKey('raw', key)));
   const privateJwk = await crypto.subtle.exportKey('jwk', signing.privateKey);
   return {
     env: {
@@ -143,7 +140,7 @@ describe('deliverWebhooks', () => {
       ),
     ).toBe(1);
     expect(calls.map((c) => c.url)).toEqual(['https://hooks.example.com/save']);
-    expect(JSON.parse(String(calls[0]?.init.body))).toEqual({
+    expect(JSON.parse(z.string().parse(calls[0]?.init.body))).toEqual({
       event: 'save',
       occurred_at: '2026-10-02T08:00:00Z',
       data: { article_id: '7' },
@@ -360,7 +357,7 @@ describe('notifyNewStories', () => {
       fetcher,
     );
     expect(result.hooked).toBe(1);
-    expect(JSON.parse(String(calls[0]?.init.body))).toMatchObject({
+    expect(JSON.parse(z.string().parse(calls[0]?.init.body))).toMatchObject({
       event: 'story',
       data: {
         feed_id: String(feed.id),

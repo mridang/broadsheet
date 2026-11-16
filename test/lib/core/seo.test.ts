@@ -6,6 +6,7 @@ import {
   SITE_FEATURES,
   SITE_REQUIREMENTS,
 } from '@/utils/site';
+import { z } from 'zod';
 
 describe('landingJsonLd', () => {
   const graph = landingJsonLd()['@graph'] as Record<string, unknown>[];
@@ -47,6 +48,8 @@ describe('jsonLdText', () => {
   it('can never close the script tag it is placed in', () => {
     const text = jsonLdText({ name: '</script><script>alert(1)</script>' });
     expect(text).not.toContain('<');
-    expect(JSON.parse(text).name).toBe('</script><script>alert(1)</script>');
+    expect(z.object({ name: z.string() }).parse(JSON.parse(text)).name).toBe(
+      '</script><script>alert(1)</script>',
+    );
   });
 });

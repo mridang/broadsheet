@@ -39,15 +39,14 @@ const item = (n: number, over: Partial<ScrapedItem> = {}): ScrapedItem => ({
 });
 
 /** An env whose model answers with `response`, or throws when it is an Error. */
-const envWith = (response: unknown) =>
-  ({
-    AI: {
-      run: jest.fn(async () => {
-        if (response instanceof Error) throw response;
-        return { response };
-      }),
-    },
-  }) as unknown as CloudflareEnv;
+const modelRun = (response: unknown) =>
+  jest.fn(async () => {
+    if (response instanceof Error) throw response;
+    return { response };
+  });
+
+const envWith = (response: unknown, run = modelRun(response)) =>
+  ({ AI: { run } }) as unknown as CloudflareEnv;
 
 let db: Database;
 let repo: Repository;
@@ -222,9 +221,10 @@ describe('publishIssue', () => {
 
   it('asks the model nothing when the reader turned the note off', async () => {
     await repo.updatePreferences(uid, { briefing_enabled: false });
-    const env = envWith('Note.');
+    const run = modelRun('Note.');
+    const env = envWith('Note.', run);
     await publishIssue(db, env, uid, DAY);
-    expect(env.AI.run).not.toHaveBeenCalled();
+    expect(run).not.toHaveBeenCalled();
     expect(await storedIssue(repo, uid, DAY)).toMatchObject({
       briefing: null,
       briefing_stories: [],
@@ -233,9 +233,10 @@ describe('publishIssue', () => {
 
   it('stores no note when too few stories qualify', async () => {
     await repo.writeEdition(sourceId, DAY, [item(1), item(2)]);
-    const env = envWith('Note.');
+    const run = modelRun('Note.');
+    const env = envWith('Note.', run);
     await publishIssue(db, env, uid, DAY);
-    expect(env.AI.run).not.toHaveBeenCalled();
+    expect(run).not.toHaveBeenCalled();
   });
 
   it('covers the reader’s chosen number of stories', async () => {

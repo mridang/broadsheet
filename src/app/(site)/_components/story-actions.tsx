@@ -69,7 +69,7 @@ export function StoryActions({
         aria-label={`${words[score]} like ${target.label}`}
         onClick={() =>
           void train.run(
-            () => trainOn(target.kind, target.value, score),
+            async () => trainOn(target.kind, target.value, score),
             'Could not train.',
           )
         }
@@ -88,7 +88,7 @@ export function StoryActions({
         aria-label={`More from ${source}`}
         onClick={() =>
           void train.run(
-            () => trainOn('source', source, 'like'),
+            async () => trainOn('source', source, 'like'),
             'Could not train.',
           )
         }
@@ -102,7 +102,7 @@ export function StoryActions({
         aria-label={`Less from ${source}`}
         onClick={() =>
           void train.run(
-            () => trainOn('source', source, 'dislike'),
+            async () => trainOn('source', source, 'dislike'),
             'Could not train.',
           )
         }

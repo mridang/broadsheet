@@ -10,7 +10,7 @@
 
 import { and, asc, eq } from 'drizzle-orm';
 
-import { type Database } from '@/domain/db/client';
+import type { Database } from '@/domain/db/client';
 import { rivers } from '@/domain/db/schema';
 import { editionIssueFor } from '@/domain/issues';
 import { storyIds } from '@/domain/render/layout';
@@ -209,7 +209,9 @@ export async function riverStories(
       const allFeeds = await repo.listFeeds(userId);
       const feeds = allFeeds.filter((f) => f.section_id === target.id);
       const lists = await Promise.all(
-        feeds.map((f) => repo.searchArticles(userId, { feed: f.id, limit })),
+        feeds.map(async (f) =>
+          repo.searchArticles(userId, { feed: f.id, limit }),
+        ),
       );
       return lists
         .flat()

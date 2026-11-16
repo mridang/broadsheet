@@ -68,8 +68,9 @@ function field(
   ...keys: readonly string[]
 ): string {
   return (
-    (keys.map((key) => body[key]).find((v) => typeof v === 'string') as
-      string | undefined) ?? ''
+    keys
+      .map((key) => body[key])
+      .find((v): v is string => typeof v === 'string') ?? ''
   );
 }
 

@@ -177,7 +177,7 @@ export function createMessagesCollection(
     { id: number; message: MessageResource } | Response
   >({
     method: 'POST',
-    decode: (request) => readQuestion(request, 'content'),
+    decode: async (request) => readQuestion(request, 'content'),
     handle: async (question, { request, uid }) => {
       const repo = new Repository(getDatabase());
       const id = parseFeedId(parentIdOf(request));

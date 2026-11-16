@@ -58,7 +58,7 @@ beforeEach(async () => {
 
 afterEach(() => restore());
 
-const read = (id: string | number) =>
+const read = async (id: string | number) =>
   POST(
     new Request(`https://app.test/api/users/self/reads/${id}`, {
       method: 'POST',
@@ -104,7 +104,7 @@ describe('POST /api/users/self/reads/:article_id', () => {
   });
 });
 
-const unread = (id: string | number) =>
+const unread = async (id: string | number) =>
   DELETE(
     new Request(`https://app.test/api/users/self/reads/${id}`, {
       method: 'DELETE',
@@ -189,7 +189,7 @@ describe('POST /api/users/self/reads/:article_id with copies', () => {
   });
 });
 
-const time = (id: string | number, body: string) =>
+const time = async (id: string | number, body: string) =>
   PATCH(
     new Request(`https://app.test/api/users/self/reads/${id}`, {
       method: 'PATCH',
@@ -228,9 +228,8 @@ describe('PATCH /api/users/self/reads/:article_id', () => {
     await read(story);
     const res = await time(story, '{"seconds":-1}');
     expect(res.status).toBe(400);
-    expect(((await res.json()) as { errors: string[] }).errors).toEqual([
-      'seconds: must be a whole number from 0.',
-    ]);
+    const { errors } = await res.json<{ errors: string[] }>();
+    expect(errors).toEqual(['seconds: must be a whole number from 0.']);
   });
 
   it('answers 401 when nobody is signed in', async () => {

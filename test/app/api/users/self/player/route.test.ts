@@ -31,7 +31,7 @@ beforeEach(async () => {
 
 afterEach(() => restore());
 
-const call = (method: 'GET' | 'PUT' | 'DELETE', body?: unknown) =>
+const call = async (method: 'GET' | 'PUT' | 'DELETE', body?: unknown) =>
   ({ GET, PUT, DELETE })[method](
     new Request('https://app.test/api/users/self/player', {
       method,
@@ -97,7 +97,8 @@ describe('DELETE /api/users/self/player', () => {
     const removed = await call('DELETE');
     expect(removed.status).toBe(204);
     const player = await call('GET');
-    expect(((await player.json()) as { queue: string[] }).queue).toEqual([]);
+    const { queue } = await player.json<{ queue: string[] }>();
+    expect(queue).toEqual([]);
   });
 
   it('answers 404 when there was no player', async () => {

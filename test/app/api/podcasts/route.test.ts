@@ -49,7 +49,7 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
-const search = (query: string) =>
+const search = async (query: string) =>
   GET(new Request(`https://app.test/api/podcasts${query}`, { headers: auth }));
 
 describe('GET /api/podcasts', () => {
@@ -64,7 +64,10 @@ describe('GET /api/podcasts', () => {
     expect(await res.json()).toMatchObject({
       items: [{ name: 'Pod', feed_url: 'https://p/f' }],
     });
-    expect(String(spy.mock.calls[0]?.[0])).toBe(
+    const [requested] = spy.mock.calls[0] ?? [];
+    expect(
+      requested instanceof Request ? requested.url : String(requested),
+    ).toBe(
       'https://itunes.apple.com/search?term=rust&media=podcast&entity=podcast&limit=3',
     );
   });

@@ -282,9 +282,11 @@ describe('complete', () => {
   });
 
   it('answers with the model’s text, trimmed', async () => {
-    const ai = model({ response: ' An answer. ' });
-    await expect(complete(ai, [])).resolves.toBe('An answer.');
-    expect(ai.run).toHaveBeenCalledWith(ANSWER_MODEL, { messages: [] });
+    const run = jest.fn<AnswerModel['run']>(async () => ({
+      response: ' An answer. ',
+    }));
+    await expect(complete({ run }, [])).resolves.toBe('An answer.');
+    expect(run).toHaveBeenCalledWith(ANSWER_MODEL, { messages: [] });
   });
 
   it('is unavailable with no model bound', async () => {

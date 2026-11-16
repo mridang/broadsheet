@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
 
 import { GoogleOAuthClient, SIGN_IN_SCOPES } from '@/lib/google';
+import { z } from 'zod';
 
 const REPORTS_GOOGLE_S_ANSWER_WHEN_PATTERN = /invalid_grant/;
 const REFUSES_A_TOKEN_EXCHANGE_PATTERN = /clientSecret is required/;
@@ -86,9 +87,11 @@ describe('exchangeCode', () => {
       expect(result.value).toEqual(tokens);
     }
     const [url, init] = fetchSpy.mock.calls[0] ?? [];
-    expect(String(url)).toBe('https://oauth2.googleapis.com/token');
+    expect(url instanceof Request ? url.url : String(url)).toBe(
+      'https://oauth2.googleapis.com/token',
+    );
     expect(init?.method).toBe('POST');
-    const form = new URLSearchParams(String(init?.body));
+    const form = z.instanceof(URLSearchParams).parse(init?.body);
     expect(Object.fromEntries(form)).toEqual({
       code: 'the-code',
       client_id: 'client-id',
@@ -123,7 +126,9 @@ describe('refreshAccessToken', () => {
     if (result.ok) {
       expect(result.value).toEqual({ access_token: 'fresh', expires_in: 3600 });
     }
-    const form = new URLSearchParams(String(fetchSpy.mock.calls[0]?.[1]?.body));
+    const form = z
+      .instanceof(URLSearchParams)
+      .parse(fetchSpy.mock.calls[0]?.[1]?.body);
     expect(Object.fromEntries(form)).toEqual({
       refresh_token: 'rt',
       client_id: 'client-id',
@@ -203,9 +208,11 @@ describe('revoke', () => {
     const result = await client.revoke({ token: 'the-token' });
     expect(result.ok).toBe(true);
     const [url, init] = fetchSpy.mock.calls[0] ?? [];
-    expect(String(url)).toBe('https://oauth2.googleapis.com/revoke');
+    expect(url instanceof Request ? url.url : String(url)).toBe(
+      'https://oauth2.googleapis.com/revoke',
+    );
     expect(init?.method).toBe('POST');
-    expect(new URLSearchParams(String(init?.body)).get('token')).toBe(
+    expect(z.instanceof(URLSearchParams).parse(init?.body).get('token')).toBe(
       'the-token',
     );
   });

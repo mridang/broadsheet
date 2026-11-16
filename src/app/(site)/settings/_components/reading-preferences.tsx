@@ -36,7 +36,7 @@ export function ReadingPreferences({
   const [days, setDays] = useState(String(autoMarkReadDays));
   const [onScroll, setOnScroll] = useState(markReadOnScroll);
   const action = useApiAction();
-  const save = (change: Record<string, unknown>) =>
+  const save = async (change: Record<string, unknown>) =>
     action.run(async () => {
       await ensureOk(
         await fetch('/api/users/self/preferences', {

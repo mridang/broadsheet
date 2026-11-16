@@ -33,11 +33,11 @@ export async function POST(request: Request) {
   const db = getDatabase();
   const now = Math.floor(Date.now() / 1000);
   const result = await handleRegistration(
-    () => readBodyText(request, MAX_REGISTRATION_BYTES),
+    async () => readBodyText(request, MAX_REGISTRATION_BYTES),
     clientAddress(request.headers),
     {
       rateLimits: new D1RateLimitStore(db.$client),
-      save: (client) => saveClient(db, client),
+      save: async (client) => saveClient(db, client),
       now,
     },
   );

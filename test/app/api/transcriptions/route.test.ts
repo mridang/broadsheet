@@ -54,7 +54,7 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
-const send = (body: BodyInit | null, type = 'audio/webm', headers = {}) =>
+const send = async (body: BodyInit | null, type = 'audio/webm', headers = {}) =>
   POST(
     new Request('https://app.test/api/transcriptions', {
       method: 'POST',

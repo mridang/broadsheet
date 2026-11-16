@@ -121,15 +121,6 @@ export async function scorePrompts(
   return asked;
 }
 
-/** Records a prompt's answer, unless the model gave none. */
-function recordAnswer(
-  answers: Map<number, boolean>,
-  storyId: number,
-  matched: boolean | undefined = undefined,
-): void {
-  if (matched !== undefined) answers.set(storyId, matched);
-}
-
 /** Asks the model about one story and keeps its answer; a failure is logged and the story left for next time. */
 async function askAndRecord(
   env: CloudflareEnv,
@@ -141,7 +132,7 @@ async function askAndRecord(
 ): Promise<void> {
   try {
     const matched = await askPrompt(env.AI, question, story);
-    recordAnswer(answers, story.id, matched);
+    if (matched !== undefined) answers.set(story.id, matched);
     await repo.recordUsage(userId, 'classifier');
   } catch (error) {
     logWarn({

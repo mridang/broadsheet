@@ -22,7 +22,7 @@ import {
 
 const collator = new Intl.Collator();
 
-const addFeed = (d: Database, u: number, url: string, t?: string) =>
+const addFeed = async (d: Database, u: number, url: string, t?: string) =>
   new Repository(d).addFeed(u, url, t);
 
 /** What each refresh does, by feed address. */
@@ -73,7 +73,7 @@ beforeEach(async () => {
 
 afterEach(() => restore());
 
-const refresh = () =>
+const refresh = async () =>
   POST(
     new Request('https://app.test/api/feeds/refreshes', {
       method: 'POST',

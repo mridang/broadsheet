@@ -7,7 +7,7 @@
 
 import { parseSaveInput, saveResource } from '@/domain/api/save-resource';
 import { ToolFailureError } from '@/domain/mcp/tool-failure';
-import { type ToolContext } from '@/domain/mcp/tool-context';
+import type { ToolContext } from '@/domain/mcp/tool-context';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import {
   checked,

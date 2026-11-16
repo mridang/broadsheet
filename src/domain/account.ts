@@ -61,7 +61,7 @@ function warm(feeds: Feed[]): void {
   if (feeds.length === 0) return;
   runInBackground(
     Promise.all(
-      feeds.map((f) =>
+      feeds.map(async (f) =>
         refreshSource(getDatabase(), getEnv(), {
           id: f.source_id,
           url: f.url,

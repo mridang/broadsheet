@@ -57,7 +57,7 @@ beforeEach(async () => {
 
 afterEach(() => restore());
 
-const get = (id: string | number) =>
+const get = async (id: string | number) =>
   GET(
     new Request(`https://app.test/api/editions/self/briefings/${id}`, {
       headers: { ...auth },
@@ -69,7 +69,8 @@ describe('GET /api/editions/self/briefings/:id', () => {
   it('answers 200 with the person’s briefing', async () => {
     const res = await get(mine);
     expect(res.status).toBe(200);
-    expect(((await res.json()) as { summary: string }).summary).toBe('Note.');
+    const { summary } = await res.json<{ summary: string }>();
+    expect(summary).toBe('Note.');
   });
 
   it.each([['someone else’s'], ['abc'], ['999']])(

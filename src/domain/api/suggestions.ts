@@ -59,7 +59,7 @@ export function createSuggestionsCollection(
     context: async (request) => ({ uid: await liveUid(request, resolver) }),
   }).on<null, SourceSuggestion[]>({
     method: 'GET',
-    handle: (_input, { uid }) =>
+    handle: async (_input, { uid }) =>
       new Repository(getDatabase()).suggestSources(uid, MAX_SUGGESTIONS),
     encode: (items) =>
       page(
