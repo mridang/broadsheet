@@ -42,7 +42,7 @@ describe('resource and issuer', () => {
 
 describe('isProtectedResourcePath', () => {
   it('answers for the bare well-known path and for the MCP endpoint path', () => {
-    expect(isProtectedResourcePath()).toBe(true);
+    expect(isProtectedResourcePath(undefined)).toBe(true);
     expect(isProtectedResourcePath([])).toBe(true);
     expect(isProtectedResourcePath(['mcp'])).toBe(true);
   });

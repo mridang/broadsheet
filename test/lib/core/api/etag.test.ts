@@ -2,13 +2,14 @@ import { describe, expect, it } from '@jest/globals';
 
 import { entityTag, ifMatchSatisfied, ifNoneMatchHit } from '@/lib/core/api';
 
-const IS_A_QUOTED_16_HEX_DIGIT_PATTERN = /^"[0-9a-f]{16}"$/u;
+/** Matches quoted hex etag. */
+const QUOTED_HEX_ETAG = /^"[0-9a-f]{16}"$/u;
 
 describe('entityTag', () => {
   it('is a quoted 16-hex-digit tag that changes with the content', async () => {
     const a = await entityTag('one');
     const b = await entityTag('two');
-    expect(a).toMatch(IS_A_QUOTED_16_HEX_DIGIT_PATTERN);
+    expect(a).toMatch(QUOTED_HEX_ETAG);
     expect(a).not.toBe(b);
     expect(await entityTag('one')).toBe(a);
   });

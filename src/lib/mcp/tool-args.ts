@@ -14,7 +14,7 @@ const DEFAULT_LIMIT = 12;
 const MAX_LIMIT = 50;
 
 /** A string argument, trimmed; empty when absent or not a string. */
-export function stringArg(value?: unknown): string {
+export function stringArg(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
 
@@ -22,7 +22,7 @@ export function stringArg(value?: unknown): string {
  * An argument given as one string or a list of them, as a list. Numbers count
  * as strings, commas split ("a, b" is two values), and blanks are dropped.
  */
-export function stringListArg(value?: unknown): readonly string[] {
+export function stringListArg(value: unknown): readonly string[] {
   const list = Array.isArray(value)
     ? value
     : [value].filter((item) => item !== undefined);
@@ -41,7 +41,7 @@ export function numberArg(value: unknown): number | undefined {
 }
 
 /** The result limit asked for, whole and kept within 1 to 50 (12 when not given). */
-export function limitArg(value?: unknown): number {
+export function limitArg(value: unknown): number {
   const n = numberArg(value);
   return Math.min(
     Math.max(n === undefined ? DEFAULT_LIMIT : Math.floor(n), 1),
@@ -50,7 +50,7 @@ export function limitArg(value?: unknown): number {
 }
 
 /** The position to start a page of results from: a whole number, never negative (0 when not given). */
-export function offsetArg(value?: unknown): number {
+export function offsetArg(value: unknown): number {
   const n = numberArg(value);
   return n === undefined ? 0 : Math.max(Math.floor(n), 0);
 }
@@ -101,6 +101,13 @@ export function canonicalArguments(
  * `String()` (so `5` is "5"). Unlike {@link stringArg} it does not trim.
  */
 export function textArg(value: unknown): string {
-  // eslint-disable-next-line @typescript-eslint/no-base-to-string -- the documented contract of textArg is to spell any value out with String()
-  return String(value ?? '');
+  if (
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean' ||
+    typeof value === 'bigint'
+  ) {
+    return String(value);
+  }
+  return '';
 }

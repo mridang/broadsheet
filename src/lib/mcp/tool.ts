@@ -151,12 +151,10 @@ export abstract class McpTool<
    * it does not act on as one to warn about.
    */
   get inputSchema(): JsonSchema {
-    const schema = z.toJSONSchema(this.input, { io: 'input' }) as Record<
-      string,
-      unknown
-    >;
     return Object.fromEntries(
-      Object.entries(schema).filter(([key]) => key !== '$schema'),
+      Object.entries(z.toJSONSchema(this.input, { io: 'input' })).filter(
+        ([key]) => key !== '$schema',
+      ),
     );
   }
 

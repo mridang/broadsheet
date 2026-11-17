@@ -84,14 +84,14 @@ describe('POST /csp/reports', () => {
   });
 
   it('answers 400 to text that is not JSON', async () => {
-    const reply = await send('{nope');
-    expect(reply.status).toBe(400);
+    const response = await send('{nope');
+    expect(response.status).toBe(400);
     expect(logged).toEqual([]);
   });
 
   it('answers 413 to a body over 16 KiB, without logging it', async () => {
-    const reply = await send('x'.repeat(20_000));
-    expect(reply.status).toBe(413);
+    const response = await send('x'.repeat(20_000));
+    expect(response.status).toBe(413);
     expect(logged).toEqual([]);
   });
 });

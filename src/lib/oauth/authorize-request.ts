@@ -15,8 +15,8 @@ import {
   isAcceptableRedirectUri,
   redirectUriMatches,
 } from '@/lib/oauth/redirect-uri';
-import { SCOPE_READ } from '@/domain/mcp/app';
 import { normaliseScope } from '@/lib/oauth/scopes';
+import { SCOPE_READ } from '@/domain/mcp/app';
 import { logSecurityEvent } from '@/lib/oauth/security-log';
 import { SITE_NAME } from '@/utils/site';
 import { withQueryParams } from '@/utils/query';
@@ -105,7 +105,7 @@ export function authorizeParamsFrom(form: FormFields): AuthorizeParams {
  */
 export function grantedScope(
   requested: readonly Scope[],
-  choice?: string | null,
+  choice: string | null | undefined,
 ): readonly Scope[] {
   return choice === 'read' ? [SCOPE_READ] : requested;
 }

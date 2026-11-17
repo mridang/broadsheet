@@ -5,7 +5,7 @@
  * type-checked, because the app it forwards to is generated at build time) so
  * that it can be checked and tested:
  *
- * 1. a caller over a rate limit is refused at once (`edge-limits.ts`), before
+ *  1. a caller over a rate limit is refused at once (`edge-limits.ts`), before
  *     anything is looked up, so a page that is cached still counts;
  *  2. a kept page may come from the edge copy (`edge-cache.ts`), with a fresh
  *     Content Security Policy nonce of its own;
@@ -19,8 +19,13 @@
  */
 
 import { setErrorContext } from '../observability/context';
-// eslint-disable-next-line unicorn/no-keyword-prefix -- newNonce is an exported name of the module's public surface, so it is not renamed
-import { buildCsp, cspSurfaceFor, forwardedHeaders, newNonce } from './csp';
+import {
+  buildCsp,
+  cspSurfaceFor,
+  forwardedHeaders,
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- `newNonce` is the name ./csp exports, and an import must not be renamed
+  newNonce,
+} from './csp';
 import {
   edgeCache,
   edgeCacheKey,
@@ -76,6 +81,12 @@ interface Timing {
   readonly edge: 'hit' | 'miss' | 'skip';
   /** Milliseconds the app took, when it was asked. */
   readonly appMs?: number;
+}
+
+/** The answer to a request, and what happened on the way to it. */
+interface Answered {
+  readonly response: Response;
+  readonly timing: Timing;
 }
 
 /** Milliseconds as `Server-Timing` wants them: a number with at most one decimal. */
@@ -142,7 +153,7 @@ async function answer(
     pages = EDGE_CACHED_PAGES,
     queryParams = CACHED_QUERY_PARAMS,
   }: ServeDeps,
-): Promise<{ response: Response; timing: Timing }> {
+): Promise<Answered> {
   const refused = await edgeLimitRefusal(request, env, limits);
   if (refused) {
     return {

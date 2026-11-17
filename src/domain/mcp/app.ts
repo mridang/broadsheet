@@ -29,6 +29,8 @@ export const SCOPE_TEXT = {
  */
 export const READ_ONLY_TEXT = 'read your paper and your archive';
 
+/** The name of the protected resource, in its RFC 9728 metadata. */
+
 /** The scopes this app offers. */
 export const SUPPORTED_SCOPES = [SCOPE_READ, SCOPE_WRITE] as const;
 
@@ -42,3 +44,5 @@ export const SUPPORTED_SCOPES = [SCOPE_READ, SCOPE_WRITE] as const;
 export function explainFailure(_error: unknown): string | undefined {
   return undefined;
 }
+
+export { BRAND_NAME as RESOURCE_NAME } from '@/app/_brand';

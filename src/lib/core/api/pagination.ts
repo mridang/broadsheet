@@ -15,8 +15,6 @@
 
 import { problems } from './problem';
 
-const BYTES_TO_BASE64_URL_PATTERN = /\u003D{1,2}$/u;
-
 /** The default page size when the client asks for none. */
 export const DEFAULT_LIMIT = 20;
 
@@ -56,7 +54,7 @@ export function decodeCursor(cursor: string): CursorPosition | undefined {
 }
 
 /** The validated `limit` query parameter, or the 400 to send for a bad one. */
-// eslint-disable-next-line sonarjs/function-return-type -- parseLimit's public contract is number | Response (callers and tests branch on it); splitting it changes the exported signature
+// eslint-disable-next-line sonarjs/function-return-type -- callers return the Response as the 400 or use the number; a discriminated result would change the exported return type
 export function parseLimit(
   raw: string | null,
   fallback: number = DEFAULT_LIMIT,
@@ -97,9 +95,8 @@ export function sliceAfter<T>(
     : sorted;
   const items = rest.slice(0, limit);
   const last = items.at(-1);
-  return rest.length > limit && last
-    ? { items, next: positionOf(last) }
-    : { items };
+  const next = rest.length > limit && last ? positionOf(last) : undefined;
+  return { items, next };
 }
 
 /** Base64url-encode bytes (RFC 4648 §5: `+/` → `-_`, no padding). */
@@ -110,7 +107,7 @@ function bytesToBase64Url(bytes: Uint8Array): string {
   return btoa(binary)
     .replaceAll('+', '-')
     .replaceAll('/', '_')
-    .replace(BYTES_TO_BASE64_URL_PATTERN, '');
+    .replaceAll('=', '');
 }
 
 /** Decode base64url bytes, the inverse of {@link bytesToBase64Url}. */

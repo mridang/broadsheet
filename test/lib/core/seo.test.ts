@@ -1,6 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { z } from 'zod';
 import { jsonLdText, landingJsonLd } from '@/lib/core/seo';
 import {
   SITE_APPLICATION_CATEGORY,
@@ -48,7 +47,7 @@ describe('jsonLdText', () => {
   it('can never close the script tag it is placed in', () => {
     const text = jsonLdText({ name: '</script><script>alert(1)</script>' });
     expect(text).not.toContain('<');
-    expect(z.object({ name: z.string() }).parse(JSON.parse(text)).name).toBe(
+    expect((JSON.parse(text) as { name: string }).name).toBe(
       '</script><script>alert(1)</script>',
     );
   });

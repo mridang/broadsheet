@@ -35,7 +35,8 @@ import { clientSubject } from './client-address';
 import { CSP_REPORT_PATH } from './reporting';
 import { DISCOVERY_PATHS, STATIC_PREFIXES } from './site';
 
-const COUNTER_KEY_PATTERN = /^Bearer\s+(\S+)$/iu;
+/** An `Authorization: Bearer <token>` header, capturing the token. */
+const BEARER_HEADER = /^Bearer\s+(\S+)$/iu;
 
 /** One Workers Rate Limiting binding: `limit` says whether `key` may go ahead. */
 export interface RateLimitBinding {
@@ -192,9 +193,7 @@ export async function counterKey(
       : `a:${clientSubject(headers)}`;
   }
   if (counted === 'token') {
-    const token = COUNTER_KEY_PATTERN.exec(
-      headers.get('authorization') ?? '',
-    )?.[1];
+    const token = BEARER_HEADER.exec(headers.get('authorization') ?? '')?.[1];
     return token
       ? `t:${await digestKey(token)}`
       : `a:${clientSubject(headers)}`;
@@ -293,11 +292,14 @@ export function tooManyRequests(
         },
       );
     }
-    default: {
+    case 'text': {
       return new Response(`${TOO_MANY}\n`, {
         status: 429,
         headers: { ...common, 'Content-Type': 'text/plain; charset=utf-8' },
       });
+    }
+    default: {
+      return style satisfies never;
     }
   }
 }

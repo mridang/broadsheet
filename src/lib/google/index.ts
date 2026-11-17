@@ -3,22 +3,23 @@
  *
  * Public surface of the lib/google vendor group: the Google OAuth client package.
  */
+export { GoogleOAuthClient, SIGN_IN_SCOPES } from './auth';
+export type { GoogleOAuthCredentials } from './auth';
+export type {
+  ExchangeCodeRequest,
+  TokenResponse,
+  RefreshTokenRequest,
+  AccessTokenResponse,
+  GoogleUserResponse,
+  RevokeTokenRequest,
+  RevokeTokenResponse,
+} from './auth';
 export {
-  type AccessTokenResponse,
-  AccessTokenResponseSchema,
-  type ExchangeCodeRequest,
   ExchangeCodeRequestSchema,
-  GoogleOAuthClient,
-  type GoogleOAuthCredentials,
-  type GoogleUserResponse,
-  GoogleUserResponseSchema,
-  type RefreshTokenRequest,
-  RefreshTokenRequestSchema,
-  type RevokeTokenRequest,
-  RevokeTokenRequestSchema,
-  type RevokeTokenResponse,
-  RevokeTokenResponseSchema,
-  SIGN_IN_SCOPES,
-  type TokenResponse,
   TokenResponseSchema,
+  RefreshTokenRequestSchema,
+  AccessTokenResponseSchema,
+  GoogleUserResponseSchema,
+  RevokeTokenRequestSchema,
+  RevokeTokenResponseSchema,
 } from './auth';

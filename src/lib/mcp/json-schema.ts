@@ -1,7 +1,5 @@
 import { countOf } from '@/lib/intl';
 
-const CODE_POINT_PATTERN = /./gsu;
-
 /**
  * @packageDocumentation
  *
@@ -119,9 +117,10 @@ function hasType(type: JsonType, value: unknown): boolean {
     case 'object': {
       return isJsonObject(value);
     }
-    default: {
+    case 'null': {
       return value === null;
     }
+    // no default
   }
 }
 
@@ -146,9 +145,10 @@ function typeWords(type: JsonType): string {
     case 'object': {
       return 'an object';
     }
-    default: {
+    case 'null': {
       return 'null';
     }
+    // no default
   }
 }
 
@@ -183,20 +183,17 @@ function actualWords(value: unknown): string {
 /** Where in the arguments a value sits: `[]` is the arguments themselves. */
 type Path = readonly (string | number)[];
 
+/** Splits a name into the characters a person sees. */
+const GRAPHEMES = new Intl.Segmenter('en', { granularity: 'grapheme' });
+
 /** The longest a property name is quoted in a message; a hostile key can be a megabyte long. */
 const NAME_QUOTE_LIMIT = 40;
 
-/** Cuts text at grapheme boundaries. */
-const SEGMENTER = new Intl.Segmenter();
-
 /** A property name as it is quoted in a message, cut short when it is absurdly long. */
 function quotedKey(key: string): string {
-  return key.length > NAME_QUOTE_LIMIT
-    ? `${Iterator.from(SEGMENTER.segment(key))
-        .take(NAME_QUOTE_LIMIT)
-        .map(({ segment }) => segment)
-        .toArray()
-        .join('')}…`
+  const letters = Array.from(GRAPHEMES.segment(key), ({ segment }) => segment);
+  return letters.length > NAME_QUOTE_LIMIT
+    ? `${letters.slice(0, NAME_QUOTE_LIMIT).join('')}…`
     : key;
 }
 
@@ -231,7 +228,7 @@ function stringProblems(
   subject: string,
 ): readonly string[] {
   // JSON Schema counts characters as code points, not UTF-16 units.
-  const length = (value.match(CODE_POINT_PATTERN) ?? []).length;
+  const length = value.match(/./gsu)?.length ?? 0;
   return [
     ...(schema.minLength !== undefined && length < schema.minLength
       ? [`${subject} must be at least ${characters(schema.minLength)} long.`]
@@ -435,7 +432,7 @@ export function validateJson(
  * unchecked, so a test requires this to be empty for every tool.
  * @param schema - A schema (anything that is not an object has no keywords).
  */
-export function unsupportedKeywords(schema?: unknown): readonly string[] {
+export function unsupportedKeywords(schema: unknown): readonly string[] {
   if (!isJsonObject(schema)) {
     return [];
   }

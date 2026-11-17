@@ -8,6 +8,9 @@
  * `btoa`/`atob` are globals in both.
  */
 
+/** One or two `=` padding characters at the end of base64 text. */
+const BASE64_PADDING = /={1,2}$/u;
+
 /** Encode raw bytes as standard (padded) base64. */
 export function bytesToBase64(bytes: Uint8Array): string {
   // btoa wants a "binary string": one character per byte.
@@ -24,7 +27,7 @@ export function bytesToBase64Url(bytes: Uint8Array): string {
   return bytesToBase64(bytes)
     .replaceAll('+', '-')
     .replaceAll('/', '_')
-    .replaceAll('=', '');
+    .replace(BASE64_PADDING, '');
 }
 
 /** Decode URL-safe base64, with or without padding, into raw bytes. Throws on malformed input. */

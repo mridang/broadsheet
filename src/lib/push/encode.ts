@@ -19,18 +19,16 @@ export function b64uDecode(input: string): Uint8Array {
 /** Encode a byte buffer as base64url (no `=` padding). @public */
 export function b64uEncode(bytes: Uint8Array): string {
   const s = Array.from(bytes, (byte) => String.fromCodePoint(byte)).join('');
-  return btoa(s).replaceAll('+', '-').replaceAll('/', '_').replaceAll(PAD, '');
+  const [unpadded = ''] = btoa(s)
+    .replaceAll('+', '-')
+    .replaceAll('/', '_')
+    .split('=');
+  return unpadded;
 }
 
 /** Concatenate any number of byte arrays in order. @public */
 export function concatBytes(...parts: readonly Uint8Array[]): Uint8Array {
-  const total = parts.reduce((sum, part) => sum + part.length, 0);
-  const out = new Uint8Array(total);
-  parts.reduce((offset, part) => {
-    out.set(part, offset);
-    return offset + part.length;
-  }, 0);
-  return out;
+  return Uint8Array.from(parts.flatMap((part) => [...part]));
 }
 
 /**

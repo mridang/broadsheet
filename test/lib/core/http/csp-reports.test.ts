@@ -2,7 +2,8 @@ import { describe, expect, it } from '@jest/globals';
 
 import { MAX_REPORTS_PER_REQUEST, summariseReports } from '@/lib/core/http';
 
-const CUTS_EVERY_FIELD_SHORT_PATTERN = /[\r\n]/u;
+/** Matches a line break. */
+const LINE_BREAK = /[\r\n]/u;
 
 /** A Reporting API report. */
 const modern = (body: Record<string, unknown>, type = 'csp-violation') => ({
@@ -110,7 +111,7 @@ describe('summariseReports', () => {
     ]);
     expect(report?.sample).toHaveLength(80);
     expect(report?.directive).toHaveLength(60);
-    expect(report?.blocked).not.toMatch(CUTS_EVERY_FIELD_SHORT_PATTERN);
+    expect(report?.blocked).not.toMatch(LINE_BREAK);
     expect(JSON.stringify(report)).not.toContain(String.raw`\n`);
   });
 

@@ -8,7 +8,8 @@
 
 import { bytesToBase64Url } from '@/utils/base64';
 
-const IS_WELL_FORMED_CHALLENGE_PATTERN = /^[A-Za-z0-9\-_]{43}$/u;
+/** The format of a code challenge: 43 base64url characters. */
+const CHALLENGE_FORMAT = /^[A-Za-z0-9\-_]{43}$/u;
 
 /** The `S256` code challenge for a verifier. */
 export async function s256(verifier: string): Promise<string> {
@@ -35,17 +36,17 @@ export async function verifyPkce(
     return false;
   }
   // Compare every character so timing doesn't reveal how much matched.
-  const diff = Array.from(
+  const mismatches = Array.from(
     { length: computed.length },
-    (_, index) =>
-      // eslint-disable-next-line no-bitwise -- constant-time comparison: XOR of each pair of characters
-      (computed.codePointAt(index) ?? 0) ^ (challenge.codePointAt(index) ?? 0),
-    // eslint-disable-next-line no-bitwise -- constant-time comparison: OR of all the differences
-  ).reduce((all, one) => all | one, 0);
-  return diff === 0;
+    (_, index): number =>
+      (computed.codePointAt(index) ?? 0) === (challenge.codePointAt(index) ?? 0)
+        ? 0
+        : 1,
+  ).reduce((all, one) => all + one, 0);
+  return mismatches === 0;
 }
 
 /** A challenge is a base64url SHA-256: exactly 43 characters. */
 export function isWellFormedChallenge(challenge: string): boolean {
-  return IS_WELL_FORMED_CHALLENGE_PATTERN.test(challenge);
+  return CHALLENGE_FORMAT.test(challenge);
 }

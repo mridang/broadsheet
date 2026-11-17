@@ -7,12 +7,7 @@ const { recordErrorOnSpan, setErrorContext } =
   await import('@/lib/core/observability/context');
 
 beforeEach(() => {
-  for (const key of Object.keys(fake.attributes)) {
-    delete fake.attributes[key];
-  }
-  fake.exceptions.length = 0;
-  fake.active = true;
-  fake.throwing = false;
+  fake.reset();
 });
 
 describe('setErrorContext', () => {
@@ -32,9 +27,10 @@ describe('setErrorContext', () => {
   });
 
   it('drops undefined values and anything that is not a plain value', async () => {
+    // eslint-disable-next-line no-unassigned-vars -- never assigned on purpose: it stands for a key that is present with no value, and writing undefined inline is reported by sonarjs/no-undefined-assignment
+    let unset: string | undefined;
     await setErrorContext({
-      // eslint-disable-next-line sonarjs/no-undefined-assignment -- the test is that an undefined value is dropped
-      gone: undefined,
+      gone: unset,
       nan: Number.NaN,
       object: { a: 1 } as never,
       kept: 'yes',
@@ -48,13 +44,13 @@ describe('setErrorContext', () => {
   });
 
   it('does nothing where there is no active span', async () => {
-    fake.active = false;
+    fake.setActive(false);
     await expect(setErrorContext({ a: 1 })).resolves.toBeUndefined();
     expect(fake.attributes).toEqual({});
   });
 
   it('never throws, even when the span does', async () => {
-    fake.throwing = true;
+    fake.setThrowing(true);
     await expect(setErrorContext({ a: 1 })).resolves.toBeUndefined();
   });
 });
@@ -68,10 +64,10 @@ describe('recordErrorOnSpan', () => {
   });
 
   it('does nothing without an active span and never throws', async () => {
-    fake.active = false;
+    fake.setActive(false);
     await expect(recordErrorOnSpan('A', 'b')).resolves.toBeUndefined();
-    fake.active = true;
-    fake.throwing = true;
+    fake.setActive(true);
+    fake.setThrowing(true);
     await expect(recordErrorOnSpan('A', 'b')).resolves.toBeUndefined();
   });
 });

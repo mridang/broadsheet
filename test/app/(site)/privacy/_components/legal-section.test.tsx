@@ -11,13 +11,12 @@ import {
 } from '@/app/(site)/privacy/_components/legal-section';
 import { cssClassesOf, html } from '../../../../components/render';
 
-const HEADS_THE_PAGE_WITH_PATTERN = /<h1/gu;
-const HEADS_THE_PAGE_WITH_PATTERN_2 = /<h1[^>]*>Privacy Policy<\/h1>/u;
-const IS_A_SECTION_HEADED_PATTERN = /<h2[^>]*>What we store<\/h2>/u;
-const OPENS_ANOTHER_SITE_IN_PATTERN =
-  /<a href="https:\/\/example\.com\/" target="_blank" rel="noopener noreferrer"[^>]*>Example<\/a>/u;
-const LINKS_A_PAGE_OF_PATTERN =
+const HREF_PRIVACY_PRIVACY =
   /<a [^>]*href="\/privacy"[^>]*>privacy policy<\/a>/u;
+const HREF_HTTPS_EXAMPLE =
+  /<a href="https:\/\/example\.com\/" target="_blank" rel="noopener noreferrer"[^>]*>Example<\/a>/u;
+const H2_WHAT_WE = /<h2[^>]*>What we store<\/h2>/u;
+const H1_PRIVACY_POLICY = /<h1[^>]*>Privacy Policy<\/h1>/u;
 
 describe('longDate', () => {
   it('writes an ISO day as day, month name and year', () => {
@@ -38,8 +37,8 @@ describe('LegalPage', () => {
 
   it('heads the page with its eyebrow and its one title', () => {
     expect(out).toContain('Privacy');
-    expect(out.match(HEADS_THE_PAGE_WITH_PATTERN)).toHaveLength(1);
-    expect(out).toMatch(HEADS_THE_PAGE_WITH_PATTERN_2);
+    expect(out.match(/<h1/gu)).toHaveLength(1);
+    expect(out).toMatch(H1_PRIVACY_POLICY);
   });
 
   it('says when the page last changed', () => {
@@ -72,7 +71,7 @@ describe('LegalSection', () => {
       </LegalSection>,
     );
     expect(out).toContain('<section>');
-    expect(out).toMatch(IS_A_SECTION_HEADED_PATTERN);
+    expect(out).toMatch(H2_WHAT_WE);
     expect(out.indexOf('What we store')).toBeLessThan(
       out.indexOf('Your name.'),
     );
@@ -94,12 +93,12 @@ describe('LegalLink', () => {
     const out = html(
       <LegalLink href="https://example.com/">Example</LegalLink>,
     );
-    expect(out).toMatch(OPENS_ANOTHER_SITE_IN_PATTERN);
+    expect(out).toMatch(HREF_HTTPS_EXAMPLE);
   });
 
   it('links a page of this site in the same tab', () => {
     const out = html(<LegalLink href="/privacy">privacy policy</LegalLink>);
-    expect(out).toMatch(LINKS_A_PAGE_OF_PATTERN);
+    expect(out).toMatch(HREF_PRIVACY_PRIVACY);
     expect(out).not.toContain('target="_blank"');
   });
 

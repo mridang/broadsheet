@@ -61,11 +61,14 @@ export async function readJson(
     case 'too-large': {
       return { ok: false, response: tooLarge(maxBytes) };
     }
-    default: {
+    case 'unparseable': {
       return {
         ok: false,
         response: problems.badRequest('The request body is not valid JSON.'),
       };
+    }
+    default: {
+      return body satisfies never;
     }
   }
 }

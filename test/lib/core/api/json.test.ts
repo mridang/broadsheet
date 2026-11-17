@@ -81,8 +81,8 @@ describe('readJson size limit', () => {
   const jsonOf = (bytes: number) => `"${'x'.repeat(bytes - 2)}"`;
 
   it('accepts a body of exactly 256 KiB by default and refuses one byte more with 413', async () => {
-    const accepted = await readJson(post(jsonOf(256 * 1024)));
-    expect(accepted.ok).toBe(true);
+    const atLimit = await readJson(post(jsonOf(256 * 1024)));
+    expect(atLimit.ok).toBe(true);
     const { status, body } = await refusal(
       await readJson(post(jsonOf(256 * 1024 + 1))),
     );
@@ -113,8 +113,8 @@ describe('readJson size limit', () => {
 
   it('takes a larger limit from the route', async () => {
     const body = jsonOf(500_000);
-    const larger = await readJson(post(body), [], 1024 * 1024);
-    expect(larger.ok).toBe(true);
+    const atLimit = await readJson(post(body), [], 1024 * 1024);
+    expect(atLimit.ok).toBe(true);
     const { status, body: problem } = await refusal(
       await readJson(post(body), [], 100 * 1024),
     );
@@ -133,13 +133,12 @@ describe('readJson size limit', () => {
     const bad = new Request('http://localhost/x', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-
-      body: new Uint8Array([0x22, 0xff, 0x22]),
+      body: new Uint8Array([0x22, 255, 0x22]),
     });
-    const notUtf8 = await refusal(await readJson(bad));
-    expect(notUtf8.status).toBe(400);
-    const empty = await refusal(await readJson(post('')));
-    expect(empty.status).toBe(400);
+    const badRefusal = await refusal(await readJson(bad));
+    expect(badRefusal.status).toBe(400);
+    const emptyRefusal = await refusal(await readJson(post('')));
+    expect(emptyRefusal.status).toBe(400);
   });
 });
 

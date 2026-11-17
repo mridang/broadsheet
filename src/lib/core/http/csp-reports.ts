@@ -1,6 +1,3 @@
-const SHORT_PATTERN = /\s+/gu;
-const BLOCKED_OF_PATTERN =
-  /^(?:inline|eval|self|trusted-types-sink|wasm-eval)$/u;
 /**
  * @packageDocumentation
  *
@@ -36,6 +33,9 @@ export interface ReportSummary {
   readonly source: string;
 }
 
+/** The keywords a browser reports for a block, instead of an address. */
+const BLOCKED_KEYWORD = /^(?:inline|eval|self|trusted-types-sink|wasm-eval)$/u;
+
 /** The most reports taken from one request. */
 export const MAX_REPORTS_PER_REQUEST = 20;
 
@@ -59,7 +59,7 @@ function short(value: unknown, limit: number): string {
     const code = char.codePointAt(0) ?? 0;
     return code < 32 || code === 127 ? ' ' : char;
   }).join('');
-  return printable.replaceAll(SHORT_PATTERN, ' ').trim().slice(0, limit);
+  return printable.replaceAll(/\s+/gu, ' ').trim().slice(0, limit);
 }
 
 /** The first of `keys` in `body` that holds text. */
@@ -88,7 +88,7 @@ function pathOf(address: string): string {
  * keywords browsers use (`inline`, `eval`, `self`), or just the origin.
  */
 function blockedOf(address: string): string {
-  if (address === '' || BLOCKED_OF_PATTERN.test(address)) {
+  if (address === '' || BLOCKED_KEYWORD.test(address)) {
     return address;
   }
   try {
@@ -139,29 +139,34 @@ function summarise(
   };
 }
 
+/** The single report a body in the one-report format carries, if it does. */
+function singleReport(
+  body: unknown,
+): readonly (readonly [string, Readonly<Record<string, unknown>>])[] {
+  return isRecord(body) && isRecord(body['csp-report'])
+    ? [['csp-violation', body['csp-report']]]
+    : [];
+}
+
 /**
  * The reports in a request body, whichever format it came in, as summaries,
  * leaving out anything an extension caused and keeping at most
  * {@link MAX_REPORTS_PER_REQUEST}. Anything that is not a report is ignored.
  */
 export function summariseReports(body: unknown): readonly ReportSummary[] {
-  type Entry = readonly [string, Readonly<Record<string, unknown>>];
-  const batch: Entry[] = Array.isArray(body)
-    ? body.flatMap((entry): Entry[] =>
+  const entries: readonly (readonly [
+    string,
+    Readonly<Record<string, unknown>>,
+  ])[] = Array.isArray(body)
+    ? body.flatMap((entry): [string, Readonly<Record<string, unknown>>][] =>
         isRecord(entry) && isRecord(entry['body'])
           ? [[short(entry['type'], 40), entry['body']]]
           : [],
       )
-    : [];
-  // Neither a batch nor a single report gives nothing to summarise.
-  const single: Entry[] =
-    isRecord(body) && isRecord(body['csp-report'])
-      ? [['csp-violation', body['csp-report']]]
-      : [];
-  return (Array.isArray(body) ? batch : single)
+    : singleReport(body);
+  return entries
     .slice(0, MAX_REPORTS_PER_REQUEST)
-    .values()
-    .filter(([, report]) => !fromExtension(report))
-    .map(([type, report]) => summarise(type, report))
-    .toArray();
+    .flatMap(([type, report]) =>
+      fromExtension(report) ? [] : [summarise(type, report)],
+    );
 }

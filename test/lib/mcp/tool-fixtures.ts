@@ -84,7 +84,7 @@ export class FetchTool extends McpTool<'fetch', FixtureContext> {
   override readonly meta = { 'x-widget': 'page' };
 
   override async handle(
-    _args: { readonly url: string },
+    _args: Readonly<Record<string, unknown>>,
     context: FixtureContext,
   ): Promise<ToolResult> {
     context.ran.push(this.name);
@@ -147,7 +147,7 @@ export class DeleteTool extends McpTool<'delete', FixtureContext> {
   }
 
   override async handle(
-    _args: Record<string, never>,
+    _args: Readonly<Record<string, unknown>>,
     context: FixtureContext,
   ): Promise<ToolResult> {
     context.ran.push(this.name);

@@ -13,7 +13,7 @@ describe('ArgumentChecker', () => {
   });
 
   it('treats absent arguments as none, filling in what the tool defaults', () => {
-    expect(checker.check(new CountTool())).toEqual({
+    expect(checker.check(new CountTool(), undefined)).toEqual({
       args: { limit: 0 },
     });
   });
@@ -43,11 +43,12 @@ describe('ArgumentChecker', () => {
     );
   });
 
-  it('throws a malformed request when the arguments are not an object', () => {
-    for (const given of [[1], 'text', 7, null]) {
+  it.each([[1], 'text', 7, null])(
+    'throws a malformed request when the arguments are not an object (%j)',
+    (given) => {
       expect(() => checker.check(new CountTool(), given)).toThrow(
         InvalidToolArgumentsError,
       );
-    }
-  });
+    },
+  );
 });

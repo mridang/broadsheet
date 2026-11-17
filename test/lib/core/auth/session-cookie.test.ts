@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 import { SESSION_COOKIE, sessionClaims } from '@/domain/auth/app';
 import { SessionTokens } from '@/lib/session';
 import { setSessionCookie } from '@/lib/core/auth';
-import type { User } from '@/domain/repository';
+import type { User } from '@/domain/auth/store';
 
 const SECRET = 'test-session-secret-value';
 const user = (overrides: Record<string, unknown> = {}) =>
@@ -66,22 +66,24 @@ describe('setSessionCookie', () => {
 
   it("carries the app's usual extra claims unless told otherwise", async () => {
     const u = user({ recipes_folder_id: 'folder-1' });
-    const plain = await issued(u);
-    expect(plain.payload).toMatchObject(sessionClaims(u));
-    const withClaims = await issued(u, { claims: { custom: 'yes' } });
-    expect(withClaims.payload).toMatchObject({ custom: 'yes', uid: 7 });
-    expect(withClaims.payload).not.toHaveProperty('drive');
+    const { payload } = await issued(u);
+    expect(payload).toMatchObject(sessionClaims(u));
+    const { payload: withClaims } = await issued(u, {
+      claims: { custom: 'yes' },
+    });
+    expect(withClaims).toMatchObject({ custom: 'yes', uid: 7 });
+    expect(withClaims).not.toHaveProperty('drive');
   });
 
   it("stamps the session with the account's epoch, so signing out everywhere can end it", async () => {
-    const stamped = await issued(user({ session_epoch: 4 }));
-    expect(stamped.payload?.ep).toBe(4);
+    const { payload } = await issued(user({ session_epoch: 4 }));
+    expect(payload?.ep).toBe(4);
   });
 
   it('keeps an existing expiry, so correcting a hint never lengthens a session', async () => {
     const soon = Math.floor(Date.now() / 1000) + 3600;
-    const kept = await issued(user(), { exp: soon });
-    expect(kept.payload?.exp).toBe(soon);
+    const { payload } = await issued(user(), { exp: soon });
+    expect(payload?.exp).toBe(soon);
   });
 
   it('starts a full session when no expiry is given', async () => {

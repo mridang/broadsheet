@@ -46,7 +46,8 @@ describe('negotiateLegacyVersion', () => {
 
   it('answers with our newest older version otherwise', () => {
     expect(negotiateLegacyVersion('1999-01-01')).toBe('2025-11-25');
-    expect(negotiateLegacyVersion()).toBe('2025-11-25');
+
+    expect(negotiateLegacyVersion(undefined)).toBe('2025-11-25');
     expect(negotiateLegacyVersion(42)).toBe('2025-11-25');
   });
 
@@ -108,12 +109,13 @@ describe('replyIdOf', () => {
 });
 
 describe('isPlainObject / isNotification', () => {
-  it('tells objects from everything else', () => {
-    expect(isPlainObject({})).toBe(true);
-    for (const value of [null, [], 'x', 1, undefined, true]) {
+  it.each([null, [], 'x', 1, undefined, true])(
+    'tells objects from everything else (%j)',
+    (value) => {
+      expect(isPlainObject({})).toBe(true);
       expect(isPlainObject(value)).toBe(false);
-    }
-  });
+    },
+  );
 
   it('calls a message a notification by its method', () => {
     expect(isNotification({ method: 'notifications/initialized' })).toBe(true);
@@ -543,8 +545,9 @@ describe('checkRequestHeaders — per-request metadata', () => {
   });
   const modernHeaders = headers({ ...good, 'mcp-method': 'tools/list' });
 
-  it('requires the client’s capabilities, as an object', () => {
-    for (const caps of [undefined, null, 'x', [], 5]) {
+  it.each([undefined, null, 'x', [], 5])(
+    'requires the client’s capabilities, as an object (%j)',
+    (caps) => {
       const refusal = checkRequestHeaders(
         modernHeaders,
         withMeta({ [META]: MODERN_VERSION, [CAPS]: caps }),
@@ -552,8 +555,8 @@ describe('checkRequestHeaders — per-request metadata', () => {
       expect(refusal?.status).toBe(400);
       expect(refusal?.body.error.code).toBe(ERROR_INVALID_PARAMS);
       expect(refusal?.body.id).toBe(1);
-    }
-  });
+    },
+  );
 
   it('accepts empty capabilities', () => {
     expect(
@@ -584,8 +587,9 @@ describe('checkRequestHeaders — per-request metadata', () => {
     expect(refusal?.body.id).toBe(8);
   });
 
-  it('refuses an older version named per request, which only exists after initialize', () => {
-    for (const version of ['2025-11-25', '2024-11-05']) {
+  it.each(['2025-11-25', '2024-11-05'])(
+    'refuses an older version named per request, which only exists after initialize (%j)',
+    (version) => {
       const refusal = checkRequestHeaders(
         headers({ 'mcp-protocol-version': version }),
         withMeta({ [META]: version, [CAPS]: {} }),
@@ -597,8 +601,8 @@ describe('checkRequestHeaders — per-request metadata', () => {
         supported: SUPPORTED_VERSIONS,
         requested: version,
       });
-    }
-  });
+    },
+  );
 
   it('asks nothing more of a notification', () => {
     expect(
@@ -636,31 +640,27 @@ describe('isAllowedOrigin', () => {
     expect(isAllowedOrigin(self, self)).toBe(true);
   });
 
-  it('lets through the assistants’ web apps and local tools', () => {
-    for (const origin of [
-      'https://claude.ai',
-      'https://www.claude.ai',
-      'https://chatgpt.com',
-      'https://chat.openai.com',
-      'http://localhost:6274',
-      'http://127.0.0.1:3000',
-    ]) {
-      expect(isAllowedOrigin(origin, self)).toBe(true);
-    }
+  it.each([
+    'https://claude.ai',
+    'https://www.claude.ai',
+    'https://chatgpt.com',
+    'https://chat.openai.com',
+    'http://localhost:6274',
+    'http://127.0.0.1:3000',
+  ])('lets through the assistants’ web apps and local tools (%j)', (origin) => {
+    expect(isAllowedOrigin(origin, self)).toBe(true);
   });
 
-  it('turns away everything else, including look-alikes', () => {
-    for (const origin of [
-      'https://evil.example',
-      'https://claude.ai.evil.example',
-      'https://notclaude.ai',
-      urls.claudeAi,
-      'https://claude.ai/path',
-      'null',
-      'not a url',
-    ]) {
-      expect(isAllowedOrigin(origin, self)).toBe(false);
-    }
+  it.each([
+    'https://evil.example',
+    'https://claude.ai.evil.example',
+    'https://notclaude.ai',
+    urls.claudeAi,
+    'https://claude.ai/path',
+    'null',
+    'not a url',
+  ])('turns away everything else, including look-alikes (%j)', (origin) => {
+    expect(isAllowedOrigin(origin, self)).toBe(false);
   });
 
   it('can be extended from the environment', () => {
@@ -729,7 +729,7 @@ describe('parseAllowedOrigins', () => {
   });
 
   it('is empty when there is no setting', () => {
-    expect(parseAllowedOrigins()).toEqual([]);
+    expect(parseAllowedOrigins(undefined)).toEqual([]);
     expect(parseAllowedOrigins('')).toEqual([]);
   });
 });

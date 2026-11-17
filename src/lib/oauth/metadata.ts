@@ -13,8 +13,7 @@
  * both documents describe the same origin.
  */
 
-import { BRAND_NAME } from '@/app/_brand';
-import { SUPPORTED_SCOPES } from '@/domain/mcp/app';
+import { RESOURCE_NAME, SUPPORTED_SCOPES } from '@/domain/mcp/app';
 import { ASSERTION_ALGORITHMS } from '@/lib/oauth/client';
 import { SCOPE_OFFLINE_ACCESS } from '@/lib/oauth/scopes';
 import { parseUrl } from '@/utils/url';
@@ -68,7 +67,9 @@ export function isOurResource(value: string, origin: string): boolean {
  * `resource` must match the URL it was derived from, so any other path has no
  * document. `segments` is the optional catch-all route parameter.
  */
-export function isProtectedResourcePath(segments?: readonly string[]): boolean {
+export function isProtectedResourcePath(
+  segments: readonly string[] | undefined,
+): boolean {
   const path = (segments ?? []).join('/');
   return path === '' || `/${path}` === MCP_PATH;
 }
@@ -91,7 +92,7 @@ export function protectedResourceMetadata(
     authorization_servers: [issuerOf(origin)],
     scopes_supported: SUPPORTED_SCOPES,
     bearer_methods_supported: ['header'],
-    resource_name: BRAND_NAME,
+    resource_name: RESOURCE_NAME,
   };
 }
 

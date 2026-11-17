@@ -8,31 +8,35 @@
  * lives with the components, not in the server `lib/core/api` package.
  */
 
-import { z } from 'zod';
+/** The string at `key` in a parsed JSON object, if there is one. */
+function stringMember(body: unknown, key: string): string | undefined {
+  const value: unknown =
+    typeof body === 'object' && body !== null
+      ? new Map(Object.entries(body)).get(key)
+      : undefined;
+  return typeof value === 'string' ? value : undefined;
+}
 
-/** The parts of an API problem body the person is shown; anything else is ignored. */
-const PROBLEM_BODY = z.object({
-  detail: z
-    .string()
-    .optional()
-    .catch(() => undefined),
-  title: z
-    .string()
-    .optional()
-    .catch(() => undefined),
-  errors: z.array(z.unknown()).catch(() => []),
-});
+/** The strings in the array at `key` in a parsed JSON object (none if it isn't an array). */
+function stringListMember(body: unknown, key: string): readonly string[] {
+  const value: unknown =
+    typeof body === 'object' && body !== null
+      ? new Map(Object.entries(body)).get(key)
+      : undefined;
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string')
+    : [];
+}
 
 /** The readable message from a failed API response. */
 export async function problemMessage(res: Response): Promise<string> {
   try {
     const body: unknown = await res.json();
-    const problem = PROBLEM_BODY.safeParse(body).data;
     const main =
-      problem?.detail ?? problem?.title ?? `Request failed (${res.status}).`;
-    const errors = (problem?.errors ?? []).filter(
-      (item): item is string => typeof item === 'string',
-    );
+      stringMember(body, 'detail') ??
+      stringMember(body, 'title') ??
+      `Request failed (${res.status}).`;
+    const errors = stringListMember(body, 'errors');
     return errors.length > 0 ? `${main} ${errors.join(' ')}` : main;
   } catch {
     return `Request failed (${res.status}).`;

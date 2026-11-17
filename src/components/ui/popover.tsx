@@ -75,9 +75,7 @@ type Placement = Readonly<{ top: number; right: number }>;
  * hides itself, and the `popover` attribute does nothing.
  * @param panel - Any element; the API is looked for on it.
  */
-export function supportsPopover(
-  panel: Element | Readonly<Record<string, unknown>>,
-): boolean {
+export function supportsPopover(panel: Partial<HTMLElement>): boolean {
   return 'popover' in panel;
 }
 

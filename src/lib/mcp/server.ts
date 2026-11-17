@@ -45,7 +45,11 @@ export interface JsonRpcErrorBody {
 
 /** A JSON-RPC reply: a result, or an error. */
 export type JsonRpcResponse =
-  | { readonly jsonrpc: '2.0'; readonly id: ReplyId; readonly result: object }
+  | {
+      readonly jsonrpc: '2.0';
+      readonly id: ReplyId;
+      readonly result: object;
+    }
   | {
       readonly jsonrpc: '2.0';
       readonly id: ReplyId;
@@ -53,8 +57,10 @@ export type JsonRpcResponse =
     };
 
 /** A successful reply. */
-// eslint-disable-next-line tslop/no-object-parameters -- a result is any JSON object, and the public method type says so
-function succeeded(id: ReplyId, result: object): JsonRpcResponse {
+function succeeded<Result extends object>(
+  id: ReplyId,
+  result: Result,
+): JsonRpcResponse {
   return { jsonrpc: '2.0', id, result };
 }
 
@@ -82,15 +88,14 @@ export interface CacheHint {
 }
 
 /** One method the server answers. */
-export interface McpMethod<Ctx> {
+export interface McpMethod<Ctx, Result extends object = object> {
   /** Produce the result, or throw an {@link RpcError} to refuse the request. */
   readonly handle: (
     params: Readonly<Record<string, unknown>> | undefined,
     ctx: Ctx,
-  ) => object | Promise<object>;
+  ) => Result | Promise<Result>;
   /** Caching hints for the result (fixed, or chosen from the result). */
-  // eslint-disable-next-line tslop/no-object-parameters -- a result is any JSON object, and the public method type says so
-  readonly cache?: CacheHint | ((result: object) => CacheHint);
+  readonly cache?: CacheHint | ((result: Result) => CacheHint);
   /** The method belongs to the newest revision only (and so always gets its result fields). */
   readonly modernOnly?: true;
   /** The newest revision removed the method; the older revisions still use it. */
@@ -125,8 +130,9 @@ export class McpServer<Ctx> {
   }
 
   /** The `_meta` of a result, when it has one. */
-  // eslint-disable-next-line tslop/no-object-parameters -- a result is any JSON object, and the public method type says so
-  #metaOf(result: object): Readonly<Record<string, unknown>> {
+  #metaOf<Result extends object>(
+    result: Result,
+  ): Readonly<Record<string, unknown>> {
     return '_meta' in result && isPlainObject(result._meta) ? result._meta : {};
   }
 
@@ -136,8 +142,10 @@ export class McpServer<Ctx> {
    * (merged into any `_meta` the result already has). Older revisions get the
    * result as it is.
    */
-  // eslint-disable-next-line tslop/no-object-parameters -- a result is any JSON object, and the public method type says so
-  #forModernClient(result: object, method: McpMethod<Ctx>) {
+  #forModernClient<Result extends object>(
+    result: Result,
+    method: McpMethod<Ctx>,
+  ) {
     return {
       ...result,
       ...(typeof method.cache === 'function'
