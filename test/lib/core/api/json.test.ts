@@ -92,7 +92,10 @@ describe('readJson size limit', () => {
 
   it('answers 413 as a problem document', async () => {
     const result = await readJson(post(jsonOf(300_000)));
-    const response = (result as { response: Response }).response;
+    if (result.ok) {
+      throw new Error('the body was accepted');
+    }
+    const { response } = result;
     expect(response.status).toBe(413);
     expect(response.headers.get('content-type')).toBe(
       'application/problem+json',

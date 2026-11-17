@@ -11,6 +11,7 @@
  * database, so the browser can import the questions.
  */
 
+import { isObject } from '@/lib/core/api/json';
 import type { Article, Message, Passage } from '@/domain/repository';
 
 /** The model a question about one article is answered by. */
@@ -31,6 +32,10 @@ export const ANSWER_MODELS = {
 
 /** A model a reader may pick for Ask AI. */
 export type AnswerModelName = keyof typeof ANSWER_MODELS;
+
+/** Whether a value names one of the models a reader may pick. */
+export const isAnswerModelName = (value: unknown): value is AnswerModelName =>
+  typeof value === 'string' && Object.hasOwn(ANSWER_MODELS, value);
 
 /** The model that thinks before it answers, for Ask AI's `thinking`. */
 export const THINKING_MODEL = '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b';
@@ -265,7 +270,7 @@ function parseHistory(value: unknown, errors: string[]): ChatMessage[] {
     return [];
   }
   return value.flatMap((turn: unknown, index) => {
-    const t = (turn ?? {}) as Record<string, unknown>;
+    const t = isObject(turn) ? turn : {};
     const extraKey = Object.keys(t).some(
       (k) => k !== 'role' && k !== 'content',
     );
@@ -301,7 +306,8 @@ export function parseAnswerRequest(
     'thinking',
   ]);
   const model = body['model'] ?? 'fast';
-  if (typeof model !== 'string' || !(model in ANSWER_MODELS)) {
+  const chosenModel = isAnswerModelName(model) ? model : undefined;
+  if (chosenModel === undefined) {
     // eslint-disable-next-line functional/immutable-data -- each validator adds its messages to the caller's list of errors, in order
     errors.push(`model: one of ${Object.keys(ANSWER_MODELS).join(', ')}.`);
   }
@@ -336,14 +342,14 @@ export function parseAnswerRequest(
     ? { kind: 'preset', preset }
     : custom;
   const history = parseHistory(body['history'], errors);
-  return errors.length > 0 || !question
+  return errors.length > 0 || !question || chosenModel === undefined
     ? { ok: false, errors }
     : {
         ok: true,
         value: {
           question,
           history,
-          model: model as AnswerModelName,
+          model: chosenModel,
           thinking: thinking === true,
         },
       };
@@ -495,11 +501,8 @@ async function ask(
     throw new AnswerUnavailableError('No model is bound.');
   }
   try {
-    return (await model.run(name, input)) as {
-      response?: unknown;
-      tool_calls?: unknown;
-      text?: unknown;
-    } | null;
+    const out: unknown = await model.run(name, input);
+    return isObject(out) ? out : null;
   } catch (error) {
     throw new AnswerUnavailableError(
       error instanceof Error ? error.message : String(error),
@@ -553,13 +556,17 @@ export async function* streamAnswer(
         error instanceof Error ? error.message : String(error),
       );
     });
-  if (!(out instanceof ReadableStream)) {
-    const text = replyText(out as { response?: unknown } | null);
+  if (!isByteStream(out)) {
+    const text = replyText(isObject(out) ? out : null);
     yield text;
     return;
   }
-  yield* modelStreamText(out as ReadableStream<Uint8Array>);
+  yield* modelStreamText(out);
 }
+
+/** Whether a model's answer is the byte stream it sends when asked to stream. */
+const isByteStream = (value: unknown): value is ReadableStream<Uint8Array> =>
+  value instanceof ReadableStream;
 
 /**
  * The text pieces of a Workers AI event stream: each `data:` line holds
@@ -601,7 +608,8 @@ function pieceOfLine(line: string): string | undefined {
     return undefined;
   }
   try {
-    const piece = (JSON.parse(data) as { response?: unknown }).response;
+    const parsed: unknown = JSON.parse(data);
+    const piece = isObject(parsed) ? parsed['response'] : undefined;
     return typeof piece === 'string' ? piece : undefined;
   } catch {
     // A line that is not JSON carries no text.
@@ -638,8 +646,9 @@ export function toolCallsOf(
 ): ToolCall[] {
   const calls = Array.isArray(out?.tool_calls) ? out.tool_calls : [];
   return calls.flatMap((call: unknown) => {
-    const c = (call ?? {}) as Record<string, unknown>;
-    const fn = (c['function'] ?? c) as Record<string, unknown>;
+    const c = isObject(call) ? call : {};
+    const candidate = c['function'] ?? c;
+    const fn = isObject(candidate) ? candidate : {};
     if (typeof fn['name'] !== 'string') {
       return [];
     }
@@ -657,10 +666,7 @@ export function toolCallsOf(
     return [
       {
         name: fn['name'],
-        arguments:
-          args && typeof args === 'object' && !Array.isArray(args)
-            ? (args as Record<string, unknown>)
-            : {},
+        arguments: isObject(args) ? args : {},
       },
     ];
   });

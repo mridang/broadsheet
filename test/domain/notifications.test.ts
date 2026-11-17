@@ -274,13 +274,13 @@ describe('the plans of the notification queries', () => {
   it.each([
     [
       'undeliveredStories',
-      async (repo: NotificationRepository) =>
-        repo.undeliveredStories(1, 1, '2026-10-02'),
+      async (notifications: NotificationRepository) =>
+        notifications.undeliveredStories(1, 1, '2026-10-02'),
     ],
     [
       'undeliveredFollowedStories',
-      async (repo: NotificationRepository) =>
-        repo.undeliveredFollowedStories(1, '2026-10-02'),
+      async (notifications: NotificationRepository) =>
+        notifications.undeliveredFollowedStories(1, '2026-10-02'),
     ],
   ])(
     'probes the deliveries of one story at a time in %s, not the whole list',

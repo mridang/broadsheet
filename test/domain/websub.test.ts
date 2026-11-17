@@ -81,7 +81,8 @@ describe('subscribeToHub', () => {
       .mockResolvedValue(new Response(null, { status: 202 }));
     expect(await subscribeToHub(db, sourceId, LINKS)).toBe(true);
     const [url, init] = fetch.mock.calls[0]!;
-    const form = init?.body as URLSearchParams;
+    const body = init?.body;
+    const form = body instanceof URLSearchParams ? body : new URLSearchParams();
     const stored = await source();
     expect(url).toBe(LINKS.hub);
     expect(Object.fromEntries(form)).toMatchObject({

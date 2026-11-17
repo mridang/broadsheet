@@ -14,7 +14,8 @@ const STORY = 'article[data-article-id] > a[data-story-link]';
 export function ReadTracker(): null {
   useEffect(() => {
     function onOpen(event: MouseEvent) {
-      const link = (event.target as Element | null)?.closest?.(STORY);
+      const link =
+        event.target instanceof Element ? event.target.closest(STORY) : null;
       const card = link?.parentElement;
       const id = Number(card?.dataset['articleId']);
       if (!card || !id) {

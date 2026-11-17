@@ -2,19 +2,19 @@ import { describe, expect, it } from '@jest/globals';
 
 import { BriefBlock } from '@/app/(site)/_components/brief-block';
 import { html } from '../../../components/render';
-import type { Article } from '@/domain/repository';
+import { fixtureArticle } from '../../../domain/fixtures';
 
 describe('BriefBlock', () => {
   it('lists each story with its source, and prints each address', () => {
     const out = html(
       <BriefBlock
         items={[
-          {
+          fixtureArticle({
             id: 1,
             url: 'https://b.test/x',
             title: 'Short one',
             source: null,
-          } as unknown as Article,
+          }),
         ]}
       />,
     );

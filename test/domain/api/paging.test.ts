@@ -25,7 +25,7 @@ describe('pageRequest', () => {
     } catch (error) {
       thrown = error;
     }
-    expect((thrown as Response).status).toBe(400);
+    expect(thrown instanceof Response && thrown.status).toBe(400);
   });
 });
 

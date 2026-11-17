@@ -100,11 +100,12 @@ export function parseEditionInput(
         typeof id === 'string' ? parseFeedId(id) : undefined,
       )
     : [];
+  const known = ids.every((id) => id !== undefined) ? ids : undefined;
   const sectionsBad =
     sections !== undefined &&
     (!Array.isArray(sections) ||
       sections.length > MAX_SECTIONS ||
-      ids.includes(undefined));
+      known === undefined);
   const query = optionalText('query', body['query'], MAX_QUERY_LENGTH);
   const tag = optionalText('tag', body['tag'], MAX_TAG_LENGTH);
   const errors: string[] = [
@@ -122,8 +123,8 @@ export function parseEditionInput(
   ];
   const changes: EditionChanges = {
     ...(name !== undefined && !nameBad && !nameLong ? { name: nameText } : {}),
-    ...(sections !== undefined && !sectionsBad
-      ? { section_ids: [...new Set(ids as number[])] }
+    ...(sections !== undefined && !sectionsBad && known !== undefined
+      ? { section_ids: [...new Set(known)] }
       : {}),
     ...(query.value === undefined ? {} : { query: query.value }),
     ...(tag.value === undefined ? {} : { tag: tag.value }),

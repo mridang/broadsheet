@@ -1,3 +1,5 @@
+import { isObject } from '@/lib/core/api';
+
 const LARGEST_PATTERN = /\bany\b/iu;
 const PAGE_ICONS_PATTERN = /<link\b[^>]*>/giu;
 const PAGE_ICONS_PATTERN_2 = /\s+/u;
@@ -85,16 +87,16 @@ export function manifestUrl(html: string, base: string): string | undefined {
 /** The icons a web app manifest lists, largest first. */
 export function manifestIcons(json: string, base: string): string[] {
   try {
-    const parsed = JSON.parse(json) as { icons?: unknown };
-    if (!Array.isArray(parsed.icons)) {
+    const parsed: unknown = JSON.parse(json);
+    if (!isObject(parsed) || !Array.isArray(parsed['icons'])) {
       return [];
     }
-    return parsed.icons
+    return parsed['icons']
       .flatMap((icon: unknown): Declared[] => {
-        if (typeof icon !== 'object' || icon === null) {
+        if (!isObject(icon)) {
           return [];
         }
-        const { src, sizes } = icon as { src?: unknown; sizes?: unknown };
+        const { src, sizes } = icon;
         const href = typeof src === 'string' ? absolute(src, base) : undefined;
         return href
           ? [{ href, size: largest(typeof sizes === 'string' ? sizes : '') }]

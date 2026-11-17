@@ -24,6 +24,7 @@ import {
 import { verifyIntent } from '@/domain/websub';
 import { APP_MIGRATIONS } from '../../lib/core/db/migrations';
 import { sqliteD1 } from '../../lib/core/db/sqlite-d1';
+import { fixtureEnv } from '../fixtures';
 import type { Database } from '@/domain/db/client';
 
 const collator = new Intl.Collator();
@@ -37,7 +38,7 @@ const PAGE = `<html><body><article><p>${TEXT}</p></article></body></html>`;
 
 let db: Database;
 let sourceId: number;
-const env = {} as CloudflareEnv;
+const env = fixtureEnv({});
 
 /** Every request made, with the headers it sent. */
 const requests: { url: string; headers: Record<string, string> }[] = [];
@@ -55,14 +56,14 @@ function serve(
   jest.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     requests.push({
       url: input instanceof Request ? input.url : String(input),
-      headers: (init?.headers ?? {}) as Record<string, string>,
+      headers: Object.fromEntries(new Headers(init?.headers)),
     });
     const page = pages[input instanceof Request ? input.url : String(input)];
     if (page === undefined) {
       throw new Error('offline');
     }
     return typeof page === 'function'
-      ? page((init?.headers ?? {}) as Record<string, string>)
+      ? page(Object.fromEntries(new Headers(init?.headers)))
       : new Response(page);
   });
 }

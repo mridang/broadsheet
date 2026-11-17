@@ -35,7 +35,7 @@ export interface BroadcastResult {
 /** Sends to subscriptions and keeps the store honest about which still exist. @public */
 export class PushNotifier {
   public constructor(
-    private readonly sender: WebPushSender,
+    private readonly sender: Pick<WebPushSender, 'send'>,
     private readonly store: PushSubscriptionStore,
   ) {}
 

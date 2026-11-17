@@ -13,7 +13,7 @@ import {
   oauthCodes,
   oauthTokens,
 } from '@/domain/db/schema';
-import type { SQLInputValue } from 'node:sqlite';
+import { sqlValues } from './sqlite-d1';
 import type { Database } from '@/domain/db/client';
 
 /** The method Drizzle asks the driver to run a statement with. */
@@ -54,7 +54,7 @@ export function sqliteDatabase(
   }
   const exec = (sql: string, params: readonly unknown[], method: Method) => {
     const statement = raw.prepare(sql);
-    const values = params as SQLInputValue[];
+    const values = sqlValues(params);
     if (method === 'run') {
       const outcome = statement.run(...values);
       return { rows: [], meta: { changes: Number(outcome.changes) } };
@@ -63,6 +63,7 @@ export function sqliteDatabase(
     const rows = statement.all(...values);
     // For `get`, Drizzle wants the one row (itself an array), not a list.
     return {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- Drizzle's proxy driver types `rows` as a list of rows but reads one row (itself an array) for `get`, so the single row is handed over under the list type
       rows: (method === 'get' ? rows[0] : rows) as unknown as unknown[],
     };
   };
@@ -81,5 +82,6 @@ export function sqliteDatabase(
     },
     { schema },
   );
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- the client is typed as the app's `Database` (a Drizzle D1 client) although its driver is the SQLite proxy above, as the interface says
   return { db: client as unknown as Database, raw };
 }

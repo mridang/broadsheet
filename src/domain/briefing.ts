@@ -19,7 +19,9 @@
  * beyond the budget, and the site-wide sections (most read, long reads, good
  * reads, most shared) add {@link PER_GLOBAL} each, outside the budget.
  */
+import { isMember } from '@/domain/members';
 import { coverageBoost, hostOf, weight } from '@/domain/render/tiers';
+import { isObject } from '@/lib/core/api/json';
 import { logWarn } from '@/utils/logging';
 import type { Article, Preferences } from '@/domain/repository';
 
@@ -29,13 +31,13 @@ const WORD_COUNT_PATTERN = /\s+/u;
 export const BRIEFING_MODEL = '@cf/meta/llama-3.1-8b-instruct-fast';
 
 /** The Workers AI models a reader may choose to write their note. */
-export const BRIEFING_MODELS: readonly string[] = [
+export const BRIEFING_MODELS = [
   BRIEFING_MODEL,
   '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
   '@cf/meta/llama-4-scout-17b-16e-instruct',
   '@cf/mistralai/mistral-small-3.1-24b-instruct',
   '@cf/google/gemma-3-12b-it',
-];
+] as const;
 
 /** Fewest stories worth a note; fewer and none is written. */
 export const MIN_BRIEFED = 3;
@@ -250,8 +252,10 @@ export function sectionOn(
   if (key === 'top_stories') {
     return true;
   }
-  const custom = CUSTOM_SECTIONS.indexOf(key as CustomSection);
-  if (custom !== -1 && !prefs.briefing_prompts[custom]?.trim()) {
+  if (
+    isMember(CUSTOM_SECTIONS, key) &&
+    !prefs.briefing_prompts[CUSTOM_SECTIONS.indexOf(key)]?.trim()
+  ) {
     return false;
   }
   return prefs.briefing_sections[key] !== false;
@@ -262,7 +266,7 @@ export function sectionOrder(
   prefs: Pick<Preferences, 'briefing_section_order'>,
 ): Category[] {
   const chosen = (prefs.briefing_section_order ?? []).filter(
-    (k): k is Category => CATEGORIES.includes(k as Category),
+    (k): k is Category => isMember(CATEGORIES, k),
   );
   return [...new Set(chosen).union(new Set(DEFAULT_SECTION_ORDER))];
 }
@@ -407,12 +411,14 @@ export function selectStories(
     picks: Choice[];
   }>(
     (acc, key) => {
-      const isCustom = (CUSTOM_SECTIONS as readonly string[]).includes(key);
-      const isGlobal = (GLOBAL_SECTIONS as readonly string[]).includes(key);
-      if (!sectionOn(key, prefs) || (!isCustom && !isGlobal)) {
+      if (
+        !sectionOn(key, prefs) ||
+        (!isMember(CUSTOM_SECTIONS, key) && !isMember(GLOBAL_SECTIONS, key))
+      ) {
         return acc;
       }
-      const pick = (extra.get(key as CustomSection | GlobalSection) ?? [])
+      const isCustom = isMember(CUSTOM_SECTIONS, key);
+      const pick = (extra.get(key) ?? [])
         .filter(
           (c) =>
             !acc.taken.has(c.article.id) &&
@@ -457,14 +463,13 @@ function sectionLine(
   key: Category,
   prompts: readonly string[],
 ): readonly [string, string] {
-  const custom = CUSTOM_SECTIONS.indexOf(key as CustomSection);
-  if (custom !== -1) {
+  if (isMember(CUSTOM_SECTIONS, key)) {
     return [
-      `A heading you write from these keywords: ${prompts[custom] ?? ''}`,
+      `A heading you write from these keywords: ${prompts[CUSTOM_SECTIONS.indexOf(key)] ?? ''}`,
       'Stories found by the reader’s own keywords. Use only stories whose CATEGORY is this section.',
     ];
   }
-  return SECTIONS[key as PersonalSection | GlobalSection];
+  return SECTIONS[key];
 }
 
 /** What the model is told: the editor's job, the sections, length and style. */
@@ -526,7 +531,7 @@ export function maxTokens(picks: readonly Choice[]): number {
 
 /** The model a note is written with: the reader's, if it is one we offer. */
 export function modelFor(choice: string | null | undefined): string {
-  return choice && BRIEFING_MODELS.includes(choice) ? choice : BRIEFING_MODEL;
+  return isMember(BRIEFING_MODELS, choice) ? choice : BRIEFING_MODEL;
 }
 
 /** Wait `ms` milliseconds. */
@@ -570,20 +575,19 @@ export async function composeBriefing(
   // eslint-disable-next-line functional/no-loop-statements, functional/no-let -- each attempt awaits the model and then the backoff before the next, so the tries must run one after another
   for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
     try {
-      const out = await env.AI.run(model as typeof BRIEFING_MODEL, {
+      const out = await env.AI.run(model, {
         messages: [
           { role: 'system', content: systemPrompt(picks, prefs) },
           { role: 'user', content: userPrompt(picks, date) },
         ],
         max_tokens: maxTokens(picks),
       });
-      const { response, usage } = out as {
-        response?: unknown;
-        usage?: { total_tokens?: unknown };
-      };
+      const { response, usage } = out;
       const note = typeof response === 'string' ? response.trim() : '';
       const tokens =
-        typeof usage?.total_tokens === 'number' ? usage.total_tokens : null;
+        isObject(usage) && typeof usage['total_tokens'] === 'number'
+          ? usage['total_tokens']
+          : null;
       return done(note ? note.slice(0, MAX_BRIEFING) : null, tokens);
     } catch (error) {
       logWarn({
@@ -627,11 +631,10 @@ export function parseBriefedStories(stored: string | null): BriefedStory[] {
     const parsed: unknown = JSON.parse(stored);
     return Array.isArray(parsed)
       ? parsed.filter(
-          (s): s is BriefedStory =>
-            typeof s === 'object' &&
-            s !== null &&
-            Number.isInteger((s as BriefedStory).id) &&
-            CATEGORIES.includes((s as BriefedStory).category),
+          (s: unknown): s is BriefedStory =>
+            isObject(s) &&
+            Number.isInteger(s['id']) &&
+            isMember(CATEGORIES, s['category']),
         )
       : [];
   } catch {

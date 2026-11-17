@@ -12,6 +12,7 @@
 
 import { ToolFailureError } from '@/domain/mcp/tool-failure';
 import { checked } from '@/domain/mcp/tools/support';
+import { isObject } from '@/lib/core/api';
 import { McpTool, dataResult, errorResult } from '@/lib/mcp';
 import type { JsonContent, ToolResult } from '@/lib/mcp';
 import type { ToolContext } from '@/domain/mcp/tool-context';
@@ -29,7 +30,8 @@ export abstract class JsonTool<
   ): Promise<ToolResult> {
     try {
       const data = await this.runParsed(args, context);
-      return dataResult(JSON.stringify(data), data as JsonContent);
+      const content: JsonContent = isObject(data) ? data : {};
+      return dataResult(JSON.stringify(data), content);
     } catch (error) {
       if (error instanceof ToolFailureError) {
         return errorResult(error.message);

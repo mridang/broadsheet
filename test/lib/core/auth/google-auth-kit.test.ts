@@ -16,11 +16,12 @@ import {
   jar,
 } from '../../../domain/auth/auth-test-kit';
 import { installFakeTracing } from '../observability/fake-tracing';
+import { fixtureUser } from '../../../domain/fixtures';
 import type { User } from '@/domain/repository';
 
 const tracing = installFakeTracing();
 
-const person = { id: 7, email: 'a@b.com' } as User;
+const person = fixtureUser({ id: 7, email: 'a@b.com' });
 const getCurrentUser = jest.fn<() => Promise<User | null>>();
 
 // Mock the specific module and import the kit from its own file: mocking the package barrel would replace GoogleAuthKit too.

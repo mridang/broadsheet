@@ -7,6 +7,7 @@
  */
 
 import { parseFeedId, rfc3339 } from '@/domain/api/feed-resource';
+import { isMember } from '@/domain/members';
 import { MAX_RULE_LENGTH, regexProblem } from '@/domain/rules';
 import {
   NOTIFICATION_CHANNELS,
@@ -54,37 +55,45 @@ export function parseNotificationInput(
   body: Readonly<Record<string, unknown>>,
 ): Checked<NotificationSetting> {
   const { filter = 'unread', channels } = body;
+  const chosen = isMember(NOTIFICATION_FILTERS, filter) ? filter : undefined;
+  const wanted = knownChannels(channels);
   const errors = [
     ...Object.keys(body)
       .filter((key) => key !== 'filter' && key !== 'channels')
       .map((key) => `${key}: not a member of a notification.`),
-    ...((NOTIFICATION_FILTERS as readonly unknown[]).includes(filter)
-      ? []
-      : [`filter: must be one of ${NOTIFICATION_FILTERS.join(', ')}.`]),
-    ...channelErrors(channels),
+    ...(chosen === undefined
+      ? [`filter: must be one of ${NOTIFICATION_FILTERS.join(', ')}.`]
+      : []),
+    ...channelErrors(wanted),
   ];
-  return errors.length > 0
+  return errors.length > 0 || chosen === undefined || wanted === undefined
     ? { ok: false, errors }
     : {
         ok: true,
-        value: {
-          filter: filter as NotificationFilter,
-          channels: [...new Set(channels as NotificationChannel[])],
-        },
+        value: { filter: chosen, channels: [...new Set(wanted)] },
       };
 }
 
-/** Errors for `channels` unless it is a non-empty list of known channels. */
-function channelErrors(channels: unknown): string[] {
+/** The channels asked for when they are a non-empty list of known ones. */
+function knownChannels(channels: unknown): NotificationChannel[] | undefined {
   return Array.isArray(channels) &&
     channels.length > 0 &&
-    channels.every((c) =>
-      (NOTIFICATION_CHANNELS as readonly unknown[]).includes(c),
+    channels.every((c): c is NotificationChannel =>
+      isMember(NOTIFICATION_CHANNELS, c),
     )
-    ? []
-    : [
+    ? channels
+    : undefined;
+}
+
+/** Errors for `channels` unless it was a non-empty list of known channels. */
+function channelErrors(
+  known: readonly NotificationChannel[] | undefined,
+): string[] {
+  return known === undefined
+    ? [
         `channels: must be a non-empty list of ${NOTIFICATION_CHANNELS.join(', ')}.`,
-      ];
+      ]
+    : [];
 }
 
 /** A notification rule as the API shows it. */
@@ -148,12 +157,18 @@ export function parseNotificationRuleInput(
     section_id: sectionId,
     channels,
   } = body;
-  const badValue =
-    typeof value !== 'string' ||
-    !value.trim() ||
-    value.length > MAX_RULE_LENGTH;
+  const phrase =
+    typeof value === 'string' &&
+    value.trim() !== '' &&
+    value.length <= MAX_RULE_LENGTH
+      ? value
+      : undefined;
   const problem =
-    !badValue && isRegex === true ? regexProblem(value) : undefined;
+    phrase !== undefined && isRegex === true ? regexProblem(phrase) : undefined;
+  const chosenKind = isMember(RULE_KINDS, kind) ? kind : undefined;
+  const chosenScope = isMember(RULE_SCOPES, scope) ? scope : undefined;
+  const regexFlag = typeof isRegex === 'boolean' ? isRegex : undefined;
+  const wanted = knownChannels(channels);
   const feed = typeof feedId === 'string' ? parseFeedId(feedId) : undefined;
   const section =
     typeof sectionId === 'string' ? parseFeedId(sectionId) : undefined;
@@ -161,24 +176,22 @@ export function parseNotificationRuleInput(
     ...Object.keys(body)
       .filter((key) => !allowed.has(key))
       .map((key) => `${key}: not a member of a notification rule.`),
-    ...((RULE_KINDS as readonly unknown[]).includes(kind)
-      ? []
-      : [`kind: must be one of ${RULE_KINDS.join(', ')}.`]),
-    ...(typeof isRegex === 'boolean'
-      ? []
-      : ['is_regex: must be true or false.']),
-    ...(isRegex === true && !(REGEX_KINDS as readonly unknown[]).includes(kind)
+    ...(chosenKind === undefined
+      ? [`kind: must be one of ${RULE_KINDS.join(', ')}.`]
+      : []),
+    ...(regexFlag === undefined ? ['is_regex: must be true or false.'] : []),
+    ...(isRegex === true && !isMember(REGEX_KINDS, kind)
       ? [`is_regex: only for ${REGEX_KINDS.join(', ')}.`]
       : []),
-    ...(badValue
+    ...(phrase === undefined
       ? [
           `value: must be non-blank text of at most ${MAX_RULE_LENGTH} characters.`,
         ]
       : []),
     ...(problem ? [`value: ${problem}.`] : []),
-    ...((RULE_SCOPES as readonly unknown[]).includes(scope)
-      ? []
-      : [`scope: must be one of ${RULE_SCOPES.join(', ')}.`]),
+    ...(chosenScope === undefined
+      ? [`scope: must be one of ${RULE_SCOPES.join(', ')}.`]
+      : []),
     ...(scope === 'feed' && feed === undefined
       ? ['feed_id: must name one of your feeds.']
       : []),
@@ -191,20 +204,27 @@ export function parseNotificationRuleInput(
     ...(scope !== 'section' && sectionId !== undefined
       ? ['section_id: only for a section rule.']
       : []),
-    ...channelErrors(channels),
+    ...channelErrors(wanted),
   ];
-  return errors.length > 0
-    ? { ok: false, errors }
-    : {
-        ok: true,
-        value: {
-          kind: kind as RuleKind,
-          value: isRegex ? (value as string) : (value as string).trim(),
-          is_regex: isRegex as boolean,
-          scope: scope as RuleScope,
-          ...(feed === undefined ? {} : { feed_id: feed }),
-          ...(section === undefined ? {} : { section_id: section }),
-          channels: [...new Set(channels as NotificationChannel[])],
-        },
-      };
+  if (errors.length > 0 || chosenKind === undefined || phrase === undefined) {
+    return { ok: false, errors };
+  }
+  if (regexFlag === undefined || chosenScope === undefined) {
+    return { ok: false, errors };
+  }
+  if (wanted === undefined) {
+    return { ok: false, errors };
+  }
+  return {
+    ok: true,
+    value: {
+      kind: chosenKind,
+      value: regexFlag ? phrase : phrase.trim(),
+      is_regex: regexFlag,
+      scope: chosenScope,
+      ...(feed === undefined ? {} : { feed_id: feed }),
+      ...(section === undefined ? {} : { section_id: section }),
+      channels: [...new Set(wanted)],
+    },
+  };
 }

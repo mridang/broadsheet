@@ -87,7 +87,7 @@ export class FeedImportRuns {
     return row
       ? {
           id: row.id,
-          status: row.status as ImportStatus,
+          status: row.status,
           total: row.total,
           processed: row.processed,
           added: row.added,

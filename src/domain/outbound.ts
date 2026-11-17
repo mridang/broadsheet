@@ -7,7 +7,7 @@
  * from {@link Repository} so it grows without touching the reading side.
  */
 
-import { and, desc, eq, getTableColumns, inArray, or } from 'drizzle-orm';
+import { and, desc, eq, inArray, or } from 'drizzle-orm';
 
 import {
   articles,
@@ -18,7 +18,12 @@ import {
   subscriptions,
   webhooks,
 } from '@/domain/db/schema';
-import { notMuted, sectionAndDescendants } from '@/domain/repository';
+import { isMember } from '@/domain/members';
+import {
+  notMuted,
+  sectionAndDescendants,
+  summaryColumns,
+} from '@/domain/repository';
 import type { ArticleSummary } from '@/domain/repository';
 import type { Database } from '@/domain/db/client';
 
@@ -97,7 +102,7 @@ function eventsOf(stored: string): WebhookEvent[] {
     const parsed: unknown = JSON.parse(stored);
     return Array.isArray(parsed)
       ? parsed.filter((event2): event2 is WebhookEvent =>
-          (WEBHOOK_EVENTS as readonly unknown[]).includes(event2),
+          isMember(WEBHOOK_EVENTS, event2),
         )
       : [];
   } catch {
@@ -114,21 +119,10 @@ function webhookOf(row: typeof webhooks.$inferSelect): Webhook {
 function tokenOf(row: typeof feedTokens.$inferSelect): FeedToken {
   return {
     ...row,
-    scope: (FEED_SCOPES as readonly string[]).includes(row.scope)
-      ? (row.scope as FeedScope)
-      : 'saves',
-    filter: (FEED_FILTERS as readonly string[]).includes(row.filter)
-      ? (row.filter as FeedFilter)
-      : 'all',
+    scope: isMember(FEED_SCOPES, row.scope) ? row.scope : 'saves',
+    filter: isMember(FEED_FILTERS, row.filter) ? row.filter : 'all',
   };
 }
-
-/** The article columns a feed needs (no body text). */
-const summaryColumns = Object.fromEntries(
-  Object.entries(getTableColumns(articles)).filter(
-    ([name]) => name !== 'body_text',
-  ),
-) as Omit<ReturnType<typeof getTableColumns<typeof articles>>, 'body_text'>;
 
 /** The most stories one feed or one edition lists. */
 const FEED_LIMIT = 100;

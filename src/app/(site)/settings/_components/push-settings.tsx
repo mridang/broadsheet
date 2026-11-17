@@ -43,12 +43,13 @@ export function PushSettings({
       'serviceWorker' in navigator && 'PushManager' in globalThis;
     void (supported ? environment() : Promise.reject(new Error('unsupported')))
       .then(async (env) => env.pushManager.getSubscription())
-      .then((current) => {
+      .then((current): PushState => {
         const known = subscriptions.find(
           (s) => s.endpoint === current?.endpoint,
         );
-        return setState(known ? { id: String(known.id) } : 'off');
+        return known ? { id: String(known.id) } : 'off';
       })
+      .then(setState)
       .catch(() => setState(supported ? 'off' : 'unsupported'));
   }, [subscriptions]);
 

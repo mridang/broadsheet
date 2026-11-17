@@ -12,7 +12,8 @@ import type { NewSession } from '@/lib/session';
 const REFUSES_WHEN_THERE_IS_PATTERN = /SESSION_SECRET/u;
 
 /** A value that is not there, for fields the test leaves out on purpose. */
-const unset = (): undefined => undefined;
+// eslint-disable-next-line sonarjs/no-undefined-assignment -- a key set to undefined is what these tests send
+const unset = undefined;
 
 const SECRET = 'test-session-secret-value';
 
@@ -46,7 +47,7 @@ describe('session tokens', () => {
           hint: true,
           off: false,
           tag: 'x',
-          gone: unset(),
+          gone: unset,
         },
         SECRET,
       ),

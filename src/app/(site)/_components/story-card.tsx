@@ -259,7 +259,7 @@ export async function StoryCard({
  */
 export function StoryMenuItems({
   article,
-  excerpt,
+  excerpt: excerptText,
   source,
   personal,
   shared,
@@ -272,7 +272,7 @@ export function StoryMenuItems({
   shared: boolean;
   feedId?: number;
 }>) {
-  const ex = excerpt;
+  const ex = excerptText;
   return (
     <>
       {article.body_text ? (

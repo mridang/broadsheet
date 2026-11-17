@@ -3,7 +3,7 @@ import { describe, expect, it, jest } from '@jest/globals';
 // eslint-disable-next-line unicorn/no-keyword-prefix -- newSecret is an exported name of the module's public surface, so it is not renamed
 import { ACCESS_PREFIX, REFRESH_PREFIX, newSecret } from '@/lib/oauth';
 import { installFakeTracing } from '../../lib/core/observability/fake-tracing';
-import type { User } from '@/domain/db/users';
+import { fixtureUser } from '../fixtures';
 
 import type { McpAuthDeps } from '@/domain/mcp/auth';
 
@@ -13,7 +13,7 @@ const tracing = installFakeTracing();
 const { authenticateMcpRequest } = await import('@/domain/mcp/auth');
 
 const ORIGIN = 'https://app.test';
-const user = { id: 7 } as User;
+const user = fixtureUser({ id: 7 });
 /** A token shaped like the ones we issue, so it gets as far as the database. */
 const GOOD = newSecret(ACCESS_PREFIX);
 const BAD = newSecret(ACCESS_PREFIX);

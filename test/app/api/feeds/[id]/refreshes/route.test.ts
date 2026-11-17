@@ -24,8 +24,8 @@ import type { Database } from '@/domain/db/client';
 /** What the next refresh does: the source it is for, and how it went. */
 let works = true;
 const refreshSource = jest.fn(
-  async (db: unknown, _env: unknown, source: { id: number }) => {
-    const repo = new Repository(db as Database);
+  async (db: Database, _env: unknown, source: { id: number }) => {
+    const repo = new Repository(db);
     await repo.recordFetch(source.id, works ? undefined : 'HTTP 404');
     return { ok: works, n: 0 };
   },

@@ -6,12 +6,11 @@ import { callTool } from '@/domain/mcp/tool-calls';
 import { Repository } from '@/domain/repository';
 import { APP_MIGRATIONS } from '../../../lib/core/db/migrations';
 import { sqliteD1 } from '../../../lib/core/db/sqlite-d1';
-import type { JsonTool } from '@/domain/mcp/tools/json-tool';
+import { fixtureUser } from '../../fixtures';
 
 import type { Database } from '@/domain/db/client';
 import type { ToolContext } from '@/domain/mcp/tool-context';
 import type { ToolServices } from '@/domain/mcp/tool-services';
-import type { User } from '@/domain/db/users';
 import type { AnswerModel } from '@/domain/assistant';
 import type { ScrapedItem } from '@/lib/scraping';
 
@@ -21,7 +20,7 @@ let refresh: jest.Mock<ToolServices['refresh']>;
 
 /** The context of a call by this person, with this model bound when there is one. */
 const asCaller = (uid: number, model?: AnswerModel): ToolContext => ({
-  user: { id: uid } as User,
+  user: fixtureUser({ id: uid }),
   services: { openDatabase: () => db, refresh, ...(model && { model }) },
 });
 
@@ -73,11 +72,10 @@ async function seed(): Promise<{ feedId: number; articleId: number }> {
 }
 
 /** Every tool, as the zod-backed class it is, so a test can read its schema. */
-const ZOD_TOOLS = TOOL_REGISTRY.all as readonly JsonTool<string>[];
+const ZOD_TOOLS = TOOL_REGISTRY.all;
 
 /** The tool with this name, as the zod-backed class it is. */
-const zodTool = (name: string): JsonTool<string> =>
-  ZOD_TOOLS.find((tool) => tool.name === name)!;
+const zodTool = (name: string) => ZOD_TOOLS.find((tool) => tool.name === name)!;
 
 describe('get_trending', () => {
   it('ranks stories by how many read them, from two readers', async () => {

@@ -7,6 +7,7 @@ import {
   jest,
 } from '@jest/globals';
 
+import { NextResponse } from 'next/server';
 import { GET } from '@/app/auth/login/route';
 import { RETURN_COOKIE, STATE_COOKIE } from '@/domain/auth/app';
 import {
@@ -14,15 +15,20 @@ import {
   appRequest,
   installEnv,
 } from '../../../domain/auth/auth-test-kit';
-import type { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
 /** Matches the sign-in state prefix. */
 const SIGNIN_STATE_PREFIX = /^signin\./u;
 
 // The redirect path answers a NextResponse (it sets cookies); the 503 path
 // answers a plain problem Response. Only the redirect cases read cookies.
-const redirect = async (request: NextRequest): Promise<NextResponse> =>
-  (await GET(request)) as NextResponse;
+const redirect = async (request: NextRequest): Promise<NextResponse> => {
+  const response = await GET(request);
+  if (!(response instanceof NextResponse)) {
+    throw new TypeError('the redirect path answers a NextResponse');
+  }
+  return response;
+};
 
 let restore: () => void;
 

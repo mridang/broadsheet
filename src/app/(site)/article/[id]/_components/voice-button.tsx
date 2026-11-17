@@ -83,7 +83,7 @@ export function VoiceButton({
       <button
         type="button"
         className={buttonClass({ variant: 'outline' })}
-        disabled={disabled || busy}
+        disabled={(disabled ?? false) || busy}
         aria-pressed={recording}
         onClick={toggle}
       >

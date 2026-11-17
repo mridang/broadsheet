@@ -3,8 +3,8 @@ import { describe, expect, it, jest } from '@jest/globals';
 import { createDatabase } from '@/domain/db/client';
 import { APP_MIGRATIONS } from '../../lib/core/db/migrations';
 import { sqliteD1 } from '../../lib/core/db/sqlite-d1';
+import { fixtureUser } from '../fixtures';
 import type { McpAuth } from '@/domain/mcp/auth';
-import type { User } from '@/domain/db/users';
 import type { RateLimitDeps } from '@/domain/mcp/request-limits';
 import type { RateLimitStore } from '@/lib/rate-limit';
 
@@ -41,7 +41,7 @@ async function respond(request: Request, auth: McpAuth): Promise<Response> {
   return respondToMcp(request, ORIGIN, async () => auth, fakeRate());
 }
 
-const user = { id: 1 } as User;
+const user = fixtureUser({ id: 1 });
 const reader: McpAuth = { kind: 'ok', user, scope: ['read'] };
 const writer: McpAuth = { kind: 'ok', user, scope: ['read', 'write'] };
 

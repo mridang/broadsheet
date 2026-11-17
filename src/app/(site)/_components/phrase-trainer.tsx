@@ -62,7 +62,12 @@ export function PhraseTrainer({
         aria-label="What to match"
         className={SMALL_FIELD}
         value={kind}
-        onChange={(event3) => setKind(event3.target.value as TrainKind)}
+        onChange={(event3) => {
+          const next = KINDS.find(([k]) => k === event3.target.value);
+          if (next) {
+            setKind(next[0]);
+          }
+        }}
       >
         {KINDS.map(([k, label]) => (
           <option key={k} value={k}>

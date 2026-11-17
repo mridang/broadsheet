@@ -2,12 +2,13 @@ import { describe, expect, it } from '@jest/globals';
 
 import { MostRead } from '@/app/(site)/_components/most-read';
 import { html } from '../../../components/render';
+import { fixtureArticle } from '../../../domain/fixtures';
 import type { ArticleSummary } from '@/domain/repository';
 
 const LISTS_THE_STORIES_WITH_PATTERN = /<a[^>]*href="\/article\/1">Big<\/a>/u;
 
-const article = (id: number, title: string | null) =>
-  ({ id, url: `https://x/${id}`, title }) as ArticleSummary;
+const article = (id: number, title: string | null): ArticleSummary =>
+  fixtureArticle({ id, url: `https://x/${id}`, title });
 
 describe('MostRead', () => {
   it('prints nothing when nobody read anything', () => {

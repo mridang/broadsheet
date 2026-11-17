@@ -4,20 +4,17 @@ import { NextResponse } from 'next/server';
 import { SESSION_COOKIE, sessionClaims } from '@/domain/auth/app';
 import { SessionTokens } from '@/lib/session';
 import { setSessionCookie } from '@/lib/core/auth';
+import { fixtureUser } from '../../../domain/fixtures';
 import type { User } from '@/domain/auth/store';
 
 const SECRET = 'test-session-secret-value';
-const user = (overrides: Record<string, unknown> = {}) =>
-  ({
+const user = (overrides: Partial<User> = {}): User =>
+  fixtureUser({
     id: 7,
     email: 'a@b.com',
     name: 'Ada Lovelace',
-    picture: null,
-    refresh_token_enc: null,
-    session_epoch: 0,
-    recipes_folder_id: null,
     ...overrides,
-  }) as unknown as User;
+  });
 
 async function issued(
   u: User,
@@ -65,7 +62,7 @@ describe('setSessionCookie', () => {
   });
 
   it("carries the app's usual extra claims unless told otherwise", async () => {
-    const u = user({ recipes_folder_id: 'folder-1' });
+    const u = user({ name: 'Grace Hopper' });
     const { payload } = await issued(u);
     expect(payload).toMatchObject(sessionClaims(u));
     const { payload: withClaims } = await issued(u, {

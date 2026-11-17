@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
+import { fixtureContext, fixtureEnv } from '../../domain/fixtures';
+import { fakeDb } from './db/fake-db';
 import type { DueBriefing } from '@/lib/core/worker-extras';
 import type { WorkflowStep } from 'cloudflare:workers';
 
@@ -242,10 +244,25 @@ const {
 } = await import('@/lib/core/worker-extras');
 const { Repository } = await import('@/domain/repository');
 
+/** The cron trigger that fires at `time`, every five minutes. */
+const tick = (time: string): ScheduledController => ({
+  cron: '*/5 * * * *',
+  scheduledTime: Date.parse(time),
+  noRetry: () => undefined,
+});
+
+/** The cron handler, which the Worker always has. */
+const { scheduled } = extraHandlers;
+if (!scheduled) {
+  throw new TypeError('the Worker has no scheduled handler');
+}
+
 /** A step runner like the Workflows one: names each step and runs it once. */
+// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- the double implements `do`, the one member of the Workflows step the code under test calls, not the whole step
 const step = {
   do: async <Result>(name: string, ...rest: unknown[]): Promise<Result> => {
     calls.push(`step:${name}`);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- like Workflows' `step.do<T>`, the double runs the callback it is given last and hands back what it returned, as the caller names it
     const run = rest.at(-1) as () => Promise<Result>;
     return run();
   },
@@ -421,14 +438,10 @@ describe('scheduled', () => {
     create: (options: unknown) => Promise<{ id: string }>,
     time = '2026-11-01T06:00:00Z',
   ) =>
-    Reflect.apply<undefined, unknown[], Promise<void>>(
-      extraHandlers.scheduled as never,
-      undefined,
-      [
-        { cron: '*/5 * * * *', scheduledTime: Date.parse(time) },
-        { DAILY_SCRAPE: { create } },
-        { waitUntil: () => undefined },
-      ],
+    scheduled(
+      tick(time),
+      fixtureEnv({ DAILY_SCRAPE: { create } }),
+      fixtureContext(),
     );
 
   it('starts the whole daily run at 06:00 UTC', async () => {
@@ -464,17 +477,10 @@ describe('scheduled', () => {
 
 describe('scheduled clean-up', () => {
   const fire = async () =>
-    Reflect.apply<undefined, unknown[], Promise<void>>(
-      extraHandlers.scheduled as never,
-      undefined,
-      [
-        {
-          cron: '*/5 * * * *',
-          scheduledTime: Date.parse('2026-11-08T13:35:00Z'),
-        },
-        { DAILY_SCRAPE: { create: async () => ({ id: 'run' }) } },
-        { waitUntil: () => undefined },
-      ],
+    scheduled(
+      tick('2026-11-08T13:35:00Z'),
+      fixtureEnv({ DAILY_SCRAPE: { create: async () => ({ id: 'run' }) } }),
+      fixtureContext(),
     );
 
   it('deletes expired OAuth codes and tokens and week-old imports', async () => {
@@ -558,17 +564,17 @@ describe('FeedImportRun', () => {
 
 describe('dueBriefings', () => {
   it('lists the slots due for each reader with briefings on', async () => {
-    expect(
-      await dueBriefings(new Repository('db' as never), new Date()),
-    ).toEqual([
-      { user: 7, slot: 'morning', date: '2026-11-01' },
-      { user: 7, slot: 'evening', date: '2026-11-01' },
-    ]);
+    expect(await dueBriefings(new Repository(fakeDb().db), new Date())).toEqual(
+      [
+        { user: 7, slot: 'morning', date: '2026-11-01' },
+        { user: 7, slot: 'evening', date: '2026-11-01' },
+      ],
+    );
   });
 
   it('leaves out a slot already written', async () => {
     written.add('7:morning:2026-11-01');
-    const due = await dueBriefings(new Repository('db' as never), new Date());
+    const due = await dueBriefings(new Repository(fakeDb().db), new Date());
     expect(due.map((d) => d.slot)).toEqual(['evening']);
   });
 });
@@ -636,17 +642,14 @@ describe('scheduled briefings', () => {
     async () => ({ id: 'scrape' }),
   );
   const fire = async (create: (opts: unknown) => Promise<{ id: string }>) =>
-    Reflect.apply<undefined, unknown[], Promise<void>>(
-      extraHandlers.scheduled as never,
-      undefined,
-      [
-        {
-          cron: '*/5 * * * *',
-          scheduledTime: Date.parse('2026-11-01T08:30:00Z'),
-        },
-        { DB: {}, DAILY_SCRAPE: { create: scrape }, BRIEFINGS: { create } },
-        { waitUntil: () => undefined },
-      ],
+    scheduled(
+      tick('2026-11-01T08:30:00Z'),
+      fixtureEnv({
+        DB: {},
+        DAILY_SCRAPE: { create: scrape },
+        BRIEFINGS: { create },
+      }),
+      fixtureContext(),
     );
 
   it('starts a briefing run with what came due, after the scrape', async () => {

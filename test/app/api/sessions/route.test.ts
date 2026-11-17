@@ -15,7 +15,7 @@ import {
   jar,
   tokenFor,
 } from '../../../domain/auth/auth-test-kit';
-import type { User } from '@/domain/repository';
+import { fixtureUser } from '../../../domain/fixtures';
 
 // eslint-disable-next-line tslop/no-module-mocking -- the route reads the request cookies and the user store through these modules, so the test replaces them; injecting them would change the route's public API
 jest.unstable_mockModule('next/headers', () => ({ cookies: fakeCookies }));
@@ -24,11 +24,11 @@ jest.unstable_mockModule('next/headers', () => ({ cookies: fakeCookies }));
 const epochs = new Map<number, number>();
 const getUserById = jest.fn(async (id: number) =>
   epochs.has(id)
-    ? ({
+    ? fixtureUser({
         id,
         email: 'a@b.com',
         session_epoch: epochs.get(id),
-      } as unknown as User)
+      })
     : undefined,
 );
 const bumpSessionEpoch = jest.fn(async (id: number) => {

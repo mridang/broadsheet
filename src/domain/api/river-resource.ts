@@ -7,6 +7,8 @@
  */
 
 import { rfc3339 } from '@/domain/api/feed-resource';
+import { isMember } from '@/domain/members';
+import { isObject } from '@/lib/core/api';
 import { MAX_RIVERS, parseRiverId, RIVER_SIDES } from '@/domain/rivers';
 import type { River, RiverInput, RiverSide } from '@/domain/rivers';
 
@@ -42,6 +44,13 @@ interface CheckedRiver {
   readonly errors: string[];
 }
 
+/** Whether a value is a whole number below {@link MAX_RIVERS}. */
+const isPlace = (value: unknown): value is number =>
+  typeof value === 'number' &&
+  Number.isInteger(value) &&
+  value >= 0 &&
+  value < MAX_RIVERS;
+
 /**
  * Check one river, its errors prefixed with `at`: `river_id` one a river can
  * list (`all`, `saves`, `feed:{id}`, `section:{id}`, `search:{id}`,
@@ -49,42 +58,39 @@ interface CheckedRiver {
  * {@link MAX_RIVERS}. Other members are refused.
  */
 function checkRiver(body: unknown, at: string): CheckedRiver {
-  if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+  if (!isObject(body)) {
     return { errors: [`${at || 'river'}: must be an object.`] };
   }
-  const value = body as Record<string, unknown>;
+  const value = body;
   const { river_id: riverId, side, position } = value;
-  const positionBad =
-    typeof position !== 'number' ||
-    !Number.isInteger(position) ||
-    position < 0 ||
-    position >= MAX_RIVERS;
+  const place = isPlace(position) ? position : undefined;
+  const id =
+    typeof riverId === 'string' && parseRiverId(riverId) ? riverId : undefined;
+  const chosenSide = isMember(RIVER_SIDES, side) ? side : undefined;
   const errors = [
     ...Object.keys(value)
       .filter((key) => !['river_id', 'side', 'position'].includes(key))
       .map((key) => `${at}${key}: not a member of a river.`),
-    ...(typeof riverId !== 'string' || !parseRiverId(riverId)
+    ...(id === undefined
       ? [
           `${at}river_id: must be all, saves, or feed:, section:, search: or edition: and an id.`,
         ]
       : []),
-    ...((RIVER_SIDES as readonly unknown[]).includes(side)
-      ? []
-      : [`${at}side: must be left or right.`]),
-    ...(positionBad
+    ...(chosenSide === undefined ? [`${at}side: must be left or right.`] : []),
+    ...(place === undefined
       ? [`${at}position: must be a whole number from 0 to ${MAX_RIVERS - 1}.`]
       : []),
   ];
-  return errors.length > 0
-    ? { errors }
-    : {
-        river: {
-          river_id: riverId as string,
-          side: side as RiverSide,
-          position: position as number,
-        },
-        errors,
-      };
+  if (errors.length > 0 || id === undefined) {
+    return { errors };
+  }
+  if (chosenSide === undefined || place === undefined) {
+    return { errors };
+  }
+  return {
+    river: { river_id: id, side: chosenSide, position: place },
+    errors,
+  };
 }
 
 /** Check the body that pins one river. */
@@ -127,5 +133,5 @@ export function parseRiverList(
       : errors;
   return withPlaces.length > 0
     ? { ok: false, errors: withPlaces }
-    : { ok: true, value: list as RiverInput[] };
+    : { ok: true, value: checked.flatMap((c) => c.river ?? []) };
 }

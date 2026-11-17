@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { z } from 'zod';
 import { TOOL_REGISTRY } from '@/domain/mcp/tools';
 import { createDatabase } from '@/domain/db/client';
 import { ToolFailureError } from '@/domain/mcp/tool-failure';
@@ -6,14 +7,19 @@ import { callTool } from '@/domain/mcp/tool-calls';
 import { Repository } from '@/domain/repository';
 import { APP_MIGRATIONS } from '../../../lib/core/db/migrations';
 import { sqliteD1 } from '../../../lib/core/db/sqlite-d1';
-import type { JsonTool } from '@/domain/mcp/tools/json-tool';
+import { fixtureUser } from '../../fixtures';
 
 import type { Database } from '@/domain/db/client';
 import type { ToolContext } from '@/domain/mcp/tool-context';
 import type { ToolServices } from '@/domain/mcp/tool-services';
-import type { User } from '@/domain/db/users';
 import type { AnswerModel } from '@/domain/assistant';
 import type { ScrapedItem } from '@/lib/scraping';
+
+/** The stories a search answers with, and where its next page starts. */
+const ARTICLES = z.looseObject({
+  articles: z.array(z.looseObject({ title: z.string() })),
+});
+const PAGE = ARTICLES.extend({ next_before: z.number().optional() });
 
 let db: Database;
 let ctx: ToolContext;
@@ -21,7 +27,7 @@ let refresh: jest.Mock<ToolServices['refresh']>;
 
 /** The context of a call by this person, with this model bound when there is one. */
 const asCaller = (uid: number, model?: AnswerModel): ToolContext => ({
-  user: { id: uid } as User,
+  user: fixtureUser({ id: uid }),
   services: { openDatabase: () => db, refresh, ...(model && { model }) },
 });
 
@@ -73,11 +79,10 @@ async function seed(): Promise<{ feedId: number; articleId: number }> {
 }
 
 /** Every tool, as the zod-backed class it is, so a test can read its schema. */
-const ZOD_TOOLS = TOOL_REGISTRY.all as readonly JsonTool<string>[];
+const ZOD_TOOLS = TOOL_REGISTRY.all;
 
 /** The tool with this name, as the zod-backed class it is. */
-const zodTool = (name: string): JsonTool<string> =>
-  ZOD_TOOLS.find((tool) => tool.name === name)!;
+const zodTool = (name: string) => ZOD_TOOLS.find((tool) => tool.name === name)!;
 
 describe('search_articles', () => {
   it('finds stories by their words', async () => {
@@ -89,9 +94,9 @@ describe('search_articles', () => {
 
   it('pages with next_before', async () => {
     await seed();
-    const first = (await run('search_articles', { query: '', limit: 1 })) as {
-      next_before?: number;
-    };
+    const first = PAGE.parse(
+      await run('search_articles', { query: '', limit: 1 }),
+    );
     expect(first.next_before).toEqual(expect.any(Number));
   });
 
@@ -101,10 +106,12 @@ describe('search_articles', () => {
     await new Repository(db).writeEdition(other.source_id, '2026-11-01', [
       item('https://b.test/1', 'Rust elsewhere'),
     ]);
-    const found = (await run('search_articles', {
-      query: 'Rust',
-      feed_id: feedId,
-    })) as { articles: { title: string }[] };
+    const found = ARTICLES.parse(
+      await run('search_articles', {
+        query: 'Rust',
+        feed_id: feedId,
+      }),
+    );
     expect(found.articles.map((a) => a.title)).toEqual(['Rust ships']);
   });
 
@@ -132,12 +139,12 @@ describe('search_articles by read state', () => {
   ])('keeps only %s stories', async (readFilter, titles) => {
     const { articleId } = await seed();
     await new Repository(db).markRead(1, articleId);
-    const found = (await run('search_articles', {
-      query: '',
-      read_filter: readFilter,
-    })) as {
-      articles: { title: string }[];
-    };
+    const found = ARTICLES.parse(
+      await run('search_articles', {
+        query: '',
+        read_filter: readFilter,
+      }),
+    );
     expect(found.articles.map((a) => a.title)).toEqual(titles);
   });
 });
@@ -154,9 +161,9 @@ describe('search_articles filters', () => {
   }
 
   const titles = async (args: Record<string, unknown>) =>
-    (
-      (await run('search_articles', args)) as { articles: { title: string }[] }
-    ).articles.map((a) => a.title);
+    ARTICLES.parse(await run('search_articles', args)).articles.map(
+      (a) => a.title,
+    );
 
   it('narrows to several feeds', async () => {
     const { feedId } = await seed();
@@ -229,10 +236,12 @@ describe('search_articles filters', () => {
   it('fills a page past filtered stories and says where to continue', async () => {
     const { articleId } = await seed();
     await new Repository(db).markRead(1, articleId + 1);
-    const page = (await run('search_articles', {
-      read_filter: 'unread',
-      limit: 1,
-    })) as { articles: { title: string }[]; next_before?: number };
+    const page = PAGE.parse(
+      await run('search_articles', {
+        read_filter: 'unread',
+        limit: 1,
+      }),
+    );
     expect(page).toEqual({
       articles: [expect.objectContaining({ title: 'Rust ships' })],
     });

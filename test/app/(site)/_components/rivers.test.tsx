@@ -2,7 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 
 import { Rivers } from '@/app/(site)/_components/rivers';
 import { html } from '../../../components/render';
-import type { ArticleSummary } from '@/domain/repository';
+import { fixtureArticle } from '../../../domain/fixtures';
 
 const river = (id: number, side: 'left' | 'right') => ({
   id,
@@ -27,7 +27,7 @@ describe('Rivers', () => {
             river: river(1, 'left'),
             label: 'Rust',
             stories: [
-              { id: 9, url: 'https://x/9', title: 'Nine' } as ArticleSummary,
+              fixtureArticle({ id: 9, url: 'https://x/9', title: 'Nine' }),
             ],
           },
         ]}

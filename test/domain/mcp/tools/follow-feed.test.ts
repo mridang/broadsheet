@@ -7,9 +7,9 @@ import { Repository } from '@/domain/repository';
 import { APP_MIGRATIONS } from '../../../lib/core/db/migrations';
 import { sqliteD1 } from '../../../lib/core/db/sqlite-d1';
 import insecure from '../../../fixtures/insecure-urls.json';
+import { fixtureUser } from '../../fixtures';
 import type { ToolContext } from '@/domain/mcp/tool-context';
 import type { ToolServices } from '@/domain/mcp/tool-services';
-import type { User } from '@/domain/db/users';
 import type { AnswerModel } from '@/domain/assistant';
 import type { Database } from '@/domain/db/client';
 
@@ -19,7 +19,7 @@ let refresh: jest.Mock<ToolServices['refresh']>;
 
 /** The context of a call by this person, with this model bound when there is one. */
 const asCaller = (uid: number, model?: AnswerModel): ToolContext => ({
-  user: { id: uid } as User,
+  user: fixtureUser({ id: uid }),
   services: { openDatabase: () => db, refresh, ...(model && { model }) },
 });
 

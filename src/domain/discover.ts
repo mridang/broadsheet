@@ -1,3 +1,5 @@
+import { isObject } from '@/lib/core/api';
+
 const TITLED_PATTERN = /[-_]+/gu;
 const TITLED_PATTERN_2 = /\b\w/gu;
 const LOOKS_LIKE_FEED_PATTERN =
@@ -272,12 +274,12 @@ function asString(value: unknown): string | undefined {
 
 /** The podcasts in an iTunes Search answer that have a feed. */
 export function podcastsFrom(body: unknown): Podcast[] {
-  const results = (body as { results?: unknown } | null)?.results;
+  const results = isObject(body) ? body['results'] : undefined;
   if (!Array.isArray(results)) {
     return [];
   }
   return results.flatMap((raw: unknown) => {
-    const r = (raw ?? {}) as Record<string, unknown>;
+    const r = isObject(raw) ? raw : {};
     const feed = asString(r['feedUrl']);
     if (!feed) {
       return [];

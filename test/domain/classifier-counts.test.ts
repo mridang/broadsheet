@@ -9,7 +9,7 @@ import { createDatabase } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
 import { APP_MIGRATIONS } from '../lib/core/db/migrations';
 import { sqliteD1 } from '../lib/core/db/sqlite-d1';
-import type { Article } from '@/domain/repository';
+import { fixtureArticle } from './fixtures';
 import type { Training } from '@/domain/render/tiers';
 
 const training: Training[] = [
@@ -41,7 +41,7 @@ describe('countVerdicts', () => {
 
 describe('feedVerdictCounts', () => {
   it('lets a matched AI prompt decide', () => {
-    const story = { id: 3, title: 'Cats', source: null } as Article;
+    const story = fixtureArticle({ id: 3, title: 'Cats', source: null });
     expect(
       feedVerdictCounts(
         [story],

@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
-
-import type { User } from '@/domain/repository';
+import { fixtureUser } from '../fixtures';
 
 const seedDefaults = jest.fn<(userId: number) => Promise<void>>();
 
@@ -16,13 +15,13 @@ beforeEach(() => {
 
 describe('afterSignIn', () => {
   it('gives the person their default feeds', async () => {
-    await afterSignIn({ id: 7 } as User);
+    await afterSignIn(fixtureUser({ id: 7 }));
     expect(seedDefaults).toHaveBeenCalledWith(7);
   });
 
   it('fails the sign-in when the feeds cannot be added', async () => {
     seedDefaults.mockRejectedValue(new Error('boom'));
-    await expect(afterSignIn({ id: 7 } as User)).rejects.toThrow('boom');
+    await expect(afterSignIn(fixtureUser({ id: 7 }))).rejects.toThrow('boom');
   });
 });
 

@@ -19,6 +19,7 @@ export type JsonParseResult<T> =
  */
 export function safeJsonParse<T>(text: string): JsonParseResult<T> {
   try {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- the caller names the shape it expects of the text it chose to parse (`safeJsonParse<T>`), which is the function's public contract and cannot be proven from a string
     return { ok: true, value: JSON.parse(text) as T };
   } catch (error) {
     return {

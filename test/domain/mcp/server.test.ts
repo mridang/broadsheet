@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from '@jest/globals';
+import { z } from 'zod';
 
 import { createDatabase } from '@/domain/db/client';
 import { compareText } from '@/lib/intl';
@@ -9,13 +10,13 @@ import { TOOL_REGISTRY } from '@/domain/mcp/tools';
 import { Repository } from '@/domain/repository';
 import { APP_MIGRATIONS } from '../../lib/core/db/migrations';
 import { sqliteD1 } from '../../lib/core/db/sqlite-d1';
+import { fixtureUser } from '../fixtures';
 import type { ToolServices } from '@/domain/mcp/tool-services';
 import type { Database } from '@/domain/db/client';
-import type { User } from '@/domain/db/users';
 
 let db: Database;
 let services: ToolServices;
-const user = { id: 1 } as User;
+const user = fixtureUser({ id: 1 });
 
 beforeEach(async () => {
   db = createDatabase(sqliteD1(...APP_MIGRATIONS).d1);
@@ -38,7 +39,9 @@ const resultOf = async (
   params: Record<string, unknown> = {},
 ): Promise<Record<string, unknown>> => {
   const reply = await call(method, params);
-  return (reply as { result: Record<string, unknown> }).result;
+  return z
+    .looseObject({ result: z.record(z.string(), z.unknown()) })
+    .parse(reply).result;
 };
 
 describe('the handshake', () => {
@@ -82,9 +85,10 @@ describe('the handshake', () => {
 describe('tools/list', () => {
   it('advertises every registered tool, and nothing else', async () => {
     const result = await resultOf('tools/list');
-    const listed = (result['tools'] as { name: string }[]).map(
-      (tool) => tool.name,
-    );
+    const listed = z
+      .array(z.looseObject({ name: z.string() }))
+      .parse(result['tools'])
+      .map((tool) => tool.name);
     expect(listed.toSorted(compareText)).toEqual(
       [...TOOL_REGISTRY.names].toSorted(compareText),
     );
@@ -137,12 +141,14 @@ describe('resources', () => {
   it('lists the fixed addresses and the templated ones apart', async () => {
     const listed = await resultOf('resources/list');
     const templated = await resultOf('resources/templates/list');
-    const fixed = (listed['resources'] as { uri: string }[]).map(
-      (resource) => resource.uri,
-    );
-    const templates = (
-      templated['resourceTemplates'] as { uriTemplate: string }[]
-    ).map((template) => template.uriTemplate);
+    const fixed = z
+      .array(z.looseObject({ uri: z.string() }))
+      .parse(listed['resources'])
+      .map((resource) => resource.uri);
+    const templates = z
+      .array(z.looseObject({ uriTemplate: z.string() }))
+      .parse(templated['resourceTemplates'])
+      .map((template) => template.uriTemplate);
     expect([
       fixed.includes('broadsheet://feeds'),
       templates.includes('broadsheet://feeds/{feed_id}'),
@@ -154,11 +160,15 @@ describe('resources', () => {
     const read = await resultOf('resources/read', {
       uri: 'broadsheet://feeds',
     });
-    const contents = read['contents'] as {
-      uri: string;
-      mimeType: string;
-      text: string;
-    }[];
+    const contents = z
+      .array(
+        z.looseObject({
+          uri: z.string(),
+          mimeType: z.string(),
+          text: z.string(),
+        }),
+      )
+      .parse(read['contents']);
     expect([contents[0]?.uri, contents[0]?.mimeType]).toEqual([
       'broadsheet://feeds',
       'application/json',
@@ -182,10 +192,11 @@ describe('resources', () => {
 describe('prompts', () => {
   it('lists each prompt with its arguments', async () => {
     const result = await resultOf('prompts/list');
-    const listed = result['prompts'] as {
-      name: string;
-      arguments: unknown[];
-    }[];
+    const listed = z
+      .array(
+        z.looseObject({ name: z.string(), arguments: z.array(z.unknown()) }),
+      )
+      .parse(result['prompts']);
     expect(
       listed.find((prompt) => prompt.name === 'research_topic')?.arguments,
     ).toEqual([
@@ -199,7 +210,9 @@ describe('prompts', () => {
       arguments: { topic: 'rust' },
     });
     expect(
-      JSON.stringify((rendered as { messages: unknown }).messages),
+      JSON.stringify(
+        z.looseObject({ messages: z.unknown() }).parse(rendered).messages,
+      ),
     ).toContain('rust');
   });
 

@@ -74,17 +74,19 @@ export function parseReadTime(
   body: Readonly<Record<string, unknown>>,
 ): ReadTimeInput {
   const { seconds } = body;
+  const whole =
+    typeof seconds === 'number' && Number.isInteger(seconds) && seconds >= 0
+      ? seconds
+      : undefined;
   const errors = [
     ...Object.keys(body)
       .filter((key) => key !== 'seconds')
       .map((key) => `${key}: not a member of a read.`),
-    ...(typeof seconds !== 'number' || !Number.isInteger(seconds) || seconds < 0
-      ? ['seconds: must be a whole number from 0.']
-      : []),
+    ...(whole === undefined ? ['seconds: must be a whole number from 0.'] : []),
   ];
-  return errors.length > 0
+  return errors.length > 0 || whole === undefined
     ? { ok: false, errors }
-    : { ok: true, seconds: Math.min(seconds as number, MAX_READ_SECONDS) };
+    : { ok: true, seconds: Math.min(whole, MAX_READ_SECONDS) };
 }
 
 /**
@@ -211,7 +213,7 @@ type ReadScopeBody =
   | { readonly ok: false; readonly errors: readonly string[] };
 
 /** A list of up to {@link MAX_BULK_READS} id strings as numbers, or undefined. */
-function ids(raw: unknown): number[] | undefined {
+function parseIds(raw: unknown): number[] | undefined {
   if (!Array.isArray(raw) || raw.length === 0 || raw.length > MAX_BULK_READS) {
     return undefined;
   }
@@ -251,7 +253,7 @@ export function parseReadScope(
   const lists = (['article_ids', 'feed_ids'] as const).map((key) => ({
     key,
     sent: body[key] !== undefined,
-    list: ids(body[key]),
+    list: parseIds(body[key]),
   }));
   const rawSection = body['section_id'];
   const sectionId =

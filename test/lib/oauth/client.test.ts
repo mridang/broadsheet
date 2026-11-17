@@ -198,16 +198,16 @@ describe('parseClientMetadataDocument', () => {
   });
 
   it('falls back to the host as the name and caps its length', () => {
-    const { client } = parseClientMetadataDocument(
+    const fallback = parseClientMetadataDocument(
       withoutKey(goodDocument, 'client_name'),
       URL_ID,
-    ) as { client: { name: string } };
-    expect(client.name).toBe('chatgpt.com');
+    );
+    expect(fallback.ok && fallback.client.name).toBe('chatgpt.com');
     const long = parseClientMetadataDocument(
       { ...goodDocument, client_name: 'x'.repeat(500) },
       URL_ID,
-    ) as { client: { name: string } };
-    expect(long.client.name).toHaveLength(100);
+    );
+    expect(long.ok && long.client.name).toHaveLength(100);
   });
 
   it('rejects something that is not an object', () => {
@@ -232,8 +232,7 @@ describe('fetchClientMetadata', () => {
     const fetchImpl = respond(JSON.stringify(goodDocument));
     const result = await fetchClientMetadata(URL_ID, fetchImpl);
     expect(result.ok).toBe(true);
-    const init = (fetchImpl as unknown as jest.Mock).mock.calls[0]?.[1] as
-      RequestInit | undefined;
+    const init = fetchImpl.mock.calls[0]?.[1];
     expect(init?.redirect).toBe('manual');
   });
 
@@ -247,9 +246,9 @@ describe('fetchClientMetadata', () => {
       respond(' '.repeat(20_000)),
     );
     expect(oversized.ok).toBe(false);
-    const throwing = jest.fn(async () => {
+    const throwing = jest.fn<typeof fetch>(async () => {
       throw new Error('down');
-    }) as unknown as typeof fetch;
+    });
     const failed = await fetchClientMetadata(URL_ID, throwing);
     expect(failed.ok).toBe(false);
   });
@@ -272,9 +271,9 @@ describe('parseRegistration', () => {
       ok: true,
       client: { name: 'Claude', kind: 'dcr' },
     });
-    expect(
-      (result as { client: { clientId: string } }).client.clientId,
-    ).toMatch(MINTS_A_DCR_CLIENT_PATTERN);
+    expect(result.ok && result.client.clientId).toMatch(
+      MINTS_A_DCR_CLIENT_PATTERN,
+    );
   });
 
   it('rejects missing, unsafe or too many redirect URIs', () => {
@@ -372,29 +371,29 @@ describe('client names', () => {
     const result = parseClientMetadataDocument(
       { ...goodDocument, client_name: '\u202EClaude\u200B  Desktop\n' },
       URL_ID,
-    ) as { client: { name: string } };
-    expect(result.client.name).toBe('Claude Desktop');
+    );
+    expect(result.ok && result.client.name).toBe('Claude Desktop');
   });
 
   it('fall back to the host when only invisible characters were given', () => {
     const result = parseClientMetadataDocument(
       { ...goodDocument, client_name: '\u200B\u200B' },
       URL_ID,
-    ) as { client: { name: string } };
-    expect(result.client.name).toBe('chatgpt.com');
+    );
+    expect(result.ok && result.client.name).toBe('chatgpt.com');
   });
 
   it('are cleaned for a registered client too, with a neutral fallback', () => {
     const named = parseRegistration({
       client_name: '\u202EEvil\u202C',
       redirect_uris: ['https://a.com/cb'],
-    }) as { client: { name: string } };
-    expect(named.client.name).toBe('Evil');
+    });
+    expect(named.ok && named.client.name).toBe('Evil');
     const unnamed = parseRegistration({
       client_name: '\u200B',
       redirect_uris: ['https://a.com/cb'],
-    }) as { client: { name: string } };
-    expect(unnamed.client.name).toBe('Unnamed client');
+    });
+    expect(unnamed.ok && unnamed.client.name).toBe('Unnamed client');
   });
 });
 
@@ -437,8 +436,7 @@ describe('fetchClientMetadata details', () => {
   it('introduces itself with a User-Agent that says whom to ask', async () => {
     const fetchImpl = respond(JSON.stringify(goodDocument));
     await fetchClientMetadata(URL_ID, fetchImpl);
-    const init = (fetchImpl as unknown as jest.Mock).mock.calls[0]?.[1] as
-      RequestInit | undefined;
+    const init = fetchImpl.mock.calls[0]?.[1];
     expect(init?.headers).toMatchObject({ 'User-Agent': FETCH_USER_AGENT });
     expect(FETCH_USER_AGENT).toMatch(
       new RegExp(
@@ -460,13 +458,13 @@ describe('fetchClientMetadata details', () => {
   });
 
   it('counts a redirect as a failed fetch: the document must be served at the client_id itself', async () => {
-    const redirected = jest.fn(
+    const redirected = jest.fn<typeof fetch>(
       async () =>
         new Response(null, {
           status: 302,
           headers: { location: 'https://elsewhere.example/doc' },
         }),
-    ) as unknown as typeof fetch;
+    );
     expect(await fetchClientMetadata(URL_ID, redirected)).toMatchObject({
       ok: false,
     });
@@ -611,7 +609,7 @@ describe('fetchClientMetadata streaming and caching', () => {
   const serve = (
     init: ResponseInit,
     body: string = JSON.stringify(goodDocument),
-  ) => jest.fn(async () => new Response(body, init)) as unknown as typeof fetch;
+  ) => jest.fn<typeof fetch>(async () => new Response(body, init));
 
   it('reports how long the document may be cached', async () => {
     const result = await fetchClientMetadata(
@@ -646,7 +644,7 @@ describe('fetchClientMetadata streaming and caching', () => {
   });
 
   it('fails when reading the body fails', async () => {
-    const broken = jest.fn(
+    const broken = jest.fn<typeof fetch>(
       async () =>
         new Response(
           new ReadableStream<Uint8Array>({
@@ -655,7 +653,7 @@ describe('fetchClientMetadata streaming and caching', () => {
             },
           }),
         ),
-    ) as unknown as typeof fetch;
+    );
     const failed = await fetchClientMetadata(URL_ID, broken);
     expect(failed.ok).toBe(false);
   });

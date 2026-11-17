@@ -10,10 +10,14 @@ import {
   jest,
 } from '@jest/globals';
 
+import { z } from 'zod';
+
 import { SESSION_COOKIE } from '@/domain/auth/app';
 import { createDatabase } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
 import { FeedImportRuns } from '@/domain/feed-import-runs';
+import { isMember } from '@/domain/members';
+import { isObject } from '@/lib/core/api';
 import { APP_MIGRATIONS } from './lib/core/db/migrations';
 import { installCloudflareContext, sqliteD1 } from './lib/core/db/sqlite-d1';
 import {
@@ -51,16 +55,16 @@ jest.unstable_mockModule('next/headers', () => ({ cookies: fakeCookies }));
 type Json = { [key: string]: unknown };
 type Handler = (request: Request, context?: unknown) => Promise<Response>;
 
-interface Parameter {
+type Parameter = {
   name: string;
   in: 'path' | 'query' | 'header';
   required?: boolean;
   schema?: Json;
-}
+};
 
 interface Operation {
   operationId: string;
-  tags: string[];
+  tags?: string[];
   summary: string;
   security?: Json[];
   parameters?: Json[];
@@ -68,16 +72,51 @@ interface Operation {
   responses: Record<string, Json>;
 }
 
-const spec = JSON.parse(
-  await readFile(new URL('../openapi.json', import.meta.url), 'utf8'),
-) as Json & {
-  openapi: string;
-  info: Json;
-  tags: { name: string }[];
-  security?: Json[];
-  paths: Record<string, Json>;
-  components: Record<string, Record<string, Json>>;
-};
+/** An object member of the document, or an empty one when it is not an object. */
+const objectOf = (value: unknown): Json => (isObject(value) ? value : {});
+
+/** A list member of the document, or an empty one when it is not a list. */
+const listOf = (value: unknown): unknown[] =>
+  Array.isArray(value) ? value : [];
+
+/** A list of strings member of the document, without anything else in it. */
+const stringsOf = (value: unknown): string[] =>
+  listOf(value).filter((member) => typeof member === 'string');
+
+/** The JSON types a schema names: one string, or a list of them. */
+const typeNamesOf = (value: unknown): string[] =>
+  typeof value === 'string' ? [value] : stringsOf(value);
+
+/** Whether a member of a path is an operation the contract can describe. */
+const isOperation = (value: unknown): value is Operation =>
+  isObject(value) &&
+  typeof value['operationId'] === 'string' &&
+  typeof value['summary'] === 'string' &&
+  isObject(value['responses']);
+
+/** Whether a member of an operation is a parameter with a place and a name. */
+const isParameter = (value: Json): value is Parameter =>
+  typeof value['name'] === 'string' &&
+  isMember(['path', 'query', 'header'], value['in']);
+
+/** The parts of the document the tests read. */
+const SPEC = z.looseObject({
+  openapi: z.string(),
+  info: z.record(z.string(), z.unknown()),
+  tags: z.array(z.looseObject({ name: z.string() })),
+  security: z.array(z.record(z.string(), z.unknown())).optional(),
+  paths: z.record(z.string(), z.record(z.string(), z.unknown())),
+  components: z.record(
+    z.string(),
+    z.record(z.string(), z.record(z.string(), z.unknown())),
+  ),
+});
+
+const spec = SPEC.parse(
+  JSON.parse(
+    await readFile(new URL('../openapi.json', import.meta.url), 'utf8'),
+  ),
+);
 
 const METHODS = ['get', 'post', 'put', 'patch', 'delete'] as const;
 
@@ -104,11 +143,14 @@ const NOT_REST = [
 ];
 
 const operations = new Map<string, Operation & { path: string }>();
-for (const [path, item] of Object.entries(spec.paths)) {
+for (const [route, item] of Object.entries(spec.paths)) {
   for (const method of METHODS) {
-    const op = item[method] as Operation | undefined;
-    if (op) {
-      operations.set(`${method.toUpperCase()} ${path}`, { ...op, path });
+    const op = item[method];
+    if (isOperation(op)) {
+      operations.set(`${method.toUpperCase()} ${route}`, {
+        ...op,
+        path: route,
+      });
     }
   }
 }
@@ -280,22 +322,51 @@ beforeAll(async () => {
     for (const method of METHODS) {
       const handler = module[method.toUpperCase()];
       if (typeof handler === 'function') {
-        handlers.set(`${method.toUpperCase()} ${route}`, handler as Handler);
+        const name = `${method.toUpperCase()} ${route}`;
+        handlers.set(name, answering(name, handler));
       }
     }
   }
 });
 
+/** A route module's export as a handler that must answer with a `Response`. */
+const answering =
+  (name: string, handler: unknown): Handler =>
+  async (request, context) => {
+    if (typeof handler !== 'function') {
+      throw new TypeError(`${name} is not a function`);
+    }
+    const response: unknown = await Reflect.apply(handler, undefined, [
+      request,
+      context,
+    ]);
+    if (!(response instanceof Response)) {
+      throw new TypeError(`${name} did not answer with a Response`);
+    }
+    return response;
+  };
+
 /** Follow a `$ref` of the document. */
-function deref<T = Json>(node: unknown): T {
-  let current = node as Json;
-  while (typeof current?.['$ref'] === 'string') {
-    current = current['$ref']
-      .slice(2)
-      .split('/')
-      .reduce<Json>((at, key) => at[key] as Json, spec);
+function deref(node: unknown): Json {
+  let current = objectOf(node);
+  while (typeof current['$ref'] === 'string') {
+    current = lookUp(current['$ref']);
   }
-  return current as T;
+  return current;
+}
+
+/** The member of the document a local `$ref` points at. */
+function lookUp(ref: string): Json {
+  return ref
+    .slice(2)
+    .split('/')
+    .reduce<Json>((at, key) => {
+      const next = at[key];
+      if (!isObject(next)) {
+        throw new TypeError(`${ref} does not resolve`);
+      }
+      return next;
+    }, spec);
 }
 
 /** Every `$ref` in a node. */
@@ -326,15 +397,12 @@ function flat(schema: unknown): Json {
   }
   const merged = { ...s };
   delete merged['allOf'];
-  let properties = (s['properties'] as Json | undefined) ?? {};
-  let required = (s['required'] as string[] | undefined) ?? [];
-  for (const part of s['allOf'] as unknown[]) {
+  let properties = objectOf(s['properties']);
+  let required = stringsOf(s['required']);
+  for (const part of s['allOf']) {
     const f = flat(part);
-    properties = { ...properties, ...(f['properties'] as Json | undefined) };
-    required = [
-      ...required,
-      ...((f['required'] as string[] | undefined) ?? []),
-    ];
+    properties = { ...properties, ...objectOf(f['properties']) };
+    required = [...required, ...stringsOf(f['required'])];
     if (f['additionalProperties'] === false) {
       merged['additionalProperties'] = false;
     }
@@ -346,10 +414,12 @@ function flat(schema: unknown): Json {
 /** The parameters of an operation, its path's included. */
 function parametersOf(op: Operation & { path: string }): Parameter[] {
   const item = spec.paths[op.path]!;
-  return [
-    ...((item['parameters'] as Json[] | undefined) ?? []),
-    ...(op.parameters ?? []),
-  ].map((p) => deref<unknown>(p) as Parameter);
+  return [...listOf(item['parameters']), ...(op.parameters ?? [])].flatMap(
+    (p) => {
+      const found = deref(p);
+      return isParameter(found) ? [found] : [];
+    },
+  );
 }
 
 const DATE_TIME =
@@ -373,17 +443,18 @@ function jsonTypeOf(value: unknown): string {
 function violations(schema: unknown, value: unknown, at = '$'): string[] {
   const s = deref(schema);
   if (Array.isArray(s['allOf'])) {
-    return (s['allOf'] as unknown[]).flatMap((p) => violations(p, value, at));
+    return s['allOf'].flatMap((p: unknown) => violations(p, value, at));
   }
   for (const key of ['oneOf', 'anyOf'] as const) {
-    const options = s[key] as unknown[] | undefined;
+    const raw = s[key];
+    const options = Array.isArray(raw) ? listOf(raw) : undefined;
     if (options) {
       return options.some((o) => violations(o, value, at).length === 0)
         ? []
         : [`${at}: matches none of ${key}`];
     }
   }
-  const types = [(s['type'] as string | string[]) ?? []].flat();
+  const types = typeNamesOf(s['type']);
   const actual = jsonTypeOf(value);
   if (
     types.length > 0 &&
@@ -427,9 +498,9 @@ function violations(schema: unknown, value: unknown, at = '$'): string[] {
     }
   }
   if (value && typeof value === 'object' && !Array.isArray(value)) {
-    const object = value as Json;
-    const properties = (s['properties'] as Json | undefined) ?? {};
-    for (const key of (s['required'] as string[] | undefined) ?? []) {
+    const object = objectOf(value);
+    const properties = objectOf(s['properties']);
+    for (const key of stringsOf(s['required'])) {
       if (!(key in object)) {
         problems.push(`${at}: lacks ${key}`);
       }
@@ -462,7 +533,8 @@ describe('openapi.json', () => {
   it('resolves every $ref', () => {
     const missing = references(spec).filter((ref) => {
       try {
-        return deref<Json | undefined>({ $ref: ref }) === undefined;
+        deref({ $ref: ref });
+        return false;
       } catch {
         return true;
       }
@@ -479,8 +551,8 @@ describe('openapi.json', () => {
   });
 
   it('names its paths as lowercase plural nouns with no hyphens', () => {
-    const odd = Object.keys(spec.paths).filter((path) =>
-      path
+    const odd = Object.keys(spec.paths).filter((route) =>
+      route
         .split('/')
         .slice(1)
         .some((segment) => !NAMES_ITS_PATHS_AS_PATTERN.test(segment)),
@@ -550,9 +622,7 @@ describe('openapi.json', () => {
         !op.responses['415'] &&
         op.requestBody
       ) {
-        const types = Object.keys(
-          (deref(op.requestBody)['content'] as Json) ?? {},
-        );
+        const types = Object.keys(objectOf(deref(op.requestBody)['content']));
         if (types.some((t) => t.includes('json')) && !op.responses['400']) {
           lacking.push(`${key}: 400`);
         }
@@ -566,10 +636,10 @@ describe('openapi.json', () => {
     for (const [key, op] of operations) {
       for (const [status, raw] of Object.entries(op.responses)) {
         const response = deref(raw);
-        const content = (response['content'] as Json | undefined) ?? {};
-        const problemSchema = (
-          content['application/problem+json'] as Json | undefined
-        )?.['schema'];
+        const content = objectOf(response['content']);
+        const problemSchema = objectOf(content['application/problem+json'])[
+          'schema'
+        ];
         if (
           Number(status) >= 400 &&
           (Object.keys(content).join(',') !== 'application/problem+json' ||
@@ -577,10 +647,7 @@ describe('openapi.json', () => {
         ) {
           wrong.push(`${key} ${status}: not application/problem+json`);
         }
-        if (
-          status === '201' &&
-          !(response['headers'] as Json | undefined)?.['Location']
-        ) {
+        if (status === '201' && !objectOf(response['headers'])['Location']) {
           wrong.push(`${key} 201: no Location`);
         }
         if (status === '204' && Object.keys(content).length > 0) {
@@ -610,13 +677,13 @@ describe('openapi.json members and security', () => {
         if (!CHECK_MEMBERS_PATTERN.test(name) && name !== 'expirationTime') {
           wrong.push(`${at}: ${name}`);
         }
-        const type = (schema as Json)['type'];
+        const type = objectOf(schema)['type'];
         const isString =
           type === 'string' || (Array.isArray(type) && type.includes('string'));
         if (
           name.endsWith('_at') &&
           isString &&
-          (schema as Json)['format'] !== 'date-time'
+          objectOf(schema)['format'] !== 'date-time'
         ) {
           wrong.push(`${at}: ${name} is not date-time`);
         }
@@ -634,7 +701,7 @@ describe('openapi.json members and security', () => {
             continue;
           }
           if (key === 'properties' && value && typeof value === 'object') {
-            checkMembers(value as Record<string, unknown>, at);
+            checkMembers(objectOf(value), at);
           }
           walk(value, `${at}.${key}`);
         }
@@ -650,13 +717,13 @@ describe('openapi.json members and security', () => {
   it('declares the cursor on every list that has a next page', () => {
     const wrong: string[] = [];
     for (const [key, op] of operations) {
-      const schema = (
-        deref(op.responses['200'] ?? {})['content'] as Json | undefined
-      )?.['application/json'] as Json | undefined;
-      const properties = schema
-        ? (flat(schema['schema'])['properties'] as Json | undefined)
-        : undefined;
-      if (properties?.['next']) {
+      const media = objectOf(
+        objectOf(deref(op.responses['200'] ?? {})['content'])[
+          'application/json'
+        ],
+      );
+      const properties = objectOf(flat(media['schema'])['properties']);
+      if (properties['next']) {
         const names = new Set(parametersOf(op).map((p) => p.name));
         if (!names.has('cursor') || !names.has('limit')) {
           wrong.push(key);
@@ -1060,9 +1127,9 @@ async function call(
   c: Case,
   options: { cookie?: string | null; headers?: Record<string, string> } = {},
 ): Promise<Response> {
-  const [method, path] = key.split(' ') as [string, string];
+  const [method = '', route = ''] = key.split(' ');
   const params = c.params ?? {};
-  const pathname = path.replaceAll(
+  const pathname = route.replaceAll(
     DESCRIBES_EVERY_OPERATION_FULLY_PATTERN_2,
     (_, name: string) => encodeURIComponent(params[name] ?? 'x'),
   );
@@ -1266,9 +1333,7 @@ function wrongValue(schema: unknown): string | number | undefined {
   if (Array.isArray(s['enum'])) {
     return '__not_a_member__';
   }
-  const type = [(s['type'] as string | string[]) ?? []]
-    .flat()
-    .find((t) => t !== 'null');
+  const type = typeNamesOf(s['type']).find((t) => t !== 'null');
   if (type === 'string') {
     return 12_345;
   }
@@ -1327,12 +1392,13 @@ async function wrongAnswer(op: Operation, res: Response): Promise<string[]> {
   if (!response) {
     return [`${res.status} is not documented`];
   }
-  const content = (deref(response)['content'] as Json | undefined) ?? {};
+  const content = objectOf(deref(response)['content']);
   const type = mediaType(res);
   if (res.status >= 400 && type !== 'application/problem+json') {
     wrong.push(`${res.status} is ${type || 'empty'}, not a problem`);
   }
-  const entry = content[type] as Json | undefined;
+  const found = content[type];
+  const entry = isObject(found) ? found : undefined;
   if (res.status !== 204 && type && !entry) {
     wrong.push(`${res.status} ${type} is not documented`);
   }
@@ -1342,7 +1408,7 @@ async function wrongAnswer(op: Operation, res: Response): Promise<string[]> {
       ...violations(entry['schema'], body).map((v) => `${res.status} ${v}`),
     );
   }
-  const headers = (deref(response)['headers'] as Json | undefined) ?? {};
+  const headers = objectOf(deref(response)['headers']);
   if (headers['Location'] && !res.headers.get('location')) {
     wrong.push(`${res.status} lacks Location`);
   }
@@ -1470,14 +1536,14 @@ describe('every operation agrees with openapi.json', () => {
       }
     }
     const content = op.requestBody
-      ? ((deref(op.requestBody)['content'] as Json) ?? {})
+      ? objectOf(deref(op.requestBody)['content'])
       : {};
     const json = Object.entries(content).find(([type]) =>
       type.includes('json'),
     );
     if (json) {
-      const schema = flat((json[1] as Json)['schema']);
-      const properties = (schema['properties'] as Json | undefined) ?? {};
+      const schema = flat(objectOf(json[1])['schema']);
+      const properties = objectOf(schema['properties']);
       const asJson = (body: string, type = 'application/json') => ({
         ...valid,
         body,
@@ -1487,11 +1553,9 @@ describe('every operation agrees with openapi.json', () => {
       await refused('a body that is text', asJson('hello', 'text/plain'), 415);
       await refused('a body that is an array', asJson('[]'), 400);
       await refused('a body that is null', asJson('null'), 400);
-      for (const required of valid.body
-        ? ((schema['required'] as string[] | undefined) ?? [])
-        : []) {
+      for (const required of valid.body ? stringsOf(schema['required']) : []) {
         const rest = Object.fromEntries(
-          Object.entries((valid.body ?? {}) as Json).filter(
+          Object.entries(objectOf(valid.body)).filter(
             ([name]) => name !== required,
           ),
         );
@@ -1499,10 +1563,10 @@ describe('every operation agrees with openapi.json', () => {
       }
       for (const [name, member] of Object.entries(properties)) {
         const bad = wrongValue(member);
-        if (bad !== undefined && valid.body && name in (valid.body as Json)) {
+        if (bad !== undefined && valid.body && name in objectOf(valid.body)) {
           await refused(
             `${name} of the wrong type`,
-            { ...valid, body: { ...(valid.body as Json), [name]: bad } },
+            { ...valid, body: { ...objectOf(valid.body), [name]: bad } },
             400,
           );
         }
@@ -1530,10 +1594,10 @@ describe('every operation agrees with openapi.json', () => {
     // An unknown member is refused exactly when the spec says it is.
     if (json && valid.body && typeof valid.body === 'object') {
       const strict =
-        flat((json[1] as Json)['schema'])['additionalProperties'] === false;
+        flat(objectOf(json[1])['schema'])['additionalProperties'] === false;
       const extra = await call(key, {
         ...valid,
-        body: { ...(valid.body as Json), not_a_member: 1 },
+        body: { ...objectOf(valid.body), not_a_member: 1 },
       });
       if ((extra.status === 400) !== strict) {
         wrong.push(
@@ -1544,13 +1608,13 @@ describe('every operation agrees with openapi.json', () => {
 
     // Nothing a client sends may make it answer 500.
     const survives = async (what: string, c: Case) => {
-      const res = await call(key, c);
-      if (res.status >= 500 && !documented(op).has(res.status)) {
-        wrong.push(`${what}: answers ${res.status}`);
-      } else if (res.status >= 500) {
-        wrong.push(`${what}: answers ${res.status} to input it could refuse`);
+      const reply = await call(key, c);
+      if (reply.status >= 500 && !documented(op).has(reply.status)) {
+        wrong.push(`${what}: answers ${reply.status}`);
+      } else if (reply.status >= 500) {
+        wrong.push(`${what}: answers ${reply.status} to input it could refuse`);
       } else {
-        fail(what, await wrongAnswer(op, res));
+        fail(what, await wrongAnswer(op, reply));
       }
     };
     for (const p of parameters.filter((x) => x.in === 'path')) {
@@ -1573,17 +1637,18 @@ describe('every operation agrees with openapi.json', () => {
     }
     if (json && valid.body && typeof valid.body === 'object') {
       const names = new Set(Object.keys(valid.body));
-      const declared =
-        (flat((json[1] as Json)['schema'])['properties'] as Json | undefined) ??
-        {};
+      const declared = objectOf(
+        flat(objectOf(json[1])['schema'])['properties'],
+      );
       for (const name of Object.keys(declared)) {
         names.add(name);
       }
       for (const name of names) {
         for (const junk of JUNK_JSON) {
-          await survives(`${name} ${JSON.stringify(junk)?.slice(0, 20)}`, {
+          const shown = JSON.stringify(junk).slice(0, 20);
+          await survives(`${name} ${shown}`, {
             ...valid,
-            body: { ...(valid.body as Json), [name]: junk },
+            body: { ...objectOf(valid.body), [name]: junk },
           });
         }
       }

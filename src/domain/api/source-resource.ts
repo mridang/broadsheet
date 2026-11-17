@@ -6,10 +6,14 @@
  */
 
 import { parseFeedId } from '@/domain/api/feed-resource';
-import { sqliteSince, WINDOWS } from '@/domain/api/article-resource';
+import {
+  isTrendingWindow,
+  sqliteSince,
+  WINDOWS,
+} from '@/domain/api/article-resource';
+import { isMember } from '@/domain/members';
 import { SOURCE_ORDERS } from '@/domain/repository';
 import { decodeCursor, MAX_LIMIT, DEFAULT_LIMIT } from '@/lib/core/api';
-import type { TrendingWindow } from '@/domain/api/article-resource';
 import type {
   SourceOrder,
   SourceTrendingQuery,
@@ -91,15 +95,16 @@ export function parseSourceQuery(
   const rawLimit = params.get('limit');
   const limit = rawLimit === null ? DEFAULT_LIMIT : Number(rawLimit);
   const limitOk = Number.isInteger(limit) && limit >= 1 && limit <= MAX_LIMIT;
+  const chosenOrder = isMember(SOURCE_ORDERS, order) ? order : undefined;
   const errors: string[] = [
     ...new Set(params.keys())
       .values()
       .filter((key) => !PARAMETERS.has(key))
       .map((key) => `${key}: not a parameter of this list.`),
-    ...((SOURCE_ORDERS as readonly (string | null)[]).includes(order)
-      ? []
-      : [`order: must be one of ${SOURCE_ORDERS.join(', ')}.`]),
-    ...(Object.hasOwn(WINDOWS, window)
+    ...(chosenOrder === undefined
+      ? [`order: must be one of ${SOURCE_ORDERS.join(', ')}.`]
+      : []),
+    ...(isTrendingWindow(window)
       ? []
       : ['window: must be day, week or month.']),
     ...(badCursor ? ['cursor: not a cursor of this list.'] : []),
@@ -107,14 +112,18 @@ export function parseSourceQuery(
       ? [`limit: must be a whole number from 1 to ${MAX_LIMIT}.`]
       : []),
   ];
-  if (errors.length > 0) {
+  if (
+    errors.length > 0 ||
+    chosenOrder === undefined ||
+    !isTrendingWindow(window)
+  ) {
     return { ok: false, errors };
   }
-  const days = WINDOWS[window as TrendingWindow];
+  const days = WINDOWS[window];
   return {
     ok: true,
     query: {
-      order: order as SourceOrder,
+      order: chosenOrder,
       since: sqliteSince(now, days),
       days,
       now: sqliteSince(now, 0),

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { z } from 'zod';
 
 import { createDatabase } from '@/domain/db/client';
 import { ToolFailureError } from '@/domain/mcp/tool-failure';
@@ -6,10 +7,10 @@ import { callTool } from '@/domain/mcp/tool-calls';
 import { Repository } from '@/domain/repository';
 import { APP_MIGRATIONS } from '../../../lib/core/db/migrations';
 import { sqliteD1 } from '../../../lib/core/db/sqlite-d1';
+import { fixtureUser } from '../../fixtures';
 import type { Database } from '@/domain/db/client';
 import type { ToolContext } from '@/domain/mcp/tool-context';
 import type { ToolServices } from '@/domain/mcp/tool-services';
-import type { User } from '@/domain/db/users';
 import type { AnswerModel } from '@/domain/assistant';
 import type { ScrapedItem } from '@/lib/scraping';
 
@@ -19,7 +20,7 @@ let refresh: jest.Mock<ToolServices['refresh']>;
 
 /** The context of a call by this person, with this model bound when there is one. */
 const asCaller = (uid: number, model?: AnswerModel): ToolContext => ({
-  user: { id: uid } as User,
+  user: fixtureUser({ id: uid }),
   services: { openDatabase: () => db, refresh, ...(model && { model }) },
 });
 
@@ -73,12 +74,20 @@ async function seed(): Promise<{ feedId: number; articleId: number }> {
 describe('train_classifier', () => {
   it('trains many kinds at once, and the feed itself', async () => {
     const { feedId } = await seed();
-    const { classifiers } = (await run('train_classifier', {
-      feed_id: feedId,
-      like_title: ['rust'],
-      super_dislike_text: ['crypto'],
-      dislike_feed: true,
-    })) as { classifiers: { kind: string; score: string }[] };
+    const { classifiers } = z
+      .looseObject({
+        classifiers: z.array(
+          z.looseObject({ kind: z.string(), score: z.string() }),
+        ),
+      })
+      .parse(
+        await run('train_classifier', {
+          feed_id: feedId,
+          like_title: ['rust'],
+          super_dislike_text: ['crypto'],
+          dislike_feed: true,
+        }),
+      );
     expect(classifiers.map((c) => [c.kind, c.score])).toEqual([
       ['title', 'like'],
       ['text', 'super_dislike'],

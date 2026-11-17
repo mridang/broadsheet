@@ -63,7 +63,11 @@ export type SaveBody =
   | { readonly ok: false; readonly errors: readonly string[] };
 
 /** Whether a value is a list of up to `most` non-blank strings of at most `longest`. */
-const strings = (raw: unknown, most: number, longest: number): boolean =>
+const strings = (
+  raw: unknown,
+  most: number,
+  longest: number,
+): raw is string[] =>
   Array.isArray(raw) &&
   raw.length <= most &&
   raw.every(
@@ -82,6 +86,12 @@ export function parseSaveInput(
   const raw = body['tags'] ?? [];
   const notes = body['notes'];
   const highlights = body['highlights'];
+  const tags = strings(raw, MAX_TAGS, MAX_TAG_LENGTH) ? raw : undefined;
+  const passages =
+    highlights === undefined ||
+    strings(highlights, MAX_HIGHLIGHTS, MAX_HIGHLIGHT)
+      ? highlights
+      : undefined;
   const notesBad =
     notes !== undefined &&
     notes !== null &&
@@ -90,34 +100,33 @@ export function parseSaveInput(
     ...Object.keys(body)
       .filter((key) => !['tags', 'notes', 'highlights'].includes(key))
       .map((key) => `${key}: not a member of a save.`),
-    ...(strings(raw, MAX_TAGS, MAX_TAG_LENGTH)
-      ? []
-      : [
+    ...(tags === undefined
+      ? [
           `tags: must be a list of up to ${MAX_TAGS} non-blank strings of at most ${MAX_TAG_LENGTH} characters.`,
-        ]),
+        ]
+      : []),
     ...(notesBad
       ? [`notes: must be a string of at most ${MAX_NOTES} characters.`]
       : []),
-    ...(highlights !== undefined &&
-    !strings(highlights, MAX_HIGHLIGHTS, MAX_HIGHLIGHT)
+    ...(highlights !== undefined && passages === undefined
       ? [
           `highlights: must be a list of up to ${MAX_HIGHLIGHTS} non-blank passages of at most ${MAX_HIGHLIGHT} characters.`,
         ]
       : []),
   ];
-  return errors.length > 0
+  return errors.length > 0 || tags === undefined
     ? { ok: false, errors }
     : {
         ok: true,
-        tags: [...new Set((raw as string[]).map((t) => t.trim()))],
+        tags: [...new Set(tags.map((t) => t.trim()))],
         ...(notes === undefined
           ? {}
           : {
               notes: typeof notes === 'string' && notes.trim() ? notes : null,
             }),
-        ...(highlights === undefined
+        ...(passages === undefined
           ? {}
-          : { highlights: (highlights as string[]).map((h) => h.trim()) }),
+          : { highlights: passages.map((h) => h.trim()) }),
       };
 }
 
@@ -133,20 +142,17 @@ export type SaveTagBody =
 export function parseSaveTagInput(
   body: Readonly<Record<string, unknown>>,
 ): SaveTagBody {
-  const name = body['name'];
+  const given = body['name'];
+  const name = typeof given === 'string' ? given.trim() : '';
   const errors: string[] = [
     ...Object.keys(body)
       .filter((key) => key !== 'name')
       .map((key) => `${key}: not a member of a tag.`),
-    ...(typeof name !== 'string' ||
-    !name.trim() ||
-    name.trim().length > MAX_TAG_LENGTH
+    ...(name === '' || name.length > MAX_TAG_LENGTH
       ? [
           `name: must be a non-blank string of at most ${MAX_TAG_LENGTH} characters.`,
         ]
       : []),
   ];
-  return errors.length > 0
-    ? { ok: false, errors }
-    : { ok: true, name: (name as string).trim() };
+  return errors.length > 0 ? { ok: false, errors } : { ok: true, name };
 }

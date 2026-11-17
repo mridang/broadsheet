@@ -7,6 +7,8 @@
  * replace that feed's stored articles. Optionally upgrades source names via
  * names via Workers AI (the `AI` binding).
  */
+import { z } from 'zod';
+
 import { Repository } from '@/domain/repository';
 import { errorMessage, logInfo, logWarn } from '@/utils/logging';
 import {
@@ -106,9 +108,14 @@ async function siteIcon(
   return firstWorkingIcon(candidates, fetchIcon);
 }
 
+/** What the model answers with: canonical names by the index it was given. */
+const NAMES_ANSWER = z.object({
+  names: z.record(z.string(), z.string()).optional(),
+});
+
 /** Optional: LLM-resolve canonical source names in one batched call. */
 async function resolveNames(
-  env: CloudflareEnv,
+  env: Readonly<Partial<Pick<CloudflareEnv, 'AI'>>>,
   items: readonly ScrapedItem[],
 ): Promise<ScrapedItem[]> {
   if (!env.AI || items.length === 0) {
@@ -133,12 +140,10 @@ async function resolveNames(
     const start = text.indexOf('{');
     const end = text.lastIndexOf('}');
     const block = start !== -1 && end > start ? text.slice(start, end + 1) : '';
-    const fromText = block
-      ? (JSON.parse(block) as { names?: Record<string, string> })
-      : null;
-    const parsed: { names?: Record<string, string> } | null =
-      resp && typeof resp === 'object' ? resp : fromText;
-    const names = parsed?.names ?? {};
+    const parsed = NAMES_ANSWER.safeParse(
+      resp && typeof resp === 'object' ? resp : JSON.parse(block || 'null'),
+    );
+    const names = parsed.success ? (parsed.data.names ?? {}) : {};
     const named = items.map((it, index) => {
       const n = names[String(index)]?.trim();
       return n ? { ...it, source: n.slice(0, 60) } : it;
@@ -592,13 +597,22 @@ const HN_HOSTS = ['hnrss.org', 'news.ycombinator.com'];
 const isHnFeed = (url: string): boolean =>
   HN_HOSTS.some((h) => url.includes(h));
 
-interface AlgoliaHit {
-  objectID: string;
-  title?: string;
-  url?: string | null;
-  created_at?: string;
-  points?: number;
-}
+/** What Algolia's search answers with: the stories of the day. */
+const ALGOLIA_ANSWER = z
+  .object({
+    hits: z
+      .array(
+        z.object({
+          objectID: z.string(),
+          title: z.string().optional(),
+          url: z.string().nullish(),
+          created_at: z.string().optional(),
+          points: z.number().optional(),
+        }),
+      )
+      .optional(),
+  })
+  .nullable();
 
 /** Top HN stories for a single day (UTC), ranked by popularity, via Algolia. */
 async function hnTopForDate(date: string): Promise<ScrapedItem[]> {
@@ -615,12 +629,12 @@ async function hnTopForDate(date: string): Promise<ScrapedItem[]> {
     return [];
   }
   const parsed = await Promise.resolve(txt)
-    .then((text) => JSON.parse(text) as { hits?: AlgoliaHit[] } | null)
+    .then((text) => ALGOLIA_ANSWER.safeParse(JSON.parse(text)))
     .catch(() => null);
-  if (!parsed) {
+  if (!parsed?.success || !parsed.data) {
     return [];
   }
-  const hits = parsed.hits ?? [];
+  const hits = parsed.data.hits ?? [];
   return hits
     .filter((h) => h.title)
     .map((h) => {

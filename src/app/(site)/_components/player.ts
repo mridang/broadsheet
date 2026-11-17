@@ -8,6 +8,8 @@
  * (`/api/users/self/player`) in step when the person is signed in.
  */
 
+import { isObject } from '@/lib/core/api/json';
+
 /** Where the person is in their listening; ids are article ids. */
 export interface Player {
   readonly rate: number;
@@ -89,15 +91,16 @@ export function toResource(player: Player) {
 
 /** The API's player, or the empty one for anything it cannot read. */
 export function fromResource(body: unknown): Player {
-  if (typeof body !== 'object' || body === null) {
+  if (!isObject(body)) {
     return EMPTY;
   }
-  const b = body as Record<string, unknown>;
+  const b = body;
   const ids = (v: unknown) =>
     Array.isArray(v)
       ? v.map(Number).filter((n) => Number.isInteger(n) && n > 0)
       : [];
-  const c = b['current'] as Record<string, unknown> | null | undefined;
+  const current = b['current'];
+  const c = isObject(current) ? current : undefined;
   const id = Number(c?.['article_id']);
   return {
     rate: typeof b['rate'] === 'number' ? b['rate'] : 1,

@@ -76,11 +76,13 @@ export class TrainClassifierTool extends JsonTool<
     }
     const wanted = [
       ...TRAINABLE.flatMap((kind) =>
-        (['like', 'dislike', 'super_dislike'] as const).flatMap((score) =>
-          ((input[`${score}_${kind}`] as string[] | undefined) ?? []).map(
-            (value) => ({ kind, value, score }),
-          ),
-        ),
+        (['like', 'dislike', 'super_dislike'] as const).flatMap((score) => {
+          const values = input[`${score}_${kind}`];
+          return (Array.isArray(values) ? values : []).flatMap(
+            (value: unknown) =>
+              typeof value === 'string' ? [{ kind, value, score }] : [],
+          );
+        }),
       ),
       ...(input['like_feed'] || input['dislike_feed']
         ? [

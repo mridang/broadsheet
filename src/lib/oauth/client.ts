@@ -149,7 +149,9 @@ function logoOf(value: unknown): string | undefined {
 }
 
 /** Whether a value is a JSON object (or array) whose members can be looked up by name. */
-function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
+export function isRecord(
+  value: unknown,
+): value is Readonly<Record<string, unknown>> {
   return typeof value === 'object' && value !== null;
 }
 

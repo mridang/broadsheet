@@ -18,6 +18,7 @@
  * Following any of them is `POST /api/feeds` with the feed's address.
  */
 
+import { z } from 'zod';
 import { liveUid, requestCookieResolver, sessionUser } from '@/domain/api/auth';
 import { rfc3339, parseFeedId } from '@/domain/api/feed-resource';
 import { idOf } from '@/domain/api/feeds';
@@ -27,9 +28,12 @@ import {
   googleNewsFeed,
   podcastsFrom,
 } from '@/domain/discover';
+
+import { isMember } from '@/domain/members';
 import {
   ApiController,
   created,
+  isObject,
   ok,
   page,
   parseLimit,
@@ -129,17 +133,16 @@ export function createTrendingFeeds(
     method: 'GET',
     decode: (request) => {
       const p = params(request, ['kind', 'days']);
-      const kind = (p.get('kind') ?? 'popular') as TrendingKind;
+      const requested = p.get('kind') ?? 'popular';
+      const kind = isMember(TRENDING, requested) ? requested : undefined;
       const days = Number(p.get('days') ?? 7);
       const errors = [
-        ...(TRENDING.includes(kind)
-          ? []
-          : [`kind: one of ${TRENDING.join(', ')}.`]),
+        ...(kind === undefined ? [`kind: one of ${TRENDING.join(', ')}.`] : []),
         ...(Number.isInteger(days) && days >= 1 && days <= 90
           ? []
           : ['days: a whole number from 1 to 90.']),
       ];
-      if (errors.length > 0) {
+      if (errors.length > 0 || kind === undefined) {
         throw problems.badRequest('The request is not valid.', errors);
       }
       return { kind, days, limit: p.limit };
@@ -269,10 +272,7 @@ export function parseConversion(
       : { ok: false, errors: ['url: not an address a feed can be found for.'] };
   }
   const news = body['google_news'];
-  const n =
-    news && typeof news === 'object' && !Array.isArray(news)
-      ? (news as Record<string, unknown>)
-      : undefined;
+  const n = isObject(news) ? news : undefined;
   const strings = n
     ? Object.fromEntries(
         Object.entries(n).filter(([, v]) => typeof v === 'string'),
@@ -351,8 +351,11 @@ export function createNewsTopics(
 /** The news-topics controller bound to the production resolver. */
 export const newsTopics = createNewsTopics();
 
+/** The statuses a recommendation goes through. */
+const RECOMMENDATION_STATUSES = ['pending', 'approved', 'declined'] as const;
+
 /** A recommendation on the wire. */
-type RecommendationStatus = 'pending' | 'approved' | 'declined';
+type RecommendationStatus = (typeof RECOMMENDATION_STATUSES)[number];
 
 export interface RecommendationResource {
   readonly id: string;
@@ -375,18 +378,21 @@ export function recommendationResource(
     url: r.url,
     ...(r.title ? { title: r.title } : {}),
     description: r.description,
-    status: r.status as RecommendationResource['status'],
+    status: r.status,
     ...(at ? { created_at: at } : {}),
     ...(decided ? { decided_at: decided } : {}),
   };
 }
 
+/** The setting that names the curators, which no binding declares. */
+const CURATOR_ENV = z.object({ CURATOR_EMAILS: z.string().optional() });
+
 /** Whether this person may approve and decline recommendations. */
 export function isCurator(user: Pick<User, 'email'>): boolean {
-  const configured = (getEnv() as unknown as Record<string, unknown>)[
-    'CURATOR_EMAILS'
-  ];
-  const listed = (typeof configured === 'string' ? configured : '')
+  const configured = CURATOR_ENV.safeParse(getEnv());
+  const listed = (
+    configured.success ? (configured.data.CURATOR_EMAILS ?? '') : ''
+  )
     .split(',')
     .map((event) => event.trim().toLowerCase())
     .filter(Boolean);
@@ -402,34 +408,40 @@ export function parseRecommendation(
   const url = body['url'];
   const title = body['title'];
   const description = body['description'];
-  const urlBad =
-    typeof url !== 'string' ||
-    !PARSE_RECOMMENDATION_PATTERN.test(url) ||
-    url.length > 2000;
+  const address =
+    typeof url === 'string' &&
+    PARSE_RECOMMENDATION_PATTERN.test(url) &&
+    url.length <= 2000
+      ? url
+      : undefined;
   const titleBad =
     title !== undefined && (typeof title !== 'string' || title.length > 200);
-  const descriptionBad =
-    typeof description !== 'string' ||
-    !description.trim() ||
-    description.length > 1000;
+  const reason =
+    typeof description === 'string' &&
+    description.trim() !== '' &&
+    description.length <= 1000
+      ? description.trim()
+      : undefined;
   const errors = [
     ...Object.keys(body)
       .filter((k) => !['url', 'title', 'description'].includes(k))
       .map((k) => `${k}: not a member of this request.`),
-    ...(urlBad ? ['url: an http(s) address.'] : []),
+    ...(address === undefined ? ['url: an http(s) address.'] : []),
     ...(titleBad ? ['title: at most 200 characters.'] : []),
-    ...(descriptionBad ? ['description: from 1 to 1000 characters.'] : []),
+    ...(reason === undefined
+      ? ['description: from 1 to 1000 characters.']
+      : []),
   ];
-  return errors.length > 0
+  return errors.length > 0 || address === undefined || reason === undefined
     ? { ok: false, errors }
     : {
         ok: true,
         value: {
-          url: url as string,
+          url: address,
           ...(typeof title === 'string' && title.trim()
             ? { title: title.trim() }
             : {}),
-          description: (description as string).trim(),
+          description: reason,
         },
       };
 }
@@ -466,7 +478,7 @@ export function createRecommendationsCollection(
       decode: (request, { user }) => {
         const p = params(request, ['status']);
         const status = p.get('status') ?? 'approved';
-        if (!['pending', 'approved', 'declined'].includes(status)) {
+        if (!isMember(RECOMMENDATION_STATUSES, status)) {
           throw problems.badRequest('The request is not valid.', [
             'status: pending, approved or declined.',
           ]);
@@ -474,7 +486,7 @@ export function createRecommendationsCollection(
         if (status !== 'approved' && !isCurator(user)) {
           throw problems.forbidden('Only a curator sees those.');
         }
-        return status as 'pending' | 'approved' | 'declined';
+        return status;
       },
       handle: async (status) =>
         new Repository(getDatabase()).listRecommendations(status),

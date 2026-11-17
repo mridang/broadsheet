@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { z } from 'zod';
 
 import {
   ANSWER_MODELS,
@@ -364,7 +365,10 @@ describe('converse', () => {
     expect(tool).toHaveBeenCalledWith({ name: 't', arguments: {} });
     expect(run.mock.calls[1]?.[0]).toBe(ASSISTANT_MODEL);
     expect(
-      (run.mock.calls[1]?.[1] as { messages: unknown[] }).messages.at(-1),
+      z
+        .looseObject({ messages: z.array(z.unknown()) })
+        .parse(run.mock.calls[1]?.[1])
+        .messages.at(-1),
     ).toEqual({
       role: 'tool',
       name: 't',

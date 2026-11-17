@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { z } from 'zod';
 import { SCOPE_READ, SCOPE_WRITE } from '@/domain/mcp/app';
 
 import {
@@ -77,13 +78,13 @@ const row = (overrides: Record<string, unknown> = {}) => ({
 });
 
 /** A fetch that serves a valid metadata document for `CIMD`. */
-const serving = jest.fn(async () =>
+const serving = jest.fn<typeof fetch>(async () =>
   Response.json({
     client_id: CIMD,
     client_name: 'Fresh',
     redirect_uris: ['https://app.example/cb'],
   }),
-) as unknown as typeof fetch;
+);
 
 describe('resolveClient', () => {
   it('reads a registered client straight from the registry', async () => {
@@ -146,9 +147,9 @@ describe('resolveClient', () => {
   });
 
   it('keeps using a stale copy when the client is briefly down', async () => {
-    const down = jest.fn(async () => {
+    const down = jest.fn<typeof fetch>(async () => {
       throw new Error('down');
-    }) as unknown as typeof fetch;
+    });
     const { db } = fakeDb({
       findFirst: {
         oauthClients: row({
@@ -165,9 +166,9 @@ describe('resolveClient', () => {
   });
 
   it('does not know a metadata document it cannot fetch and never saw', async () => {
-    const down = jest.fn(async () => {
+    const down = jest.fn<typeof fetch>(async () => {
       throw new Error('down');
-    }) as unknown as typeof fetch;
+    });
     const { db } = fakeDb({ findFirst: {} });
     expect(await resolveClient(db, CIMD, down, unlimited)).toBeUndefined();
   });
@@ -188,9 +189,9 @@ describe('saveClient', () => {
       kind: 'cimd',
       redirect_uris: '["https://app.example/cb"]',
     });
-    expect((values as { fetched_at: unknown }).fetched_at).toEqual(
-      expect.any(String),
-    );
+    expect(
+      z.looseObject({ fetched_at: z.unknown() }).parse(values).fetched_at,
+    ).toEqual(expect.any(String));
   });
 
   it('leaves fetched_at empty for a registered client', async () => {
@@ -202,11 +203,9 @@ describe('saveClient', () => {
       kind: 'dcr',
     });
     expect(
-      (
-        calls.find((c) => c.method === 'values')?.args[0] as {
-          fetched_at: unknown;
-        }
-      ).fetched_at,
+      z
+        .looseObject({ fetched_at: z.unknown() })
+        .parse(calls.find((c) => c.method === 'values')?.args[0]).fetched_at,
     ).toBeNull();
   });
 });
@@ -502,7 +501,7 @@ function ids(
   return raw
     .prepare(`SELECT ${column} AS id FROM ${table} ORDER BY ${column}`)
     .all()
-    .map((row) => String(row['id']));
+    .map((entry) => String(entry['id']));
 }
 
 /**
@@ -663,7 +662,7 @@ describe('against a real SQLite database', () => {
           'SELECT id FROM oauth_grants WHERE revoked_at IS NOT NULL ORDER BY id',
         )
         .all()
-        .map((row) => row['id']);
+        .map((entry) => entry['id']);
       expect(revoked).toEqual(made.slice(0, 2));
       expect(
         raw
@@ -881,7 +880,7 @@ describe('against a real SQLite database', () => {
           'SELECT id FROM oauth_grants WHERE revoked_at IS NULL ORDER BY id',
         )
         .all()
-        .map((row) => row['id']);
+        .map((entry) => entry['id']);
       expect(live).toEqual(['g-other', 'g-theirs']);
       const connected = await listConnectedApps(db, 7);
       expect(connected.map((a) => a.grantId)).toEqual(['g-other']);
@@ -996,7 +995,7 @@ describe('against a real SQLite database', () => {
       const revoked = raw
         .prepare('SELECT id FROM oauth_grants WHERE revoked_at IS NOT NULL')
         .all()
-        .map((row) => row['id']);
+        .map((entry) => entry['id']);
       expect(revoked).toEqual(
         expect.arrayContaining(['idle', 'never-used-old']),
       );
@@ -1030,9 +1029,7 @@ describe('against a real SQLite database', () => {
         redirect_uris: ['https://app.example/cb'],
       });
     const serve = (init: ResponseInit = {}) =>
-      jest.fn(
-        async () => new Response(document(), init),
-      ) as unknown as typeof fetch;
+      jest.fn<typeof fetch>(async () => new Response(document(), init));
     const refusing: RateLimitStore = {
       async hit(_key, now) {
         return { count: 10_000, windowStart: now - 5 };
@@ -1066,12 +1063,12 @@ describe('against a real SQLite database', () => {
         serve({ headers: { 'cache-control': 'max-age=1800' } }),
         unlimited,
       );
-      const row = raw
+      const client = raw
         .prepare('SELECT fetched_at, expires_at FROM oauth_clients')
         .get();
       const span =
-        Date.parse(String(row?.['expires_at'])) -
-        Date.parse(String(row?.['fetched_at']));
+        Date.parse(String(client?.['expires_at'])) -
+        Date.parse(String(client?.['fetched_at']));
       expect(span).toBe(1_800_000);
     });
 
@@ -1184,9 +1181,9 @@ describe('against a real SQLite database', () => {
         ago(8 * 86_400),
         ago(8 * 86_400),
       );
-      const down = jest.fn(async () => {
+      const down = jest.fn<typeof fetch>(async () => {
         throw new Error('down');
-      }) as unknown as typeof fetch;
+      });
       expect(
         await resolveClient(db, CIMD, down, { ...unlimited, now: NOW }),
       ).toBeUndefined();
@@ -1202,9 +1199,9 @@ describe('against a real SQLite database', () => {
         ago(2 * 86_400),
         ago(2 * 86_400),
       );
-      const down = jest.fn(async () => {
+      const down = jest.fn<typeof fetch>(async () => {
         throw new Error('down');
-      }) as unknown as typeof fetch;
+      });
       expect(
         await resolveClient(db, CIMD, down, { ...unlimited, now: NOW }),
       ).toMatchObject({ clientId: CIMD });
@@ -1279,12 +1276,12 @@ describe('against a real SQLite database', () => {
         },
         600,
       );
-      const row = raw.prepare('SELECT * FROM oauth_clients').get();
-      expect(row).toMatchObject({
+      const client = raw.prepare('SELECT * FROM oauth_clients').get();
+      expect(client).toMatchObject({
         client_name: 'Renamed',
         created_at: '2026-01-01T00:00:00.000Z',
       });
-      expect(row?.['expires_at']).not.toBeNull();
+      expect(client?.['expires_at']).not.toBeNull();
     });
   });
 });

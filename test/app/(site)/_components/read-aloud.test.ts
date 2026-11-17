@@ -33,6 +33,7 @@ function host() {
   return {
     spoken,
     synth,
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- FakeUtterance and the mock synthesiser stand in for the browser's Web Speech classes, which the Node test environment does not have
     host: {
       speechSynthesis: synth,
       SpeechSynthesisUtterance: FakeUtterance,
@@ -43,6 +44,7 @@ function host() {
 describe('webSpeech', () => {
   it('is null where the browser cannot speak', () => {
     expect(webSpeech({})).toBeNull();
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- the mock synthesiser stands in for the browser's SpeechSynthesis, which the Node test environment does not have
     expect(webSpeech({ speechSynthesis: host().synth } as never)).toBeNull();
   });
 

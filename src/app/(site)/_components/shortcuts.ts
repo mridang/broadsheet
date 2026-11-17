@@ -148,9 +148,7 @@ export function shortcutFor(press: KeyPress): Shortcut | null {
   if (press.shiftKey && press.key === 'ArrowUp') {
     return 'prev-section';
   }
-  return Object.hasOwn(KEYS, press.key)
-    ? KEYS[press.key as keyof typeof KEYS]
-    : null;
+  return Object.entries(KEYS).find(([key]) => key === press.key)?.[1] ?? null;
 }
 
 /** The minimal shape of an event target this module reads. */

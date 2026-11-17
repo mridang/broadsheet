@@ -14,6 +14,7 @@ import { rivers } from '@/domain/db/schema';
 import { editionIssueFor } from '@/domain/issues';
 import { storyIds } from '@/domain/render/layout';
 import { Repository } from '@/domain/repository';
+import { isMember } from '@/domain/members';
 import type { ArticleSummary } from '@/domain/repository';
 import type { Database } from '@/domain/db/client';
 
@@ -42,7 +43,9 @@ export interface RiverInput {
 }
 
 /** What a river id names, once read. */
-type RiverSource = 'feed' | 'section' | 'search' | 'edition';
+const RIVER_SOURCES = ['feed', 'section', 'search', 'edition'] as const;
+
+type RiverSource = (typeof RIVER_SOURCES)[number];
 
 export type RiverTarget =
   | { readonly kind: 'all' | 'saves' }
@@ -57,11 +60,9 @@ export function parseRiverId(riverId: string): RiverTarget | undefined {
     return { kind: riverId };
   }
   const match = PARSE_RIVER_ID_PATTERN.exec(riverId);
-  return match
-    ? {
-        kind: match[1] as RiverSource,
-        id: Number(match[2]),
-      }
+  const kind = match?.[1];
+  return match && isMember(RIVER_SOURCES, kind)
+    ? { kind, id: Number(match[2]) }
     : undefined;
 }
 
@@ -315,7 +316,7 @@ export async function frontPageRivers(
     riverChoices(db, userId),
   ]);
   const labels = new Map(options.map((o) => [o.river_id, o.label]));
-  const rivers = await Promise.all(
+  const pinnedRivers = await Promise.all(
     pinned
       .filter((river) => labels.has(river.river_id))
       .map(async (river) => ({
@@ -324,5 +325,5 @@ export async function frontPageRivers(
         stories: await riverStories(db, userId, river.river_id, RIVER_STORIES),
       })),
   );
-  return { rivers, options };
+  return { rivers: pinnedRivers, options };
 }

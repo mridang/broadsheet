@@ -53,6 +53,18 @@ const TIMEOUT_MS = 10_000;
 /** The most of a receiver's answer we read (we only want its status). */
 const MAX_ANSWER_BYTES = 4096;
 
+/**
+ * The headers of a request as a record: the names as they were written when
+ * they came as one, lower-cased when they came as a `Headers` or a list of pairs.
+ */
+function headerRecord(
+  headers: HeadersInit | undefined,
+): Record<string, string> {
+  return headers === undefined || Symbol.iterator in headers
+    ? Object.fromEntries(new Headers(headers))
+    : headers;
+}
+
 /** POST `body` to `url`, following no redirect; the status, or undefined when unreachable. */
 async function post(
   url: string,
@@ -129,7 +141,7 @@ async function pushToBrowsers(
     fetcher: async (url, init) => {
       const answer = await post(
         url instanceof Request ? url.url : String(url),
-        (init?.headers ?? {}) as Record<string, string>,
+        headerRecord(init?.headers),
         init?.body ?? '',
         fetcher,
       );

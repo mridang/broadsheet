@@ -91,10 +91,7 @@ export function fakeDb(results: FakeResults = {}): FakeDatabase {
     batch: async (statements: unknown[]) => {
       const n = batches.length;
       batches.push(statements);
-      return (
-        (nth(results.batch, n) as unknown[] | undefined) ??
-        statements.map(() => [])
-      );
+      return nth(results.batch, n) ?? statements.map(() => []);
     },
     query: new Proxy(
       {},
@@ -106,5 +103,6 @@ export function fakeDb(results: FakeResults = {}): FakeDatabase {
       },
     ),
   };
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- the fake answers the few query-builder calls the repositories under test make, not the whole Drizzle client that `Database` names
   return { db: db as unknown as Database, calls, batches };
 }

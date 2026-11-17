@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import { LANDING_PATH, SESSION_COOKIE, sessionClaims } from '@/domain/auth/app';
 import { installFakeTracing } from '../../lib/core/observability/fake-tracing';
+import { fixtureEnv, fixtureUser } from '../fixtures';
 import { SESSION_SECRET, appRequest } from './auth-test-kit';
 import type { User } from '@/domain/repository';
 
@@ -9,19 +10,18 @@ const REFUSES_A_GOOGLE_ACCOUNT_PATTERN = /email/u;
 const FAILS_CLOSED_WITHOUT_A_PATTERN = /SESSION_SECRET/u;
 
 /** A value that is not there, for fields the test leaves out on purpose. */
-const unset = (): undefined => undefined;
+// eslint-disable-next-line sonarjs/no-undefined-assignment -- a key set to undefined is what these tests send
+const unset = undefined;
 
 const tracing = installFakeTracing();
 
-const person = {
+const person = fixtureUser({
   id: 4,
   email: 'ada@example.com',
   name: 'Ada',
   picture: null,
   session_epoch: 2,
-  refresh_token_enc: null,
-  recipes_folder_id: null,
-} as unknown as User;
+});
 
 const upsertGoogleUser = jest
   .fn<(profile: unknown) => Promise<User>>()
@@ -49,18 +49,18 @@ const { completeSignIn, missingSignInSettings } =
 const { SessionTokens } = await import('@/lib/session');
 
 const env = (overrides: Record<string, string | undefined> = {}) =>
-  ({
+  fixtureEnv({
     SESSION_SECRET,
     GOOGLE_OAUTH_CLIENT_ID: 'id',
     GOOGLE_OAUTH_CLIENT_SECRET: 'secret',
     ...overrides,
-  }) as unknown as CloudflareEnv;
+  });
 
 const context = (overrides: Record<string, unknown> = {}) => ({
   request: appRequest('GET', '/auth/callback'),
   env: env(),
   origin: 'https://app.test',
-  returnTo: unset(),
+  returnTo: unset,
   ...overrides,
 });
 
@@ -81,9 +81,9 @@ describe('missingSignInSettings', () => {
     expect(
       missingSignInSettings(
         env({
-          GOOGLE_OAUTH_CLIENT_ID: unset(),
+          GOOGLE_OAUTH_CLIENT_ID: unset,
           GOOGLE_OAUTH_CLIENT_SECRET: '',
-          SESSION_SECRET: unset(),
+          SESSION_SECRET: unset,
         }),
       ),
     ).toEqual([
@@ -122,7 +122,7 @@ describe('completeSignIn', () => {
       sub: 'g1',
       email: 'ada@example.com',
       name: 'Ada',
-      picture: unset(),
+      picture: unset,
     });
     expect(afterSignIn).toHaveBeenCalledWith(person);
     expect(
@@ -157,7 +157,7 @@ describe('completeSignIn', () => {
 
   it('fails closed without a session secret, recording nobody', async () => {
     await expect(
-      completeSignIn(context({ env: env({ SESSION_SECRET: unset() }) }), {
+      completeSignIn(context({ env: env({ SESSION_SECRET: unset }) }), {
         sub: 'g1',
         email: 'ada@example.com',
       }),

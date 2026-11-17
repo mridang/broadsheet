@@ -25,17 +25,16 @@ import {
   installEnv,
   jar,
 } from '../../../domain/auth/auth-test-kit';
+import { fixtureUser } from '../../../domain/fixtures';
 import type { User } from '@/domain/auth/store';
 
-const person = {
+const person = fixtureUser({
   id: 4,
   email: 'ada@example.com',
   name: 'Ada Lovelace',
   picture: null,
   session_epoch: 7,
-  refresh_token_enc: null,
-  recipes_folder_id: null,
-} as unknown as User;
+});
 
 const upsertGoogleUser = jest
   .fn<(profile: unknown) => Promise<User>>()

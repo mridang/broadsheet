@@ -12,6 +12,8 @@ import {
   MAX_PROMPT_LENGTH,
 } from '@/domain/briefing';
 import { clockMinutes, isTimeZone } from '@/domain/briefings';
+import { isMember } from '@/domain/members';
+import { isObject } from '@/lib/core/api';
 import { INTELLIGENCE } from '@/domain/render/tiers';
 import type { Category } from '@/domain/briefing';
 import type { Preferences } from '@/domain/repository';
@@ -41,7 +43,7 @@ export interface PreferencesResource {
     readonly sources: string;
     readonly include_read: boolean;
     readonly model?: string;
-    readonly sections: Readonly<Record<Category, boolean>>;
+    readonly sections: Readonly<Partial<Record<Category, boolean>>>;
     readonly section_order: readonly Category[];
     readonly prompts: readonly string[];
   };
@@ -71,12 +73,18 @@ const TIMES: ReadonlySet<string> = new Set([
   'evening',
 ]);
 
+/** Whether a briefing section entry is a known section turned on or off. */
+const isSectionFlag = (
+  entry: [string, unknown],
+): entry is [Category, boolean] =>
+  isMember(CATEGORIES, entry[0]) && typeof entry[1] === 'boolean';
+
 /** The API's view of a person's preferences. */
 export function preferencesResource(p: Preferences): PreferencesResource {
   const order = [
     ...new Set(
       (p.briefing_section_order ?? []).filter((k): k is Category =>
-        CATEGORIES.includes(k as Category),
+        isMember(CATEGORIES, k),
       ),
     ).union(new Set(CATEGORIES)),
   ];
@@ -100,7 +108,7 @@ export function preferencesResource(p: Preferences): PreferencesResource {
       ...(p.briefing_model ? { model: p.briefing_model } : {}),
       sections: Object.fromEntries(
         CATEGORIES.map((k) => [k, p.briefing_sections[k] !== false]),
-      ) as Record<Category, boolean>,
+      ),
       section_order: order,
       prompts: p.briefing_prompts,
     },
@@ -228,7 +236,7 @@ function briefingChanges(brief: Readonly<Record<string, unknown>>): Part {
     if (v === null) {
       return { changes: { briefing_model: null }, errors: [] };
     }
-    return typeof v === 'string' && BRIEFING_MODELS.includes(v)
+    return isMember(BRIEFING_MODELS, v)
       ? { changes: { briefing_model: v }, errors: [] }
       : bad(
           `briefing.model: must be null or one of ${BRIEFING_MODELS.join(', ')}.`,
@@ -236,39 +244,32 @@ function briefingChanges(brief: Readonly<Record<string, unknown>>): Part {
   };
   const sections = (): Part => {
     const v = brief['sections'];
-    const isMap = typeof v === 'object' && v !== null && !Array.isArray(v);
-    const ok =
-      isMap &&
-      Object.entries(v).every(
-        ([k, on]) =>
-          CATEGORIES.includes(k as Category) && typeof on === 'boolean',
-      );
-    return ok
+    const flags = isObject(v) ? Object.entries(v) : undefined;
+    return flags?.every(isSectionFlag)
       ? {
-          changes: { briefing_sections: v as Record<string, boolean> },
+          changes: { briefing_sections: Object.fromEntries(flags) },
           errors: [],
         }
       : bad('briefing.sections: must map section keys to true or false.');
   };
   const sectionOrder = (): Part => {
     const v = brief['section_order'];
-    const ok =
-      Array.isArray(v) &&
-      v.every((k) => CATEGORIES.includes(k as Category)) &&
-      new Set(v).size === v.length;
-    return ok
-      ? { changes: { briefing_section_order: v as Category[] }, errors: [] }
+    return Array.isArray(v) &&
+      v.every((k): k is Category => isMember(CATEGORIES, k)) &&
+      new Set(v).size === v.length
+      ? { changes: { briefing_section_order: v }, errors: [] }
       : bad('briefing.section_order: must list section keys, each once.');
   };
   const prompts = (): Part => {
     const v = brief['prompts'];
-    const ok =
-      Array.isArray(v) &&
+    return Array.isArray(v) &&
       v.length <= MAX_PROMPTS &&
-      v.every((p) => typeof p === 'string' && p.length <= MAX_PROMPT_LENGTH);
-    return ok
+      v.every(
+        (p): p is string =>
+          typeof p === 'string' && p.length <= MAX_PROMPT_LENGTH,
+      )
       ? {
-          changes: { briefing_prompts: (v as string[]).map((p) => p.trim()) },
+          changes: { briefing_prompts: v.map((p) => p.trim()) },
           errors: [],
         }
       : bad(
@@ -381,9 +382,9 @@ export function parsePreferenceChanges(
   };
   const briefing = (): Part => {
     const b = body['briefing'];
-    return typeof b !== 'object' || b === null || Array.isArray(b)
-      ? bad('briefing: must be an object.')
-      : briefingChanges(b as Record<string, unknown>);
+    return isObject(b)
+      ? briefingChanges(b)
+      : bad('briefing: must be an object.');
   };
   const members: readonly (readonly [string, () => Part])[] = [
     ['intelligence', intelligence],

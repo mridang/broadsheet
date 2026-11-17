@@ -21,13 +21,12 @@ import {
   wordCount,
   writeBriefing,
 } from '@/domain/briefing';
+import { fixtureArticle, fixtureEnv } from './fixtures';
 import type { Candidate, Choice } from '@/domain/briefing';
 import type { Article } from '@/domain/repository';
 
 function article(over: Partial<Article>): Article {
-  return {
-    id: 1,
-    source_id: 1,
+  return fixtureArticle({
     url: 'https://example.com/a',
     title: 'A',
     source: 'Example',
@@ -35,13 +34,10 @@ function article(over: Partial<Article>): Article {
     favicon: '',
     summary: '',
     published_at: '',
-    points: 0,
-    body_text: null,
     edition: '2026-11-01',
-    cluster_id: null,
     fetched_at: '',
     ...over,
-  } as Article;
+  });
 }
 
 function candidate(over: Partial<Candidate> & { id?: number } = {}): Candidate {
@@ -299,7 +295,7 @@ const envWith = (...answers: (string | Error)[]) => {
       return { response: next };
     },
   );
-  return { run, env: { AI: { run } } as unknown as CloudflareEnv };
+  return { run, env: fixtureEnv({ AI: { run } }) };
 };
 const noWait = async () => undefined;
 
@@ -385,12 +381,12 @@ describe('parseBriefedStories', () => {
 });
 
 describe('sectionOn', () => {
-  const prefs = { briefing_sections: {}, briefing_prompts: [] };
+  const sectionPrefs = { briefing_sections: {}, briefing_prompts: [] };
 
   it('keeps top stories on even when turned off', () => {
     expect(
       sectionOn('top_stories', {
-        ...prefs,
+        ...sectionPrefs,
         briefing_sections: { top_stories: false },
       }),
     ).toBe(true);
@@ -399,17 +395,17 @@ describe('sectionOn', () => {
   it('turns a section off', () => {
     expect(
       sectionOn('long_read', {
-        ...prefs,
+        ...sectionPrefs,
         briefing_sections: { long_read: false },
       }),
     ).toBe(false);
-    expect(sectionOn('long_read', prefs)).toBe(true);
+    expect(sectionOn('long_read', sectionPrefs)).toBe(true);
   });
 
   it('turns a keyword section on only with its prompt', () => {
-    expect(sectionOn('custom_1', prefs)).toBe(false);
+    expect(sectionOn('custom_1', sectionPrefs)).toBe(false);
     expect(
-      sectionOn('custom_1', { ...prefs, briefing_prompts: ['rust'] }),
+      sectionOn('custom_1', { ...sectionPrefs, briefing_prompts: ['rust'] }),
     ).toBe(true);
   });
 });
@@ -457,14 +453,14 @@ describe('selectStories with the reader’s settings', () => {
   );
 
   it('covers only stories from liked sources with the focus filter', () => {
-    const picks = selectStories(
+    const chosen = selectStories(
       [
         ...many,
         ...[7, 8, 9].map((id) => candidate({ id, source_liked: true })),
       ],
       { ...prefs, briefing_read_filter: 'focus' },
     );
-    expect(ids(picks).toSorted((a, b) => a - b)).toEqual([7, 8, 9]);
+    expect(ids(chosen).toSorted((a, b) => a - b)).toEqual([7, 8, 9]);
   });
 
   it('covers read stories when the reader includes them', () => {
@@ -493,11 +489,11 @@ describe('selectStories with the reader’s settings', () => {
         body_text: 'w '.repeat(900),
       }),
     });
-    const picks = selectStories([...many, long], {
+    const chosen = selectStories([...many, long], {
       ...prefs,
       briefing_sections: { long_read: false },
     });
-    expect(picks.find((p) => p.candidate.article.id === 9)?.category).toBe(
+    expect(chosen.find((p) => p.candidate.article.id === 9)?.category).toBe(
       'top_stories',
     );
   });
@@ -507,63 +503,63 @@ describe('selectStories with the reader’s settings', () => {
       id: 9,
       article: article({ id: 9, source_id: 9, body_text: 'w '.repeat(900) }),
     });
-    const picks = selectStories([...many, long], {
+    const chosen = selectStories([...many, long], {
       ...prefs,
       briefing_section_order: ['long_read', 'top_stories'],
     });
-    expect(picks[0]?.category).toBe('long_read');
+    expect(chosen[0]?.category).toBe('long_read');
   });
 
   it('adds keyword stories beyond the budget, at most two a prompt', () => {
     const found = [20, 21, 22].map((id) => candidate({ id }));
-    const picks = selectStories(
+    const chosen = selectStories(
       many,
       { ...prefs, briefing_prompts: ['rust'] },
       new Map([['custom_1', found]]),
     );
-    expect(picks.filter((p) => p.category === 'custom_1')).toHaveLength(2);
-    expect(picks).toHaveLength(7);
+    expect(chosen.filter((p) => p.category === 'custom_1')).toHaveLength(2);
+    expect(chosen).toHaveLength(7);
   });
 
   it('leaves out a keyword section with no prompt', () => {
-    const picks = selectStories(
+    const chosen = selectStories(
       many,
       prefs,
       new Map([['custom_1', [candidate({ id: 20 })]]]),
     );
-    expect(picks.some((p) => p.category === 'custom_1')).toBe(false);
+    expect(chosen.some((p) => p.category === 'custom_1')).toBe(false);
   });
 
   it('adds up to three unread site-wide stories per section', () => {
     const everyone = [30, 31, 32, 33].map((id) => candidate({ id }));
-    const picks = selectStories(
+    const chosen = selectStories(
       many,
       prefs,
       new Map([
         ['widely_read', [...everyone, candidate({ id: 40, read: true })]],
       ]),
     );
-    expect(ids(picks.filter((p) => p.category === 'widely_read'))).toEqual([
+    expect(ids(chosen.filter((p) => p.category === 'widely_read'))).toEqual([
       30, 31, 32,
     ]);
   });
 
   it('turns off a site-wide section', () => {
-    const picks = selectStories(
+    const chosen = selectStories(
       many,
       { ...prefs, briefing_sections: { widely_read: false } },
       new Map([['widely_read', [candidate({ id: 30 })]]]),
     );
-    expect(picks.some((p) => p.category === 'widely_read')).toBe(false);
+    expect(chosen.some((p) => p.category === 'widely_read')).toBe(false);
   });
 
   it('never repeats a story another section covers', () => {
-    const picks = selectStories(
+    const chosen = selectStories(
       many,
       prefs,
       new Map([['widely_read', [many[5]!]]]),
     );
-    expect(ids(picks).filter((id) => id === 6)).toHaveLength(1);
+    expect(ids(chosen).filter((id) => id === 6)).toHaveLength(1);
   });
 
   it('takes a lower minimum when given one', () => {
@@ -603,11 +599,11 @@ describe('composeBriefing', () => {
       response: 'Note.',
       usage: { total_tokens: 321 },
     }));
-    const env = { AI: { run } } as unknown as CloudflareEnv;
+    const env = fixtureEnv({ AI: { run } });
     const out = await composeBriefing(
       env,
       picks,
-      { ...prefs, briefing_model: BRIEFING_MODELS[2] ?? null },
+      { ...prefs, briefing_model: BRIEFING_MODELS[2] },
       '2026-11-01',
       noWait,
     );

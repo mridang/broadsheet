@@ -273,8 +273,8 @@ describe('sqliteTime', () => {
     ['2026-11-08T09:00:00Z', '2026-11-08 09:00:00'],
     ['2026-11-08T09:00:00.5Z', '2026-11-08 09:00:00'],
     ['2026-11-08T10:30:00+01:30', '2026-11-08 09:00:00'],
-  ])('reads %s as %s', (text, stored) => {
-    expect(sqliteTime(text)).toBe(stored);
+  ])('reads %s as %s', (text, expected) => {
+    expect(sqliteTime(text)).toBe(expected);
   });
 
   it.each(['2026-11-08', '2026-13-40T00:00:00Z', 'soon', ''])(

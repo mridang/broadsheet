@@ -35,6 +35,7 @@ const DEFAULT_TEST_ENV = {
 export function installEnv(
   env: Readonly<Record<string, unknown>> = DEFAULT_TEST_ENV,
 ): () => void {
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- these tests never touch the database; an empty object stands in for the binding, so any use of it fails loudly
   return installCloudflareContext({} as D1Database, env);
 }
 
