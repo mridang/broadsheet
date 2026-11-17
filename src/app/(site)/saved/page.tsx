@@ -38,7 +38,7 @@ export default async function SavedPage({
   }
   const { tag } = await searchParams;
   const repo = new Repository(getDatabase());
-  const [saves, tags] = await Promise.all([
+  const [saves, tagCounts] = await Promise.all([
     repo.listSaves(user.id, tag || undefined),
     repo.savedTagCounts(user.id),
   ]);
@@ -64,9 +64,9 @@ export default async function SavedPage({
           <TagControls tag={tag} />
         </div>
       ) : null}
-      {tags.length > 0 ? (
+      {tagCounts.length > 0 ? (
         <nav aria-label="Tags" className="mt-6 flex flex-wrap gap-2">
-          {tags.map((t) => (
+          {tagCounts.map((t) => (
             <TextLink
               bare
               key={t.tag}

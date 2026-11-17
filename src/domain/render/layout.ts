@@ -14,6 +14,7 @@ import {
   weight,
 } from '@/domain/render/tiers';
 import { matchTier } from '@/domain/titles';
+import { isObject } from '@/lib/core/api/json';
 import type { Classifiable, Tier, Training } from '@/domain/render/tiers';
 import type { Article, Feed } from '@/domain/repository';
 
@@ -317,67 +318,69 @@ const TIERS: ReadonlySet<string> = new Set([
 
 /** Whether each of `keys` on `v` is absent or a string. */
 const optionalStrings = (
-  v: Sibling,
+  v: Readonly<Record<string, unknown>>,
   keys: readonly (keyof Sibling)[],
 ): boolean =>
   keys.every((k) => {
-    const value: unknown = v[k];
+    const value = v[k];
     return value === undefined || typeof value === 'string';
   });
 
 const isSibling = (v: unknown): v is Sibling => {
-  if (typeof v !== 'object' || v === null) {
+  if (!isObject(v)) {
     return false;
   }
-  const s = v as Sibling;
   const identity =
-    Number.isInteger(s.id) &&
-    typeof s.source === 'string' &&
-    typeof s.url === 'string';
-  const tier = s.tier === 'title' || s.tier === 'related';
+    Number.isInteger(v['id']) &&
+    typeof v['source'] === 'string' &&
+    typeof v['url'] === 'string';
+  const tier = v['tier'] === 'title' || v['tier'] === 'related';
   return (
     identity &&
     tier &&
-    optionalStrings(s, ['title', 'published_at', 'image', 'excerpt'])
+    optionalStrings(v, ['title', 'published_at', 'image', 'excerpt'])
   );
 };
 
 const isStory = (v: unknown): v is LaidStory => {
-  if (typeof v !== 'object' || v === null) {
+  if (!isObject(v)) {
     return false;
   }
-  const s = v as LaidStory;
+  const { also, siblings, tier } = v;
   const hasStoryFields =
-    Number.isInteger(s.id) && TIERS.has(s.tier) && Array.isArray(s.also);
-  const siblings =
-    s.siblings === undefined ||
-    (Array.isArray(s.siblings) && s.siblings.every(isSibling));
+    Number.isInteger(v['id']) &&
+    typeof tier === 'string' &&
+    TIERS.has(tier) &&
+    Array.isArray(also);
+  const siblingsFine =
+    siblings === undefined ||
+    (Array.isArray(siblings) && siblings.every(isSibling));
   return (
-    hasStoryFields && s.also.every((n) => typeof n === 'string') && siblings
+    hasStoryFields && also.every((n) => typeof n === 'string') && siblingsFine
   );
 };
 
 const isDesk = (v: unknown): v is LaidDesk => {
-  if (typeof v !== 'object' || v === null) {
+  if (!isObject(v)) {
     return false;
   }
-  const d = v as LaidDesk;
+  const { stories } = v;
   const hasDeskFields =
-    Number.isInteger(d.feed_id) &&
-    typeof d.title === 'string' &&
-    typeof d.url === 'string';
-  return hasDeskFields && Array.isArray(d.stories) && d.stories.every(isStory);
+    Number.isInteger(v['feed_id']) &&
+    typeof v['title'] === 'string' &&
+    typeof v['url'] === 'string';
+  return hasDeskFields && Array.isArray(stories) && stories.every(isStory);
 };
 
 const isGroup = (v: unknown): v is LaidGroup => {
-  if (typeof v !== 'object' || v === null) {
+  if (!isObject(v)) {
     return false;
   }
-  const g = v as LaidGroup;
+  const { name, desks } = v;
   return (
-    (g.name === null || typeof g.name === 'string') &&
-    Array.isArray(g.desks) &&
-    g.desks.every(isDesk)
+    (name === null || typeof name === 'string') &&
+    Array.isArray(desks) &&
+    desks.every(isDesk)
   );
 };
 
@@ -385,12 +388,12 @@ const isGroup = (v: unknown): v is LaidGroup => {
 export function parseLayout(stored: string): Layout | undefined {
   try {
     const parsed: unknown = JSON.parse(stored);
-    if (typeof parsed !== 'object' || parsed === null) {
+    if (!isObject(parsed)) {
       return undefined;
     }
-    const layout = parsed as Layout;
-    return Array.isArray(layout.groups) && layout.groups.every(isGroup)
-      ? layout
+    const { groups } = parsed;
+    return Array.isArray(groups) && groups.every(isGroup)
+      ? { groups }
       : undefined;
   } catch {
     return undefined;

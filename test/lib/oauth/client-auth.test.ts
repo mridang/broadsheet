@@ -71,6 +71,7 @@ function deps(keys: unknown = jwks): AssertionDeps & { used: Set<string> } {
   const used = new Set<string>();
   return {
     used,
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- the cases below hand the verifier key sets that the type forbids, to see it refuse each one
     fetchJwks: async () => keys as JSONWebKeySet,
     claimAssertion: async (client, jti) => {
       const key = `${client} ${jti}`;
@@ -228,7 +229,7 @@ describe('verifyClientAssertion', () => {
 
 describe('fetchJwks', () => {
   const answer = (init: ResponseInit | undefined, body: string) =>
-    jest.fn(async () => new Response(body, init)) as unknown as typeof fetch;
+    jest.fn<typeof fetch>(async () => new Response(body, init));
 
   it('reads the key set, without following redirects', async () => {
     const fetchImpl = answer({ status: 200 }, JSON.stringify({ keys: [] }));

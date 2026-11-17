@@ -337,11 +337,8 @@ const DUE_SLACK_MS = 4 * 60 * 1000;
 export const MAX_BACKOFF_MINUTES = 7 * 24 * 60;
 
 /** Every column of an article but its body text: what a list selects. */
-const summaryColumns = Object.fromEntries(
-  Object.entries(getTableColumns(articles)).filter(
-    ([name]) => name !== 'body_text',
-  ),
-) as Omit<ReturnType<typeof getTableColumns<typeof articles>>, 'body_text'>;
+const { body_text: _bodyText, ...summaryColumns } = getTableColumns(articles);
+export { summaryColumns };
 /** A like or dislike a person trained the paper with. */
 export type Classifier = typeof classifiers.$inferSelect;
 
@@ -483,14 +480,14 @@ export const DEFAULT_PREFERENCES: Preferences = {
 function storedJson<T>(
   stored: string | null,
   fallback: T,
-  valid: (v: unknown) => boolean,
+  valid: (v: unknown) => v is T,
 ): T {
   if (!stored) {
     return fallback;
   }
   try {
     const parsed: unknown = JSON.parse(stored);
-    return valid(parsed) ? (parsed as T) : fallback;
+    return valid(parsed) ? parsed : fallback;
   } catch {
     return fallback;
   }
@@ -505,10 +502,10 @@ function oneOf<T extends string>(
   return allowed.find((a) => a === value) ?? fallback;
 }
 
-const isStringList = (v: unknown): boolean =>
+const isStringList = (v: unknown): v is string[] =>
   Array.isArray(v) && v.every((x) => typeof x === 'string');
 
-const isSwitches = (v: unknown): boolean =>
+const isSwitches = (v: unknown): v is Record<string, boolean> =>
   typeof v === 'object' &&
   v !== null &&
   !Array.isArray(v) &&
@@ -2262,14 +2259,16 @@ export class Repository {
         ],
       ),
     );
-    const editions = new Set(
+    const editionNames = new Set(
       days.flatMap((day) => (day.edition === null ? [] : [day.edition])),
     );
     const total = days.reduce((n, day) => n + day.count, 0);
-    const ordered = [...editions].toSorted((a, b) => collator.compare(a, b));
+    const ordered = [...editionNames].toSorted((a, b) =>
+      collator.compare(a, b),
+    );
     return {
       articles: total,
-      editions: editions.size,
+      editions: editionNames.size,
       oldest_edition: ordered[0] ?? null,
       newest_edition: ordered.at(-1) ?? null,
       saved: saved?.count ?? 0,
@@ -2394,7 +2393,7 @@ export class Repository {
       story_count: totals.total,
       stories_last_month: totals.recent,
       stories_per_day: rows.map((r) => ({
-        date: r.date ?? '',
+        date: r.date,
         count: r.count,
       })),
       stories_per_month: months,
@@ -4159,9 +4158,9 @@ export class Repository {
   async savePromptScores(
     userId: number,
     classifierId: number,
-    answers: ReadonlyMap<number, boolean>,
+    matches: ReadonlyMap<number, boolean>,
   ): Promise<void> {
-    const inserts = Array.from(answers, ([articleId, matched]) =>
+    const inserts = Array.from(matches, ([articleId, matched]) =>
       this.#db
         .insert(promptScores)
         .values({
@@ -4479,7 +4478,10 @@ function feedOf({ extra_sections: extra, ...row }: FeedRow): Feed {
 }
 
 /** Whether the feed is filed in any of these sections. */
-export function filedIn(feed: Feed, ids: ReadonlySet<number>): boolean {
+export function filedIn(
+  feed: Pick<Feed, 'section_ids'>,
+  ids: ReadonlySet<number>,
+): boolean {
   return feed.section_ids.some((s) => ids.has(s));
 }
 
@@ -4490,7 +4492,7 @@ export function filedIn(feed: Feed, ids: ReadonlySet<number>): boolean {
  * any level means never.
  */
 export function autoMarkReadDays(
-  feed: Feed,
+  feed: Pick<Feed, 'section_id' | 'section_ids' | 'auto_mark_read_days'>,
   all: readonly Section[],
   person = 0,
 ): number | undefined {

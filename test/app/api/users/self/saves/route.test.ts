@@ -68,8 +68,8 @@ const list = async (query = '') =>
 
 const items = async (query = '') => {
   const res = await list(query);
-  const { items } = await res.json<{ items: unknown[] }>();
-  return items;
+  const { items: found } = await res.json<{ items: unknown[] }>();
+  return found;
 };
 
 describe('GET /api/users/self/saves', () => {

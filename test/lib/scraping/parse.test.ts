@@ -517,7 +517,7 @@ describe('bracketedName', () => {
     for (let index = 0; index < 20_000; index += 1) {
       const length = Math.floor(random() * 14);
       let raw = '';
-      for (let index = 0; index < length; index += 1) {
+      for (let at = 0; at < length; at += 1) {
         raw += alphabet[Math.floor(random() * alphabet.length)];
       }
       expect({ raw, got: bracketedName(raw) }).toEqual({
@@ -571,7 +571,7 @@ describe('FEED_TOKEN', () => {
     ];
     for (let index = 0; index < 5000; index += 1) {
       let source = '';
-      for (let index = 0; index < 20; index += 1) {
+      for (let at = 0; at < 20; at += 1) {
         source += parts[Math.floor(random() * parts.length)];
       }
       expect(tokens(source, FEED_TOKEN)).toEqual(tokens(source, old));

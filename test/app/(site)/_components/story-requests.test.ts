@@ -14,10 +14,10 @@ afterEach(() => {
 });
 
 function spy() {
-  const fetch = jest.fn<(url: string, init: RequestInit) => Promise<Response>>(
+  const fetch = jest.fn<typeof globalThis.fetch>(
     async () => new Response(null, { status: 204 }),
   );
-  globalThis.fetch = fetch as never;
+  globalThis.fetch = fetch;
   return fetch;
 }
 
@@ -96,7 +96,7 @@ describe('setShared', () => {
   it('sends no comment when it is blank', async () => {
     const fetch = spy();
     await setShared(4, true, '  ');
-    expect(fetch.mock.calls[0]![1].body).toBe('{"comments":null}');
+    expect(fetch.mock.calls[0]?.[1]?.body).toBe('{"comments":null}');
   });
 
   it('deletes the share to stop sharing', async () => {

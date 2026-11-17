@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { z } from 'zod';
 
 import { createDatabase } from '@/domain/db/client';
 import {
@@ -10,6 +11,7 @@ import {
 import { Repository } from '@/domain/repository';
 import { APP_MIGRATIONS } from '../lib/core/db/migrations';
 import { sqliteD1 } from '../lib/core/db/sqlite-d1';
+import { fixtureEnv } from './fixtures';
 import type { ScrapedItem } from '@/lib/scraping';
 
 const DAY = '2026-11-01';
@@ -28,14 +30,17 @@ const item = (n: number): ScrapedItem => ({
 /** An env whose model says yes when the question mentions Rust. */
 const ai = (answer?: (q: string) => { response: string }) => {
   const run = jest.fn(async (_model: string, input: unknown) => {
-    const q = (input as { messages: { content: string }[] }).messages[1]!
-      .content;
+    const q = z
+      .looseObject({
+        messages: z.array(z.looseObject({ content: z.string() })),
+      })
+      .parse(input).messages[1]!.content;
     if (answer) {
       return answer(q);
     }
     return { response: q.includes('Rust') ? 'Yes.' : 'No' };
   });
-  return { env: { AI: { run } } as unknown as CloudflareEnv, run };
+  return { env: fixtureEnv({ AI: { run } }), run };
 };
 
 let repo: Repository;

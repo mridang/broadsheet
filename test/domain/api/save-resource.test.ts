@@ -5,6 +5,7 @@ import {
   parseSaveTagInput,
   saveResource,
 } from '@/domain/api/save-resource';
+import { fixtureArticle } from '../fixtures';
 import type { ArticleSummary } from '@/domain/repository';
 
 const article: ArticleSummary = {
@@ -99,18 +100,16 @@ describe('parseSaveInput', () => {
 
 describe('saveResource with notes', () => {
   it('shows the note and highlights only when there are some', () => {
-    const article = { id: 1, url: 'https://a.test/1' } as Parameters<
-      typeof saveResource
-    >[0]['article'];
+    const bare = fixtureArticle({ id: 1, url: 'https://a.test/1' });
     expect([
       saveResource({
-        article,
+        article: bare,
         tags: [],
         saved_at: null,
         notes: 'n',
         highlights: ['h'],
       }),
-      saveResource({ article, tags: [], saved_at: null, notes: null }),
+      saveResource({ article: bare, tags: [], saved_at: null, notes: null }),
     ]).toEqual([
       {
         article_id: '1',

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
+import { z } from 'zod';
 
 import { SignOutButton } from '@/components/site/sign-out-button';
 import { html } from '../render';
@@ -29,7 +30,14 @@ describe('signing out', () => {
     });
     jest.spyOn(globalThis, 'fetch').mockImplementation(fetchSpy);
     const { props } = SignOutButton();
-    await (props as { onClick: () => Promise<void> | void }).onClick();
+    const { onClick } = z
+      .object({
+        onClick: z.custom<() => Promise<void> | void>(
+          (value) => typeof value === 'function',
+        ),
+      })
+      .parse(props);
+    await onClick();
     await new Promise((resolve) => {
       setTimeout(resolve, 0);
     });

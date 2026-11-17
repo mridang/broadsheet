@@ -33,9 +33,10 @@ export function sectionHeading(category: Category): string {
   if (custom) {
     return `Your topic ${custom[1]}`;
   }
-  return Object.hasOwn(HEADINGS, category)
-    ? HEADINGS[category as keyof typeof HEADINGS]
-    : category.replaceAll('_', ' ');
+  const heading = Object.entries(HEADINGS).find(
+    ([key]) => key === category,
+  )?.[1];
+  return heading ?? category.replaceAll('_', ' ');
 }
 
 /**

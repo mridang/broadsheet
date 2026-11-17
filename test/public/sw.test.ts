@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import vm from 'node:vm';
 import { describe, expect, it, jest } from '@jest/globals';
+import { z } from 'zod';
 
 const collator = new Intl.Collator();
 
@@ -10,7 +11,7 @@ const SW_SOURCE = await readFile(
   'utf8',
 );
 
-type Listener = (event: never) => void;
+type Listener = (event: Readonly<Record<string, unknown>>) => void;
 
 /** What the worker did with a fetch event. */
 type Handled = { answered: boolean; response: Promise<Response> | null };
@@ -36,7 +37,11 @@ function loadWorker(options: {
     fetched: [] as { url: string; init?: Record<string, unknown> }[],
     subscribedWith: [] as Record<string, unknown>[],
   };
-  const windows: { url: string; focus: jest.Mock; navigate: jest.Mock }[] = [];
+  const windows: {
+    url: string;
+    focus: () => Promise<undefined>;
+    navigate: (url: string) => Promise<string>;
+  }[] = [];
   const self = {
     location: {
       href: `https://app.example/sw.js${options.query ?? ''}`,
@@ -110,7 +115,7 @@ function fetchEvent(
     preloadResponse,
     respondWith: (response: Promise<Response>) => answers.push(response),
   };
-  listeners.get('fetch')?.(event as never);
+  listeners.get('fetch')?.(event);
   return { answered: answers.length > 0, response: answers[0] ?? null };
 }
 
@@ -131,7 +136,7 @@ describe('public/sw.js', () => {
 
   it('takes over straight away on install', () => {
     const { listeners, calls } = loadWorker({ online: true, preload: true });
-    listeners.get('install')?.({} as never);
+    listeners.get('install')?.({});
     expect(calls.skipped).toBe(1);
   });
 
@@ -140,7 +145,7 @@ describe('public/sw.js', () => {
     const waited: Promise<unknown>[] = [];
     listeners.get('activate')?.({
       waitUntil: (p: Promise<unknown>) => waited.push(p),
-    } as never);
+    });
     await Promise.all(waited);
     expect(calls).toMatchObject({ claimed: 1, preloadEnabled: 1 });
   });
@@ -150,7 +155,7 @@ describe('public/sw.js', () => {
     const waited: Promise<unknown>[] = [];
     listeners.get('activate')?.({
       waitUntil: (p: Promise<unknown>) => waited.push(p),
-    } as never);
+    });
     await Promise.all(waited);
     expect(calls).toMatchObject({ claimed: 1, preloadEnabled: 0 });
   });
@@ -254,9 +259,12 @@ async function push(
     data:
       data === null
         ? null
-        : { json: () => JSON.parse(data) as Record<string, unknown> },
+        : {
+            json: () =>
+              z.record(z.string(), z.unknown()).parse(JSON.parse(data)),
+          },
     waitUntil: (p: Promise<unknown>) => waited.push(p),
-  } as never);
+  });
   await Promise.all(waited);
   return worker.calls.shown;
 }
@@ -292,9 +300,12 @@ describe('public/sw.js: push', () => {
     });
     const waited: Promise<unknown>[] = [];
     worker.listeners.get('push')?.({
-      data: { json: () => JSON.parse('not json') as Record<string, unknown> },
+      data: {
+        json: () =>
+          z.record(z.string(), z.unknown()).parse(JSON.parse('not json')),
+      },
       waitUntil: (p: Promise<unknown>) => waited.push(p),
-    } as never);
+    });
     await Promise.all(waited);
     expect(worker.calls.shown[0]?.title).toBe('Pantry');
     expect(worker.calls.shown[0]?.options).toMatchObject({
@@ -317,7 +328,7 @@ describe('public/sw.js: tapping a notification', () => {
     worker.listeners.get('notificationclick')?.({
       notification: { close, data: url ? { url } : undefined },
       waitUntil: (p: Promise<unknown>) => waited.push(p),
-    } as never);
+    });
     await Promise.all(waited);
     return close;
   }
@@ -349,7 +360,7 @@ describe('public/sw.js: tapping a notification', () => {
       url: 'https://app.example/',
       focus,
       navigate,
-    } as never);
+    });
     await tap(worker, 'https://app.example/x');
     expect(focus).toHaveBeenCalledTimes(1);
     expect(navigate).toHaveBeenCalledWith('https://app.example/x');
@@ -366,7 +377,7 @@ async function renew(
   worker.listeners.get('pushsubscriptionchange')?.({
     ...event,
     waitUntil: (p: Promise<unknown>) => waited.push(p),
-  } as never);
+  });
   await Promise.all(waited);
 }
 

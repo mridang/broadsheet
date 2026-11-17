@@ -26,7 +26,6 @@ import { sqliteD1 } from '../lib/core/db/sqlite-d1';
 import type { Profile, Section } from '@/domain/repository';
 import type { Database } from '@/domain/db/client';
 import type { ScrapedItem } from '@/lib/scraping';
-import type { DatabaseSync } from 'node:sqlite';
 
 const collator = new Intl.Collator();
 
@@ -320,34 +319,14 @@ describe('dueSources', () => {
   });
 
   it('reads the due sources through the next_fetch_at index, not a scan', async () => {
-    const { d1, raw } = sqliteD1(...APP_MIGRATIONS);
-    const statements: string[] = [];
-    const recording = {
-      batch: async (items: D1PreparedStatement[]) => d1.batch(items),
-      prepare: (text: string) => {
-        statements.push(text);
-        return d1.prepare(text);
-      },
-    } as unknown as D1Database;
-    await new Repository(createDatabase(recording)).dueSources();
-    const plan = planOf(
-      raw,
-      statements.find((s) => s.includes('"sources"'))!,
-    );
+    const recorded = recordedDatabase();
+    await new Repository(recorded.db).dueSources();
+    const plan = recorded.planOf('"sources"');
     expect(plan).toContain('idx_sources_next_fetch');
     expect(plan).not.toMatch(READS_THE_DUE_SOURCES_PATTERN);
     expect(plan).not.toMatch(READS_THE_DUE_SOURCES_PATTERN_2);
   });
 });
-
-/** The query plan SQLite chooses for one statement against the migrated schema. */
-function planOf(raw: DatabaseSync, text: string): string {
-  return raw
-    .prepare(`EXPLAIN QUERY PLAN ${text}`)
-    .all()
-    .map((row) => String(row['detail']))
-    .join('\n');
-}
 
 describe('moveSource', () => {
   it('moves a source to its new address and forgets its validators', async () => {
@@ -381,20 +360,9 @@ describe('moveSource', () => {
 
 describe('sourceActivity', () => {
   it('finds the notifying feeds of a source through the subscription index, not a scan', async () => {
-    const { d1, raw } = sqliteD1(...APP_MIGRATIONS);
-    const statements: string[] = [];
-    const recording = {
-      batch: async (items: D1PreparedStatement[]) => d1.batch(items),
-      prepare: (text: string) => {
-        statements.push(text);
-        return d1.prepare(text);
-      },
-    } as unknown as D1Database;
-    await new Repository(createDatabase(recording)).sourceActivity(1);
-    const plan = planOf(
-      raw,
-      statements.find((s) => s.includes('"feed_notifications"'))!,
-    );
+    const recorded = recordedDatabase();
+    await new Repository(recorded.db).sourceActivity(1);
+    const plan = recorded.planOf('"feed_notifications"');
     expect(plan).toContain('idx_feed_notifications_subscription');
     expect(plan).not.toMatch(FINDS_THE_NOTIFYING_FEEDS_PATTERN);
   });
@@ -1474,7 +1442,7 @@ describe('custom editions', () => {
 });
 
 describe('trendingArticles', () => {
-  const story = (n: number, words = 1) => ({
+  const scraped = (n: number, words = 1) => ({
     url: `https://t/${n}`,
     title: `T${n}`,
     source: '',
@@ -1490,22 +1458,30 @@ describe('trendingArticles', () => {
    * Four readers following one feed with three stories (the third 700 words
    * long); returns their ids and the story ids, oldest first.
    */
-  async function seed(): Promise<{ people: number[]; ids: number[] }> {
+  async function seed(): Promise<{
+    people: readonly [number, number, number, number];
+    ids: number[];
+  }> {
     const repo = new Repository(db);
-    const people: number[] = [];
-    for (const name of ['a', 'b', 'c', 'd']) {
+    const join = async (name: string): Promise<number> => {
       const { id } = await upsertUser(db, { sub: name, email: `${name}@b.c` });
       await addFeed(db, id, 'https://t/rss');
-      people.push(id);
-    }
+      return id;
+    };
+    const people = [
+      await join('a'),
+      await join('b'),
+      await join('c'),
+      await join('d'),
+    ] as const;
     const feed = await new Repository(db).getFeedByUrl(
-      people[0]!,
+      people[0],
       'https://t/rss',
     );
     await repo.writeEdition(feed!.source_id, '2026-11-01', [
-      story(1),
-      story(2, 300),
-      story(3, 700),
+      scraped(1),
+      scraped(2, 300),
+      scraped(3, 700),
     ]);
     const sourceArticlesResult5 = await repo.sourceArticles(
       feed!.source_id,
@@ -1543,7 +1519,7 @@ describe('trendingArticles', () => {
 
   it('ranks by distinct readers, leaving out a story only one person read', async () => {
     const { people, ids } = await seed();
-    const [a, b, c] = people as [number, number, number];
+    const [a, b, c] = people;
     await read(a, ids[0]!);
     await read(b, ids[0]!);
     await read(c, ids[0]!);
@@ -1558,7 +1534,7 @@ describe('trendingArticles', () => {
 
   it('pages after a place in the list, and serves it from the end', async () => {
     const { people, ids } = await seed();
-    const [a, b] = people as [number, number];
+    const [a, b] = people;
     for (const id of ids) {
       await read(a, id);
       await read(b, id);
@@ -1586,7 +1562,7 @@ describe('trendingArticles', () => {
 
   it('leaves out what the person read when asked for unread', async () => {
     const { people, ids } = await seed();
-    const [a, b, c] = people as [number, number, number];
+    const [a, b, c] = people;
     await read(b, ids[0]!);
     await read(c, ids[0]!);
     await read(b, ids[1]!);
@@ -1597,7 +1573,7 @@ describe('trendingArticles', () => {
 
   it('ranks by seconds spent, counting only reads of 3 seconds or more', async () => {
     const { people, ids } = await seed();
-    const [a, b, c] = people as [number, number, number];
+    const [a, b, c] = people;
     await read(a, ids[0]!, 100);
     await read(b, ids[0]!, 2);
     await read(a, ids[1]!, 10);
@@ -1612,7 +1588,7 @@ describe('trendingArticles', () => {
 
   it('ranks long reads by readers who read a long story through', async () => {
     const { people, ids } = await seed();
-    const [a, b, c] = people as [number, number, number];
+    const [a, b, c] = people;
     // 700 words need 45 seconds; the 300-word story is too short.
     await read(a, ids[2]!, 45);
     await read(b, ids[2]!, 60);
@@ -1625,7 +1601,7 @@ describe('trendingArticles', () => {
   it('ranks good reads: deep readers and a save, or four deep readers', async () => {
     const repo = new Repository(db);
     const { people, ids } = await seed();
-    const [a, b, c, d] = people as [number, number, number, number];
+    const [a, b, c, d] = people;
     await read(a, ids[1]!, 30);
     await read(b, ids[1]!, 30);
     expect(await rank(a, { order: 'good_reads' })).toEqual([]);
@@ -1647,7 +1623,7 @@ describe('trendingArticles', () => {
   it('ranks saves by distinct savers, and counts nothing before the window', async () => {
     const repo = new Repository(db);
     const { people, ids } = await seed();
-    const [a, b] = people as [number, number];
+    const [a, b] = people;
     await repo.saveArticle(a, ids[1]!, []);
     expect(await rank(a, { order: 'saves' })).toEqual([]);
     await repo.saveArticle(b, ids[1]!, []);
@@ -1659,7 +1635,7 @@ describe('trendingArticles', () => {
 
   it('leaves out stories from sources the person does not follow', async () => {
     const { people, ids } = await seed();
-    const [a, b] = people as [number, number];
+    const [a, b] = people;
     await read(a, ids[0]!);
     await read(b, ids[0]!);
     const upsertUserResult = await upsertUser(db, { sub: 'x', email: 'x@b.c' });
@@ -1701,19 +1677,16 @@ describe('recordReadTime', () => {
 describe('trendingSources', () => {
   /** Sources a, b, c followed by these many people, each with a story. */
   async function seed(): Promise<{
-    people: number[];
+    people: readonly [number, number, number];
     sources: number[];
     stories: number[];
   }> {
     const repo = new Repository(db);
-    const people: number[] = [];
-    for (const name of ['a', 'b', 'c']) {
-      const upsertUserResult3 = await upsertUser(db, {
-        sub: name,
-        email: `${name}@b.c`,
-      });
-      people.push(upsertUserResult3.id);
-    }
+    const join = async (name: string): Promise<number> => {
+      const { id } = await upsertUser(db, { sub: name, email: `${name}@b.c` });
+      return id;
+    };
+    const people = [await join('a'), await join('b'), await join('c')] as const;
     const sources: number[] = [];
     const stories: number[] = [];
     for (const [n, followers] of [
@@ -1758,7 +1731,7 @@ describe('trendingSources', () => {
   it('ranks sources by distinct readers across everyone', async () => {
     const repo = new Repository(db);
     const { people, sources, stories } = await seed();
-    const [a, b, c] = people as [number, number, number];
+    const [a, b, c] = people;
     for (const p of [a, b, c]) {
       await repo.markRead(p, stories[1]!);
     }
@@ -1780,8 +1753,8 @@ describe('trendingSources', () => {
   it('leaves out a source one person follows or reads, and stale ones', async () => {
     const repo = new Repository(db);
     const { people, stories } = await seed();
-    await repo.markRead(people[0]!, stories[2]!);
-    await repo.markRead(people[0]!, stories[0]!);
+    await repo.markRead(people[0], stories[2]!);
+    await repo.markRead(people[0], stories[0]!);
     expect(await repo.trendingSources({ ...query, order: 'reads' })).toEqual(
       [],
     );
@@ -2069,7 +2042,10 @@ describe('preferences', () => {
 });
 
 describe('cluster siblings, issue lists and source counts', () => {
-  const story = (n: number, over: Partial<ScrapedItem> = {}): ScrapedItem => ({
+  const scraped = (
+    n: number,
+    over: Partial<ScrapedItem> = {},
+  ): ScrapedItem => ({
     url: `https://s.test/${n}`,
     title: 'Quake',
     source: 'S',
@@ -2086,9 +2062,9 @@ describe('cluster siblings, issue lists and source counts', () => {
     const user = await upsertUser(db, { sub: 'a', email: 'a@b.c' });
     const a = await addFeed(db, user.id, 'https://a.test/rss');
     const b = await addFeed(db, user.id, 'https://b.test/rss');
-    await repo.writeEdition(a!.source_id, '2026-11-01', [story(1)]);
-    await repo.writeEdition(b!.source_id, '2026-11-01', [story(2)]);
-    await repo.writeEdition(99, '2026-11-01', [story(3)]);
+    await repo.writeEdition(a!.source_id, '2026-11-01', [scraped(1)]);
+    await repo.writeEdition(b!.source_id, '2026-11-01', [scraped(2)]);
+    await repo.writeEdition(99, '2026-11-01', [scraped(3)]);
     const editionArticlesResult4 = await repo.editionArticles('2026-11-01');
     const ids = editionArticlesResult4.map((x) => x.id);
     await repo.writeClusters('2026-11-01', [ids]);
@@ -2100,7 +2076,7 @@ describe('cluster siblings, issue lists and source counts', () => {
     const repo = new Repository(db);
     const user = await upsertUser(db, { sub: 'a', email: 'a@b.c' });
     const a = await addFeed(db, user.id, 'https://a.test/rss');
-    await repo.writeEdition(a!.source_id, '2026-11-01', [story(1)]);
+    await repo.writeEdition(a!.source_id, '2026-11-01', [scraped(1)]);
     const [only] = await repo.editionArticles('2026-11-01');
     expect(await repo.clusterSiblingIds(user.id, only!.id)).toEqual([]);
     expect(await repo.clusterSiblingIds(user.id + 1, only!.id)).toEqual([]);
@@ -2110,7 +2086,7 @@ describe('cluster siblings, issue lists and source counts', () => {
     const repo = new Repository(db);
     const user = await upsertUser(db, { sub: 'a', email: 'a@b.c' });
     const a = await addFeed(db, user.id, 'https://a.test/rss', 'Alpha');
-    await repo.writeEdition(a!.source_id, '2026-11-01', [story(1)]);
+    await repo.writeEdition(a!.source_id, '2026-11-01', [scraped(1)]);
     const [row] = await repo.editionArticles('2026-11-01');
     expect(row).toHaveProperty('feed_title');
   });
@@ -2141,8 +2117,8 @@ describe('cluster siblings, issue lists and source counts', () => {
 
   it('counts each source’s stories since a date', async () => {
     const repo = new Repository(db);
-    await repo.writeEdition(1, '2026-10-01', [story(1)]);
-    await repo.writeEdition(1, '2026-10-20', [story(2), story(3)]);
+    await repo.writeEdition(1, '2026-10-01', [scraped(1)]);
+    await repo.writeEdition(1, '2026-10-20', [scraped(2), scraped(3)]);
     const counts = await repo.sourceCounts([1, 2], '2026-10-15');
     expect(counts.get(1)).toBe(2);
     expect(counts.has(2)).toBe(false);
@@ -2152,7 +2128,7 @@ describe('cluster siblings, issue lists and source counts', () => {
     const repo = new Repository(db);
     const user = await upsertUser(db, { sub: 'a', email: 'a@b.c' });
     const a = await addFeed(db, user.id, 'https://a.test/rss');
-    await repo.writeEdition(a!.source_id, '2026-11-01', [story(1)]);
+    await repo.writeEdition(a!.source_id, '2026-11-01', [scraped(1)]);
     const [row] = await repo.editionArticles('2026-11-01');
     await repo.markRead(user.id, row!.id);
     expect([...(await repo.readSourceIds(user.id))]).toEqual([a!.source_id]);
@@ -2314,12 +2290,11 @@ describe('listEditions with a timed mute', () => {
   });
 });
 
-const filed = (sectionId: number | null, days: number | null = null) =>
-  ({
-    section_id: sectionId,
-    section_ids: sectionId === null ? [] : [sectionId],
-    auto_mark_read_days: days,
-  }) as unknown as Parameters<typeof autoMarkReadDays>[0];
+const filed = (sectionId: number | null, days: number | null = null) => ({
+  section_id: sectionId,
+  section_ids: sectionId === null ? [] : [sectionId],
+  auto_mark_read_days: days,
+});
 
 describe('autoMarkReadDays', () => {
   const sections = [
@@ -2356,9 +2331,7 @@ describe('autoMarkReadDays', () => {
 
 describe('filedIn', () => {
   it('matches a feed filed in any of the sections', () => {
-    const feed = { ...filed(1), section_ids: [1, 4] } as Parameters<
-      typeof filedIn
-    >[0];
+    const feed = { ...filed(1), section_ids: [1, 4] };
     expect(filedIn(feed, new Set([4]))).toBe(true);
     expect(filedIn(feed, new Set([2]))).toBe(false);
   });
@@ -2379,7 +2352,7 @@ describe('archive helpers', () => {
     const repo = new Repository(db);
     const feed = (await repo.addFeed(1, 'https://a.test/f'))!;
     const today = new Date().toISOString().slice(0, 10);
-    const story = (url: string, title: string): ScrapedItem => ({
+    const scraped = (url: string, title: string): ScrapedItem => ({
       url,
       title,
       source: 'a.test',
@@ -2390,8 +2363,8 @@ describe('archive helpers', () => {
       points: 0,
     });
     await repo.writeEdition(feed.source_id, today, [
-      story('https://a.test/1', 'One'),
-      story('https://www.a.test/2', 'Two'),
+      scraped('https://a.test/1', 'One'),
+      scraped('https://www.a.test/2', 'Two'),
     ]);
     const searchArticlesResult2 = await repo.searchArticles(1, { limit: 5 });
     const ids = searchArticlesResult2.map((a) => a.id);
@@ -2833,7 +2806,7 @@ describe('storyTime', () => {
 });
 
 describe('clusters across days', () => {
-  const story = (n: number): ScrapedItem => ({
+  const scraped = (n: number): ScrapedItem => ({
     url: `https://w.test/${n}`,
     title: 'Quake',
     source: 'W',
@@ -2846,9 +2819,9 @@ describe('clusters across days', () => {
 
   it('lists the articles of every edition in a window', async () => {
     const repo = new Repository(db);
-    await repo.writeEdition(1, '2026-10-29', [story(1)]);
-    await repo.writeEdition(1, '2026-10-31', [story(2)]);
-    await repo.writeEdition(1, '2026-11-02', [story(3)]);
+    await repo.writeEdition(1, '2026-10-29', [scraped(1)]);
+    await repo.writeEdition(1, '2026-10-31', [scraped(2)]);
+    await repo.writeEdition(1, '2026-11-02', [scraped(3)]);
     const windowArticlesResult = await repo.windowArticles(
       '2026-10-30',
       '2026-11-01',
@@ -2858,8 +2831,8 @@ describe('clusters across days', () => {
 
   it('rewrites the clusters of a whole window', async () => {
     const repo = new Repository(db);
-    await repo.writeEdition(1, '2026-10-31', [story(1)]);
-    await repo.writeEdition(2, '2026-11-01', [story(2)]);
+    await repo.writeEdition(1, '2026-10-31', [scraped(1)]);
+    await repo.writeEdition(2, '2026-11-01', [scraped(2)]);
     const windowArticlesResult2 = await repo.windowArticles(
       '2026-10-31',
       '2026-11-01',
@@ -2875,8 +2848,8 @@ describe('clusters across days', () => {
 
   it('forgets clusters older than a date', async () => {
     const repo = new Repository(db);
-    await repo.writeEdition(1, '2026-10-01', [story(1)]);
-    await repo.writeEdition(2, '2026-10-01', [story(2)]);
+    await repo.writeEdition(1, '2026-10-01', [scraped(1)]);
+    await repo.writeEdition(2, '2026-10-01', [scraped(2)]);
     const editionArticlesResult5 = await repo.editionArticles('2026-10-01');
     const ids = editionArticlesResult5.map((a) => a.id);
     await repo.writeClusters('2026-10-01', [ids]);
@@ -2890,8 +2863,8 @@ describe('clusters across days', () => {
     const repo = new Repository(db);
     const user = await upsertUser(db, { sub: 'a', email: 'a@b.c' });
     const feed = await addFeed(db, user.id, 'https://w.test/rss');
-    await repo.writeEdition(feed!.source_id, '2026-11-01', [story(1)]);
-    await repo.writeEdition(99, '2026-11-01', [story(2)]);
+    await repo.writeEdition(feed!.source_id, '2026-11-01', [scraped(1)]);
+    await repo.writeEdition(99, '2026-11-01', [scraped(2)]);
     const editionArticlesResult6 = await repo.editionArticles('2026-11-01');
     const ids = editionArticlesResult6.map((a) => a.id);
     await repo.writeClusters('2026-11-01', [ids]);
@@ -2902,7 +2875,10 @@ describe('clusters across days', () => {
 });
 
 describe('briefings', () => {
-  const story = (n: number, over: Partial<ScrapedItem> = {}): ScrapedItem => ({
+  const scraped = (
+    n: number,
+    over: Partial<ScrapedItem> = {},
+  ): ScrapedItem => ({
     url: `https://b.test/${n}`,
     title: `Story ${n}`,
     source: 'B',
@@ -2938,8 +2914,8 @@ describe('briefings', () => {
     const a = await addFeed(db, user.id, 'https://a.test/rss');
     const b = await addFeed(db, user.id, 'https://b.test/rss');
     await repo.updateFeed(user.id, b!.id, { muted: true });
-    await repo.writeEdition(a!.source_id, '2026-11-01', [story(1)]);
-    await repo.writeEdition(b!.source_id, '2026-11-01', [story(2)]);
+    await repo.writeEdition(a!.source_id, '2026-11-01', [scraped(1)]);
+    await repo.writeEdition(b!.source_id, '2026-11-01', [scraped(2)]);
     expect(
       await repo.briefingArticles(user.id, '2000-01-01 00:00:00'),
     ).toHaveLength(1);
@@ -2956,8 +2932,8 @@ describe('briefings', () => {
     const user = await upsertUser(db, { sub: 'a', email: 'a@b.c' });
     const a = await addFeed(db, user.id, 'https://a.test/rss');
     await repo.writeEdition(a!.source_id, '2026-11-01', [
-      story(1, { title: 'Quantum chips' }),
-      story(2),
+      scraped(1, { title: 'Quantum chips' }),
+      scraped(2),
     ]);
     const searchSinceResult = await repo.searchSince(
       user.id,
@@ -2975,8 +2951,8 @@ describe('briefings', () => {
     const feedA = await addFeed(db, one.id, 'https://a.test/rss');
     await addFeed(db, two.id, 'https://a.test/rss');
     await repo.writeEdition(feedA!.source_id, '2026-11-01', [
-      story(1),
-      story(2),
+      scraped(1),
+      scraped(2),
     ]);
     const [first, second] = await repo.editionArticles('2026-11-01');
     await repo.markRead(one.id, first!.id);

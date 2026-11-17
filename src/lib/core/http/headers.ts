@@ -60,7 +60,7 @@ export function resourcePolicyFor(pathname: string): string {
 export function openerPolicyFor(pathname: string): string {
   return pathname === '/oauth/authorize'
     ? 'unsafe-none'
-    : (SECURITY_HEADERS['Cross-Origin-Opener-Policy'] ?? 'same-origin');
+    : SECURITY_HEADERS['Cross-Origin-Opener-Policy'];
 }
 
 /** One response header: its name and value. */

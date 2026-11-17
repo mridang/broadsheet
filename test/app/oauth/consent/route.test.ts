@@ -6,6 +6,7 @@ import {
   it,
   jest,
 } from '@jest/globals';
+import { z } from 'zod';
 
 import { handleConsent } from '@/app/oauth/consent/handler';
 import { s256 } from '@/lib/oauth';
@@ -19,6 +20,10 @@ import { APP_MIGRATIONS } from '../../../lib/core/db/migrations';
 import urls from '../../../fixtures/insecure-urls.json' with { type: 'json' };
 import type { CurrentUserResolver } from '@/domain/api/auth';
 import type { DatabaseSync } from 'node:sqlite';
+
+/** A line of the security log, read back. */
+const logged = (line: unknown) =>
+  z.looseObject({}).parse(JSON.parse(String(line)));
 
 const SENDS_AN_APPROVAL_BACK_PATTERN = /^cdn_/u;
 
@@ -243,9 +248,7 @@ describe('POST /oauth/consent', () => {
     it('logs that the grant was narrowed', async () => {
       const info = jest.spyOn(console, 'info').mockImplementation(() => {});
       await consent({ access: 'read' });
-      expect(
-        info.mock.calls.map(([line]) => JSON.parse(String(line)) as object),
-      ).toContainEqual(
+      expect(info.mock.calls.map(([line]) => logged(line))).toContainEqual(
         expect.objectContaining({
           event: 'oauth.scope_narrowed',
           clientId: 'dcr_abc',
@@ -260,9 +263,7 @@ describe('POST /oauth/consent', () => {
   it('logs a refusal as a security event', async () => {
     const info = jest.spyOn(console, 'info').mockImplementation(() => {});
     await consent({ decision: 'deny' });
-    expect(
-      info.mock.calls.map(([line]) => JSON.parse(String(line)) as object),
-    ).toContainEqual(
+    expect(info.mock.calls.map(([line]) => logged(line))).toContainEqual(
       expect.objectContaining({
         event: 'oauth.consent_denied',
         clientId: 'dcr_abc',

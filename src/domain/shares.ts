@@ -6,9 +6,10 @@
  * shows the sharer's id and name, never their email.
  */
 
-import { and, desc, eq, getTableColumns, inArray, lt } from 'drizzle-orm';
+import { and, desc, eq, inArray, lt } from 'drizzle-orm';
 
 import { articles, shares, users } from '@/domain/db/schema';
+import { summaryColumns } from '@/domain/repository';
 import type { Database } from '@/domain/db/client';
 import type { ArticleSummary } from '@/domain/repository';
 
@@ -29,13 +30,6 @@ export interface ShareQuery {
   readonly before?: number;
   readonly limit: number;
 }
-
-/** Every column of an article but its text. */
-const summaryColumns = Object.fromEntries(
-  Object.entries(getTableColumns(articles)).filter(
-    ([name]) => name !== 'body_text',
-  ),
-) as Omit<ReturnType<typeof getTableColumns<typeof articles>>, 'body_text'>;
 
 /** Shares over an injected Drizzle client. */
 export class ShareRepository {

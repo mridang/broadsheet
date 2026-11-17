@@ -2,6 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 
 import { StoryCard, StoryMenuItems } from '@/app/(site)/_components/story-card';
 import { html } from '../../../components/render';
+import { fixtureArticle } from '../../../domain/fixtures';
 import type { Article } from '@/domain/repository';
 
 const IS_COVERED_BY_ONE_PATTERN =
@@ -21,23 +22,16 @@ const SHOWS_ITS_PHOTO_THROUGH_PATTERN =
   /src="\/img\?url=https%3A%2F%2Fexample\.com%2Fp\.jpg/u;
 
 const article = (over: Partial<Article> = {}): Article =>
-  ({
+  fixtureArticle({
     id: 7,
-    source_id: 1,
     url: 'https://a.test/story',
     title: 'A headline',
     source: 'A Source',
-    image: null,
-    favicon: null,
     summary: 'What happened, at some length.',
-    published_at: null,
     points: 42,
-    body_text: null,
     edition: '2026-11-01',
-    cluster_id: null,
-    fetched_at: null,
     ...over,
-  }) as Article;
+  });
 
 describe('StoryCard', () => {
   it('is covered by one link to the story, named by its headline', async () => {

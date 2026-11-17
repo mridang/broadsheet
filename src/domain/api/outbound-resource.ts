@@ -12,6 +12,8 @@ import {
   rfc3339,
 } from '@/domain/api/feed-resource';
 import { FEED_FILTERS, FEED_SCOPES, WEBHOOK_EVENTS } from '@/domain/outbound';
+import { isMember } from '@/domain/members';
+import { isObject } from '@/lib/core/api';
 import { isPublicWebUrl } from '@/lib/safe-fetch';
 import type {
   FeedFilter,
@@ -61,6 +63,11 @@ function createdAt(stored: string | null): { created_at?: string } {
 /** Longest address we keep. */
 const MAX_URL_LENGTH = 2048;
 
+/** Whether `value` is an https address on the public web. */
+function isPublicHttps(value: string): boolean {
+  return value.startsWith('https://') && isPublicWebUrl(value);
+}
+
 /** A base64url value of `min` to `max` characters. */
 function isKey(value: unknown, min: number, max: number): value is string {
   return (
@@ -99,33 +106,38 @@ export function parsePushSubscriptionInput(
   body: Readonly<Record<string, unknown>>,
 ): Checked<PushSubscriptionInput> {
   const { endpoint, keys } = body;
-  const pair =
-    keys && typeof keys === 'object' && !Array.isArray(keys)
-      ? (keys as Record<string, unknown>)
-      : {};
+  const pair = isObject(keys) ? keys : {};
+  const address =
+    typeof endpoint === 'string' && isPublicHttps(endpoint)
+      ? endpoint
+      : undefined;
+  const p256dh = isKey(pair['p256dh'], 80, 100) ? pair['p256dh'] : undefined;
+  const auth = isKey(pair['auth'], 16, 32) ? pair['auth'] : undefined;
   const errors = [
     ...strangers(
       body,
       ['endpoint', 'keys', 'expiration_time', 'expirationTime'],
       'a push subscription',
     ),
-    ...(typeof endpoint !== 'string' ||
-    !endpoint.startsWith('https://') ||
-    !isPublicWebUrl(endpoint)
+    ...(address === undefined
       ? ['endpoint: must be a public https address.']
       : []),
-    ...(isKey(pair['p256dh'], 80, 100)
-      ? []
-      : ['keys.p256dh: must be the base64url P-256 public key.']),
-    ...(isKey(pair['auth'], 16, 32)
-      ? []
-      : ['keys.auth: must be the base64url auth secret.']),
+    ...(p256dh === undefined
+      ? ['keys.p256dh: must be the base64url P-256 public key.']
+      : []),
+    ...(auth === undefined
+      ? ['keys.auth: must be the base64url auth secret.']
+      : []),
   ];
-  return checked(errors, () => ({
-    endpoint: endpoint as string,
-    p256dh: pair['p256dh'] as string,
-    auth: pair['auth'] as string,
-  }));
+  if (
+    errors.length > 0 ||
+    address === undefined ||
+    p256dh === undefined ||
+    auth === undefined
+  ) {
+    return { ok: false, errors };
+  }
+  return { ok: true, value: { endpoint: address, p256dh, auth } };
 }
 
 /** A webhook as the API shows it; `secret` only in the answer that made it. */
@@ -165,26 +177,31 @@ export function parseWebhookInput(
   body: Readonly<Record<string, unknown>>,
 ): Checked<WebhookInput> {
   const { url, events } = body;
-  const urlBad =
-    typeof url !== 'string' ||
-    url.length > MAX_URL_LENGTH ||
-    !url.startsWith('https://') ||
-    !isPublicWebUrl(url);
+  const address =
+    typeof url === 'string' &&
+    url.length <= MAX_URL_LENGTH &&
+    isPublicHttps(url)
+      ? url
+      : undefined;
+  const wanted =
+    Array.isArray(events) &&
+    events.length > 0 &&
+    events.every((event): event is WebhookEvent =>
+      isMember(WEBHOOK_EVENTS, event),
+    )
+      ? events
+      : undefined;
   const errors = [
     ...strangers(body, ['url', 'events'], 'a webhook'),
-    ...(urlBad ? ['url: must be a public https address.'] : []),
-    ...(!Array.isArray(events) ||
-    events.length === 0 ||
-    !events.every((event) =>
-      (WEBHOOK_EVENTS as readonly unknown[]).includes(event),
-    )
+    ...(address === undefined ? ['url: must be a public https address.'] : []),
+    ...(wanted === undefined
       ? [`events: must be a non-empty list of ${WEBHOOK_EVENTS.join(', ')}.`]
       : []),
   ];
-  return checked(errors, () => ({
-    url: url as string,
-    events: [...new Set(events as WebhookEvent[])],
-  }));
+  if (errors.length > 0 || address === undefined || wanted === undefined) {
+    return { ok: false, errors };
+  }
+  return { ok: true, value: { url: address, events: [...new Set(wanted)] } };
 }
 
 /** A feed token as the API shows it; `token` only in the answer that made it. */
@@ -252,17 +269,18 @@ export function parseFeedTokenInput(
     typeof tag !== 'string' ||
     !tag.trim() ||
     tag.trim().length > MAX_NAME_LENGTH;
-  const filterKnown = (FEED_FILTERS as readonly unknown[]).includes(filter);
-  const strict = filter !== undefined && filterKnown && filter !== 'all';
+  const chosenFilter = isMember(FEED_FILTERS, filter) ? filter : undefined;
+  const chosenScope = isMember(FEED_SCOPES, scope) ? scope : undefined;
+  const strict = chosenFilter !== undefined && chosenFilter !== 'all';
   const errors = [
     ...strangers(
       body,
       ['scope', 'tag', 'section_id', 'search_id', 'filter'],
       'a feed token',
     ),
-    ...((FEED_SCOPES as readonly unknown[]).includes(scope)
-      ? []
-      : [`scope: must be one of ${FEED_SCOPES.join(', ')}.`]),
+    ...(chosenScope === undefined
+      ? [`scope: must be one of ${FEED_SCOPES.join(', ')}.`]
+      : []),
     ...(tag !== undefined && scope !== 'saves'
       ? ['tag: only for a saves feed.']
       : []),
@@ -281,7 +299,7 @@ export function parseFeedTokenInput(
     ...(scope !== 'search' && searchId !== undefined
       ? ['search_id: only for a search feed.']
       : []),
-    ...(filter !== undefined && !filterKnown
+    ...(filter !== undefined && chosenFilter === undefined
       ? [`filter: must be one of ${FEED_FILTERS.join(', ')}.`]
       : []),
     ...(strict && scope === 'saves'
@@ -294,13 +312,19 @@ export function parseFeedTokenInput(
       ? ['filter: a highlights feed keeps every highlight.']
       : []),
   ];
-  return checked(errors, () => ({
-    scope: scope as FeedScope,
-    ...(filter === undefined ? {} : { filter: filter as FeedFilter }),
-    ...(typeof tag === 'string' ? { tag: tag.trim() } : {}),
-    ...(section === undefined ? {} : { section_id: section }),
-    ...(search === undefined ? {} : { search_id: search }),
-  }));
+  if (errors.length > 0 || chosenScope === undefined) {
+    return { ok: false, errors };
+  }
+  return {
+    ok: true,
+    value: {
+      scope: chosenScope,
+      ...(chosenFilter === undefined ? {} : { filter: chosenFilter }),
+      ...(typeof tag === 'string' ? { tag: tag.trim() } : {}),
+      ...(section === undefined ? {} : { section_id: section }),
+      ...(search === undefined ? {} : { search_id: search }),
+    },
+  };
 }
 
 /** A checked email body. */

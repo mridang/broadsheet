@@ -15,6 +15,7 @@ import { createLocalJWKSet, decodeJwt, jwtVerify } from 'jose';
 import {
   ASSERTION_ALGORITHMS,
   FETCH_USER_AGENT,
+  isRecord,
   readCappedText,
 } from './client';
 import type { JSONWebKeySet } from 'jose';
@@ -91,7 +92,10 @@ export async function fetchJwks(
     () => undefined,
   );
   try {
-    return text === undefined ? undefined : (JSON.parse(text) as JSONWebKeySet);
+    const parsed: unknown = text === undefined ? undefined : JSON.parse(text);
+    return isRecord(parsed) && Array.isArray(parsed['keys'])
+      ? { keys: parsed['keys'].filter(isRecord) }
+      : undefined;
   } catch {
     return undefined;
   }

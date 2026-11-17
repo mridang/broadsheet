@@ -7,6 +7,7 @@
  */
 
 import { CATEGORIES, parseBriefedStories } from '@/domain/briefing';
+import { isMember } from '@/domain/members';
 import { hostOf } from '@/domain/render/tiers';
 import { DEFAULT_LIMIT, MAX_LIMIT, decodeCursor } from '@/lib/core/api';
 import { parseFeedId } from '@/domain/api/feed-resource';
@@ -56,7 +57,7 @@ function sectionsOf(stored: string): Category[] {
   try {
     const parsed: unknown = JSON.parse(stored);
     return Array.isArray(parsed)
-      ? parsed.filter((k): k is Category => CATEGORIES.includes(k as Category))
+      ? parsed.filter((k): k is Category => isMember(CATEGORIES, k))
       : [];
   } catch {
     return [];

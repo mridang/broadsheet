@@ -17,7 +17,7 @@ import { createDatabase } from '@/domain/db/client';
 import { DEFAULT_PREFERENCES, Repository } from '@/domain/repository';
 import { APP_MIGRATIONS } from '../lib/core/db/migrations';
 import { sqliteD1 } from '../lib/core/db/sqlite-d1';
-import type { Article } from '@/domain/repository';
+import { fixtureArticle, fixtureEnv } from './fixtures';
 import type { Database } from '@/domain/db/client';
 import type { ScrapedItem } from '@/lib/scraping';
 
@@ -188,13 +188,13 @@ describe('sqliteTime', () => {
 
 describe('clusterEntries', () => {
   const a = (id: number, sourceId: number, clusterId: number | null) =>
-    ({
+    fixtureArticle({
       id,
       source_id: sourceId,
       cluster_id: clusterId,
       source: `S${sourceId}`,
       url: 'u',
-    }) as Article;
+    });
 
   it('counts the sources of a story and names the others', () => {
     const [first, , lone] = clusterEntries([
@@ -235,7 +235,7 @@ describe('writeScheduledBriefing', () => {
       response,
       usage: { total_tokens: 99 },
     }));
-    return { run, env: { AI: { run } } as unknown as CloudflareEnv };
+    return { run, env: fixtureEnv({ AI: { run } }) };
   };
 
   beforeEach(async () => {

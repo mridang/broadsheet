@@ -280,7 +280,7 @@ export class D1OAuthStore implements OAuthStore {
       .set({ grant_id: grantId })
       .where(and(eq(oauthCodes.code_hash, hash), isNull(oauthCodes.grant_id)))
       .run();
-    return (result.meta.changes ?? 0) > 0;
+    return changesOf(result) > 0;
   }
 
   async createGrant(
@@ -557,7 +557,7 @@ export async function revokeConnectedApp(
       ),
     )
     .run();
-  const revoked = result.meta.changes ?? 0;
+  const revoked = changesOf(result);
   if (revoked > 0) {
     logSecurityEvent('oauth.grant_revoked', {
       grantId,
@@ -581,11 +581,11 @@ export async function purgeOAuthData(
   now: number = Math.floor(Date.now() / 1000),
 ): Promise<void> {
   const cutoffs = purgeCutoffs(now);
-  const revokedBefore = (iso: string) =>
+  const revokedBefore = (cutoff: string) =>
     db
       .select({ id: oauthGrants.id })
       .from(oauthGrants)
-      .where(lt(oauthGrants.revoked_at, iso));
+      .where(lt(oauthGrants.revoked_at, cutoff));
   const grantedClients = db
     .select({ clientId: oauthGrants.client_id })
     .from(oauthGrants);

@@ -18,6 +18,7 @@ import { storyIds } from '@/domain/render/layout';
 import { DEFAULT_PREFERENCES, Repository } from '@/domain/repository';
 import { APP_MIGRATIONS } from '../lib/core/db/migrations';
 import { sqliteD1 } from '../lib/core/db/sqlite-d1';
+import { fixtureEnv } from './fixtures';
 import type { CustomEdition } from '@/domain/repository';
 import type { Database } from '@/domain/db/client';
 import type { ScrapedItem } from '@/lib/scraping';
@@ -46,7 +47,7 @@ const modelRun = (response: unknown) =>
   });
 
 const envWith = (response: unknown, run = modelRun(response)) =>
-  ({ AI: { run } }) as unknown as CloudflareEnv;
+  fixtureEnv({ AI: { run } });
 
 let db: Database;
 let repo: Repository;

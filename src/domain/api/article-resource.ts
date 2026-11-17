@@ -6,6 +6,7 @@
  */
 
 import { parseFeedId } from '@/domain/api/feed-resource';
+import { isMember } from '@/domain/members';
 import { TRENDING_ORDERS } from '@/domain/repository';
 import { decodeCursor, MAX_LIMIT, DEFAULT_LIMIT } from '@/lib/core/api';
 import type {
@@ -13,7 +14,6 @@ import type {
   ArticleQuery,
   ArticleSummary,
   TrendingArticle,
-  TrendingOrder,
   TrendingQuery,
 } from '@/domain/repository';
 
@@ -116,8 +116,9 @@ export const WINDOWS = { day: 1, week: 7, month: 30 } as const;
 /** A trending window the API accepts. */
 export type TrendingWindow = keyof typeof WINDOWS;
 
-/** The trending orders, for checking one. */
-const TRENDING: ReadonlySet<string> = new Set(TRENDING_ORDERS);
+/** Whether a value names a trending window. */
+export const isTrendingWindow = (value: string): value is TrendingWindow =>
+  Object.hasOwn(WINDOWS, value);
 
 /** What `order` may be: newest or oldest first, or a trending ranking. */
 const ORDERS: ReadonlySet<string> = new Set([
@@ -176,7 +177,8 @@ export function parseArticleQuery(
   now: Date = new Date(),
 ): ArticleQueryInput {
   const order = params.get('order') ?? 'newest';
-  const ranked = TRENDING.has(order);
+  const trendingOrder = isMember(TRENDING_ORDERS, order) ? order : undefined;
+  const ranked = trendingOrder !== undefined;
   const window = params.get('window');
   const q = (params.get('q') ?? '').trim();
   const read = params.get('read');
@@ -208,7 +210,7 @@ export function parseArticleQuery(
     ...(window !== null && !ranked
       ? ['window: only with a trending order.']
       : []),
-    ...(window !== null && ranked && !Object.hasOwn(WINDOWS, window)
+    ...(window !== null && ranked && !isTrendingWindow(window)
       ? ['window: must be day, week or month.']
       : []),
     ...(q.length > MAX_QUERY_LENGTH ? ['q: too long.'] : []),
@@ -235,7 +237,8 @@ export function parseArticleQuery(
   if (errors.length > 0) {
     return { ok: false, errors };
   }
-  if (!ranked) {
+  const trendingWindow = window ?? 'week';
+  if (trendingOrder === undefined || !isTrendingWindow(trendingWindow)) {
     return {
       ok: true,
       query: {
@@ -247,12 +250,12 @@ export function parseArticleQuery(
       },
     };
   }
-  const days = WINDOWS[(window ?? 'week') as TrendingWindow];
+  const days = WINDOWS[trendingWindow];
   return {
     ok: true,
     query: { q, limit },
     trending: {
-      order: order as TrendingOrder,
+      order: trendingOrder,
       since: sqliteSince(now, days),
       ...(after ? { after } : {}),
       ...(read === 'false' ? { unread: true } : {}),

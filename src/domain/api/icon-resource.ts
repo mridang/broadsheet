@@ -1,3 +1,6 @@
+import { isObject } from '@/lib/core/api';
+import { isMember } from '@/domain/members';
+
 const PARSE_ICON_PATTERN = /^[a-z0-9-]{1,64}$/u;
 const PARSE_ICON_PATTERN_2 = /^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/u;
 const PARSE_ICON_PATTERN_3 = /^#[0-9a-f]{6}$/iu;
@@ -53,15 +56,18 @@ export function parseIcon(raw: unknown, field: string): IconInput {
   if (raw === null) {
     return { ok: true, icon: null };
   }
-  if (typeof raw !== 'object' || Array.isArray(raw)) {
+  if (!isObject(raw)) {
     return { ok: false, errors: [`${field}: must be an object or null.`] };
   }
-  const body = raw as Record<string, unknown>;
+  const body = raw;
   const type = body['type'];
-  const data = body['data'];
   const color = body['color'];
   const set = body['set'];
-  const missing = typeof data !== 'string' || !data;
+  const data =
+    typeof body['data'] === 'string' && body['data'] !== ''
+      ? body['data']
+      : undefined;
+  const missing = data === undefined;
   const emojiLong =
     !missing &&
     type === 'emoji' &&
@@ -77,7 +83,7 @@ export function parseIcon(raw: unknown, field: string): IconInput {
     ...Object.keys(body)
       .filter((key) => !['type', 'data', 'color', 'set'].includes(key))
       .map((key) => `${field}.${key}: not a member of an icon.`),
-    ...(ICON_TYPES.includes(type as IconResource['type'])
+    ...(isMember(ICON_TYPES, type)
       ? []
       : [`${field}.type: must be one of ${ICON_TYPES.join(', ')}.`]),
     ...(missing ? [`${field}.data: required.`] : []),
@@ -96,25 +102,23 @@ export function parseIcon(raw: unknown, field: string): IconInput {
     (typeof color !== 'string' || !PARSE_ICON_PATTERN_3.test(color))
       ? [`${field}.color: a hex colour such as #ff5722.`]
       : []),
-    ...(set !== undefined &&
-    (type !== 'preset' ||
-      !ICON_SETS.includes(set as IconResource['set'] & string))
+    ...(set !== undefined && (type !== 'preset' || !isMember(ICON_SETS, set))
       ? [
           `${field}.set: only for a preset icon, one of ${ICON_SETS.join(', ')}.`,
         ]
       : []),
   ];
-  if (errors.length > 0) {
+  if (errors.length > 0 || !isMember(ICON_TYPES, type) || data === undefined) {
     return { ok: false, errors };
   }
   return {
     ok: true,
     icon: {
-      type: type as IconResource['type'],
-      data: data as string,
+      type,
+      data,
       ...(typeof color === 'string' ? { color: color.toLowerCase() } : {}),
       ...(type === 'preset'
-        ? { set: (set as IconResource['set']) ?? 'lucide' }
+        ? { set: isMember(ICON_SETS, set) ? set : 'lucide' }
         : {}),
     },
   };

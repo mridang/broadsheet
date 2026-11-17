@@ -14,6 +14,7 @@ import { createDatabase } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
 import { APP_MIGRATIONS } from '../lib/core/db/migrations';
 import { sqliteD1 } from '../lib/core/db/sqlite-d1';
+import { fixtureEnv } from './fixtures';
 import type { Database } from '@/domain/db/client';
 
 describe('cosine', () => {
@@ -281,10 +282,10 @@ describe('clusterEdition', () => {
     return {
       upsert,
       run,
-      env: {
+      env: fixtureEnv({
         AI: { run },
         VECTORIZE: { upsert, getByIds },
-      } as unknown as CloudflareEnv,
+      }),
     };
   }
 
@@ -349,9 +350,11 @@ describe('clusterEdition', () => {
 
   it('skips clustering without embedding anything when no index is bound', async () => {
     const { run, env: event } = env();
-    const unbound = Object.fromEntries(
-      Object.entries(event).filter(([key]) => key !== 'VECTORIZE'),
-    ) as CloudflareEnv;
+    const unbound = fixtureEnv(
+      Object.fromEntries(
+        Object.entries(event).filter(([key]) => key !== 'VECTORIZE'),
+      ),
+    );
     expect(await clusterEdition(db, unbound, '2026-11-01')).toEqual({
       articles: 0,
       clusters: 0,

@@ -120,7 +120,7 @@ describe('INLINE_MARKS', () => {
     const parts = ['[', ']', '(', ')', '#', '1', '*', '**', '`', ' ', 'a'];
     for (let index = 0; index < 5000; index += 1) {
       let text = '';
-      for (let index = 0; index < 16; index += 1) {
+      for (let at = 0; at < 16; at += 1) {
         text += parts[Math.floor(random() * parts.length)];
       }
       expect(found(text, INLINE_MARKS)).toEqual(found(text, old));

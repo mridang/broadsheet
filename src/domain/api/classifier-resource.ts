@@ -10,6 +10,7 @@ import {
   parseFeedId,
   rfc3339,
 } from '@/domain/api/feed-resource';
+import { isMember } from '@/domain/members';
 import { regexProblem } from '@/domain/rules';
 import type { Classifier, ClassifierInput } from '@/domain/repository';
 
@@ -39,7 +40,10 @@ const MAX_PROMPT_LENGTH = 1000;
 /** What a classifier says about the stories it matches, and its stored score. */
 const SCORES = { like: 1, dislike: -1, super_dislike: -2 } as const;
 
-type Score = keyof typeof SCORES;
+/** The names of the scores, for checking one. */
+const SCORE_NAMES = ['like', 'dislike', 'super_dislike'] as const;
+
+type Score = (typeof SCORE_NAMES)[number];
 
 /** A classifier as the API shows it. */
 export interface ClassifierResource {
@@ -106,11 +110,11 @@ export function parseClassifierInput(
     !blank &&
     text.length > (kind === 'prompt' ? MAX_PROMPT_LENGTH : MAX_NAME_LENGTH);
   const valueFine = !blank && !tooLong;
-  const badScore = typeof score !== 'string' || !Object.hasOwn(SCORES, score);
+  const badScore = !isMember(SCORE_NAMES, score);
   const regex = body['is_regex'];
   const badRegex = regex !== undefined && typeof regex !== 'boolean';
   const badRegexKind =
-    !badRegex && Boolean(regex) && !REGEX_KINDS.includes(kind as string);
+    !badRegex && Boolean(regex) && !isMember(REGEX_KINDS, kind);
   const regexFine = !badRegex && !badRegexKind;
   const problem =
     regexFine && regex && typeof value === 'string'
@@ -136,9 +140,9 @@ export function parseClassifierInput(
           ].includes(key),
       )
       .map((key) => `${key}: not a member of a classifier.`),
-    ...(typeof kind !== 'string' || !(KINDS as readonly string[]).includes(kind)
-      ? [`kind: must be one of ${KINDS.join(', ')}.`]
-      : []),
+    ...(isMember(KINDS, kind)
+      ? []
+      : [`kind: must be one of ${KINDS.join(', ')}.`]),
     ...(blank ? ['value: must be a non-blank string.'] : []),
     ...(tooLong ? ['value: too long.'] : []),
     ...(valueFine && kind === 'feed' && parseFeedId(text) === undefined
@@ -161,14 +165,16 @@ export function parseClassifierInput(
       ? ['section_id: a classifier is scoped to a feed or a section.']
       : []),
   ];
-  return errors.length > 0
+  return errors.length > 0 ||
+    typeof kind !== 'string' ||
+    !isMember(SCORE_NAMES, score)
     ? { ok: false, errors }
     : {
         ok: true,
         input: {
-          kind: kind as string,
-          value: (value as string).trim(),
-          score: SCORES[score as Score],
+          kind,
+          value: text,
+          score: SCORES[score],
           ...(feedId === undefined ? {} : { scope_feed_id: feedId }),
           ...(sectionId === undefined ? {} : { scope_section_id: sectionId }),
           ...(regex ? { is_regex: true } : {}),

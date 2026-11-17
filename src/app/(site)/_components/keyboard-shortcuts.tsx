@@ -38,7 +38,7 @@ function desks(cards: readonly HTMLElement[]): Desk[] {
   return [...document.querySelectorAll('section[data-desk]')].flatMap(
     (zone) => {
       const first = cards.findIndex((card) => zone.contains(card));
-      const name = zone.querySelector('h3')?.textContent?.trim() ?? '';
+      const name = zone.querySelector('h3')?.textContent.trim() ?? '';
       return first !== -1 && name ? [{ name, first }] : [];
     },
   );
@@ -66,7 +66,7 @@ export function KeyboardShortcuts(): ReactElement {
   useEffect(() => {
     // eslint-disable-next-line sonarjs/max-lines-per-function -- splitting the key handler is a logic rewrite that would be large
     function onKey(event: KeyboardEvent) {
-      const target = event.target as HTMLElement | null;
+      const target = event.target instanceof HTMLElement ? event.target : null;
       if (isTyping(target)) {
         return;
       }
@@ -183,8 +183,8 @@ export function KeyboardShortcuts(): ReactElement {
           return;
         }
         case 'open-background': {
-          const link = stories[current] as HTMLAnchorElement | undefined;
-          if (!link) {
+          const link = stories[current];
+          if (!(link instanceof HTMLAnchorElement)) {
             return;
           }
           take();
@@ -286,7 +286,10 @@ export function KeyboardShortcuts(): ReactElement {
           if (document.fullscreenElement) {
             void document.exitFullscreen();
           } else {
-            void document.documentElement.requestFullscreen?.();
+            // Some browsers (iPhone Safari) have no fullscreen request at all.
+            const root: Partial<Pick<HTMLElement, 'requestFullscreen'>> =
+              document.documentElement;
+            void root.requestFullscreen?.();
           }
           return;
         }

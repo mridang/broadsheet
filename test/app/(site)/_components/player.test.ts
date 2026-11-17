@@ -142,12 +142,10 @@ describe('the page’s player', () => {
   });
 
   it('loads a signed-in person’s player and saves changes once, shortly after', async () => {
-    const fetch = jest.fn<
-      (url: string, init?: RequestInit) => Promise<Response>
-    >(async () =>
+    const fetch = jest.fn<typeof globalThis.fetch>(async () =>
       Response.json({ rate: 1.25, current: null, queue: ['7'], history: [] }),
     );
-    globalThis.fetch = fetch as never;
+    globalThis.fetch = fetch;
     await loadPlayer();
     expect(getPlayer()).toEqual({ ...EMPTY, rate: 1.25, queue: [7] });
     jest.useFakeTimers();

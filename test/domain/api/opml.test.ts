@@ -144,11 +144,7 @@ describe('parseOpml details', () => {
     )}`;
     const parsed = parseOpml(documentRoot(deep));
     expect(parsed).toMatchObject({ ok: true });
-    const feed = (
-      parsed as unknown as {
-        feeds: { site_url?: string; sections?: string[] }[];
-      }
-    ).feeds[0];
+    const feed = parsed.ok ? parsed.feeds[0] : undefined;
     expect(feed?.site_url).toBe('https://a.test/');
     expect(feed?.sections).toHaveLength(8);
   });

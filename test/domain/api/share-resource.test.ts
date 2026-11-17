@@ -6,15 +6,21 @@ import {
   parseSharerIds,
   shareResource,
 } from '@/domain/api/share-resource';
+import { fixtureArticle } from '../fixtures';
 import type { SharedStory } from '@/domain/shares';
 
-const share = {
+const share: SharedStory = {
   id: 3,
-  article: { id: 9, url: 'https://x/1', title: 'One', source: 'X' },
+  article: fixtureArticle({
+    id: 9,
+    url: 'https://x/1',
+    title: 'One',
+    source: 'X',
+  }),
   comments: 'Good',
   shared_at: '2026-10-20 08:00:00',
   sharer: { id: 7, name: 'Ada' },
-} as unknown as SharedStory;
+};
 
 describe('shareResource', () => {
   it('shows the story, the comment and the sharer by id and name', () => {

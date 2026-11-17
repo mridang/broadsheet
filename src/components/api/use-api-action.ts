@@ -35,8 +35,8 @@ export function useApiAction(onSuccess?: () => void): ApiAction {
     try {
       await request();
       onSuccess?.();
-    } catch (error) {
-      setError(problemText(error, failure));
+    } catch (failed) {
+      setError(problemText(failed, failure));
       setBusy(false);
     }
   };

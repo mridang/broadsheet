@@ -11,6 +11,7 @@ import { VoiceButton } from '@/app/(site)/article/[id]/_components/voice-button'
 import { Markdown } from '@/components/site/markdown';
 import {
   ANSWER_MODELS,
+  isAnswerModelName,
   HISTORY_TURNS,
   MAX_QUESTION_LENGTH,
   PRESET_QUESTIONS,
@@ -132,9 +133,12 @@ export function AskBox({ id }: Readonly<{ id: number }>): ReactElement {
           <select
             className={SMALL_FIELD}
             value={model}
-            onChange={(event) =>
-              setModel(event.currentTarget.value as AnswerModelName)
-            }
+            onChange={(event) => {
+              const picked = event.currentTarget.value;
+              if (isAnswerModelName(picked)) {
+                setModel(picked);
+              }
+            }}
           >
             {Object.keys(ANSWER_MODELS).map((name) => (
               <option key={name} value={name}>

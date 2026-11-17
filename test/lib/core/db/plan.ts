@@ -37,10 +37,11 @@ export function recordedDatabase(): RecordedDatabase {
       statements.push(text);
       return d1.prepare(text);
     },
-  } as unknown as D1Database;
+  };
   const sent = (text: string) => statements.filter((s) => s.includes(text));
   return {
-    db: createDatabase(recording),
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- the recorder wraps the two members of the D1 binding the driver calls (`prepare`, `batch`), not the whole binding
+    db: createDatabase(recording as unknown as D1Database),
     raw,
     statements,
     sent,

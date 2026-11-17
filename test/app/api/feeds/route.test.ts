@@ -6,6 +6,7 @@ import {
   it,
   jest,
 } from '@jest/globals';
+import { z } from 'zod';
 
 import { SESSION_COOKIE } from '@/domain/auth/app';
 import { APP_MIGRATIONS } from '../../../lib/core/db/migrations';
@@ -233,7 +234,7 @@ describe('GET /api/feeds', () => {
 
   it('answers OPML for Accept: text/x-opml, sections as folders', async () => {
     await follow('https://a.test/1');
-    const feedId = (stored(7)[0] as { id: number }).id;
+    const feedId = z.looseObject({ id: z.number() }).parse(stored(7)[0]).id;
     raw
       .prepare(
         "INSERT INTO sections (id, user_id, name) VALUES (1, 7, 'Tech & Co')",
@@ -256,7 +257,7 @@ describe('GET /api/feeds', () => {
 
   it('lists a feed filed in two sections under both folders in the OPML', async () => {
     await follow('https://a.test/1');
-    const feedId = (stored(7)[0] as { id: number }).id;
+    const feedId = z.looseObject({ id: z.number() }).parse(stored(7)[0]).id;
     raw
       .prepare(
         "INSERT INTO sections (id, user_id, name) VALUES (1, 7, 'Tech'), (2, 7, 'News')",

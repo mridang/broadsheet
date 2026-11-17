@@ -131,8 +131,8 @@ describe('POST /api/users/self/reads with copies', () => {
 
 const items = async (body: unknown) => {
   const res = await readMany(body);
-  const { items } = await res.json<{ items: unknown[] }>();
-  return items;
+  const { items: found } = await res.json<{ items: unknown[] }>();
+  return found;
 };
 
 describe('POST /api/users/self/reads with a scope', () => {

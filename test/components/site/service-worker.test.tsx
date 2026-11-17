@@ -105,9 +105,10 @@ function pushing(...answers: Response[]) {
   const calls: { input: string; init?: RequestInit }[] = [];
   const unsubscribe = jest.fn(async () => true);
   const subscription = {
+    endpoint: 'https://push.example.com/x',
     toJSON: () => ({ endpoint: 'https://push.example.com/x', keys: {} }),
     unsubscribe,
-  } as unknown as PushSubscription;
+  };
   const subscribe = jest.fn<PushEnvironment['pushManager']['subscribe']>(
     async () => subscription,
   );

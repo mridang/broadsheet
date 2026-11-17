@@ -842,7 +842,9 @@ export const feedRecommendations = sqliteTable(
     url: text('url').notNull(),
     title: text('title'),
     description: text('description').notNull(),
-    status: text('status').notNull().default('pending'),
+    status: text('status', { enum: ['pending', 'approved', 'declined'] })
+      .notNull()
+      .default('pending'),
     created_at: text('created_at').default(sql`(datetime('now'))`),
     decided_at: text('decided_at'),
   },
@@ -861,7 +863,9 @@ export const feedImports = sqliteTable(
   {
     id: text('id').primaryKey(),
     user_id: integer('user_id').notNull(),
-    status: text('status').notNull().default('running'),
+    status: text('status', { enum: ['running', 'complete', 'failed'] })
+      .notNull()
+      .default('running'),
     total: integer('total').notNull(),
     processed: integer('processed').notNull().default(0),
     added: integer('added').notNull().default(0),

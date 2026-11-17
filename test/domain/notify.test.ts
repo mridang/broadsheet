@@ -19,6 +19,7 @@ import { OutboundRepository } from '@/domain/outbound';
 import { base64Url } from '@/lib/outbound/tokens';
 import { APP_MIGRATIONS } from '../lib/core/db/migrations';
 import { sqliteD1 } from '../lib/core/db/sqlite-d1';
+import { fixtureAi } from './fixtures';
 import type { SafeFetcher, SafeRequestInit } from '@/lib/safe-fetch';
 import type { Database } from '@/domain/db/client';
 import type { ScrapedItem } from '@/lib/scraping';
@@ -197,18 +198,20 @@ const story = (url: string, title: string): ScrapedItem => ({
 
 /** A mail binding that records what it was asked to send. */
 function mailbox(fails = false) {
-  const sent: Record<string, unknown>[] = [];
+  const sent: (EmailMessage | EmailMessageBuilder)[] = [];
   return {
     sent,
     EMAIL: {
-      send: async (message: Record<string, unknown>) => {
+      send: async (
+        message: EmailMessage | EmailMessageBuilder,
+      ): Promise<EmailSendResult> => {
         if (fails) {
           throw new Error('refused');
         }
         sent.push(message);
         return { messageId: 'm' };
       },
-    } as unknown as SendEmail,
+    } satisfies SendEmail,
     EMAIL_FROM: 'paper@broadsheet.test',
   };
 }
@@ -438,13 +441,16 @@ describe('notifyNewStories rules and activity', () => {
       channels: ['webhook'],
     });
     const run = jest.fn(async (_model: string, input: unknown) => ({
-      response: (
-        input as { messages: { content: string }[] }
-      ).messages[1]!.content.includes('Story: Rust')
+      response: z
+        .looseObject({
+          messages: z.array(z.looseObject({ content: z.string() })),
+        })
+        .parse(input)
+        .messages[1]!.content.includes('Story: Rust')
         ? 'Yes'
         : 'No',
     }));
-    const AI = { run } as unknown as Ai;
+    const AI = fixtureAi(run);
     const result = await notifyNewStories({ AI }, db, user.id, '2026-10-02');
     expect(result.stories).toBe(2);
     expect(run).toHaveBeenCalledTimes(3);

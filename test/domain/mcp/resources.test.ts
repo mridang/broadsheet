@@ -5,7 +5,7 @@ import { RESOURCES } from '@/domain/mcp/resources';
 import { Repository } from '@/domain/repository';
 import { APP_MIGRATIONS } from '../../lib/core/db/migrations';
 import { sqliteD1 } from '../../lib/core/db/sqlite-d1';
-import type { User } from '@/domain/db/users';
+import { fixtureUser } from '../fixtures';
 import type { Database } from '@/domain/db/client';
 import type { ToolContext } from '@/domain/mcp/tool-context';
 
@@ -18,7 +18,7 @@ beforeEach(async () => {
   await repo.upsertUser({ sub: 'g1', email: 'a@b.com', name: 'A' });
   await repo.upsertUser({ sub: 'g2', email: 'c@d.com' });
   ctx = {
-    user: { id: 1 } as User,
+    user: fixtureUser({ id: 1 }),
     services: { openDatabase: () => db, refresh: () => undefined },
   };
 });

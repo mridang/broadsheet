@@ -44,12 +44,18 @@ export type ServeEnv = EdgeLimitEnv & {
   readonly CF_VERSION_METADATA?: { readonly id?: string };
 };
 
+/** What the Worker's execution context is asked for: background work, and the fall-through. */
+type ServeContext = Pick<
+  ExecutionContext,
+  'waitUntil' | 'passThroughOnException'
+>;
+
 /** The app that answers what the edge does not: the generated OpenNext handler. */
 export interface ServeApp {
   fetch(
     request: Request,
-    env: never,
-    ctx: ExecutionContext,
+    env: ServeEnv,
+    ctx: ServeContext,
   ): Response | Promise<Response>;
 }
 
@@ -57,7 +63,7 @@ export interface ServeApp {
 export interface ServeDeps {
   readonly app: ServeApp;
   /** The edge cache, or undefined where there is none (plain Node). */
-  readonly cache?: Cache;
+  readonly cache?: Pick<Cache, 'match' | 'put'>;
   /** What is rate limited, and how; the app's own unless a test supplies another. */
   readonly limits?: EdgeLimits;
   /** The pages the edge may keep a copy of; the app's own unless a test supplies others. */
@@ -114,7 +120,7 @@ const FLOW_ID = /^[A-Za-z0-9._:~-]{1,128}$/u;
 export async function serve(
   request: Request,
   env: ServeEnv,
-  ctx: ExecutionContext,
+  ctx: ServeContext,
   deps: ServeDeps,
 ): Promise<Response> {
   const sent = request.headers.get('X-Flow-ID');
@@ -145,7 +151,7 @@ export async function serve(
 async function answer(
   request: Request,
   env: ServeEnv,
-  ctx: ExecutionContext,
+  ctx: ServeContext,
   {
     app,
     cache = edgeCache(),
@@ -187,7 +193,7 @@ async function answer(
     headers: forwardedHeaders(request.headers, csp, nonce),
   });
   const appStarted = performance.now();
-  const fetched = await app.fetch(forwarded, env as never, ctx);
+  const fetched = await app.fetch(forwarded, env, ctx);
   const appMs = performance.now() - appStarted;
   const isHtml = (fetched.headers.get('content-type') ?? '').startsWith(
     'text/html',

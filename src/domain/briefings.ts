@@ -154,7 +154,7 @@ export function slotsFor(
       ];
     }
     case 'thrice_daily': {
-      return (Object.keys(SLOTS) as FixedSlot[]).map((slot) => ({
+      return (['morning', 'afternoon', 'evening'] as const).map((slot) => ({
         slot,
         at: SLOTS[slot],
       }));

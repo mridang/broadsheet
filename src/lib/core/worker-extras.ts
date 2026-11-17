@@ -82,10 +82,10 @@ export function isDailyRun(time: number): boolean {
  */
 export class DailyScrape extends WorkflowEntrypoint<
   CloudflareEnv,
-  ScrapeParams
+  ScrapeParams | undefined
 > {
   override async run(
-    event: Readonly<WorkflowEvent<ScrapeParams>>,
+    event: Readonly<WorkflowEvent<ScrapeParams | undefined>>,
     step: WorkflowStep,
   ): Promise<{ sources: number; ok: number; articles: number }> {
     const db = createDatabase(this.env.DB);

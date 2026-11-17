@@ -1,3 +1,5 @@
+import { isObject } from '@/lib/core/api';
+
 /**
  * @packageDocumentation
  *
@@ -39,7 +41,7 @@ export function promptQuestion(
 
 /** The model's answer read as a match, or undefined when it gave none. */
 export function readAnswer(out: unknown): boolean | undefined {
-  const text = (out as { response?: unknown } | null)?.response;
+  const text = isObject(out) ? out['response'] : undefined;
   if (typeof text !== 'string') {
     return undefined;
   }

@@ -190,19 +190,18 @@ export function discoveredArticleResource(
 function similarScope(request: Request): SimilarScope {
   const params = new URL(request.url).searchParams;
   const scope = params.get('scope') ?? 'followed';
+  const named = scope === 'followed' || scope === 'all' ? scope : undefined;
   const errors = [
     ...new Set(params.keys())
       .values()
       .filter((key) => key !== 'scope')
       .map((key) => `${key}: not a parameter of this list.`),
-    ...(scope === 'followed' || scope === 'all'
-      ? []
-      : ['scope: followed or all.']),
+    ...(named === undefined ? ['scope: followed or all.'] : []),
   ];
-  if (errors.length > 0) {
+  if (errors.length > 0 || named === undefined) {
     throw problems.badRequest('The request is not valid.', errors);
   }
-  return scope as SimilarScope;
+  return named;
 }
 
 /**

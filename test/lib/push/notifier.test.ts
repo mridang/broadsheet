@@ -35,7 +35,7 @@ class FakeStore implements PushSubscriptionStore {
 /** A sender that answers each endpoint with a fixed HTTP status. */
 function senderReturning(
   statusByEndpoint: Readonly<Record<string, number>>,
-): WebPushSender {
+): Pick<WebPushSender, 'send'> {
   return {
     send: async (
       subscription: PushSubscriptionRecord,
@@ -47,7 +47,7 @@ function senderReturning(
         gone: status === 404 || status === 410,
       };
     },
-  } as unknown as WebPushSender;
+  };
 }
 
 describe('PushNotifier.deliver', () => {

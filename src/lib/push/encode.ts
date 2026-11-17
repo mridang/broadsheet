@@ -32,11 +32,11 @@ export function concatBytes(...parts: readonly Uint8Array[]): Uint8Array {
 }
 
 /**
- * A `Uint8Array` as a {@link BufferSource} for Web Crypto. The single assertion
- * bridges a Web-types gap: a typed array is a BufferSource at runtime, but the
- * lib models the underlying buffer's variance (it may be a `SharedArrayBuffer`),
- * so the assignment needs it. @public.
+ * A `Uint8Array` as a {@link BufferSource} for Web Crypto. The lib models the
+ * underlying buffer's variance (it may be a `SharedArrayBuffer`), so a typed
+ * array of unknown buffer is not a BufferSource to the compiler; a copy over a
+ * plain `ArrayBuffer` is. @public.
  */
 export function bs(input: Uint8Array): BufferSource {
-  return input as BufferSource;
+  return new Uint8Array(input);
 }

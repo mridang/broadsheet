@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { z } from 'zod';
 
 import { createDatabase } from '@/domain/db/client';
 import { ToolFailureError } from '@/domain/mcp/tool-failure';
@@ -6,10 +7,10 @@ import { callTool } from '@/domain/mcp/tool-calls';
 import { Repository } from '@/domain/repository';
 import { APP_MIGRATIONS } from '../../../lib/core/db/migrations';
 import { sqliteD1 } from '../../../lib/core/db/sqlite-d1';
+import { fixtureUser } from '../../fixtures';
 import type { Database } from '@/domain/db/client';
 import type { ToolContext } from '@/domain/mcp/tool-context';
 import type { ToolServices } from '@/domain/mcp/tool-services';
-import type { User } from '@/domain/db/users';
 import type { AnswerModel } from '@/domain/assistant';
 import type { ScrapedItem } from '@/lib/scraping';
 
@@ -19,7 +20,7 @@ let refresh: jest.Mock<ToolServices['refresh']>;
 
 /** The context of a call by this person, with this model bound when there is one. */
 const asCaller = (uid: number, model?: AnswerModel): ToolContext => ({
-  user: { id: uid } as User,
+  user: fixtureUser({ id: uid }),
   services: { openDatabase: () => db, refresh, ...(model && { model }) },
 });
 
@@ -82,9 +83,16 @@ describe('get_infrequent_stories', () => {
         item(`https://b.test/${index}`, `B${index}`),
       ),
     );
-    const found = (await run('get_infrequent_stories', {
-      stories_per_month: 3,
-    })) as { feed_ids: string[]; articles: unknown[] };
+    const found = z
+      .looseObject({
+        feed_ids: z.array(z.string()),
+        articles: z.array(z.unknown()),
+      })
+      .parse(
+        await run('get_infrequent_stories', {
+          stories_per_month: 3,
+        }),
+      );
     expect(found.feed_ids).not.toContain(String(busy.id));
   });
 

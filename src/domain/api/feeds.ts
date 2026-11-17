@@ -75,13 +75,11 @@ interface FeedList {
 
 /** Whether the client asked for OPML ahead of JSON. */
 export function wantsOpml(request: Request): boolean {
-  const accepted = (request.headers.get('accept') ?? '')
+  const ranges = (request.headers.get('accept') ?? '')
     .split(',')
     .map((part) => part.trim().toLowerCase());
   const rank = (type: string): number => {
-    const index = accepted.findIndex(
-      (a) => a.split(';', 1)[0]?.trim() === type,
-    );
+    const index = ranges.findIndex((a) => a.split(';', 1)[0]?.trim() === type);
     return index === -1 ? Infinity : index;
   };
   return rank(OPML_TYPE) < rank('application/json');

@@ -170,14 +170,14 @@ export async function importFeeds(
         ],
       };
     }
-    const followed: Progress = {
+    const withFeed: Progress = {
       ...progress,
       addresses: new Set([...progress.addresses, address]),
       titles:
         name === '' ? progress.titles : new Set([...progress.titles, name]),
       sites: site === '' ? progress.sites : new Set([...progress.sites, site]),
     };
-    const [sectionId, after] = await sectionFor(followed, entry.sections ?? []);
+    const [sectionId, after] = await sectionFor(withFeed, entry.sections ?? []);
     const changes = {
       ...(sectionId === null ? {} : { section_id: sectionId }),
       // The person's own name for a feed the source already names otherwise.

@@ -39,7 +39,9 @@ function refusing() {
 }
 
 /** A cache that keeps responses in memory, keyed by URL. */
-function memoryCache(): Cache & { readonly stored: Map<string, Response> } {
+function memoryCache(): Pick<Cache, 'match' | 'put'> & {
+  readonly stored: Map<string, Response>;
+} {
   const stored = new Map<string, Response>();
   return {
     stored,
@@ -53,7 +55,7 @@ function memoryCache(): Cache & { readonly stored: Map<string, Response> } {
         response,
       );
     },
-  } as unknown as Cache & { readonly stored: Map<string, Response> };
+  };
 }
 
 const ctx = () => {
@@ -65,7 +67,7 @@ const ctx = () => {
         pending.push(promise);
       },
       passThroughOnException: () => {},
-    } as unknown as ExecutionContext,
+    } satisfies Pick<ExecutionContext, 'waitUntil' | 'passThroughOnException'>,
   };
 };
 

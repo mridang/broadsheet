@@ -82,7 +82,14 @@ describe('importFeeds nesting, matching and names', () => {
     const feed = (await repo.addFeed(1, 'https://a.test/feed'))!;
     await repo.recordDetails(
       feed.source_id,
-      { site_url: 'https://a.test/' } as never,
+      {
+        title: 'A feed',
+        site_url: 'https://a.test/',
+        description: '',
+        language: '',
+        updated_at: '',
+        icon: '',
+      },
       [],
     );
     const summary = await importFeeds(repo, 1, [

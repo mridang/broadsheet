@@ -20,13 +20,19 @@ export const WORKER_URL = `/sw.js?${new URLSearchParams({
   push: PUSH_SUBSCRIPTIONS_PATH,
 }).toString()}`;
 
+/** What this module asks of a browser's push subscription. */
+type PushSubscriptionHandle = Pick<
+  PushSubscription,
+  'endpoint' | 'toJSON' | 'unsubscribe'
+>;
+
 /** The parts of the browser subscribing to pushes uses, so they can be stood in for. */
 export interface PushEnvironment {
   readonly pushManager: Readonly<{
     subscribe: (
       options: PushSubscriptionOptionsInit,
-    ) => Promise<PushSubscription>;
-    getSubscription: () => Promise<PushSubscription | null>;
+    ) => Promise<PushSubscriptionHandle>;
+    getSubscription: () => Promise<PushSubscriptionHandle | null>;
   }>;
   readonly fetch: (input: string, init?: RequestInit) => Promise<Response>;
 }

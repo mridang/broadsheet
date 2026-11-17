@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { z } from 'zod';
 
 import {
   AUTHORIZE_FIELDS,
@@ -232,10 +233,9 @@ describe('security events from the authorization request', () => {
   it('warns about an unknown client, with the id cut short', async () => {
     const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
     await check({ client_id: 'n'.repeat(500) });
-    const line = JSON.parse(String(warn.mock.calls[0]?.[0])) as {
-      event: string;
-      clientId: string;
-    };
+    const line = z
+      .looseObject({ event: z.string(), clientId: z.string() })
+      .parse(JSON.parse(String(warn.mock.calls[0]?.[0])));
     expect(line.event).toBe('oauth.invalid_client');
     expect(line.clientId).toHaveLength(200);
     warn.mockRestore();

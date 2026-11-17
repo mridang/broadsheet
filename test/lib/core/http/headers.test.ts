@@ -149,14 +149,19 @@ describe('applyResponseHeaders', () => {
 
 describe('Cross-Origin-Resource-Policy', () => {
   it('keeps pages and data to this site', () => {
-    for (const path of ['/', '/some/page', '/some/page/abc', '/api/things']) {
-      expect(resourcePolicyFor(path)).toBe('same-site');
+    for (const pathname of [
+      '/',
+      '/some/page',
+      '/some/page/abc',
+      '/api/things',
+    ]) {
+      expect(resourcePolicyFor(pathname)).toBe('same-site');
     }
   });
 
   it('opens the files other sites embed or fetch on purpose', () => {
-    for (const path of CACHED_FILES) {
-      expect(resourcePolicyFor(path)).toBe('cross-origin');
+    for (const pathname of CACHED_FILES) {
+      expect(resourcePolicyFor(pathname)).toBe('cross-origin');
     }
   });
 
@@ -191,22 +196,22 @@ describe('Strict-Transport-Security', () => {
 
 describe('X-Robots-Tag', () => {
   it('keeps crawlers out of every page except the ones the app makes public', () => {
-    for (const path of [...PRIVATE_PATHS, '/oauth/authorize']) {
+    for (const pathname of [...PRIVATE_PATHS, '/oauth/authorize']) {
       expect(
-        applyResponseHeaders(at(path), html()).headers.get('X-Robots-Tag'),
+        applyResponseHeaders(at(pathname), html()).headers.get('X-Robots-Tag'),
       ).toBe('noindex, nofollow');
     }
-    for (const path of PUBLIC_PAGES) {
+    for (const pathname of PUBLIC_PAGES) {
       expect(
-        applyResponseHeaders(at(path), html()).headers.get('X-Robots-Tag'),
+        applyResponseHeaders(at(pathname), html()).headers.get('X-Robots-Tag'),
       ).toBeNull();
     }
   });
 
   it('leaves the files crawlers are meant to read unmarked', () => {
-    for (const path of CACHED_FILES) {
+    for (const pathname of CACHED_FILES) {
       expect(
-        applyResponseHeaders(at(path), html()).headers.get('X-Robots-Tag'),
+        applyResponseHeaders(at(pathname), html()).headers.get('X-Robots-Tag'),
       ).toBeNull();
     }
   });
@@ -254,9 +259,12 @@ describe('SECURITY_HEADERS', () => {
   });
 
   it("switches off every feature of OWASP's list except the two the app uses", () => {
-    const policy = SECURITY_HEADERS['Permissions-Policy'] ?? '';
+    const policy = SECURITY_HEADERS['Permissions-Policy'];
     const features = new Map(
-      policy.split(', ').map((part) => part.split('=') as [string, string]),
+      policy.split(', ').map((part): [string, string] => {
+        const [feature = '', allowlist = ''] = part.split('=');
+        return [feature, allowlist];
+      }),
     );
     expect(features.size).toBe(29);
     expect(features.get('camera')).toBe('()');

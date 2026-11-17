@@ -174,18 +174,16 @@ export function describeRedirect(
     kind,
     short,
     warning: warnings[kind],
-    note:
-      elsewhere && identity.kind === 'domain'
-        ? `This address is not on ${identity.domain}, the site that published the app. Some apps do work that way; approve only if you expect it.`
-        : undefined,
+    note: elsewhere
+      ? `This address is not on ${identity.domain}, the site that published the app. Some apps do work that way; approve only if you expect it.`
+      : undefined,
   };
 }
 
 /** The plain-words description of each requested scope; an unknown scope is shown as it is. */
 export function describeScopes(scopes: readonly string[]): readonly string[] {
-  return scopes.map((scope) =>
-    Object.hasOwn(SCOPE_TEXT, scope)
-      ? SCOPE_TEXT[scope as keyof typeof SCOPE_TEXT]
-      : scope,
-  );
+  return scopes.map((scope) => {
+    const text = Object.entries(SCOPE_TEXT).find(([key]) => key === scope)?.[1];
+    return text ?? scope;
+  });
 }

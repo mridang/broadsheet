@@ -5,7 +5,8 @@ import {
   parseBriefingQuery,
 } from '@/domain/api/briefing-resource';
 import { encodeCursor } from '@/lib/core/api';
-import type { Article, StoredBriefing } from '@/domain/repository';
+import { fixtureArticle } from '../fixtures';
+import type { StoredBriefing } from '@/domain/repository';
 
 const stored: StoredBriefing = {
   id: 4,
@@ -31,7 +32,12 @@ describe('briefingResource', () => {
     const articles = new Map([
       [
         1,
-        { id: 1, title: 'One', url: 'https://x.test/1', source: '' } as Article,
+        fixtureArticle({
+          id: 1,
+          title: 'One',
+          url: 'https://x.test/1',
+          source: '',
+        }),
       ],
     ]);
     expect(briefingResource(stored, articles, new Set([1]))).toEqual({

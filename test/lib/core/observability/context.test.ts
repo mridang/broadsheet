@@ -32,6 +32,7 @@ describe('setErrorContext', () => {
     await setErrorContext({
       gone: unset,
       nan: Number.NaN,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- the call is handed a nested object that its type forbids, on purpose: it must be dropped, not recorded
       object: { a: 1 } as never,
       kept: 'yes',
     });

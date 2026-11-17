@@ -72,7 +72,7 @@ const call = async (
     new Request(`https://app.test/api/users/self/saves/${id}`, {
       method,
       ...init,
-      headers: { ...auth, ...(init.headers as Record<string, string>) },
+      headers: { ...auth, ...Object.fromEntries(new Headers(init.headers)) },
     }),
     { params: Promise.resolve({ article_id: String(id) }) },
   );

@@ -8,6 +8,7 @@ import {
   stringArg,
   stringListArg,
 } from '@/lib/mcp';
+import { isObject } from '@/lib/core/api';
 
 const collator = new Intl.Collator();
 
@@ -131,10 +132,10 @@ describe('canonicalArguments', () => {
   });
 
   it('carries a key called __proto__ as an ordinary property', () => {
-    const args = JSON.parse('{"__proto__": 1, "name": "x"}') as Record<
-      string,
-      unknown
-    >;
+    const args: unknown = JSON.parse('{"__proto__": 1, "name": "x"}');
+    if (!isObject(args)) {
+      throw new TypeError('the text is an object');
+    }
     const result = canonicalArguments(args);
     expect(
       Object.keys(result).toSorted((a, b) => collator.compare(a, b)),

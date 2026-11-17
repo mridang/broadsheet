@@ -4,6 +4,22 @@ import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import type { SQLInputValue, StatementSync } from 'node:sqlite';
 
+/** The values to bind to a statement's placeholders, each one node:sqlite can take. */
+export function sqlValues(params: readonly unknown[]): SQLInputValue[] {
+  return params.map((parameter) => {
+    if (!isBindable(parameter)) {
+      throw new TypeError(`cannot bind a ${typeof parameter} to a statement`);
+    }
+    return parameter;
+  });
+}
+
+/** Whether node:sqlite can bind the value: a number, text, a blob or null. */
+const isBindable = (parameter: unknown): parameter is SQLInputValue =>
+  parameter === null ||
+  ['number', 'bigint', 'string'].includes(typeof parameter) ||
+  parameter instanceof Uint8Array;
+
 /** What a prepared statement answers, shaped like D1's `D1Result`. */
 interface Result {
   readonly success: true;
@@ -21,7 +37,7 @@ class Statement {
 
   /** The same statement with values bound to its placeholders. */
   bind(...params: readonly unknown[]): Statement {
-    return new Statement(this.conn, this.sql, params as SQLInputValue[]);
+    return new Statement(this.conn, this.sql, sqlValues(params));
   }
 
   private prepared(arrays: boolean): StatementSync {
@@ -58,6 +74,7 @@ class Statement {
   }
 
   async first<T = unknown>(): Promise<T | null> {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- D1's `first<T>()` lets the caller name the row type it expects, and a shim over node:sqlite can only assert it
     return (this.prepared(false).get(...this.params) as T | undefined) ?? null;
   }
 }
@@ -100,6 +117,7 @@ export function sqliteD1(...migrations: readonly string[]): SqliteD1 {
       }
     },
   };
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- the shim implements the few members of the D1 binding the app calls (`prepare`, `batch`) over node:sqlite, not the whole binding
   return { d1: d1 as unknown as D1Database, raw };
 }
 
@@ -124,18 +142,22 @@ export function installCloudflareContext(
   env: Readonly<Record<string, unknown>> = {},
 ): () => void {
   const key = Symbol.for('__cloudflare-context__');
-  const holder = globalThis as unknown as Record<symbol, unknown>;
-  const previous = holder[key];
-  holder[key] = {
-    env: { ...env, DB: d1 },
-    ctx: {
-      waitUntil: (work: Promise<unknown>) => {
-        background.push(work);
+  const previous: unknown = Object.getOwnPropertyDescriptor(
+    globalThis,
+    key,
+  )?.value;
+  Object.assign(globalThis, {
+    [key]: {
+      env: { ...env, DB: d1 },
+      ctx: {
+        waitUntil: (work: Promise<unknown>) => {
+          background.push(work);
+        },
       },
+      cf: {},
     },
-    cf: {},
-  };
+  });
   return () => {
-    holder[key] = previous;
+    Object.assign(globalThis, { [key]: previous });
   };
 }

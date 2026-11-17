@@ -1,12 +1,12 @@
 import { describe, expect, it } from '@jest/globals';
 
 import { TOOL_REGISTRY } from '@/domain/mcp/tools';
-import type { JsonTool } from '@/domain/mcp/tools/json-tool';
+import type { z } from 'zod';
 
 const collator = new Intl.Collator();
 
 /** Every tool, as the class that carries its zod input. */
-const TOOLS = TOOL_REGISTRY.all as readonly JsonTool<string>[];
+const TOOLS = TOOL_REGISTRY.all;
 
 describe('the tool catalogue', () => {
   /** The tools that say they may destroy something. */
@@ -35,8 +35,8 @@ describe('the tool catalogue', () => {
 
   it('describes every input in plain words', () => {
     for (const tool of TOOLS) {
-      for (const field of Object.values(tool.input.shape)) {
-        expect((field as { description?: string }).description).toBeTruthy();
+      for (const field of Object.values<z.ZodType>(tool.input.shape)) {
+        expect(field.description).toBeTruthy();
       }
     }
   });

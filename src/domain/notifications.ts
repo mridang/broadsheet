@@ -20,6 +20,7 @@ import {
   subscriptions,
   userActivity,
 } from '@/domain/db/schema';
+import { isMember } from '@/domain/members';
 import { notMuted } from '@/domain/repository';
 import type { Database } from '@/domain/db/client';
 
@@ -118,7 +119,7 @@ function channelsOf(stored: string): NotificationChannel[] {
     const parsed: unknown = JSON.parse(stored);
     return Array.isArray(parsed)
       ? parsed.filter((c): c is NotificationChannel =>
-          (NOTIFICATION_CHANNELS as readonly unknown[]).includes(c),
+          isMember(NOTIFICATION_CHANNELS, c),
         )
       : [];
   } catch {
@@ -134,14 +135,10 @@ const filterOf = (stored: string): NotificationFilter =>
 function ruleOf(row: typeof notificationRules.$inferSelect): NotificationRule {
   return {
     id: row.id,
-    kind: (RULE_KINDS as readonly string[]).includes(row.kind)
-      ? (row.kind as RuleKind)
-      : 'title',
+    kind: isMember(RULE_KINDS, row.kind) ? row.kind : 'title',
     value: row.value,
     is_regex: row.is_regex === 1,
-    scope: (RULE_SCOPES as readonly string[]).includes(row.scope)
-      ? (row.scope as RuleScope)
-      : 'all',
+    scope: isMember(RULE_SCOPES, row.scope) ? row.scope : 'all',
     ...(row.subscription_id === null ? {} : { feed_id: row.subscription_id }),
     ...(row.section_id === null ? {} : { section_id: row.section_id }),
     channels: channelsOf(row.channels),

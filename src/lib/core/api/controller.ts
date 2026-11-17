@@ -184,6 +184,7 @@ export class ApiController<Ctx = Request> {
     route: RouteContext,
   ): Promise<Response> {
     try {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- Ctx is the request itself when no `context` option is given (the default type argument); a generic class cannot express that link without a constructor overload that would change the public API
       const ctx = (
         this.#options.context
           ? await this.#options.context(request, route)
@@ -212,6 +213,7 @@ export class ApiController<Ctx = Request> {
    * methods actually registered are present.
    */
   handlers(): Record<HttpMethod, RouteHandler> {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- the documented contract is a full map that a route destructures (`export const { POST } = controller.handlers()`), so the type claims every method while only the registered ones exist; narrowing it would change the public API of every route
     return Object.fromEntries(
       Array.from(
         this.#endpoints,

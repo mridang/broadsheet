@@ -5,6 +5,8 @@
  * address a client posts to follow a new one.
  */
 
+import { z } from 'zod';
+
 import {
   iconResource,
   isAutoMarkReadDays,
@@ -52,6 +54,20 @@ export interface FeedResource {
   readonly metadata: readonly FeedElement[];
 }
 
+/** Whether a list of section ids names no section twice and is short enough. */
+const isDistinctSections = (ids: readonly number[]): boolean =>
+  new Set(ids).size === ids.length && ids.length <= MAX_FEED_SECTIONS;
+
+/** One element of a feed's header, as it is stored. */
+const FEED_ELEMENT: z.ZodType<FeedElement> = z.lazy(() =>
+  z.object({
+    name: z.string(),
+    attributes: z.record(z.string(), z.string()),
+    text: z.string(),
+    children: z.array(FEED_ELEMENT),
+  }),
+);
+
 /** The stored header JSON as elements, or none when unreadable. */
 function storedHeader(json: string | null): FeedElement[] {
   if (!json) {
@@ -59,7 +75,8 @@ function storedHeader(json: string | null): FeedElement[] {
   }
   try {
     const parsed: unknown = JSON.parse(json);
-    return Array.isArray(parsed) ? (parsed as FeedElement[]) : [];
+    const header = z.array(FEED_ELEMENT).safeParse(parsed);
+    return header.success ? header.data : [];
   } catch {
     return [];
   }
@@ -261,16 +278,12 @@ export function parseFeedChanges(
       return bad('section_ids: send either section_id or section_ids.');
     }
     const raw = body['section_ids'];
-    const ids = Array.isArray(raw)
+    const parsed = Array.isArray(raw)
       ? raw.map((r) => (typeof r === 'string' ? parseFeedId(r) : undefined))
       : undefined;
-    const ok =
-      ids !== undefined &&
-      !ids.includes(undefined) &&
-      new Set(ids).size === ids.length &&
-      ids.length <= MAX_FEED_SECTIONS;
-    return ok
-      ? { changes: { section_ids: ids as number[] }, errors: [] }
+    const ids = parsed?.every((id) => id !== undefined) ? parsed : undefined;
+    return ids !== undefined && isDistinctSections(ids)
+      ? { changes: { section_ids: ids }, errors: [] }
       : bad(
           `section_ids: a list of up to ${MAX_FEED_SECTIONS} different section ids.`,
         );
