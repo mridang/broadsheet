@@ -32,7 +32,7 @@ describe('buttonClass', () => {
   });
 
   it('adds the caller’s own layout classes', () => {
-    // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React prop name
+    // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the option name of buttonClass
     expect(buttonClass({ className: 'max-md:hidden' })).toContain(
       'max-md:hidden',
     );

@@ -37,7 +37,7 @@ describe('parseLimit', () => {
     for (const raw of ['0', '-1', '1.5', 'abc', String(MAX_LIMIT + 1)]) {
       const result = parseLimit(raw);
       expect(result).toBeInstanceOf(Response);
-      expect(result instanceof Response && result.status).toBe(400);
+      expect(result).toMatchObject({ status: 400 });
     }
   });
 });

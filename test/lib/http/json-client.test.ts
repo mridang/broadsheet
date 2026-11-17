@@ -1,4 +1,4 @@
-import { describe, expect, it, jest } from '@jest/globals';
+import { describe, expect, it } from '@jest/globals';
 import { z } from 'zod';
 
 import { JsonClient } from '@/lib/http';
@@ -61,9 +61,9 @@ describe('JsonClient.request', () => {
   });
 
   it('fails without a status when the fetch itself throws', async () => {
-    const fetcher = jest.fn<typeof fetch>(async () => {
+    const fetcher: typeof fetch = async () => {
       throw new Error('offline');
-    });
+    };
     const result = await new JsonClient('https://api.test', fetcher).request(
       { path: '/x' },
       Thing,

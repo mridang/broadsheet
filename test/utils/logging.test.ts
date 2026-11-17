@@ -69,9 +69,7 @@ describe('structured logging', () => {
     expect(parsed['event']).toBe('torrent.lookup');
     expect(parsed['status']).toBe('ok');
     expect(typeof parsed['ts']).toBe('string');
-    expect(Number.isNaN(Date.parse(z.string().parse(parsed['ts'])))).toBe(
-      false,
-    );
+    expect(Number.isNaN(Date.parse(String(parsed['ts'])))).toBe(false);
   });
 
   it('logWarn emits one warn-level line to console.error', () => {

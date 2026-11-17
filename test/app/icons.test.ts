@@ -5,7 +5,7 @@ import { describe, expect, it } from '@jest/globals';
 import { BRAND_NAME } from '@/app/_brand';
 import { pngIsOpaque, pngSize } from '../png';
 
-const HAS_A_SCALABLE_ICON_PATTERN = /^<svg [^>]*viewBox=/u;
+const SVG_VIEW_BOX = /^<svg [^>]*viewBox=/u;
 
 const app = (name: string) => path.join(process.cwd(), 'src/app', name);
 
@@ -26,12 +26,12 @@ describe('the icon and social images in src/app', () => {
         end: offset + ico.readUInt32LE(at + 8),
       };
     });
-    expect(entries.map((event2) => [event2.width, event2.height])).toEqual([
+    expect(entries.map((entry) => [entry.width, entry.height])).toEqual([
       [16, 16],
       [32, 32],
       [48, 48],
     ]);
-    expect(entries.map((event) => event.isPng)).toEqual(
+    expect(entries.map((entry) => entry.isPng)).toEqual(
       Array.from({ length: 3 }, () => '89504e470d0a1a0a'),
     );
     expect(entries.at(-1)?.end).toBe(ico.length);
@@ -52,11 +52,12 @@ describe('the icon and social images in src/app', () => {
     },
   );
 
-  it('describes the card in the alt text of both social images, which name the app', async () => {
-    for (const name of ['opengraph-image.alt.txt', 'twitter-image.alt.txt']) {
+  it.each(['opengraph-image.alt.txt', 'twitter-image.alt.txt'])(
+    'describes the card in the alt text of both social images, which name the app (%j)',
+    async (name) => {
       expect(await readFile(app(name), 'utf8')).toContain(BRAND_NAME);
-    }
-  });
+    },
+  );
 
   it('has the same alt text for both social images, as they are the same card', async () => {
     expect(await readFile(app('twitter-image.alt.txt'), 'utf8')).toBe(
@@ -65,8 +66,6 @@ describe('the icon and social images in src/app', () => {
   });
 
   it('has a scalable icon', async () => {
-    expect(await readFile(app('icon.svg'), 'utf8')).toMatch(
-      HAS_A_SCALABLE_ICON_PATTERN,
-    );
+    expect(await readFile(app('icon.svg'), 'utf8')).toMatch(SVG_VIEW_BOX);
   });
 });
