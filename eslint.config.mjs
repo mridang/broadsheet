@@ -20,6 +20,7 @@ export default [
   },
   ...mridangPlugin.configs.recommended,
   {
+    files: ['**/*.{ts,tsx,js,jsx,mjs,cjs}'],
     languageOptions: {
       parserOptions: {
         project: './tsconfig.json',
