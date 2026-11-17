@@ -5,12 +5,12 @@
  * it, the arguments it accepts, and what it does when called.
  */
 
+import { z } from 'zod';
 import {
   notificationResource,
   parseNotificationInput,
 } from '@/domain/api/notification-resource';
 import { ToolFailureError } from '@/domain/mcp/tool-failure';
-import type { ToolContext } from '@/domain/mcp/tool-context';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { checked, id } from '@/domain/mcp/tools/support';
 import {
@@ -18,8 +18,9 @@ import {
   NOTIFICATION_FILTERS,
   NotificationRepository,
 } from '@/domain/notifications';
-import { type ToolAnnotations, writes } from '@/lib/mcp';
-import { z } from 'zod';
+import { writes } from '@/lib/mcp';
+import type { ToolAnnotations } from '@/lib/mcp';
+import type { ToolContext } from '@/domain/mcp/tool-context';
 
 /** What `manage_notifications` accepts. */
 const SCHEMA = z.object({
@@ -71,7 +72,9 @@ export class ManageNotificationsTool extends JsonTool<
         })),
       };
     }
-    if (feed_id === undefined) throw new ToolFailureError('Send feed_id.');
+    if (feed_id === undefined) {
+      throw new ToolFailureError('Send feed_id.');
+    }
     if (action === 'remove') {
       if (!(await notifications.removeFeedNotification(uid, feed_id))) {
         throw new ToolFailureError('That feed has no notifications.');
@@ -86,7 +89,9 @@ export class ManageNotificationsTool extends JsonTool<
       feed_id,
       setting,
     );
-    if (!result) throw new ToolFailureError('There is no such feed.');
+    if (!result) {
+      throw new ToolFailureError('There is no such feed.');
+    }
     return {
       notification: notificationResource(feed_id, setting),
       created: result.created,

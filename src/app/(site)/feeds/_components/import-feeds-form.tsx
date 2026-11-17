@@ -1,15 +1,14 @@
 'use client';
 
-import { useRef, useState, type ReactElement, type SubmitEvent } from 'react';
+import { useRef, useState } from 'react';
 
-import {
-  importOpml,
-  type ImportProgress,
-} from '@/app/(site)/feeds/_components/feed-requests';
+import { importOpml } from '@/app/(site)/feeds/_components/feed-requests';
 import { useApiAction } from '@/components/api/use-api-action';
 import { buttonClass } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/notice';
 import { countOf } from '@/lib/intl';
+import type { ImportProgress } from '@/app/(site)/feeds/_components/feed-requests';
+import type { ReactElement, SubmitEvent } from 'react';
 
 /** Follow the feeds of an OPML file exported from another reader. */
 export function ImportFeedsForm(): ReactElement {
@@ -19,7 +18,9 @@ export function ImportFeedsForm(): ReactElement {
   const submit = (event: SubmitEvent<HTMLFormElement>): void => {
     event.preventDefault();
     const file = new FormData(event.currentTarget).get('file');
-    if (!(file instanceof File) || file.size === 0) return;
+    if (!(file instanceof File) || file.size === 0) {
+      return;
+    }
     void run(async () => {
       const done = await importOpml(file, setProgress);
       const query = new URLSearchParams({
@@ -56,12 +57,12 @@ export function ImportFeedsForm(): ReactElement {
         </label>
       </form>
       {progress ? (
-        <p className="mt-2 text-sm text-muted" role="status">
+        <output className="mt-2 block text-sm text-muted">
           {progress.status === 'running' ? 'Importing' : 'Imported'}{' '}
           {progress.processed} of {countOf(progress.total, 'feed')}:{' '}
           {progress.added} added, {progress.skipped} skipped,{' '}
           {progress.rejected.length} failed.
-        </p>
+        </output>
       ) : null}
       {error ? <ErrorText>{error}</ErrorText> : null}
     </>

@@ -4,7 +4,7 @@ import { RemoveSearchButton } from '@/app/(site)/search/_components/remove-searc
 import { html } from '../../../../components/render';
 
 const REMOVES_A_SEARCH_WITH_PATTERN =
-  /^<button type="button" class="[^"]*">Remove<\/button>$/;
+  /^<button type="button" class="[^"]*">Remove<\/button>$/u;
 
 describe('RemoveSearchButton', () => {
   it('removes a search with a plain button, not a form', () => {

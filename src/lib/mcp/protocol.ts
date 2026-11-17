@@ -17,7 +17,7 @@
 import { base64ToBytes } from '@/utils/base64';
 import { parseUrl } from '@/utils/url';
 
-const DECODE_HEADER_VALUE_PATTERN = /^=\?base64\?(.*)\?=$/;
+const DECODE_HEADER_VALUE_PATTERN = /^=\?base64\?(.*)\?=$/u;
 
 /** The newest revision, which has no handshake and no sessions. */
 export const MODERN_VERSION = '2026-07-28';

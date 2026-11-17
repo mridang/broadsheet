@@ -20,8 +20,8 @@ import {
   EDGE_TTL_SECONDS,
 } from './site';
 
-const IS_LOCAL_PATTERN = /:\d+$/;
-const IS_LOCAL_PATTERN_2 = /^(::ffff:)?127\./;
+const IS_LOCAL_PATTERN = /:\d+$/u;
+const IS_LOCAL_PATTERN_2 = /^(::ffff:)?127\./u;
 
 /** The most query parameters a kept page may carry. */
 const MAX_PARAMS = 8;
@@ -72,20 +72,17 @@ function allowedQuery(
   if (entries.length > MAX_PARAMS) {
     return null;
   }
-  const names = new Set<string>();
-  for (const [name, value] of entries) {
-    if (
+  const refused = entries.some(
+    ([name, value], index) =>
       !allowed.has(name) ||
-      names.has(name) ||
-      value.length > MAX_VALUE_LENGTH
-    ) {
-      return null;
-    }
-    names.add(name);
-  }
-  return new URLSearchParams(
-    entries.toSorted(([a], [b]) => (a < b ? -1 : Number(a > b))),
+      entries.findIndex(([other]) => other === name) !== index ||
+      value.length > MAX_VALUE_LENGTH,
   );
+  return refused
+    ? null
+    : new URLSearchParams(
+        entries.toSorted(([a], [b]) => (a < b ? -1 : Number(a > b))),
+      );
 }
 
 /**
@@ -189,20 +186,20 @@ export async function withFreshNonce(
 
 /** Whether a value can be used as the edge cache: it answers `match` and `put`. */
 function isCache(value: unknown): value is Cache {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    typeof Reflect.get(value, 'match') === 'function' &&
-    typeof Reflect.get(value, 'put') === 'function'
-  );
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const answersMatch = 'match' in value && typeof value.match === 'function';
+  const answersPut = 'put' in value && typeof value.put === 'function';
+  return answersMatch && answersPut;
 }
 
 /** Cloudflare's per-colo cache; absent when running under plain Node. */
 export function edgeCache(): Cache | undefined {
-  const store: unknown = Reflect.get(globalThis, 'caches');
+  const store: unknown = 'caches' in globalThis ? globalThis.caches : undefined;
   const cache: unknown =
-    typeof store === 'object' && store !== null
-      ? Reflect.get(store, 'default')
+    typeof store === 'object' && store !== null && 'default' in store
+      ? store.default
       : undefined;
   return isCache(cache) ? cache : undefined;
 }

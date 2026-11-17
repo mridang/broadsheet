@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from '@jest/globals';
 
-import { createDatabase, type Database } from '@/domain/db/client';
+import { createDatabase } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
 import { SESSION_COOKIE } from '@/domain/auth/app';
 import { APP_MIGRATIONS } from '../../../lib/core/db/migrations';
@@ -9,12 +9,17 @@ import {
   sqliteD1,
 } from '../../../lib/core/db/sqlite-d1';
 import { SESSION_SECRET, tokenFor } from '../../../domain/auth/auth-test-kit';
+import type { Database } from '@/domain/db/client';
 
 const { POST } = await import('@/app/api/editions/route');
 
 let restore: () => void;
 let db: Database;
-let auth: Record<string, string>;
+/** The Cookie header of the signed-in caller; empty for a signed-out one. */
+interface CallerCookie {
+  [name: string]: string;
+}
+let auth: CallerCookie;
 let theirs: number;
 
 beforeEach(async () => {

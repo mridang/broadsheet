@@ -3,14 +3,14 @@ import { describe, expect, it } from '@jest/globals';
 import TermsPage, { metadata } from '@/app/(site)/terms/page';
 import { html } from '../../../components/render';
 
-const HAS_ONE_HEADING_THE_PATTERN = /<h1/g;
-const HAS_ONE_HEADING_THE_PATTERN_2 = /<h1[^>]*>Terms of Service<\/h1>/;
+const HAS_ONE_HEADING_THE_PATTERN = /<h1/gu;
+const HAS_ONE_HEADING_THE_PATTERN_2 = /<h1[^>]*>Terms of Service<\/h1>/u;
 const LINKS_THE_SOURCE_IN_PATTERN =
-  /<a href="https:\/\/github\.com\/mridang\/broadsheet" target="_blank"[^>]*>GitHub<\/a>/;
+  /<a href="https:\/\/github\.com\/mridang\/broadsheet" target="_blank"[^>]*>GitHub<\/a>/u;
 const POINTS_TO_THE_PRIVACY_PATTERN =
-  /<a [^>]*href="\/privacy"[^>]*>privacy policy<\/a>/;
+  /<a [^>]*href="\/privacy"[^>]*>privacy policy<\/a>/u;
 const LINKS_BACK_HOME_PATTERN =
-  /<a [^>]*href="\/"[^>]*>.*Back to Broadsheet<\/a>/;
+  /<a [^>]*href="\/"[^>]*>.*Back to Broadsheet<\/a>/u;
 
 describe('TermsPage', () => {
   const out = html(<TermsPage />);
@@ -33,7 +33,7 @@ describe('TermsPage', () => {
       'Your data',
       'Contact',
     ]) {
-      expect(out).toMatch(new RegExp(`<h2[^>]*>${heading}</h2>`));
+      expect(out).toMatch(new RegExp(`<h2[^>]*>${heading}</h2>`, 'u'));
     }
   });
 

@@ -5,9 +5,9 @@
  * it, the arguments it accepts, and what it does when called.
  */
 
+import { z } from 'zod';
 import { parseSaveInput, saveResource } from '@/domain/api/save-resource';
 import { ToolFailureError } from '@/domain/mcp/tool-failure';
-import type { ToolContext } from '@/domain/mcp/tool-context';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import {
   checked,
@@ -16,8 +16,9 @@ import {
   MAX_NOTE,
 } from '@/domain/mcp/tools/support';
 import { Repository } from '@/domain/repository';
-import { type ToolAnnotations, writes } from '@/lib/mcp';
-import { z } from 'zod';
+import { writes } from '@/lib/mcp';
+import type { ToolAnnotations } from '@/lib/mcp';
+import type { ToolContext } from '@/domain/mcp/tool-context';
 
 /** What `save_article` accepts. */
 const SCHEMA = z.object({
@@ -63,7 +64,9 @@ export class SaveArticleTool extends JsonTool<'save_article', typeof SCHEMA> {
       parseSaveInput(tags ? { tags } : { tags: before?.tags ?? [] }),
     );
     const saved = await repo.saveArticle(uid, article_id, input.tags);
-    if (!saved) throw new ToolFailureError('There is no such article.');
+    if (!saved) {
+      throw new ToolFailureError('There is no such article.');
+    }
     const story =
       notes !== undefined || highlights !== undefined
         ? await repo.annotateSave(uid, article_id, {

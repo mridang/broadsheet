@@ -10,11 +10,12 @@
 
 import { eq } from 'drizzle-orm';
 
-import type { Database } from '@/domain/db/client';
 import { sources } from '@/domain/db/schema';
-import type { Source } from '@/domain/repository';
-import { LEASE_SECONDS, type WebSubLinks } from '@/lib/scraping';
+import { LEASE_SECONDS } from '@/lib/scraping';
 import { SITE_URL } from '@/utils/site';
+import type { WebSubLinks } from '@/lib/scraping';
+import type { Source } from '@/domain/repository';
+import type { Database } from '@/domain/db/client';
 
 /** A lease this close to running out is renewed: a day. */
 const RENEW_BEFORE_MS = 24 * 60 * 60 * 1000;
@@ -36,7 +37,9 @@ export function needsSubscription(
   links: WebSubLinks,
   now: number = Date.now(),
 ): boolean {
-  if (!links.hub || !links.self) return false;
+  if (!links.hub || !links.self) {
+    return false;
+  }
   return (
     source.websub_hub !== links.hub ||
     source.websub_topic !== links.self ||
@@ -103,18 +106,28 @@ export async function verifyIntent(
   const source = await db.query.sources.findFirst({
     where: eq(sources.id, sourceId),
   });
-  if (!source) return undefined;
+  if (!source) {
+    return undefined;
+  }
   const mode = query.get('hub.mode');
   const topic = query.get('hub.topic');
   const challenge = query.get('hub.challenge');
   const subscribed = !!topic && topic === source.websub_topic;
   if (mode === 'denied') {
-    if (subscribed) await forget(db, sourceId);
+    if (subscribed) {
+      await forget(db, sourceId);
+    }
     return undefined;
   }
-  if (!challenge) return undefined;
-  if (mode === 'unsubscribe') return subscribed ? undefined : challenge;
-  if (mode !== 'subscribe' || !subscribed) return undefined;
+  if (!challenge) {
+    return undefined;
+  }
+  if (mode === 'unsubscribe') {
+    return subscribed ? undefined : challenge;
+  }
+  if (mode !== 'subscribe' || !subscribed) {
+    return undefined;
+  }
   const lease = Number(query.get('hub.lease_seconds'));
   const seconds = Number.isFinite(lease) && lease > 0 ? lease : LEASE_SECONDS;
   await db

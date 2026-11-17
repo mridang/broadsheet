@@ -4,9 +4,9 @@ import { SearchForm } from '@/app/(site)/discover/_components/search-form';
 import { html } from '../../../../components/render';
 
 const SEARCHES_WITH_A_PLAIN_PATTERN =
-  /<form[^>]*action="\/discover"[^>]*method="get"/;
+  /<form[^>]*action="\/discover"[^>]*method="get"/u;
 const KEEPS_THE_SEARCH_AND_PATTERN =
-  /<label for="discover-q"[^>]*>Find podcasts<\/label>/;
+  /<label for="discover-q"[^>]*>Find podcasts<\/label>/u;
 
 describe('SearchForm', () => {
   const out = html(

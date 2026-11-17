@@ -1,6 +1,5 @@
-import type { ComponentProps, ReactElement, ReactNode } from 'react';
-
 import { cn } from '@/components/ui/cn';
+import type { ComponentProps, ReactElement, ReactNode } from 'react';
 
 /** The colours of each kind of badge. */
 const TONES = {

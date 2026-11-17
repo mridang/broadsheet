@@ -4,13 +4,13 @@ import { DiscoverList } from '@/app/(site)/discover/_components/discover-list';
 import { html } from '../../../../components/render';
 
 const SHOWS_EACH_FEED_WITH_PATTERN =
-  /<a[^>]*href="https:\/\/a\.test\/"[^>]*>A show<\/a>/;
-const SHOWS_EACH_FEED_WITH_PATTERN_2 = /<img[^>]*src="\/img\/x"/;
+  /<a[^>]*href="https:\/\/a\.test\/"[^>]*>A show<\/a>/u;
+const SHOWS_EACH_FEED_WITH_PATTERN_2 = /<img[^>]*src="\/img\/x"/u;
 const SHOWS_EACH_FEED_WITH_PATTERN_3 =
-  /<button type="button"[^>]*>Follow<\/button>/;
-const NAMES_A_FEED_WITH_PATTERN = /<strong[^>]*>b\.test<\/strong>/;
+  /<button type="button"[^>]*>Follow<\/button>/u;
+const NAMES_A_FEED_WITH_PATTERN = /<strong[^>]*>b\.test<\/strong>/u;
 const SHOWS_A_FEED_ALREADY_PATTERN =
-  /<button type="button"[^>]*disabled=""[^>]*>Following<\/button>/;
+  /<button type="button"[^>]*disabled=""[^>]*>Following<\/button>/u;
 
 describe('DiscoverList', () => {
   it('shows each feed with its facts and a Follow button', () => {

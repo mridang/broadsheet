@@ -31,21 +31,8 @@ import {
   logSecurityEvent,
   purgeCutoffs,
   sanitiseDisplayName,
-  type ClientBusy,
-  type CodeRecord,
-  type GrantRecord,
-  type OAuthClient,
-  type OAuthStore,
-  type Sweeps,
-  type TokenRecord,
-  type TokenRow,
 } from '@/lib/oauth';
-import {
-  D1RateLimitStore,
-  purgeRateLimits,
-  type RateLimitStore,
-} from '@/lib/rate-limit';
-import type { Database } from '@/domain/db/client';
+import { D1RateLimitStore, purgeRateLimits } from '@/lib/rate-limit';
 import {
   oauthAssertions,
   oauthClients,
@@ -53,6 +40,18 @@ import {
   oauthGrants,
   oauthTokens,
 } from '@/domain/db/schema';
+import type {
+  ClientBusy,
+  CodeRecord,
+  GrantRecord,
+  OAuthClient,
+  OAuthStore,
+  Sweeps,
+  TokenRecord,
+  TokenRow,
+} from '@/lib/oauth';
+import type { RateLimitStore } from '@/lib/rate-limit';
+import type { Database } from '@/domain/db/client';
 
 const collator = new Intl.Collator();
 

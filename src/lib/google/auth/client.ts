@@ -16,19 +16,22 @@
  * {@link GoogleOAuthClient.exchangeCode}.
  */
 
-import { JsonClient, type Result } from '@/lib/http';
-
+import { JsonClient } from '@/lib/http';
 import {
   AccessTokenResponseSchema,
   GoogleUserResponseSchema,
   TokenResponseSchema,
-  type AccessTokenResponse,
-  type ExchangeCodeRequest,
-  type GoogleUserResponse,
-  type RefreshTokenRequest,
-  type RevokeTokenRequest,
-  type RevokeTokenResponse,
-  type TokenResponse,
+} from './models';
+import type { Result } from '@/lib/http';
+
+import type {
+  AccessTokenResponse,
+  ExchangeCodeRequest,
+  GoogleUserResponse,
+  RefreshTokenRequest,
+  RevokeTokenRequest,
+  RevokeTokenResponse,
+  TokenResponse,
 } from './models';
 
 /** What signing in asks Google for: who the person is, nothing else. @public */

@@ -5,17 +5,18 @@
  * it, the arguments it accepts, and what it does when called.
  */
 
+import { z } from 'zod';
 import {
   sqliteSince,
   trendingArticleResource,
   WINDOWS,
 } from '@/domain/api/article-resource';
-import type { ToolContext } from '@/domain/mcp/tool-context';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { MAX_SEARCH } from '@/domain/mcp/tools/support';
 import { Repository, TRENDING_ORDERS } from '@/domain/repository';
-import { READS, type ToolAnnotations } from '@/lib/mcp';
-import { z } from 'zod';
+import { READS } from '@/lib/mcp';
+import type { ToolAnnotations } from '@/lib/mcp';
+import type { ToolContext } from '@/domain/mcp/tool-context';
 
 /** What `get_trending` accepts. */
 const SCHEMA = z.object({

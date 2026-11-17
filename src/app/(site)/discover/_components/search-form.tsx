@@ -1,6 +1,5 @@
-import type { ReactElement } from 'react';
-
 import { buttonClass } from '@/components/ui/button';
+import type { ReactElement } from 'react';
 
 /** A Discover search: a plain GET back to the tab, so a search is a link. */
 export function SearchForm({
@@ -26,6 +25,7 @@ export function SearchForm({
         {label}
       </label>
       <input
+        aria-label={label}
         id="discover-q"
         name="q"
         type="search"

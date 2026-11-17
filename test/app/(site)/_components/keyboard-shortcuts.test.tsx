@@ -3,13 +3,14 @@ import { describe, expect, it } from '@jest/globals';
 import { KeyboardShortcuts } from '@/app/(site)/_components/keyboard-shortcuts';
 import { html } from '../../../components/render';
 
-const KEEPS_THE_HELP_IN_PATTERN = /<dialog[^>]*aria-labelledby="keyhelp-title"/;
-const KEEPS_THE_HELP_IN_PATTERN_2 = /<dialog[^>]*\sopen/;
+const KEEPS_THE_HELP_IN_PATTERN =
+  /<dialog[^>]*aria-labelledby="keyhelp-title"/u;
+const KEEPS_THE_HELP_IN_PATTERN_2 = /<dialog[^>]*\sopen/u;
 const KEEPS_THE_HELP_IN_PATTERN_3 =
-  /id="keyhelp-title"[^>]*>Keyboard shortcuts<\/h2>/;
-const HAS_A_CLOSED_PICKER_PATTERN = /<dialog[^>]*aria-labelledby="goto-title"/;
+  /id="keyhelp-title"[^>]*>Keyboard shortcuts<\/h2>/u;
+const HAS_A_CLOSED_PICKER_PATTERN = /<dialog[^>]*aria-labelledby="goto-title"/u;
 const CLOSES_WITH_A_BUTTON_PATTERN =
-  /<button type="submit"[^>]*>Close<\/button>/;
+  /<button type="submit"[^>]*>Close<\/button>/u;
 
 describe('KeyboardShortcuts', () => {
   const out = html(<KeyboardShortcuts />);
@@ -21,8 +22,9 @@ describe('KeyboardShortcuts', () => {
   });
 
   it('lists each key', () => {
-    for (const key of ['n', 'g', 'A', 'Y', 'Shift Enter', 'c', '?'])
+    for (const key of ['n', 'g', 'A', 'Y', 'Shift Enter', 'c', '?']) {
       expect(out).toContain(`>${key}</kbd>`);
+    }
   });
 
   it('has a closed picker for going to a section', () => {

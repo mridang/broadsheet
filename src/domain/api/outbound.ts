@@ -7,11 +7,7 @@
  * here lists, since the settings page reads the rows itself.
  */
 
-import {
-  liveUid,
-  requestCookieResolver,
-  type CurrentUserResolver,
-} from '@/domain/api/auth';
+import { liveUid, requestCookieResolver } from '@/domain/api/auth';
 import { parseFeedId } from '@/domain/api/feed-resource';
 import { idOf } from '@/domain/api/feeds';
 import {
@@ -21,17 +17,9 @@ import {
   parseWebhookInput,
   pushSubscriptionResource,
   webhookResource,
-  type Checked,
 } from '@/domain/api/outbound-resource';
 import { getDatabase } from '@/domain/db/client';
-import {
-  OutboundRepository,
-  type FeedToken,
-  type FeedTokenInput,
-  type PushSubscription,
-  type PushSubscriptionInput,
-  type Webhook,
-} from '@/domain/outbound';
+import { OutboundRepository } from '@/domain/outbound';
 import { Repository } from '@/domain/repository';
 import {
   ApiController,
@@ -45,6 +33,15 @@ import {
 import { appOrigin } from '@/lib/core/origin';
 import { getEnv } from '@/lib/core/runtime';
 import { randomToken, sha256Hex } from '@/lib/outbound/tokens';
+import type {
+  FeedToken,
+  FeedTokenInput,
+  PushSubscription,
+  PushSubscriptionInput,
+  Webhook,
+} from '@/domain/outbound';
+import type { Checked } from '@/domain/api/outbound-resource';
+import type { CurrentUserResolver } from '@/domain/api/auth';
 
 /** The signed-in caller's id and the request. */
 interface UidContext {
@@ -70,10 +67,13 @@ async function decodeWith<T>(
     request,
     `The ${what} must be a JSON object.`,
   );
-  if (!body.ok) throw body.response;
+  if (!body.ok) {
+    throw body.response;
+  }
   const input = check(body.value);
-  if (!input.ok)
+  if (!input.ok) {
     throw problems.badRequest(`The ${what} is not valid.`, input.errors);
+  }
   return input.value;
 }
 

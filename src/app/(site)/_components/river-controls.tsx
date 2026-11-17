@@ -1,12 +1,12 @@
 'use client';
 
-import type { ReactElement, SubmitEvent } from 'react';
-
+import { z } from 'zod';
 import { useApiAction } from '@/components/api/use-api-action';
+
 import { buttonClass } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/notice';
 import { pinRiver, unpinRiver } from '@/app/(site)/_components/river-requests';
-import { z } from 'zod';
+import type { ReactElement, SubmitEvent } from 'react';
 
 /** The one field the pin form posts. */
 const pinForm = z.object({ river_id: z.string().default('') });
@@ -78,9 +78,9 @@ export function UnpinRiverButton({
         type="button"
         className={buttonClass({ variant: 'danger', size: 'sm' })}
         disabled={busy}
-        onClick={() =>
-          void run(async () => unpinRiver(id), 'Could not unpin that river.')
-        }
+        onClick={() => {
+          void run(async () => unpinRiver(id), 'Could not unpin that river.');
+        }}
       >
         Unpin
       </button>

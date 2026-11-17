@@ -1,4 +1,4 @@
-const TAGS_IN_PATTERN = /^W\//;
+const TAGS_IN_PATTERN = /^W\//u;
 /**
  * @packageDocumentation
  *

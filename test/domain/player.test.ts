@@ -54,7 +54,7 @@ describe('PlayerRepository', () => {
 
   it('clears a player, and says when there was none', async () => {
     await repo.put(1, state);
-    expect(await repo.clear(1)).toBe(true);
-    expect(await repo.clear(1)).toBe(false);
+    const cleared = [await repo.clear(1), await repo.clear(1)];
+    expect(cleared).toEqual([true, false]);
   });
 });

@@ -21,7 +21,7 @@ export const fakeCookies = async () => ({
   },
 });
 
-const DEFAULT_TEST_ENV: Readonly<Record<string, unknown>> = {
+const DEFAULT_TEST_ENV = {
   SESSION_SECRET,
   GOOGLE_OAUTH_CLIENT_ID: 'client-id',
   GOOGLE_OAUTH_CLIENT_SECRET: 'client-secret',

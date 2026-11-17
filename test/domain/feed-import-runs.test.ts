@@ -48,6 +48,7 @@ describe('FeedImportRuns', () => {
       { url: 'https://a.test/old' },
     ]);
     await runs.importChunk(run.id, 7, [
+      // eslint-disable-next-line no-script-url -- a javascript: address is the hostile input under test
       { url: 'javascript:x' },
       { url: 'https://a.test/2' },
     ]);
@@ -60,6 +61,7 @@ describe('FeedImportRuns', () => {
       sections_added: 1,
       rejected: [
         {
+          // eslint-disable-next-line no-script-url -- a javascript: address is the hostile input under test
           url: 'javascript:x',
           reason: 'url: must be an http or https address.',
         },

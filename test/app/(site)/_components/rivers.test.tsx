@@ -1,8 +1,8 @@
 import { describe, expect, it } from '@jest/globals';
 
 import { Rivers } from '@/app/(site)/_components/rivers';
-import type { ArticleSummary } from '@/domain/repository';
 import { html } from '../../../components/render';
+import type { ArticleSummary } from '@/domain/repository';
 
 const river = (id: number, side: 'left' | 'right') => ({
   id,

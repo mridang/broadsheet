@@ -5,15 +5,16 @@
  * it, the arguments it accepts, and what it does when called.
  */
 
+import { z } from 'zod';
 import { feedResource } from '@/domain/api/feed-resource';
 import { ToolFailureError } from '@/domain/mcp/tool-failure';
 import { feedClassifierCounts } from '@/domain/classifier-counts';
-import type { ToolContext } from '@/domain/mcp/tool-context';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { id } from '@/domain/mcp/tools/support';
 import { Repository } from '@/domain/repository';
-import { READS, type ToolAnnotations } from '@/lib/mcp';
-import { z } from 'zod';
+import { READS } from '@/lib/mcp';
+import type { ToolAnnotations } from '@/lib/mcp';
+import type { ToolContext } from '@/domain/mcp/tool-context';
 
 /** What `get_feed` accepts. */
 const SCHEMA = z.object({ feed_id: id('feed') });
@@ -38,7 +39,9 @@ export class GetFeedTool extends JsonTool<'get_feed', typeof SCHEMA> {
     const db = services.openDatabase();
     const repo = new Repository(db);
     const feed = await repo.getFeed(uid, feed_id);
-    if (!feed) throw new ToolFailureError('There is no such feed.');
+    if (!feed) {
+      throw new ToolFailureError('There is no such feed.');
+    }
     const [stats, counts] = await Promise.all([
       repo.feedStatistics(uid, feed_id),
       feedClassifierCounts(repo, uid, feed),

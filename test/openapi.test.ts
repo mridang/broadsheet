@@ -1,3 +1,5 @@
+import { readdir, readFile } from 'node:fs/promises';
+import path from 'node:path';
 import {
   afterEach,
   beforeAll,
@@ -7,15 +9,13 @@ import {
   it,
   jest,
 } from '@jest/globals';
-import { readdir, readFile } from 'node:fs/promises';
-import path from 'node:path';
 
 import { SESSION_COOKIE } from '@/domain/auth/app';
 import { createDatabase } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
+import { FeedImportRuns } from '@/domain/feed-import-runs';
 import { APP_MIGRATIONS } from './lib/core/db/migrations';
 import { installCloudflareContext, sqliteD1 } from './lib/core/db/sqlite-d1';
-import { FeedImportRuns } from '@/domain/feed-import-runs';
 import {
   SESSION_SECRET,
   fakeCookies,
@@ -25,17 +25,18 @@ import {
 
 const collator = new Intl.Collator();
 
-const MODULE_PATTERN = /\.ts$/;
-const MODULE_PATTERN_2 = /\/?route$/;
-const MODULE_PATTERN_3 = /\[([a-z_]+)\]/g;
-const VIOLATIONS_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-const IS_OPEN_API_3_1_AND_PATTERN = /^3\.1\./;
-const NAMES_ITS_PATHS_AS_PATTERN = /^([a-z]+|\{[a-z_]+\})$/;
-const DESCRIBES_EVERY_OPERATION_FULLY_PATTERN = /^[a-z][A-Za-z0-9]+$/;
-const DESCRIBES_EVERY_OPERATION_FULLY_PATTERN_2 = /\{([a-z_]+)\}/g;
-const CHECK_MEMBERS_PATTERN = /^[a-z][a-z0-9]*(_[a-z0-9]+)*$/;
+const MODULE_PATTERN = /\.ts$/u;
+const MODULE_PATTERN_2 = /\/?route$/u;
+const MODULE_PATTERN_3 = /\[([a-z_]+)\]/gu;
+const VIOLATIONS_PATTERN = /^\d{4}-\d{2}-\d{2}$/u;
+const IS_OPEN_API_3_1_AND_PATTERN = /^3\.1\./u;
+const NAMES_ITS_PATHS_AS_PATTERN = /^([a-z]+|\{[a-z_]+\})$/u;
+const DESCRIBES_EVERY_OPERATION_FULLY_PATTERN = /^[a-z][A-Za-z0-9]+$/u;
+const DESCRIBES_EVERY_OPERATION_FULLY_PATTERN_2 = /\{([a-z_]+)\}/gu;
+const CHECK_MEMBERS_PATTERN = /^[a-z][a-z0-9]*(_[a-z0-9]+)*$/u;
 
 // The sign-out routes read the session through Next's request cookies.
+// eslint-disable-next-line tslop/no-module-mocking -- the module reads the runtime (cookies or the Cloudflare context), which a test cannot supply, so the test replaces it before importing the code under test
 jest.unstable_mockModule('next/headers', () => ({ cookies: fakeCookies }));
 
 /*
@@ -134,127 +135,132 @@ const handlers = new Map<string, Handler>();
  * The route modules under src/app/api, loaded on demand. A route added without a
  * line here fails the test below, so none can escape the contract.
  */
-const ROUTES: Record<string, () => Promise<Record<string, unknown>>> = {
-  'articles/[id]/answers/route': async () =>
-    import('@/app/api/articles/[id]/answers/route'),
-  'articles/[id]/emails/route': async () =>
-    import('@/app/api/articles/[id]/emails/route'),
-  'articles/[id]/extractions/route': async () =>
-    import('@/app/api/articles/[id]/extractions/route'),
-  'articles/[id]/route': async () => import('@/app/api/articles/[id]/route'),
-  'articles/[id]/similar/route': async () =>
-    import('@/app/api/articles/[id]/similar/route'),
-  'articles/route': async () => import('@/app/api/articles/route'),
-  'conversations/[id]/messages/route': async () =>
-    import('@/app/api/conversations/[id]/messages/route'),
-  'conversations/[id]/route': async () =>
-    import('@/app/api/conversations/[id]/route'),
-  'conversations/route': async () => import('@/app/api/conversations/route'),
-  'conversations/suggestions/route': async () =>
-    import('@/app/api/conversations/suggestions/route'),
-  'editions/[id]/issues/[date]/route': async () =>
-    import('@/app/api/editions/[id]/issues/[date]/route'),
-  'editions/[id]/route': async () => import('@/app/api/editions/[id]/route'),
-  'editions/route': async () => import('@/app/api/editions/route'),
-  'editions/self/briefings/[id]/route': async () =>
-    import('@/app/api/editions/self/briefings/[id]/route'),
-  'editions/self/briefings/route': async () =>
-    import('@/app/api/editions/self/briefings/route'),
-  'editions/self/issues/[date]/route': async () =>
-    import('@/app/api/editions/self/issues/[date]/route'),
-  'editions/self/issues/route': async () =>
-    import('@/app/api/editions/self/issues/route'),
-  'feeds/[id]/refreshes/route': async () =>
-    import('@/app/api/feeds/[id]/refreshes/route'),
-  'feeds/[id]/route': async () => import('@/app/api/feeds/[id]/route'),
-  'feeds/[id]/similar/route': async () =>
-    import('@/app/api/feeds/[id]/similar/route'),
-  'feeds/[id]/statistics/route': async () =>
-    import('@/app/api/feeds/[id]/statistics/route'),
-  'feeds/conversions/route': async () =>
-    import('@/app/api/feeds/conversions/route'),
-  'feeds/imports/[id]/route': async () =>
-    import('@/app/api/feeds/imports/[id]/route'),
-  'feeds/imports/route': async () => import('@/app/api/feeds/imports/route'),
-  'feeds/moves/route': async () => import('@/app/api/feeds/moves/route'),
-  'feeds/recommendations/[id]/route': async () =>
-    import('@/app/api/feeds/recommendations/[id]/route'),
-  'feeds/recommendations/route': async () =>
-    import('@/app/api/feeds/recommendations/route'),
-  'feeds/refreshes/route': async () =>
-    import('@/app/api/feeds/refreshes/route'),
-  'feeds/removals/route': async () => import('@/app/api/feeds/removals/route'),
-  'feeds/route': async () => import('@/app/api/feeds/route'),
-  'feeds/suggestions/route': async () =>
-    import('@/app/api/feeds/suggestions/route'),
-  'feeds/trending/route': async () => import('@/app/api/feeds/trending/route'),
-  'news/topics/route': async () => import('@/app/api/news/topics/route'),
-  'podcasts/route': async () => import('@/app/api/podcasts/route'),
-  'push/configuration/route': async () =>
-    import('@/app/api/push/configuration/route'),
-  'sections/[id]/route': async () => import('@/app/api/sections/[id]/route'),
-  'sections/route': async () => import('@/app/api/sections/route'),
-  'sessions/route': async () => import('@/app/api/sessions/route'),
-  'sessions/self/route': async () => import('@/app/api/sessions/self/route'),
-  'shares/route': async () => import('@/app/api/shares/route'),
-  'sources/[id]/pushes/route': async () =>
-    import('@/app/api/sources/[id]/pushes/route'),
-  'sources/route': async () => import('@/app/api/sources/route'),
-  'topics/route': async () => import('@/app/api/topics/route'),
-  'transcriptions/route': async () => import('@/app/api/transcriptions/route'),
-  'users/self/classifiers/[id]/route': async () =>
-    import('@/app/api/users/self/classifiers/[id]/route'),
-  'users/self/classifiers/route': async () =>
-    import('@/app/api/users/self/classifiers/route'),
-  'users/self/notifications/[feed_id]/route': async () =>
-    import('@/app/api/users/self/notifications/[feed_id]/route'),
-  'users/self/notifications/rules/[id]/route': async () =>
-    import('@/app/api/users/self/notifications/rules/[id]/route'),
-  'users/self/notifications/rules/route': async () =>
-    import('@/app/api/users/self/notifications/rules/route'),
-  'users/self/player/route': async () =>
-    import('@/app/api/users/self/player/route'),
-  'users/self/preferences/route': async () =>
-    import('@/app/api/users/self/preferences/route'),
-  'users/self/push/subscriptions/[id]/route': async () =>
-    import('@/app/api/users/self/push/subscriptions/[id]/route'),
-  'users/self/push/subscriptions/route': async () =>
-    import('@/app/api/users/self/push/subscriptions/route'),
-  'users/self/reads/[article_id]/route': async () =>
-    import('@/app/api/users/self/reads/[article_id]/route'),
-  'users/self/reads/route': async () =>
-    import('@/app/api/users/self/reads/route'),
-  'users/self/rivers/[id]/route': async () =>
-    import('@/app/api/users/self/rivers/[id]/route'),
-  'users/self/rivers/route': async () =>
-    import('@/app/api/users/self/rivers/route'),
-  'users/self/saves/[article_id]/route': async () =>
-    import('@/app/api/users/self/saves/[article_id]/route'),
-  'users/self/saves/feeds/route': async () =>
-    import('@/app/api/users/self/saves/feeds/route'),
-  'users/self/saves/route': async () =>
-    import('@/app/api/users/self/saves/route'),
-  'users/self/saves/tags/[name]/route': async () =>
-    import('@/app/api/users/self/saves/tags/[name]/route'),
-  'users/self/saves/tags/route': async () =>
-    import('@/app/api/users/self/saves/tags/route'),
-  'users/self/searches/[id]/route': async () =>
-    import('@/app/api/users/self/searches/[id]/route'),
-  'users/self/searches/route': async () =>
-    import('@/app/api/users/self/searches/route'),
-  'users/self/shares/[article_id]/route': async () =>
-    import('@/app/api/users/self/shares/[article_id]/route'),
-  'users/self/tokens/[id]/route': async () =>
-    import('@/app/api/users/self/tokens/[id]/route'),
-  'users/self/tokens/route': async () =>
-    import('@/app/api/users/self/tokens/route'),
-  'users/self/usage/route': async () =>
-    import('@/app/api/users/self/usage/route'),
-  'users/self/webhooks/[id]/route': async () =>
-    import('@/app/api/users/self/webhooks/[id]/route'),
-  'users/self/webhooks/route': async () =>
-    import('@/app/api/users/self/webhooks/route'),
-};
+const ROUTES = new Map<string, () => Promise<Record<string, unknown>>>(
+  Object.entries({
+    'articles/[id]/answers/route': async () =>
+      import('@/app/api/articles/[id]/answers/route'),
+    'articles/[id]/emails/route': async () =>
+      import('@/app/api/articles/[id]/emails/route'),
+    'articles/[id]/extractions/route': async () =>
+      import('@/app/api/articles/[id]/extractions/route'),
+    'articles/[id]/route': async () => import('@/app/api/articles/[id]/route'),
+    'articles/[id]/similar/route': async () =>
+      import('@/app/api/articles/[id]/similar/route'),
+    'articles/route': async () => import('@/app/api/articles/route'),
+    'conversations/[id]/messages/route': async () =>
+      import('@/app/api/conversations/[id]/messages/route'),
+    'conversations/[id]/route': async () =>
+      import('@/app/api/conversations/[id]/route'),
+    'conversations/route': async () => import('@/app/api/conversations/route'),
+    'conversations/suggestions/route': async () =>
+      import('@/app/api/conversations/suggestions/route'),
+    'editions/[id]/issues/[date]/route': async () =>
+      import('@/app/api/editions/[id]/issues/[date]/route'),
+    'editions/[id]/route': async () => import('@/app/api/editions/[id]/route'),
+    'editions/route': async () => import('@/app/api/editions/route'),
+    'editions/self/briefings/[id]/route': async () =>
+      import('@/app/api/editions/self/briefings/[id]/route'),
+    'editions/self/briefings/route': async () =>
+      import('@/app/api/editions/self/briefings/route'),
+    'editions/self/issues/[date]/route': async () =>
+      import('@/app/api/editions/self/issues/[date]/route'),
+    'editions/self/issues/route': async () =>
+      import('@/app/api/editions/self/issues/route'),
+    'feeds/[id]/refreshes/route': async () =>
+      import('@/app/api/feeds/[id]/refreshes/route'),
+    'feeds/[id]/route': async () => import('@/app/api/feeds/[id]/route'),
+    'feeds/[id]/similar/route': async () =>
+      import('@/app/api/feeds/[id]/similar/route'),
+    'feeds/[id]/statistics/route': async () =>
+      import('@/app/api/feeds/[id]/statistics/route'),
+    'feeds/conversions/route': async () =>
+      import('@/app/api/feeds/conversions/route'),
+    'feeds/imports/[id]/route': async () =>
+      import('@/app/api/feeds/imports/[id]/route'),
+    'feeds/imports/route': async () => import('@/app/api/feeds/imports/route'),
+    'feeds/moves/route': async () => import('@/app/api/feeds/moves/route'),
+    'feeds/recommendations/[id]/route': async () =>
+      import('@/app/api/feeds/recommendations/[id]/route'),
+    'feeds/recommendations/route': async () =>
+      import('@/app/api/feeds/recommendations/route'),
+    'feeds/refreshes/route': async () =>
+      import('@/app/api/feeds/refreshes/route'),
+    'feeds/removals/route': async () =>
+      import('@/app/api/feeds/removals/route'),
+    'feeds/route': async () => import('@/app/api/feeds/route'),
+    'feeds/suggestions/route': async () =>
+      import('@/app/api/feeds/suggestions/route'),
+    'feeds/trending/route': async () =>
+      import('@/app/api/feeds/trending/route'),
+    'news/topics/route': async () => import('@/app/api/news/topics/route'),
+    'podcasts/route': async () => import('@/app/api/podcasts/route'),
+    'push/configuration/route': async () =>
+      import('@/app/api/push/configuration/route'),
+    'sections/[id]/route': async () => import('@/app/api/sections/[id]/route'),
+    'sections/route': async () => import('@/app/api/sections/route'),
+    'sessions/route': async () => import('@/app/api/sessions/route'),
+    'sessions/self/route': async () => import('@/app/api/sessions/self/route'),
+    'shares/route': async () => import('@/app/api/shares/route'),
+    'sources/[id]/pushes/route': async () =>
+      import('@/app/api/sources/[id]/pushes/route'),
+    'sources/route': async () => import('@/app/api/sources/route'),
+    'topics/route': async () => import('@/app/api/topics/route'),
+    'transcriptions/route': async () =>
+      import('@/app/api/transcriptions/route'),
+    'users/self/classifiers/[id]/route': async () =>
+      import('@/app/api/users/self/classifiers/[id]/route'),
+    'users/self/classifiers/route': async () =>
+      import('@/app/api/users/self/classifiers/route'),
+    'users/self/notifications/[feed_id]/route': async () =>
+      import('@/app/api/users/self/notifications/[feed_id]/route'),
+    'users/self/notifications/rules/[id]/route': async () =>
+      import('@/app/api/users/self/notifications/rules/[id]/route'),
+    'users/self/notifications/rules/route': async () =>
+      import('@/app/api/users/self/notifications/rules/route'),
+    'users/self/player/route': async () =>
+      import('@/app/api/users/self/player/route'),
+    'users/self/preferences/route': async () =>
+      import('@/app/api/users/self/preferences/route'),
+    'users/self/push/subscriptions/[id]/route': async () =>
+      import('@/app/api/users/self/push/subscriptions/[id]/route'),
+    'users/self/push/subscriptions/route': async () =>
+      import('@/app/api/users/self/push/subscriptions/route'),
+    'users/self/reads/[article_id]/route': async () =>
+      import('@/app/api/users/self/reads/[article_id]/route'),
+    'users/self/reads/route': async () =>
+      import('@/app/api/users/self/reads/route'),
+    'users/self/rivers/[id]/route': async () =>
+      import('@/app/api/users/self/rivers/[id]/route'),
+    'users/self/rivers/route': async () =>
+      import('@/app/api/users/self/rivers/route'),
+    'users/self/saves/[article_id]/route': async () =>
+      import('@/app/api/users/self/saves/[article_id]/route'),
+    'users/self/saves/feeds/route': async () =>
+      import('@/app/api/users/self/saves/feeds/route'),
+    'users/self/saves/route': async () =>
+      import('@/app/api/users/self/saves/route'),
+    'users/self/saves/tags/[name]/route': async () =>
+      import('@/app/api/users/self/saves/tags/[name]/route'),
+    'users/self/saves/tags/route': async () =>
+      import('@/app/api/users/self/saves/tags/route'),
+    'users/self/searches/[id]/route': async () =>
+      import('@/app/api/users/self/searches/[id]/route'),
+    'users/self/searches/route': async () =>
+      import('@/app/api/users/self/searches/route'),
+    'users/self/shares/[article_id]/route': async () =>
+      import('@/app/api/users/self/shares/[article_id]/route'),
+    'users/self/tokens/[id]/route': async () =>
+      import('@/app/api/users/self/tokens/[id]/route'),
+    'users/self/tokens/route': async () =>
+      import('@/app/api/users/self/tokens/route'),
+    'users/self/usage/route': async () =>
+      import('@/app/api/users/self/usage/route'),
+    'users/self/webhooks/[id]/route': async () =>
+      import('@/app/api/users/self/webhooks/[id]/route'),
+    'users/self/webhooks/route': async () =>
+      import('@/app/api/users/self/webhooks/route'),
+  } satisfies Record<string, () => Promise<Record<string, unknown>>>),
+);
 
 beforeAll(async () => {
   const files = await routeFiles(API);
@@ -263,14 +269,14 @@ beforeAll(async () => {
   );
   expect(
     listed
-      .filter((relation2) => !(relation2 in ROUTES))
+      .filter((relation2) => !ROUTES.has(relation2))
       .toSorted((a, b) => collator.compare(a, b)),
   ).toEqual([]);
   for (const relation of listed) {
     const route = `/api/${relation}`
       .replace(MODULE_PATTERN_2, '')
       .replaceAll(MODULE_PATTERN_3, '{$1}');
-    const module = await ROUTES[relation]!();
+    const module = await ROUTES.get(relation)!();
     for (const method of METHODS) {
       const handler = module[method.toUpperCase()];
       if (typeof handler === 'function') {
@@ -295,7 +301,9 @@ function deref<T = Json>(node: unknown): T {
 /** Every `$ref` in a node. */
 function references(node: unknown, found: string[] = []): string[] {
   if (Array.isArray(node)) {
-    for (const n of node) references(n, found);
+    for (const n of node) {
+      references(n, found);
+    }
   } else if (node && typeof node === 'object') {
     for (const [key, value] of Object.entries(node)) {
       if (key === '$ref' && typeof value === 'string') {
@@ -316,9 +324,9 @@ function flat(schema: unknown): Json {
   if (!Array.isArray(s['allOf'])) {
     return s;
   }
-  const merged: Json = { ...s };
+  const merged = { ...s };
   delete merged['allOf'];
-  let properties: Json = (s['properties'] as Json | undefined) ?? {};
+  let properties = (s['properties'] as Json | undefined) ?? {};
   let required = (s['required'] as string[] | undefined) ?? [];
   for (const part of s['allOf'] as unknown[]) {
     const f = flat(part);
@@ -331,6 +339,7 @@ function flat(schema: unknown): Json {
       merged['additionalProperties'] = false;
     }
   }
+  // eslint-disable-next-line tslop/no-known-value-widening -- the function is recursive, so its return type must be written out
   return { ...merged, type: 'object', properties, required };
 }
 
@@ -344,7 +353,7 @@ function parametersOf(op: Operation & { path: string }): Parameter[] {
 }
 
 const DATE_TIME =
-  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/u;
 
 /** The JSON type of a value, where a whole number is an integer. */
 function jsonTypeOf(value: unknown): string {
@@ -390,7 +399,7 @@ function violations(schema: unknown, value: unknown, at = '$'): string[] {
   if (typeof value === 'string') {
     if (
       typeof s['pattern'] === 'string' &&
-      !new RegExp(s['pattern']).test(value)
+      !new RegExp(s['pattern'], 'u').test(value)
     ) {
       problems.push(`${at}: does not match ${s['pattern']}`);
     }
@@ -413,8 +422,9 @@ function violations(schema: unknown, value: unknown, at = '$'): string[] {
     }
   }
   if (Array.isArray(value) && s['items']) {
-    for (const [index, v] of value.entries())
+    for (const [index, v] of value.entries()) {
       problems.push(...violations(s['items'], v, `${at}[${index}]`));
+    }
   }
   if (value && typeof value === 'object' && !Array.isArray(value)) {
     const object = value as Json;
@@ -591,7 +601,10 @@ describe('openapi.json', () => {
 describe('openapi.json members and security', () => {
   it('names JSON members in snake_case and times as RFC 3339', () => {
     const wrong: string[] = [];
-    const checkMembers = (members: object, at: string): void => {
+    const checkMembers = (
+      members: Readonly<Record<string, unknown>>,
+      at: string,
+    ): void => {
       for (const [name, schema] of Object.entries(members)) {
         // The browser's own PushSubscription member, accepted next to expiration_time.
         if (!CHECK_MEMBERS_PATTERN.test(name) && name !== 'expirationTime') {
@@ -611,7 +624,9 @@ describe('openapi.json members and security', () => {
     };
     const walk = (node: unknown, at: string): void => {
       if (Array.isArray(node)) {
-        for (const [index, n] of node.entries()) walk(n, `${at}[${index}]`);
+        for (const [index, n] of node.entries()) {
+          walk(n, `${at}[${index}]`);
+        }
       } else if (node && typeof node === 'object') {
         for (const [key, entry] of Object.entries(node)) {
           const value: unknown = entry;
@@ -619,7 +634,7 @@ describe('openapi.json members and security', () => {
             continue;
           }
           if (key === 'properties' && value && typeof value === 'object') {
-            checkMembers(value, at);
+            checkMembers(value as Record<string, unknown>, at);
           }
           walk(value, `${at}.${key}`);
         }
@@ -752,284 +767,289 @@ const NOTIFIED = (w: World): Case => ({
 });
 
 /** The requests that succeed, by operation. */
-const VALID: Record<string, (w: World) => Case> = {
-  'GET /api/articles': () => ({ query: 'q=rust', status: 200 }),
-  'GET /api/articles/{id}': (w) => ({ params: { id: w.article }, status: 200 }),
-  'GET /api/articles/{id}/similar': (w) => ({
-    params: { id: w.article },
-    status: 200,
-  }),
-  'POST /api/articles/{id}/extractions': (w) => ({
-    params: { id: w.article },
-    status: 200,
-  }),
-  'POST /api/editions': () => ({ body: { name: 'Second' }, status: 201 }),
-  'PATCH /api/editions/{id}': (w) => ({
-    params: { id: w.edition },
-    body: { name: 'Renamed' },
-    status: 200,
-  }),
-  'DELETE /api/editions/{id}': (w) => ({
-    params: { id: w.edition },
-    status: 204,
-  }),
-  'GET /api/editions/{id}/issues/{date}': (w) => ({
-    params: { id: w.edition, date: w.day },
-    status: 200,
-  }),
-  'GET /api/editions/self/briefings': () => ({ status: 200 }),
-  'POST /api/editions/self/briefings': () => ({ status: 404 }),
-  'GET /api/editions/self/briefings/{id}': (w) => ({
-    params: { id: w.briefing },
-    status: 200,
-  }),
-  'GET /api/editions/self/issues': () => ({ status: 200 }),
-  'POST /api/editions/self/issues': () => ({
-    body: { date: DAY },
-    status: 201,
-  }),
-  'GET /api/editions/self/issues/{date}': (w) => ({
-    params: { date: w.day },
-    status: 200,
-  }),
-  'POST /api/articles/{id}/answers': (w) => ({
-    params: { id: w.article },
-    body: { question: 'What is it about?' },
-    status: 200,
-  }),
-  'GET /api/conversations': () => ({ status: 200 }),
-  'POST /api/conversations': () => ({ status: 201 }),
-  'GET /api/conversations/suggestions': () => ({ status: 200 }),
-  'GET /api/conversations/{id}': (w) => ({
-    params: { id: w.conversation },
-    status: 200,
-  }),
-  'DELETE /api/conversations/{id}': (w) => ({
-    params: { id: w.conversation },
-    status: 204,
-  }),
-  'POST /api/conversations/{id}/messages': (w) => ({
-    params: { id: w.conversation },
-    body: { content: 'What happened today?' },
-    status: 201,
-  }),
-  'POST /api/articles/{id}/emails': (w) => ({
-    params: { id: w.article },
-    body: { to: 'friend@example.org' },
-    status: 202,
-  }),
-  'GET /api/feeds': () => ({ status: 200 }),
-  'POST /api/feeds': () => ({
-    body: { url: 'https://new.example.org/feed.xml' },
-    status: 201,
-  }),
-  'PATCH /api/feeds/{id}': (w) => ({
-    params: { id: w.feed },
-    body: { title: 'Mine' },
-    status: 200,
-  }),
-  'DELETE /api/feeds/{id}': (w) => ({ params: { id: w.feed }, status: 204 }),
-  'POST /api/feeds/imports': () => ({
-    raw: { type: 'text/x-opml', text: OPML },
-    status: 201,
-  }),
-  'GET /api/feeds/imports/{id}': (w) => ({
-    params: { id: w.feedImport },
-    status: 200,
-  }),
-  'POST /api/feeds/{id}/refreshes': (w) => ({
-    params: { id: w.feed },
-    status: 200,
-  }),
-  'GET /api/feeds/{id}/statistics': (w) => ({
-    params: { id: w.feed },
-    status: 200,
-  }),
-  'GET /api/feeds/{id}/similar': (w) => ({
-    params: { id: w.feed },
-    status: 200,
-  }),
-  'GET /api/feeds/trending': () => ({ status: 200 }),
-  'POST /api/feeds/conversions': () => ({
-    body: { url: 'https://example.substack.com' },
-    status: 200,
-  }),
-  'GET /api/feeds/recommendations': () => ({ status: 200 }),
-  'POST /api/feeds/recommendations': () => ({
-    body: {
-      url: 'https://fresh.example.org/feed',
-      description: 'Worth reading.',
-    },
-    status: 201,
-  }),
-  'PATCH /api/feeds/recommendations/{id}': (w) => ({
-    params: { id: w.recommendation },
-    body: { status: 'declined' },
-    headers: { 'Content-Type': 'application/merge-patch+json' },
-    status: 200,
-  }),
-  'GET /api/podcasts': () => ({ query: 'q=rust', status: 200 }),
-  'GET /api/news/topics': () => ({ status: 200 }),
-  'POST /api/transcriptions': () => ({
-    raw: { type: 'audio/webm', text: 'not really audio' },
-    status: 200,
-  }),
-  'GET /api/feeds/suggestions': () => ({ status: 200 }),
-  'POST /api/feeds/refreshes': () => ({ status: 200 }),
-  'POST /api/feeds/moves': (w) => ({
-    body: { feed_ids: [w.feed], section_id: w.section },
-    status: 200,
-  }),
-  'POST /api/feeds/removals': (w) => ({
-    body: { feed_ids: [w.feed] },
-    status: 200,
-  }),
-  'GET /api/push/configuration': () => ({ status: 200 }),
-  'GET /api/sources': () => ({ query: 'order=reads', status: 200 }),
-  'POST /api/sections': () => ({ body: { name: 'World' }, status: 201 }),
-  'PATCH /api/sections/{id}': (w) => ({
-    params: { id: w.section },
-    body: { name: 'Tech news' },
-    status: 200,
-  }),
-  'DELETE /api/sections/{id}': (w) => ({
-    params: { id: w.section },
-    status: 204,
-  }),
-  'GET /api/topics': () => ({ status: 200 }),
-  'DELETE /api/sessions': () => ({ status: 204 }),
-  'DELETE /api/sessions/self': () => ({ status: 204 }),
-  'GET /api/users/self/classifiers': () => ({ status: 200 }),
-  'POST /api/users/self/classifiers': () => ({
-    body: { kind: 'title', value: 'zig', score: 'like' },
-    status: 201,
-  }),
-  'DELETE /api/users/self/classifiers/{id}': (w) => ({
-    params: { id: w.classifier },
-    status: 204,
-  }),
-  'GET /api/users/self/searches': () => ({ status: 200 }),
-  'POST /api/users/self/searches': () => ({
-    body: { query: 'zig' },
-    status: 201,
-  }),
-  'DELETE /api/users/self/searches/{id}': (w) => ({
-    params: { id: w.search },
-    status: 204,
-  }),
-  'GET /api/users/self/player': () => ({ status: 200 }),
-  'PUT /api/users/self/player': (w) => PLAYER(w),
-  'DELETE /api/users/self/player': (w) => ({
-    setup: [['PUT /api/users/self/player', PLAYER(w)]],
-    status: 204,
-  }),
-  'POST /api/users/self/reads': (w) => ({
-    body: { article_ids: [w.article] },
-    status: 200,
-  }),
-  'GET /api/users/self/preferences': () => ({ status: 200 }),
-  'PATCH /api/users/self/preferences': () => ({
-    body: { mark_read_on_scroll: true },
-    status: 200,
-  }),
-  'POST /api/users/self/reads/{article_id}': (w) => ({
-    params: { article_id: w.article },
-    status: 201,
-  }),
-  'PATCH /api/users/self/reads/{article_id}': (w) => ({
-    setup: [[READ, { params: { article_id: w.article }, status: 201 }]],
-    params: { article_id: w.article },
-    body: { seconds: 30 },
-    status: 200,
-  }),
-  'DELETE /api/users/self/reads/{article_id}': (w) => ({
-    setup: [[READ, { params: { article_id: w.article }, status: 201 }]],
-    params: { article_id: w.article },
-    status: 204,
-  }),
-  'GET /api/users/self/rivers': () => ({ status: 200 }),
-  'POST /api/users/self/rivers': () => ({
-    body: { river_id: 'saves', side: 'left', position: 1 },
-    status: 201,
-  }),
-  'PUT /api/users/self/rivers': () => ({
-    body: { items: [{ river_id: 'all', side: 'right', position: 0 }] },
-    status: 200,
-  }),
-  'DELETE /api/users/self/rivers/{id}': (w) => ({
-    params: { id: w.river },
-    status: 204,
-  }),
-  'GET /api/users/self/saves': () => ({ status: 200 }),
-  'GET /api/users/self/saves/tags': () => ({ status: 200 }),
-  'PATCH /api/users/self/saves/tags/{name}': (w) => ({
-    setup: [[SAVE, SAVED(w)]],
-    params: { name: 'later' },
-    body: { name: 'sooner' },
-    status: 200,
-  }),
-  'DELETE /api/users/self/saves/tags/{name}': (w) => ({
-    setup: [[SAVE, SAVED(w)]],
-    params: { name: 'later' },
-    status: 204,
-  }),
-  'GET /api/users/self/saves/feeds': () => ({ status: 200 }),
-  'POST /api/users/self/saves/{article_id}': (w) => SAVED(w),
-  'DELETE /api/users/self/saves/{article_id}': (w) => ({
-    setup: [[SAVE, SAVED(w)]],
-    params: { article_id: w.article },
-    status: 204,
-  }),
-  'POST /api/users/self/shares/{article_id}': (w) => SHARED(w),
-  'DELETE /api/users/self/shares/{article_id}': (w) => ({
-    setup: [[SHARE, SHARED(w)]],
-    params: { article_id: w.article },
-    status: 204,
-  }),
-  'GET /api/shares': () => ({ status: 200 }),
-  'POST /api/users/self/notifications/rules': () => ({
-    body: { kind: 'title', value: 'zig', channels: ['web'] },
-    status: 201,
-  }),
-  'DELETE /api/users/self/notifications/rules/{id}': (w) => ({
-    params: { id: w.rule },
-    status: 204,
-  }),
-  'PUT /api/users/self/notifications/{feed_id}': (w) => NOTIFIED(w),
-  'DELETE /api/users/self/notifications/{feed_id}': (w) => ({
-    setup: [[NOTIFY, NOTIFIED(w)]],
-    params: { feed_id: w.feed },
-    status: 204,
-  }),
-  'POST /api/users/self/push/subscriptions': () => ({
-    body: {
-      endpoint: 'https://push.example.org/other',
-      keys: { p256dh: 'B'.repeat(87), auth: 'B'.repeat(22) },
-    },
-    status: 201,
-  }),
-  'DELETE /api/users/self/push/subscriptions/{id}': (w) => ({
-    params: { id: w.push },
-    status: 204,
-  }),
-  'GET /api/users/self/usage': () => ({ status: 200 }),
-  'POST /api/users/self/tokens': () => ({
-    body: { scope: 'saves' },
-    status: 201,
-  }),
-  'DELETE /api/users/self/tokens/{id}': (w) => ({
-    params: { id: w.token },
-    status: 204,
-  }),
-  'POST /api/users/self/webhooks': () => ({
-    body: { url: 'https://hooks.example.org/new', events: ['like'] },
-    status: 201,
-  }),
-  'DELETE /api/users/self/webhooks/{id}': (w) => ({
-    params: { id: w.webhook },
-    status: 204,
-  }),
-};
+const VALID = new Map<string, (w: World) => Case>(
+  Object.entries({
+    'GET /api/articles': () => ({ query: 'q=rust', status: 200 }),
+    'GET /api/articles/{id}': (w) => ({
+      params: { id: w.article },
+      status: 200,
+    }),
+    'GET /api/articles/{id}/similar': (w) => ({
+      params: { id: w.article },
+      status: 200,
+    }),
+    'POST /api/articles/{id}/extractions': (w) => ({
+      params: { id: w.article },
+      status: 200,
+    }),
+    'POST /api/editions': () => ({ body: { name: 'Second' }, status: 201 }),
+    'PATCH /api/editions/{id}': (w) => ({
+      params: { id: w.edition },
+      body: { name: 'Renamed' },
+      status: 200,
+    }),
+    'DELETE /api/editions/{id}': (w) => ({
+      params: { id: w.edition },
+      status: 204,
+    }),
+    'GET /api/editions/{id}/issues/{date}': (w) => ({
+      params: { id: w.edition, date: w.day },
+      status: 200,
+    }),
+    'GET /api/editions/self/briefings': () => ({ status: 200 }),
+    'POST /api/editions/self/briefings': () => ({ status: 404 }),
+    'GET /api/editions/self/briefings/{id}': (w) => ({
+      params: { id: w.briefing },
+      status: 200,
+    }),
+    'GET /api/editions/self/issues': () => ({ status: 200 }),
+    'POST /api/editions/self/issues': () => ({
+      body: { date: DAY },
+      status: 201,
+    }),
+    'GET /api/editions/self/issues/{date}': (w) => ({
+      params: { date: w.day },
+      status: 200,
+    }),
+    'POST /api/articles/{id}/answers': (w) => ({
+      params: { id: w.article },
+      body: { question: 'What is it about?' },
+      status: 200,
+    }),
+    'GET /api/conversations': () => ({ status: 200 }),
+    'POST /api/conversations': () => ({ status: 201 }),
+    'GET /api/conversations/suggestions': () => ({ status: 200 }),
+    'GET /api/conversations/{id}': (w) => ({
+      params: { id: w.conversation },
+      status: 200,
+    }),
+    'DELETE /api/conversations/{id}': (w) => ({
+      params: { id: w.conversation },
+      status: 204,
+    }),
+    'POST /api/conversations/{id}/messages': (w) => ({
+      params: { id: w.conversation },
+      body: { content: 'What happened today?' },
+      status: 201,
+    }),
+    'POST /api/articles/{id}/emails': (w) => ({
+      params: { id: w.article },
+      body: { to: 'friend@example.org' },
+      status: 202,
+    }),
+    'GET /api/feeds': () => ({ status: 200 }),
+    'POST /api/feeds': () => ({
+      body: { url: 'https://new.example.org/feed.xml' },
+      status: 201,
+    }),
+    'PATCH /api/feeds/{id}': (w) => ({
+      params: { id: w.feed },
+      body: { title: 'Mine' },
+      status: 200,
+    }),
+    'DELETE /api/feeds/{id}': (w) => ({ params: { id: w.feed }, status: 204 }),
+    'POST /api/feeds/imports': () => ({
+      raw: { type: 'text/x-opml', text: OPML },
+      status: 201,
+    }),
+    'GET /api/feeds/imports/{id}': (w) => ({
+      params: { id: w.feedImport },
+      status: 200,
+    }),
+    'POST /api/feeds/{id}/refreshes': (w) => ({
+      params: { id: w.feed },
+      status: 200,
+    }),
+    'GET /api/feeds/{id}/statistics': (w) => ({
+      params: { id: w.feed },
+      status: 200,
+    }),
+    'GET /api/feeds/{id}/similar': (w) => ({
+      params: { id: w.feed },
+      status: 200,
+    }),
+    'GET /api/feeds/trending': () => ({ status: 200 }),
+    'POST /api/feeds/conversions': () => ({
+      body: { url: 'https://example.substack.com' },
+      status: 200,
+    }),
+    'GET /api/feeds/recommendations': () => ({ status: 200 }),
+    'POST /api/feeds/recommendations': () => ({
+      body: {
+        url: 'https://fresh.example.org/feed',
+        description: 'Worth reading.',
+      },
+      status: 201,
+    }),
+    'PATCH /api/feeds/recommendations/{id}': (w) => ({
+      params: { id: w.recommendation },
+      body: { status: 'declined' },
+      headers: { 'Content-Type': 'application/merge-patch+json' },
+      status: 200,
+    }),
+    'GET /api/podcasts': () => ({ query: 'q=rust', status: 200 }),
+    'GET /api/news/topics': () => ({ status: 200 }),
+    'POST /api/transcriptions': () => ({
+      raw: { type: 'audio/webm', text: 'not really audio' },
+      status: 200,
+    }),
+    'GET /api/feeds/suggestions': () => ({ status: 200 }),
+    'POST /api/feeds/refreshes': () => ({ status: 200 }),
+    'POST /api/feeds/moves': (w) => ({
+      body: { feed_ids: [w.feed], section_id: w.section },
+      status: 200,
+    }),
+    'POST /api/feeds/removals': (w) => ({
+      body: { feed_ids: [w.feed] },
+      status: 200,
+    }),
+    'GET /api/push/configuration': () => ({ status: 200 }),
+    'GET /api/sources': () => ({ query: 'order=reads', status: 200 }),
+    'POST /api/sections': () => ({ body: { name: 'World' }, status: 201 }),
+    'PATCH /api/sections/{id}': (w) => ({
+      params: { id: w.section },
+      body: { name: 'Tech news' },
+      status: 200,
+    }),
+    'DELETE /api/sections/{id}': (w) => ({
+      params: { id: w.section },
+      status: 204,
+    }),
+    'GET /api/topics': () => ({ status: 200 }),
+    'DELETE /api/sessions': () => ({ status: 204 }),
+    'DELETE /api/sessions/self': () => ({ status: 204 }),
+    'GET /api/users/self/classifiers': () => ({ status: 200 }),
+    'POST /api/users/self/classifiers': () => ({
+      body: { kind: 'title', value: 'zig', score: 'like' },
+      status: 201,
+    }),
+    'DELETE /api/users/self/classifiers/{id}': (w) => ({
+      params: { id: w.classifier },
+      status: 204,
+    }),
+    'GET /api/users/self/searches': () => ({ status: 200 }),
+    'POST /api/users/self/searches': () => ({
+      body: { query: 'zig' },
+      status: 201,
+    }),
+    'DELETE /api/users/self/searches/{id}': (w) => ({
+      params: { id: w.search },
+      status: 204,
+    }),
+    'GET /api/users/self/player': () => ({ status: 200 }),
+    'PUT /api/users/self/player': (w) => PLAYER(w),
+    'DELETE /api/users/self/player': (w) => ({
+      setup: [['PUT /api/users/self/player', PLAYER(w)]],
+      status: 204,
+    }),
+    'POST /api/users/self/reads': (w) => ({
+      body: { article_ids: [w.article] },
+      status: 200,
+    }),
+    'GET /api/users/self/preferences': () => ({ status: 200 }),
+    'PATCH /api/users/self/preferences': () => ({
+      body: { mark_read_on_scroll: true },
+      status: 200,
+    }),
+    'POST /api/users/self/reads/{article_id}': (w) => ({
+      params: { article_id: w.article },
+      status: 201,
+    }),
+    'PATCH /api/users/self/reads/{article_id}': (w) => ({
+      setup: [[READ, { params: { article_id: w.article }, status: 201 }]],
+      params: { article_id: w.article },
+      body: { seconds: 30 },
+      status: 200,
+    }),
+    'DELETE /api/users/self/reads/{article_id}': (w) => ({
+      setup: [[READ, { params: { article_id: w.article }, status: 201 }]],
+      params: { article_id: w.article },
+      status: 204,
+    }),
+    'GET /api/users/self/rivers': () => ({ status: 200 }),
+    'POST /api/users/self/rivers': () => ({
+      body: { river_id: 'saves', side: 'left', position: 1 },
+      status: 201,
+    }),
+    'PUT /api/users/self/rivers': () => ({
+      body: { items: [{ river_id: 'all', side: 'right', position: 0 }] },
+      status: 200,
+    }),
+    'DELETE /api/users/self/rivers/{id}': (w) => ({
+      params: { id: w.river },
+      status: 204,
+    }),
+    'GET /api/users/self/saves': () => ({ status: 200 }),
+    'GET /api/users/self/saves/tags': () => ({ status: 200 }),
+    'PATCH /api/users/self/saves/tags/{name}': (w) => ({
+      setup: [[SAVE, SAVED(w)]],
+      params: { name: 'later' },
+      body: { name: 'sooner' },
+      status: 200,
+    }),
+    'DELETE /api/users/self/saves/tags/{name}': (w) => ({
+      setup: [[SAVE, SAVED(w)]],
+      params: { name: 'later' },
+      status: 204,
+    }),
+    'GET /api/users/self/saves/feeds': () => ({ status: 200 }),
+    'POST /api/users/self/saves/{article_id}': (w) => SAVED(w),
+    'DELETE /api/users/self/saves/{article_id}': (w) => ({
+      setup: [[SAVE, SAVED(w)]],
+      params: { article_id: w.article },
+      status: 204,
+    }),
+    'POST /api/users/self/shares/{article_id}': (w) => SHARED(w),
+    'DELETE /api/users/self/shares/{article_id}': (w) => ({
+      setup: [[SHARE, SHARED(w)]],
+      params: { article_id: w.article },
+      status: 204,
+    }),
+    'GET /api/shares': () => ({ status: 200 }),
+    'POST /api/users/self/notifications/rules': () => ({
+      body: { kind: 'title', value: 'zig', channels: ['web'] },
+      status: 201,
+    }),
+    'DELETE /api/users/self/notifications/rules/{id}': (w) => ({
+      params: { id: w.rule },
+      status: 204,
+    }),
+    'PUT /api/users/self/notifications/{feed_id}': (w) => NOTIFIED(w),
+    'DELETE /api/users/self/notifications/{feed_id}': (w) => ({
+      setup: [[NOTIFY, NOTIFIED(w)]],
+      params: { feed_id: w.feed },
+      status: 204,
+    }),
+    'POST /api/users/self/push/subscriptions': () => ({
+      body: {
+        endpoint: 'https://push.example.org/other',
+        keys: { p256dh: 'B'.repeat(87), auth: 'B'.repeat(22) },
+      },
+      status: 201,
+    }),
+    'DELETE /api/users/self/push/subscriptions/{id}': (w) => ({
+      params: { id: w.push },
+      status: 204,
+    }),
+    'GET /api/users/self/usage': () => ({ status: 200 }),
+    'POST /api/users/self/tokens': () => ({
+      body: { scope: 'saves' },
+      status: 201,
+    }),
+    'DELETE /api/users/self/tokens/{id}': (w) => ({
+      params: { id: w.token },
+      status: 204,
+    }),
+    'POST /api/users/self/webhooks': () => ({
+      body: { url: 'https://hooks.example.org/new', events: ['like'] },
+      status: 201,
+    }),
+    'DELETE /api/users/self/webhooks/{id}': (w) => ({
+      params: { id: w.webhook },
+      status: 204,
+    }),
+  } satisfies Record<string, (w: World) => Case>),
+);
 
 let restore: (() => void) | null = null;
 let cookie: string;
@@ -1240,7 +1260,8 @@ afterEach(() => {
 });
 
 /** A value of the wrong type for a member, or one outside its enum. */
-function wrongValue(schema: unknown): unknown {
+// eslint-disable-next-line sonarjs/function-return-type -- the point is to produce a value of the wrong type, so the types differ by design
+function wrongValue(schema: unknown): string | number | undefined {
   const s = deref(schema);
   if (Array.isArray(s['enum'])) {
     return '__not_a_member__';
@@ -1359,12 +1380,10 @@ describe('the controllers agree with openapi.json', () => {
   it('has a valid request for every operation', () => {
     expect(
       [...operations.keys()]
-        .filter((key) => !(key in VALID))
+        .filter((key) => !VALID.has(key))
         .toSorted((a, b) => collator.compare(a, b)),
     ).toEqual([]);
-    expect(Object.keys(VALID).filter((key) => !operations.has(key))).toEqual(
-      [],
-    );
+    expect([...VALID.keys()].filter((key) => !operations.has(key))).toEqual([]);
   });
 });
 
@@ -1372,14 +1391,16 @@ describe('every operation agrees with openapi.json', () => {
   it.each([...operations.keys()])('%s', async (key) => {
     const op = operations.get(key)!;
     const w = await world();
-    const valid = VALID[key]!(w);
+    const valid = VALID.get(key)!(w);
     for (const [before, c] of valid.setup ?? []) {
       const done = await call(before, c);
       expect(done.status).toBe(c.status);
     }
     const wrong: string[] = [];
     const fail = (what: string, problems: string[]) => {
-      for (const p of problems) wrong.push(`${what}: ${p}`);
+      for (const p of problems) {
+        wrong.push(`${what}: ${p}`);
+      }
     };
     const isPublic = Array.isArray(op.security) && op.security.length === 0;
     const writes = key.split(' ', 1)[0] !== 'GET';

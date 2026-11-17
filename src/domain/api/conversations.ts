@@ -18,21 +18,15 @@ import {
   parentIdOf,
   readQuestion,
 } from '@/domain/api/answers';
-import {
-  liveUid,
-  requestCookieResolver,
-  type CurrentUserResolver,
-} from '@/domain/api/auth';
+import { liveUid, requestCookieResolver } from '@/domain/api/auth';
 import {
   conversationResource,
   conversationSummaryResource,
   messageResource,
-  type ConversationResource,
-  type MessageResource,
 } from '@/domain/api/conversation-resource';
 import { parseFeedId } from '@/domain/api/feed-resource';
 import { idOf } from '@/domain/api/feeds';
-import { newestPage, pageRequest, type PageRequest } from '@/domain/api/paging';
+import { newestPage, pageRequest } from '@/domain/api/paging';
 import { overBudget } from '@/domain/api/usage';
 import {
   ApiController,
@@ -41,10 +35,17 @@ import {
   ok,
   page,
   problems,
-  type Slice,
 } from '@/lib/core/api';
 import { getDatabase } from '@/domain/db/client';
-import { Repository, type ConversationSummary } from '@/domain/repository';
+import { Repository } from '@/domain/repository';
+import type { Slice } from '@/lib/core/api';
+import type { PageRequest } from '@/domain/api/paging';
+import type {
+  ConversationResource,
+  MessageResource,
+} from '@/domain/api/conversation-resource';
+import type { CurrentUserResolver } from '@/domain/api/auth';
+import type { ConversationSummary } from '@/domain/repository';
 
 /** The signed-in caller's id and the request. */
 interface UidContext {
@@ -131,7 +132,9 @@ export function createConversationItem(
         const id = parseFeedId(idOf(request));
         const conversation =
           id === undefined ? undefined : await repo.getConversation(uid, id);
-        if (!conversation) return undefined;
+        if (!conversation) {
+          return undefined;
+        }
         const turns = await repo.listMessages(conversation.id);
         return conversationResource(
           conversation,
@@ -183,9 +186,13 @@ export function createMessagesCollection(
       const id = parseFeedId(parentIdOf(request));
       const conversation =
         id === undefined ? undefined : await repo.getConversation(uid, id);
-      if (!conversation) return problems.notFound('conversation');
+      if (!conversation) {
+        return problems.notFound('conversation');
+      }
       const refusal = await overBudget(repo, uid, 'assistant');
-      if (refusal) return refusal;
+      if (refusal) {
+        return refusal;
+      }
       try {
         const { reply, titles } = await answerTurn(
           repo,

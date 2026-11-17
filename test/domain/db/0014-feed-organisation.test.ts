@@ -2,10 +2,10 @@ import path from 'node:path';
 import { readFile } from 'node:fs/promises';
 import { beforeEach, describe, expect, it } from '@jest/globals';
 
-import type { DatabaseSync } from 'node:sqlite';
-
+import { compareText } from '@/lib/intl';
 import { APP_MIGRATIONS } from '../../lib/core/db/migrations';
 import { sqliteD1 } from '../../lib/core/db/sqlite-d1';
+import type { DatabaseSync } from 'node:sqlite';
 
 let raw: DatabaseSync;
 
@@ -13,7 +13,7 @@ let raw: DatabaseSync;
 beforeEach(async () => {
   raw = sqliteD1(
     ...APP_MIGRATIONS.filter(
-      (file) => file.localeCompare('0014_feed_organisation.sql') < 0,
+      (file) => compareText(file, '0014_feed_organisation.sql') < 0,
     ),
   ).raw;
   raw.exec(

@@ -1,8 +1,7 @@
 'use client';
 
-import type { ReactElement } from 'react';
-
 import { MENU_ITEM } from '@/components/ui/menu';
+import type { ReactElement } from 'react';
 
 /**
  * Signs the person out: ends the session on the server, then goes to the front
@@ -21,7 +20,13 @@ async function signOut(): Promise<void> {
 /** "Sign out", the last item of the account menu in the top bar. */
 export function SignOutButton(): ReactElement {
   return (
-    <button type="button" className={MENU_ITEM} onClick={() => void signOut()}>
+    <button
+      type="button"
+      className={MENU_ITEM}
+      onClick={() => {
+        void signOut();
+      }}
+    >
       Sign out
     </button>
   );

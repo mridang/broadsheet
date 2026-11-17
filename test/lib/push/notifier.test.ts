@@ -1,12 +1,12 @@
 import { describe, expect, it } from '@jest/globals';
 
-import {
-  PushNotifier,
-  type DeliveryResult,
-  type PushPayload,
-  type PushSubscriptionRecord,
-  type PushSubscriptionStore,
-  type WebPushSender,
+import { PushNotifier } from '@/lib/push';
+import type {
+  DeliveryResult,
+  PushPayload,
+  PushSubscriptionRecord,
+  PushSubscriptionStore,
+  WebPushSender,
 } from '@/lib/push';
 
 const PAYLOAD: PushPayload = { title: 't', body: 'b' };

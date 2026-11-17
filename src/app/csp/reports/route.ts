@@ -30,6 +30,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   if (body.kind !== 'ok') {
     return new NextResponse(null, { status: 400 });
   }
+  // eslint-disable-next-line functional/no-loop-statements -- the loop only logs each report
   for (const report of summariseReports(body.value)) {
     console.log('[csp-report]', JSON.stringify(report));
   }

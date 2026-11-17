@@ -16,8 +16,9 @@ class FakeUtterance {
     this.listeners.set(type, [...(this.listeners.get(type) ?? []), listener]);
   }
   fire(type: string, charIndex = 0): void {
-    for (const listener of this.listeners.get(type) ?? [])
+    for (const listener of this.listeners.get(type) ?? []) {
       listener({ charIndex });
+    }
   }
 }
 
@@ -57,6 +58,7 @@ describe('webSpeech', () => {
     const onEnd = jest.fn();
     webSpeech(h)?.play('Hello', onEnd);
     spoken[0]?.fire('end');
+    expect(spoken).toHaveLength(1);
     expect(onEnd).toHaveBeenCalledTimes(1);
   });
 
@@ -69,15 +71,17 @@ describe('webSpeech', () => {
     reader?.play('One', onEnd);
     onEnd.mockClear();
     spoken[0]?.fire('error');
+    expect(spoken).toHaveLength(2);
     expect(onEnd).not.toHaveBeenCalled();
   });
 
   it('ends the story being read when another starts', () => {
-    const { host: h } = host();
+    const { host: h, spoken } = host();
     const reader = webSpeech(h);
     const first = jest.fn();
     reader?.play('One', first);
     reader?.play('Two', () => undefined);
+    expect(spoken.map((u) => u.text)).toEqual(['One', 'Two']);
     expect(first).toHaveBeenCalledTimes(1);
   });
 
@@ -119,8 +123,9 @@ describe('webSpeech', () => {
   });
 
   it('stops by cancelling the speech', () => {
-    const { host: h, synth } = host();
+    const { host: h, synth, spoken } = host();
     webSpeech(h)?.stop();
+    expect(spoken).toEqual([]);
     expect(synth.cancel).toHaveBeenCalledTimes(1);
   });
 });

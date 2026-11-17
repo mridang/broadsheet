@@ -1,11 +1,10 @@
 'use client';
 
-import type { ReactElement } from 'react';
-
 import { useApiAction } from '@/components/api/use-api-action';
 import { buttonClass } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/notice';
 import { removeSearch } from '@/app/(site)/search/_components/search-requests';
+import type { ReactElement } from 'react';
 
 /** "Remove" on a saved search. */
 export function RemoveSearchButton({
@@ -18,12 +17,12 @@ export function RemoveSearchButton({
         type="button"
         className={buttonClass({ variant: 'danger', size: 'xs' })}
         disabled={busy}
-        onClick={() =>
+        onClick={() => {
           void run(
             async () => removeSearch(id),
             'Could not remove that search.',
-          )
-        }
+          );
+        }}
       >
         Remove
       </button>

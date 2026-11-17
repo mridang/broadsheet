@@ -7,8 +7,8 @@ import {
   sliceAfter,
   DEFAULT_LIMIT,
   MAX_LIMIT,
-  type CursorPosition,
 } from '@/lib/core/api';
+import type { CursorPosition } from '@/lib/core/api';
 
 describe('cursor', () => {
   it('round-trips a position through an opaque token', () => {

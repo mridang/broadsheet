@@ -4,8 +4,8 @@ import LoginPage, { metadata } from '@/app/(site)/login/page';
 import { html } from '../../../components/render';
 
 const OFFERS_ONE_WAY_IN_PATTERN =
-  /<a href="\/auth\/login"[^>]*>[\s\S]*Sign in with Google<\/a>/;
-const OFFERS_ONE_WAY_IN_PATTERN_2 = /href="\/auth\//g;
+  /<a href="\/auth\/login"[^>]*>[\s\S]*Sign in with Google<\/a>/u;
+const OFFERS_ONE_WAY_IN_PATTERN_2 = /href="\/auth\//gu;
 
 /** The sign-in page for a visit with the given query string flags. */
 async function page(query: { error?: string } = {}): Promise<string> {

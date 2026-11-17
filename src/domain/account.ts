@@ -6,10 +6,11 @@
  * logged-out edition. Who is signed in, and signing in itself, live in
  * `auth/`.
  */
-import { Repository, type Feed } from '@/domain/repository';
+import { Repository } from '@/domain/repository';
 import { refreshSource } from '@/domain/scraping/index';
 import { getEnv, runInBackground } from '@/lib/core/runtime';
 import { getDatabase } from '@/domain/db/client';
+import type { Feed } from '@/domain/repository';
 
 const DEFAULT_FEEDS: [string, string][] = [
   ['https://hnrss.org/frontpage', 'Hacker News'],
@@ -26,11 +27,17 @@ const PUBLIC_FEEDS: [string, string][] = [
 export async function seedDefaults(userId: number): Promise<void> {
   const repo = new Repository(getDatabase());
   const existing = await repo.listFeeds(userId);
-  if (existing.length > 0) return;
+  if (existing.length > 0) {
+    return;
+  }
   const added: Feed[] = [];
+  // eslint-disable-next-line functional/no-loop-statements -- the feeds are added one after another, in order
   for (const [url, title] of DEFAULT_FEEDS) {
     const f = await repo.addFeed(userId, url, title);
-    if (f) added.push(f);
+    if (f) {
+      // eslint-disable-next-line functional/immutable-data -- collects the feeds as they are added
+      added.push(f);
+    }
   }
   warm(added);
 }
@@ -47,9 +54,13 @@ export async function ensurePublicUser(): Promise<number> {
   const existing = await repo.listFeeds(u.id);
   if (existing.length === 0) {
     const added: Feed[] = [];
+    // eslint-disable-next-line functional/no-loop-statements -- the feeds are added one after another, in order
     for (const [url, title] of PUBLIC_FEEDS) {
       const f = await repo.addFeed(u.id, url, title);
-      if (f) added.push(f);
+      if (f) {
+        // eslint-disable-next-line functional/immutable-data -- collects the feeds as they are added
+        added.push(f);
+      }
     }
     warm(added);
   }
@@ -58,7 +69,9 @@ export async function ensurePublicUser(): Promise<number> {
 
 /** Refresh feeds in the background (doesn't block the response). */
 function warm(feeds: Feed[]): void {
-  if (feeds.length === 0) return;
+  if (feeds.length === 0) {
+    return;
+  }
   runInBackground(
     Promise.all(
       feeds.map(async (f) =>

@@ -1,6 +1,5 @@
-import type { ElementType, ReactElement, ReactNode, Ref } from 'react';
-
 import { cn } from '@/components/ui/cn';
+import type { ElementType, ReactElement, ReactNode, Ref } from 'react';
 
 /** The page column: one max width and one set of gutters, used everywhere. */
 export function Container({

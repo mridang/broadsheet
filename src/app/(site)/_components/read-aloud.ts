@@ -36,15 +36,20 @@ export type SpeechHost = Readonly<{
 export function webSpeech(host: SpeechHost): ReadAloud | null {
   const synth = host.speechSynthesis;
   const Utterance = host.SpeechSynthesisUtterance;
-  if (!synth || !Utterance) return null;
+  if (!synth || !Utterance) {
+    return null;
+  }
   // What is being read now. The browser ends a cancelled utterance a moment
   // later, so a stale end is ignored rather than stopping the next one.
+  // eslint-disable-next-line functional/no-let -- the one utterance being read, replaced as stories change
   let active: {
     utterance: SpeechSynthesisUtterance;
     onEnd: (completed: boolean) => void;
   } | null = null;
   const finish = (utterance?: SpeechSynthesisUtterance, completed = false) => {
-    if (!active || (utterance && active.utterance !== utterance)) return;
+    if (!active || (utterance && active.utterance !== utterance)) {
+      return;
+    }
     const { onEnd } = active;
     active = null;
     onEnd(completed);
@@ -55,6 +60,7 @@ export function webSpeech(host: SpeechHost): ReadAloud | null {
       synth.cancel();
       const start = from > 0 && from < text.length ? from : 0;
       const utterance = new Utterance(text.slice(start));
+      // eslint-disable-next-line functional/immutable-data -- an utterance is configured after it is made
       utterance.rate = rate;
       if (onProgress) {
         utterance.addEventListener('boundary', (event) =>
@@ -75,8 +81,5 @@ export function webSpeech(host: SpeechHost): ReadAloud | null {
 
 /** What is read for a story: its headline, then its excerpt. */
 export function spokenText(title: string, excerpt: string): string {
-  return [title, excerpt]
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .join('. ');
+  return [title, excerpt].flatMap((s) => s.trim() || []).join('. ');
 }

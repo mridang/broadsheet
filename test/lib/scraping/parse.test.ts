@@ -419,7 +419,7 @@ describe('itemAuthor with several authors', () => {
 });
 
 describe('decode tag stripping', () => {
-  const TAG = new RegExp(['<[^>]', '+>'].join(''), 'g');
+  const TAG = new RegExp(['<[^>]', '+>'].join(''), 'gu');
 
   it.each([
     'a <> b',
@@ -432,7 +432,7 @@ describe('decode tag stripping', () => {
     '',
   ])('strips tags in %j as the original pattern did', (text) => {
     expect(decode(text)).toBe(
-      text.replaceAll(TAG, '').replaceAll(/\s+/g, ' ').trim(),
+      text.replaceAll(TAG, '').replaceAll(/\s+/gu, ' ').trim(),
     );
   });
 
@@ -483,7 +483,7 @@ describe('feedHeader attribute names', () => {
 function seeded(seed: number): () => number {
   let state = seed;
   return () => {
-    state = (Math.imul(state, 1_664_525) + 1_013_904_223) >>> 0;
+    state = (Math.imul(state, 1_664_525) + 1_013_904_223 + 2 ** 32) % 2 ** 32;
     return state / 2 ** 32;
   };
 }
@@ -491,6 +491,7 @@ function seeded(seed: number): () => number {
 describe('bracketedName', () => {
   const old = new RegExp(
     [String.raw`^\S+@\S+`, String.raw`\s*`, String.raw`\((.+)\)$`].join(''),
+    'u',
   );
   const before = (raw: string): string => (old.exec(raw)?.[1] ?? raw).trim();
 
@@ -505,8 +506,9 @@ describe('bracketedName', () => {
     ['mail@x.org (a\nb)', 'mail@x.org (a\nb)'],
     ['', ''],
   ])('reads %j like the old pattern', (raw, expected) => {
-    expect(bracketedName(raw)).toBe(expected);
-    expect(bracketedName(raw)).toBe(before(raw));
+    const read = bracketedName(raw);
+    expect(read).toBe(expected);
+    expect(read).toBe(before(raw));
   });
 
   it('matches the old pattern on seeded random input', () => {
@@ -540,7 +542,7 @@ describe('FEED_TOKEN', () => {
     '([^<]+)',
   ].join('|');
   const tokens = (source: string, pattern: string): string[][] =>
-    Array.from(source.matchAll(new RegExp(pattern, 'g')), (m) => [...m]);
+    Array.from(source.matchAll(new RegExp(pattern, 'gu')), (m) => [...m]);
 
   it.each([
     '<rss version="2.0"><channel><title>T</title></channel></rss>',

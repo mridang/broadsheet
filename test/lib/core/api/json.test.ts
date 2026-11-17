@@ -67,7 +67,9 @@ describe('readJson size limit', () => {
       headers: { 'content-type': 'application/json' },
       body: new ReadableStream<Uint8Array>({
         start(controller) {
-          for (const piece of pieces) controller.enqueue(encoder.encode(piece));
+          for (const piece of pieces) {
+            controller.enqueue(encoder.encode(piece));
+          }
           controller.close();
         },
       }),

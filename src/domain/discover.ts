@@ -1,13 +1,13 @@
-const TITLED_PATTERN = /[-_]+/g;
-const TITLED_PATTERN_2 = /\b\w/g;
+const TITLED_PATTERN = /[-_]+/gu;
+const TITLED_PATTERN_2 = /\b\w/gu;
 const LOOKS_LIKE_FEED_PATTERN =
-  /\/(feed|rss|atom)(\/|\.xml)?$|\.(xml|rss|atom)$/i;
-const CONVERT_TO_FEED_PATTERN = /^[a-z][\w+.-]*:\/\//i;
-const CONVERT_TO_FEED_PATTERN_2 = /^https?:\/\//i;
-const CONVERT_TO_FEED_PATTERN_3 = /^@/;
-const CONVERT_TO_FEED_PATTERN_4 = /^UC[\w-]{22}$/;
-const GOOGLE_NEWS_FEED_PATTERN = /^[a-z]{2}(-[A-Za-z]{2,4})?$/;
-const GOOGLE_NEWS_FEED_PATTERN_2 = /^[A-Z]{2}$/;
+  /\/(feed|rss|atom)(\/|\.xml)?$|\.(xml|rss|atom)$/iu;
+const CONVERT_TO_FEED_PATTERN = /^[a-z][\w+.-]*:\/\//iu;
+const CONVERT_TO_FEED_PATTERN_2 = /^https?:\/\//iu;
+const CONVERT_TO_FEED_PATTERN_3 = /^@/u;
+const CONVERT_TO_FEED_PATTERN_4 = /^UC[\w-]{22}$/u;
+const GOOGLE_NEWS_FEED_PATTERN = /^[a-z]{2}(-[A-Za-z]{2,4})?$/u;
+const GOOGLE_NEWS_FEED_PATTERN_2 = /^[A-Z]{2}$/u;
 /**
  * @packageDocumentation
  *
@@ -68,15 +68,16 @@ export function convertToFeed(input: string): Conversion | undefined {
   ) {
     return undefined;
   }
-  let url: URL;
-  try {
-    url = new URL(
-      CONVERT_TO_FEED_PATTERN_2.test(text) ? text : `https://${text}`,
-    );
-  } catch {
+  const target = CONVERT_TO_FEED_PATTERN_2.test(text)
+    ? text
+    : `https://${text}`;
+  if (!URL.canParse(target)) {
     return undefined;
   }
-  if (url.protocol !== 'https:' && url.protocol !== 'http:') return undefined;
+  const url = new URL(target);
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+    return undefined;
+  }
   const host = url.hostname.toLowerCase();
   const base = trimTrailingSlashes(`${url.origin}${url.pathname}`);
   const [first = '', second = ''] = url.pathname.split('/').filter(Boolean);
@@ -92,7 +93,9 @@ export function convertToFeed(input: string): Conversion | undefined {
     if (host !== 'medium.com') {
       return { feed_url: `${url.origin}/feed`, platform: 'medium' };
     }
-    if (!first) return undefined;
+    if (!first) {
+      return undefined;
+    }
     return {
       feed_url: `https://medium.com/feed/${first}`,
       platform: 'medium',
@@ -106,7 +109,9 @@ export function convertToFeed(input: string): Conversion | undefined {
     };
   }
   if (host === 'buttondown.email' || host === 'buttondown.com') {
-    if (!first) return undefined;
+    if (!first) {
+      return undefined;
+    }
     return {
       feed_url: `https://buttondown.com/${first}/rss`,
       platform: 'buttondown',
@@ -121,7 +126,9 @@ export function convertToFeed(input: string): Conversion | undefined {
   }
   if (host.endsWith('getrevue.co') || host.endsWith('revue.co')) {
     const name = first === 'profile' ? second : first;
-    if (!name) return undefined;
+    if (!name) {
+      return undefined;
+    }
     return {
       feed_url: `https://www.getrevue.co/profile/${name}/feed`,
       platform: 'revue',
@@ -144,7 +151,9 @@ export function convertToFeed(input: string): Conversion | undefined {
     }
     return undefined;
   }
-  if (looksLikeFeed(base)) return { feed_url: base, platform: 'direct' };
+  if (looksLikeFeed(base)) {
+    return { feed_url: base, platform: 'direct' };
+  }
   return { feed_url: `${base}/feed`, platform: 'generic' };
 }
 
@@ -235,7 +244,9 @@ export function googleNewsFeed(
     };
   }
   const query = request.query?.trim();
-  if (!query) return undefined;
+  if (!query) {
+    return undefined;
+  }
   return {
     feed_url: `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&${where}`,
     platform: 'google-news',
@@ -262,11 +273,15 @@ function asString(value: unknown): string | undefined {
 /** The podcasts in an iTunes Search answer that have a feed. */
 export function podcastsFrom(body: unknown): Podcast[] {
   const results = (body as { results?: unknown } | null)?.results;
-  if (!Array.isArray(results)) return [];
+  if (!Array.isArray(results)) {
+    return [];
+  }
   return results.flatMap((raw: unknown) => {
     const r = (raw ?? {}) as Record<string, unknown>;
     const feed = asString(r['feedUrl']);
-    if (!feed) return [];
+    if (!feed) {
+      return [];
+    }
     const episodes = r['trackCount'];
     return [
       {
@@ -292,7 +307,9 @@ export function podcastsFrom(body: unknown): Podcast[] {
 
 /** Drops the trailing slashes; same as `.replace(/\/+$/, '')`, in linear time. */
 function trimTrailingSlashes(text: string): string {
-  let end = text.length;
-  while (end > 0 && text.codePointAt(end - 1) === 47) end -= 1;
-  return text.slice(0, end);
+  const last = Array.from(
+    { length: text.length },
+    (_, offset) => text.length - 1 - offset,
+  ).find((position) => text.codePointAt(position) !== 47);
+  return text.slice(0, (last ?? -1) + 1);
 }

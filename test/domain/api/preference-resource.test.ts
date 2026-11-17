@@ -7,7 +7,7 @@ import {
 } from '@/domain/api/preference-resource';
 import { DEFAULT_PREFERENCES } from '@/domain/repository';
 
-const REFUSES_A_MODEL_WE_PATTERN = /^briefing\.model: must be null or one of /;
+const REFUSES_A_MODEL_WE_PATTERN = /^briefing\.model: must be null or one of /u;
 
 describe('preferencesResource', () => {
   it('groups the briefing preferences', () => {

@@ -8,11 +8,11 @@
 
 import { and, eq, isNotNull, lt, sql } from 'drizzle-orm';
 
-import type { OpmlFeed } from '@/domain/api/opml';
-import type { Database } from '@/domain/db/client';
 import { feedImports } from '@/domain/db/schema';
 import { importFeeds } from '@/domain/feed-import';
 import { Repository } from '@/domain/repository';
+import type { Database } from '@/domain/db/client';
+import type { OpmlFeed } from '@/domain/api/opml';
 
 /** Imports of more feeds than this run in a Workflow, in chunks of this many. */
 export const IMPORT_CHUNK = 50;

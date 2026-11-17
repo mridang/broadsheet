@@ -15,9 +15,10 @@ import {
 } from '../../../lib/core/db/sqlite-d1';
 import { SESSION_SECRET, tokenFor } from '../../../domain/auth/auth-test-kit';
 
-const refreshSource = jest.fn<(...args: unknown[]) => Promise<unknown>>(
+const refreshSource = jest.fn<(...args: unknown[]) => Promise<object>>(
   async () => ({ ok: true, n: 0 }),
 );
+// eslint-disable-next-line tslop/no-module-mocking -- the route imports the scraper directly, so the test replaces that module; injecting it would change the route's public API
 jest.unstable_mockModule('@/domain/scraping/index', () => ({
   refreshSource,
   discoverFeed: async (url: string) => url,
@@ -26,7 +27,11 @@ jest.unstable_mockModule('@/domain/scraping/index', () => ({
 const route = await import('@/app/api/topics/route');
 
 let restore: () => void;
-let auth: Record<string, string>;
+/** The Cookie header of the signed-in caller; empty for a signed-out one. */
+interface CallerCookie {
+  [name: string]: string;
+}
+let auth: CallerCookie;
 const origin = 'https://app.test';
 
 beforeEach(async () => {

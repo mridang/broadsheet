@@ -6,10 +6,10 @@ import { describe, expect, it } from '@jest/globals';
 import { Container, Eyebrow, Heading } from '@/components/ui/layout';
 import { cssClassesOf, html } from '../render';
 
-const EYEBROW_COLOUR_OFFENDERS_PATTERN = /<Eyebrow\b[^>]*className="([^"]*)"/g;
+const EYEBROW_COLOUR_OFFENDERS_PATTERN = /<Eyebrow\b[^>]*className="([^"]*)"/gu;
 const EYEBROW_COLOUR_OFFENDERS_PATTERN_2 =
-  /\btext-(ink|accent|subtle|muted|on-ink)\b/;
-const CAN_BE_MADE_FOCUSABLE_PATTERN = /<h1 tabindex="-1" class=/;
+  /\btext-(ink|accent|subtle|muted|on-ink)\b/u;
+const CAN_BE_MADE_FOCUSABLE_PATTERN = /<h1 tabindex="-1" class=/u;
 
 const eyebrowColourOffenders = (file: string, source: string): string[] => {
   const offenders: string[] = [];
@@ -25,17 +25,15 @@ describe('Eyebrow', () => {
   it('is a tracked-caps paragraph in the accent colour by default', () => {
     const out = html(<Eyebrow>Your collection</Eyebrow>);
     expect(out.startsWith('<p')).toBe(true);
-    expect(cssClassesOf(out, 'p')).toContain('uppercase');
-    expect(cssClassesOf(out, 'p')).toContain('text-accent');
+    const classes = cssClassesOf(out, 'p');
+    expect(classes).toContain('uppercase');
+    expect(classes).toContain('text-accent');
   });
 
   it('takes its colour from the tone, one at a time', () => {
-    expect(cssClassesOf(html(<Eyebrow tone="ink">x</Eyebrow>), 'p')).toContain(
-      'text-ink',
-    );
-    expect(
-      cssClassesOf(html(<Eyebrow tone="ink">x</Eyebrow>), 'p'),
-    ).not.toContain('text-accent');
+    const ink = cssClassesOf(html(<Eyebrow tone="ink">x</Eyebrow>), 'p');
+    expect(ink).toContain('text-ink');
+    expect(ink).not.toContain('text-accent');
     expect(
       cssClassesOf(html(<Eyebrow tone="subtle">x</Eyebrow>), 'p'),
     ).toContain('text-subtle');

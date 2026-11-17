@@ -1,6 +1,6 @@
-const PARSE_ICON_PATTERN = /^[a-z0-9-]{1,64}$/;
-const PARSE_ICON_PATTERN_2 = /^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/;
-const PARSE_ICON_PATTERN_3 = /^#[0-9a-f]{6}$/i;
+const PARSE_ICON_PATTERN = /^[a-z0-9-]{1,64}$/u;
+const PARSE_ICON_PATTERN_2 = /^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/u;
+const PARSE_ICON_PATTERN_3 = /^#[0-9a-f]{6}$/iu;
 const CODE_POINT_PATTERN = /./gsu;
 /**
  * @packageDocumentation
@@ -32,7 +32,9 @@ export interface IconResource {
 
 /** A stored icon as the API shows it, or undefined when there is none. */
 export function iconResource(stored: string | null): IconResource | undefined {
-  if (!stored) return undefined;
+  if (!stored) {
+    return undefined;
+  }
   try {
     const parsed = parseIcon(JSON.parse(stored) as unknown, 'icon');
     return parsed.ok && parsed.icon ? parsed.icon : undefined;
@@ -48,61 +50,63 @@ export type IconInput =
 
 /** Check an icon given as the member `field` of a body. */
 export function parseIcon(raw: unknown, field: string): IconInput {
-  if (raw === null) return { ok: true, icon: null };
+  if (raw === null) {
+    return { ok: true, icon: null };
+  }
   if (typeof raw !== 'object' || Array.isArray(raw)) {
     return { ok: false, errors: [`${field}: must be an object or null.`] };
   }
   const body = raw as Record<string, unknown>;
-  const errors: string[] = [];
-  for (const key of Object.keys(body)) {
-    if (!['type', 'data', 'color', 'set'].includes(key)) {
-      errors.push(`${field}.${key}: not a member of an icon.`);
-    }
-  }
   const type = body['type'];
   const data = body['data'];
   const color = body['color'];
   const set = body['set'];
-  if (!ICON_TYPES.includes(type as IconResource['type'])) {
-    errors.push(`${field}.type: must be one of ${ICON_TYPES.join(', ')}.`);
-  }
-  if (typeof data !== 'string' || !data) {
-    errors.push(`${field}.data: required.`);
-  } else if (
+  const missing = typeof data !== 'string' || !data;
+  const emojiLong =
+    !missing &&
     type === 'emoji' &&
-    (data.match(CODE_POINT_PATTERN) ?? []).length > 8
-  ) {
-    errors.push(`${field}.data: an emoji, at most 8 characters.`);
-  } else if (type === 'preset' && !PARSE_ICON_PATTERN.test(data)) {
-    errors.push(
-      `${field}.data: an icon name of lowercase letters, digits and hyphens.`,
-    );
-  } else if (
+    (data.match(CODE_POINT_PATTERN) ?? []).length > 8;
+  const dataFine = !missing && !emojiLong;
+  const presetBad =
+    dataFine && type === 'preset' && !PARSE_ICON_PATTERN.test(data);
+  const uploadBad =
+    dataFine &&
     type === 'upload' &&
-    (data.length > MAX_UPLOAD_LENGTH || !PARSE_ICON_PATTERN_2.test(data))
-  ) {
-    errors.push(
-      `${field}.data: a data:image/png;base64 URL of at most ${MAX_UPLOAD_LENGTH} characters.`,
-    );
-  } else {
-    // A preset, emoji or upload that passes every check above needs no error.
-  }
-  if (
-    color !== undefined &&
+    (data.length > MAX_UPLOAD_LENGTH || !PARSE_ICON_PATTERN_2.test(data));
+  const errors: string[] = [
+    ...Object.keys(body)
+      .filter((key) => !['type', 'data', 'color', 'set'].includes(key))
+      .map((key) => `${field}.${key}: not a member of an icon.`),
+    ...(ICON_TYPES.includes(type as IconResource['type'])
+      ? []
+      : [`${field}.type: must be one of ${ICON_TYPES.join(', ')}.`]),
+    ...(missing ? [`${field}.data: required.`] : []),
+    ...(emojiLong ? [`${field}.data: an emoji, at most 8 characters.`] : []),
+    ...(presetBad
+      ? [
+          `${field}.data: an icon name of lowercase letters, digits and hyphens.`,
+        ]
+      : []),
+    ...(uploadBad
+      ? [
+          `${field}.data: a data:image/png;base64 URL of at most ${MAX_UPLOAD_LENGTH} characters.`,
+        ]
+      : []),
+    ...(color !== undefined &&
     (typeof color !== 'string' || !PARSE_ICON_PATTERN_3.test(color))
-  ) {
-    errors.push(`${field}.color: a hex colour such as #ff5722.`);
-  }
-  if (
-    set !== undefined &&
+      ? [`${field}.color: a hex colour such as #ff5722.`]
+      : []),
+    ...(set !== undefined &&
     (type !== 'preset' ||
       !ICON_SETS.includes(set as IconResource['set'] & string))
-  ) {
-    errors.push(
-      `${field}.set: only for a preset icon, one of ${ICON_SETS.join(', ')}.`,
-    );
+      ? [
+          `${field}.set: only for a preset icon, one of ${ICON_SETS.join(', ')}.`,
+        ]
+      : []),
+  ];
+  if (errors.length > 0) {
+    return { ok: false, errors };
   }
-  if (errors.length > 0) return { ok: false, errors };
   return {
     ok: true,
     icon: {

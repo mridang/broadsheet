@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from '@jest/globals';
 
-import { createDatabase, type Database } from '@/domain/db/client';
+import { createDatabase } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
 import { SESSION_COOKIE } from '@/domain/auth/app';
 import { APP_MIGRATIONS } from '../../../../lib/core/db/migrations';
@@ -12,15 +12,20 @@ import {
   SESSION_SECRET,
   tokenFor,
 } from '../../../../domain/auth/auth-test-kit';
+import type { Database } from '@/domain/db/client';
 
-const ANSWERS_400_NAMING_PARENT_ID_PATTERN = /^parent_id:/;
+const ANSWERS_400_NAMING_PARENT_ID_PATTERN = /^parent_id:/u;
 
 const { PATCH, DELETE } = await import('@/app/api/sections/[id]/route');
 
 let restore: () => void;
 let db: Database;
 let mine: number;
-let auth: Record<string, string>;
+/** The Cookie header of the signed-in caller; empty for a signed-out one. */
+interface CallerCookie {
+  [name: string]: string;
+}
+let auth: CallerCookie;
 
 async function cookieFor(uid: number): Promise<Record<string, string>> {
   return {

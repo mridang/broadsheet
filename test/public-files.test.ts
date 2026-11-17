@@ -1,22 +1,22 @@
-import { describe, expect, it } from '@jest/globals';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { describe, expect, it } from '@jest/globals';
 
 import { BRAND_NAME, BRAND_URL, SECURITY_CONTACT } from '@/app/_brand';
 
-const FOLLOWS_THE_LLMS_TXT_SHAPE_PATTERN = /\n> .+/;
-const FOLLOWS_THE_LLMS_TXT_SHAPE_PATTERN_2 = /\n## .+/;
-const LINKS_ONLY_TO_THIS_PATTERN = /\]\((https?:[^)]+)\)/g;
-const SAYS_WHAT_TO_EXPECT_PATTERN = /What to expect/;
-const SAYS_WHAT_TO_EXPECT_PATTERN_2 = /In scope/;
-const SAYS_WHAT_TO_EXPECT_PATTERN_3 = /Out of scope/;
-const SAYS_WHAT_TO_EXPECT_PATTERN_4 = /good faith/;
+const HAS_A_SUMMARY_PATTERN = /\n> .+/u;
+const HAS_SECTIONS_PATTERN = /\n## .+/u;
+const LINKS_ONLY_TO_THIS_PATTERN = /\]\((https?:[^)]+)\)/gu;
+const SAYS_WHAT_TO_EXPECT_PATTERN = /What to expect/u;
+const SAYS_WHAT_TO_EXPECT_PATTERN_2 = /In scope/u;
+const SAYS_WHAT_TO_EXPECT_PATTERN_3 = /Out of scope/u;
+const SAYS_WHAT_TO_EXPECT_PATTERN_4 = /good faith/u;
 
 const read = async (name: string) =>
   readFile(path.join(process.cwd(), 'public', name), 'utf8');
 
 /** Plain-text files are served without a charset, so they must be ASCII. */
-const NON_ASCII = /[\u0080-￿]/;
+const NON_ASCII = /[\u0080-￿]/u;
 
 const llms = await read('llms.txt');
 const securityPolicy = await read('security-policy.txt');
@@ -29,8 +29,8 @@ describe('public/llms.txt', () => {
 
   it('follows the llms.txt shape: a title, a summary and sections of links', () => {
     expect(text.startsWith(`# ${BRAND_NAME}\n`)).toBe(true);
-    expect(text).toMatch(FOLLOWS_THE_LLMS_TXT_SHAPE_PATTERN);
-    expect(text).toMatch(FOLLOWS_THE_LLMS_TXT_SHAPE_PATTERN_2);
+    expect(text).toMatch(HAS_A_SUMMARY_PATTERN);
+    expect(text).toMatch(HAS_SECTIONS_PATTERN);
   });
 
   it('links only to this site, outside the Optional section', () => {

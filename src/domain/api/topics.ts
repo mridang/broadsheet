@@ -5,13 +5,10 @@
  * Signed-in callers only, like the rest of `/api`.
  */
 
-import {
-  liveUid,
-  requestCookieResolver,
-  type CurrentUserResolver,
-} from '@/domain/api/auth';
+import { liveUid, requestCookieResolver } from '@/domain/api/auth';
 import { ApiController, page } from '@/lib/core/api';
 import { TOPICS } from '@/domain/topics';
+import type { CurrentUserResolver } from '@/domain/api/auth';
 
 /**
  * `GET /api/topics`: every topic with its starter feeds, as a page (the list is

@@ -1,5 +1,5 @@
-import type { TrendingArticle } from '@/domain/repository';
 import { countOf } from '@/lib/intl';
+import type { TrendingArticle } from '@/domain/repository';
 
 /**
  * The "Most read" column: the stories from the reader's sources that most
@@ -9,7 +9,9 @@ import { countOf } from '@/lib/intl';
 export function MostRead({
   stories,
 }: Readonly<{ stories: readonly TrendingArticle[] }>) {
-  if (stories.length === 0) return null;
+  if (stories.length === 0) {
+    return null;
+  }
   return (
     <aside
       className="rounded-card border border-line bg-surface p-5 print:hidden"

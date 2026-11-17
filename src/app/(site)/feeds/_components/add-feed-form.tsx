@@ -1,12 +1,12 @@
 'use client';
 
-import type { SubmitEvent, ReactElement } from 'react';
-
+import { z } from 'zod';
 import { followFeed } from '@/app/(site)/feeds/_components/feed-requests';
+
 import { useFeedAction } from '@/app/(site)/feeds/_components/use-feed-action';
 import { buttonClass } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/notice';
-import { z } from 'zod';
+import type { SubmitEvent, ReactElement } from 'react';
 
 /** The one field the add-feed form posts. */
 const addFeedForm = z.object({ url: z.string().default('') });

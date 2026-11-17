@@ -137,10 +137,11 @@ describe('buildOpml', () => {
 
 describe('parseOpml details', () => {
   it('reads htmlUrl and clamps very deep folders', () => {
-    const deep =
-      '<outline text="f">'.repeat(12) +
-      '<outline xmlUrl="https://a.test/f" htmlUrl="https://a.test/"/>' +
-      '</outline>'.repeat(12);
+    const deep = `${'<outline text="f">'.repeat(
+      12,
+    )}<outline xmlUrl="https://a.test/f" htmlUrl="https://a.test/"/>${'</outline>'.repeat(
+      12,
+    )}`;
     const parsed = parseOpml(documentRoot(deep));
     expect(parsed).toMatchObject({ ok: true });
     const feed = (
@@ -208,9 +209,9 @@ describe('parseOpml robustness', () => {
   it('survives deep nesting, keeping the first eight levels', () => {
     const depth = 5000;
     const xml = documentRoot(
-      '<outline text="F">'.repeat(depth) +
-        '<outline xmlUrl="https://a.test/f"/>' +
-        '</outline>'.repeat(depth),
+      `${'<outline text="F">'.repeat(
+        depth,
+      )}<outline xmlUrl="https://a.test/f"/>${'</outline>'.repeat(depth)}`,
     );
     expect(parseOpml(xml)).toEqual({
       ok: true,

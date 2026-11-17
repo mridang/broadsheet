@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
-import { createDatabase, type Database } from '@/domain/db/client';
+import { z } from 'zod';
+import { createDatabase } from '@/domain/db/client';
 import { NotificationRepository } from '@/domain/notifications';
 import {
   deliverWebhooks,
@@ -14,17 +15,17 @@ import {
   STORIES_PER_FEED,
 } from '@/domain/notify';
 import { Repository } from '@/domain/repository';
-import type { ScrapedItem } from '@/lib/scraping';
 import { OutboundRepository } from '@/domain/outbound';
 import { base64Url } from '@/lib/outbound/tokens';
-import type { SafeFetcher, SafeRequestInit } from '@/lib/safe-fetch';
 import { APP_MIGRATIONS } from '../lib/core/db/migrations';
 import { sqliteD1 } from '../lib/core/db/sqlite-d1';
-import { z } from 'zod';
+import type { SafeFetcher, SafeRequestInit } from '@/lib/safe-fetch';
+import type { Database } from '@/domain/db/client';
+import type { ScrapedItem } from '@/lib/scraping';
 
-const POSTS_THE_SIGNED_EVENT_PATTERN = /^sha256=[0-9a-f]{64}$/;
-const OPENS_THAT_DAY_S_PAPER_PATTERN = /\/edition\/2026-11-01$/;
-const NAMES_THE_BRIEFING_AND_PATTERN = /\/api\/editions\/self\/briefings\/4$/;
+const POSTS_THE_SIGNED_EVENT_PATTERN = /^sha256=[0-9a-f]{64}$/u;
+const OPENS_THAT_DAY_S_PAPER_PATTERN = /\/edition\/2026-11-01$/u;
+const NAMES_THE_BRIEFING_AND_PATTERN = /\/api\/editions\/self\/briefings\/4$/u;
 
 let db: Database;
 
@@ -201,7 +202,9 @@ function mailbox(fails = false) {
     sent,
     EMAIL: {
       send: async (message: Record<string, unknown>) => {
-        if (fails) throw new Error('refused');
+        if (fails) {
+          throw new Error('refused');
+        }
         sent.push(message);
         return { messageId: 'm' };
       },

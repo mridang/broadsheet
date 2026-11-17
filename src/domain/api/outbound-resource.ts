@@ -11,25 +11,23 @@ import {
   parseFeedId,
   rfc3339,
 } from '@/domain/api/feed-resource';
-import {
-  FEED_FILTERS,
-  FEED_SCOPES,
-  WEBHOOK_EVENTS,
-  type FeedFilter,
-  type FeedScope,
-  type FeedToken,
-  type FeedTokenInput,
-  type PushSubscription,
-  type PushSubscriptionInput,
-  type Webhook,
-  type WebhookEvent,
-} from '@/domain/outbound';
+import { FEED_FILTERS, FEED_SCOPES, WEBHOOK_EVENTS } from '@/domain/outbound';
 import { isPublicWebUrl } from '@/lib/safe-fetch';
+import type {
+  FeedFilter,
+  FeedScope,
+  FeedToken,
+  FeedTokenInput,
+  PushSubscription,
+  PushSubscriptionInput,
+  Webhook,
+  WebhookEvent,
+} from '@/domain/outbound';
 
-const IS_KEY_PATTERN = /^[A-Za-z0-9_-]+={0,2}$/;
-const IS_PLAIN_NAME_PATTERN = /[<>"\r\n]/;
-const ADDRESSES_OF_PATTERN = /[\s,]+/;
-const IS_MAILBOX_PATTERN = /^[^\s@<>,;"]+$/;
+const IS_KEY_PATTERN = /^[A-Za-z0-9_-]+={0,2}$/u;
+const IS_PLAIN_NAME_PATTERN = /[<>"\r\n]/u;
+const ADDRESSES_OF_PATTERN = /[\s,]+/u;
+const IS_MAILBOX_PATTERN = /^[^\s@<>,;"]+$/u;
 
 /** A checked body, or what was wrong with it. */
 export type Checked<T> =
@@ -100,29 +98,29 @@ export function pushSubscriptionResource(
 export function parsePushSubscriptionInput(
   body: Readonly<Record<string, unknown>>,
 ): Checked<PushSubscriptionInput> {
-  const errors = strangers(
-    body,
-    ['endpoint', 'keys', 'expiration_time', 'expirationTime'],
-    'a push subscription',
-  );
   const { endpoint, keys } = body;
-  if (
-    typeof endpoint !== 'string' ||
-    !endpoint.startsWith('https://') ||
-    !isPublicWebUrl(endpoint)
-  ) {
-    errors.push('endpoint: must be a public https address.');
-  }
   const pair =
     keys && typeof keys === 'object' && !Array.isArray(keys)
       ? (keys as Record<string, unknown>)
       : {};
-  if (!isKey(pair['p256dh'], 80, 100)) {
-    errors.push('keys.p256dh: must be the base64url P-256 public key.');
-  }
-  if (!isKey(pair['auth'], 16, 32)) {
-    errors.push('keys.auth: must be the base64url auth secret.');
-  }
+  const errors = [
+    ...strangers(
+      body,
+      ['endpoint', 'keys', 'expiration_time', 'expirationTime'],
+      'a push subscription',
+    ),
+    ...(typeof endpoint !== 'string' ||
+    !endpoint.startsWith('https://') ||
+    !isPublicWebUrl(endpoint)
+      ? ['endpoint: must be a public https address.']
+      : []),
+    ...(isKey(pair['p256dh'], 80, 100)
+      ? []
+      : ['keys.p256dh: must be the base64url P-256 public key.']),
+    ...(isKey(pair['auth'], 16, 32)
+      ? []
+      : ['keys.auth: must be the base64url auth secret.']),
+  ];
   return checked(errors, () => ({
     endpoint: endpoint as string,
     p256dh: pair['p256dh'] as string,
@@ -166,27 +164,23 @@ export interface WebhookInput {
 export function parseWebhookInput(
   body: Readonly<Record<string, unknown>>,
 ): Checked<WebhookInput> {
-  const errors = strangers(body, ['url', 'events'], 'a webhook');
   const { url, events } = body;
-  if (
+  const urlBad =
     typeof url !== 'string' ||
     url.length > MAX_URL_LENGTH ||
     !url.startsWith('https://') ||
-    !isPublicWebUrl(url)
-  ) {
-    errors.push('url: must be a public https address.');
-  }
-  if (
-    !Array.isArray(events) ||
+    !isPublicWebUrl(url);
+  const errors = [
+    ...strangers(body, ['url', 'events'], 'a webhook'),
+    ...(urlBad ? ['url: must be a public https address.'] : []),
+    ...(!Array.isArray(events) ||
     events.length === 0 ||
     !events.every((event) =>
       (WEBHOOK_EVENTS as readonly unknown[]).includes(event),
     )
-  ) {
-    errors.push(
-      `events: must be a non-empty list of ${WEBHOOK_EVENTS.join(', ')}.`,
-    );
-  }
+      ? [`events: must be a non-empty list of ${WEBHOOK_EVENTS.join(', ')}.`]
+      : []),
+  ];
   return checked(errors, () => ({
     url: url as string,
     events: [...new Set(events as WebhookEvent[])],
@@ -243,11 +237,6 @@ export function feedTokenResource(
 export function parseFeedTokenInput(
   body: Readonly<Record<string, unknown>>,
 ): Checked<FeedTokenInput> {
-  const errors = strangers(
-    body,
-    ['scope', 'tag', 'section_id', 'search_id', 'filter'],
-    'a feed token',
-  );
   const {
     scope,
     tag,
@@ -255,52 +244,56 @@ export function parseFeedTokenInput(
     search_id: searchId,
     filter,
   } = body;
-  if (!(FEED_SCOPES as readonly unknown[]).includes(scope)) {
-    errors.push(`scope: must be one of ${FEED_SCOPES.join(', ')}.`);
-  }
-  if (tag !== undefined) {
-    if (scope !== 'saves') errors.push('tag: only for a saves feed.');
-    else if (
-      typeof tag !== 'string' ||
-      !tag.trim() ||
-      tag.trim().length > MAX_NAME_LENGTH
-    )
-      errors.push('tag: must be a non-blank string.');
-    else {
-      // A non-blank tag on a saves feed needs no error.
-    }
-  }
   const section =
     typeof sectionId === 'string' ? parseFeedId(sectionId) : undefined;
-  if (scope === 'section' && section === undefined) {
-    errors.push('section_id: must name one of your sections.');
-  } else if (scope !== 'section' && sectionId !== undefined) {
-    errors.push('section_id: only for a section feed.');
-  } else {
-    // A section the feed names, or none, is already checked above.
-  }
   const search =
     typeof searchId === 'string' ? parseFeedId(searchId) : undefined;
-  if (scope === 'search' && search === undefined) {
-    errors.push('search_id: must name one of your saved searches.');
-  } else if (scope !== 'search' && searchId !== undefined) {
-    errors.push('search_id: only for a search feed.');
-  } else {
-    // A saved search the feed names, or none, is already checked above.
-  }
-  if (filter !== undefined) {
-    if (!(FEED_FILTERS as readonly unknown[]).includes(filter)) {
-      errors.push(`filter: must be one of ${FEED_FILTERS.join(', ')}.`);
-    } else if (scope === 'saves' && filter !== 'all') {
-      errors.push('filter: a saves feed keeps every saved story.');
-    } else if (scope === 'search' && filter !== 'all') {
-      errors.push('filter: a search feed keeps every story it finds.');
-    } else if (scope === 'highlights' && filter !== 'all') {
-      errors.push('filter: a highlights feed keeps every highlight.');
-    } else {
-      // Every other scope and filter pairing is allowed.
-    }
-  }
+  const tagBad =
+    typeof tag !== 'string' ||
+    !tag.trim() ||
+    tag.trim().length > MAX_NAME_LENGTH;
+  const filterKnown = (FEED_FILTERS as readonly unknown[]).includes(filter);
+  const strict = filter !== undefined && filterKnown && filter !== 'all';
+  const errors = [
+    ...strangers(
+      body,
+      ['scope', 'tag', 'section_id', 'search_id', 'filter'],
+      'a feed token',
+    ),
+    ...((FEED_SCOPES as readonly unknown[]).includes(scope)
+      ? []
+      : [`scope: must be one of ${FEED_SCOPES.join(', ')}.`]),
+    ...(tag !== undefined && scope !== 'saves'
+      ? ['tag: only for a saves feed.']
+      : []),
+    ...(tag !== undefined && scope === 'saves' && tagBad
+      ? ['tag: must be a non-blank string.']
+      : []),
+    ...(scope === 'section' && section === undefined
+      ? ['section_id: must name one of your sections.']
+      : []),
+    ...(scope !== 'section' && sectionId !== undefined
+      ? ['section_id: only for a section feed.']
+      : []),
+    ...(scope === 'search' && search === undefined
+      ? ['search_id: must name one of your saved searches.']
+      : []),
+    ...(scope !== 'search' && searchId !== undefined
+      ? ['search_id: only for a search feed.']
+      : []),
+    ...(filter !== undefined && !filterKnown
+      ? [`filter: must be one of ${FEED_FILTERS.join(', ')}.`]
+      : []),
+    ...(strict && scope === 'saves'
+      ? ['filter: a saves feed keeps every saved story.']
+      : []),
+    ...(strict && scope === 'search'
+      ? ['filter: a search feed keeps every story it finds.']
+      : []),
+    ...(strict && scope === 'highlights'
+      ? ['filter: a highlights feed keeps every highlight.']
+      : []),
+  ];
   return checked(errors, () => ({
     scope: scope as FeedScope,
     ...(filter === undefined ? {} : { filter: filter as FeedFilter }),
@@ -348,8 +341,9 @@ function isPlainName(name: unknown): name is string {
  * the addresses separated by commas or spaces. Undefined when it is neither.
  */
 function addressesOf(to: unknown): string[] | undefined {
-  if (typeof to === 'string')
+  if (typeof to === 'string') {
     return to.split(ADDRESSES_OF_PATTERN).filter(Boolean);
+  }
   if (Array.isArray(to) && to.every((a) => typeof a === 'string')) {
     return to.map((a) => a.trim()).filter(Boolean);
   }
@@ -365,31 +359,25 @@ function addressesOf(to: unknown): string[] | undefined {
 export function parseEmailInput(
   body: Readonly<Record<string, unknown>>,
 ): Checked<EmailInput> {
-  const errors = strangers(
-    body,
-    ['to', 'comment', 'copy_me', 'from_name'],
-    'an email',
-  );
   const fromName = body['from_name'];
-  if (fromName !== undefined && !isPlainName(fromName)) {
-    errors.push('from_name: must be a plain name.');
-  }
   const to = addressesOf(body['to']);
-  if (!to?.length || to.length > MAX_RECIPIENTS || !to.every(isAddress)) {
-    errors.push(`to: must be 1 to ${MAX_RECIPIENTS} email addresses.`);
-  }
   const { comment, copy_me: copyMe } = body;
-  if (
-    comment !== undefined &&
+  const errors = [
+    ...strangers(body, ['to', 'comment', 'copy_me', 'from_name'], 'an email'),
+    ...(fromName !== undefined && !isPlainName(fromName)
+      ? ['from_name: must be a plain name.']
+      : []),
+    ...(!to?.length || to.length > MAX_RECIPIENTS || !to.every(isAddress)
+      ? [`to: must be 1 to ${MAX_RECIPIENTS} email addresses.`]
+      : []),
+    ...(comment !== undefined &&
     (typeof comment !== 'string' || comment.length > MAX_COMMENT_LENGTH)
-  ) {
-    errors.push(
-      `comment: must be text of at most ${MAX_COMMENT_LENGTH} characters.`,
-    );
-  }
-  if (copyMe !== undefined && typeof copyMe !== 'boolean') {
-    errors.push('copy_me: must be true or false.');
-  }
+      ? [`comment: must be text of at most ${MAX_COMMENT_LENGTH} characters.`]
+      : []),
+    ...(copyMe !== undefined && typeof copyMe !== 'boolean'
+      ? ['copy_me: must be true or false.']
+      : []),
+  ];
   return checked(errors, () => ({
     to: [...new Set(to)],
     ...(typeof comment === 'string' && comment.trim()
@@ -403,7 +391,9 @@ export function parseEmailInput(
 /** `local@domain.tld` with no space, `@`, `<`, `>`, `,`, `;` or `"` in any part. */
 function isMailbox(value: string): boolean {
   const at = value.indexOf('@');
-  if (at < 1) return false;
+  if (at < 1) {
+    return false;
+  }
   const domain = value.slice(at + 1);
   return (
     IS_MAILBOX_PATTERN.test(value.slice(0, at)) &&

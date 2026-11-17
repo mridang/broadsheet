@@ -5,14 +5,9 @@
  * query and slicing the page that follows the cursor.
  */
 
-import {
-  decodeCursor,
-  parseLimit,
-  problems,
-  sliceAfter,
-  type CursorPosition,
-  type Slice,
-} from '@/lib/core/api';
+import { compareText } from '@/lib/intl';
+import { decodeCursor, parseLimit, problems, sliceAfter } from '@/lib/core/api';
+import type { CursorPosition, Slice } from '@/lib/core/api';
 
 /** Where a page starts and how long it is, from the request's query. */
 export interface PageRequest {
@@ -24,7 +19,9 @@ export interface PageRequest {
 export function pageRequest(request: Request): PageRequest {
   const query = new URL(request.url).searchParams;
   const limit = parseLimit(query.get('limit'));
-  if (limit instanceof Response) throw limit;
+  if (limit instanceof Response) {
+    throw limit;
+  }
   const cursor = query.get('cursor');
   const after = cursor === null ? undefined : decodeCursor(cursor);
   if (cursor !== null && !after) {
@@ -40,7 +37,9 @@ export function pageRequest(request: Request): PageRequest {
  * sorts as text) comes first, then a higher numeric id.
  */
 function newestFirst(a: CursorPosition, b: CursorPosition): number {
-  if (a.key !== b.key) return a.key.localeCompare(b.key) < 0 ? 1 : -1;
+  if (a.key !== b.key) {
+    return compareText(a.key, b.key) < 0 ? 1 : -1;
+  }
   return Number(b.id) - Number(a.id);
 }
 

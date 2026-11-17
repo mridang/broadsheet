@@ -1,7 +1,8 @@
+import { Section } from '@/app/(site)/_components/section';
+import { LegalLinks } from '@/app/(site)/_components/legal-links';
+import type { Personal } from '@/app/(site)/_components/section';
 import type { Article } from '@/domain/repository';
 import type { Layout } from '@/domain/render/layout';
-import { Section, type Personal } from '@/app/(site)/_components/section';
-import { LegalLinks } from '@/app/(site)/_components/legal-links';
 
 /**
  * A laid-out paper: the editor's note when there is one, then each section's

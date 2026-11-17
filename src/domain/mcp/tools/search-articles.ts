@@ -5,11 +5,11 @@
  * it, the arguments it accepts, and what it does when called.
  */
 
+import { z } from 'zod';
 import {
   articleResource,
   MAX_QUERY_LENGTH,
 } from '@/domain/api/article-resource';
-import type { ToolContext } from '@/domain/mcp/tool-context';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import {
   collect,
@@ -19,10 +19,11 @@ import {
   MAX_SEARCH,
 } from '@/domain/mcp/tools/support';
 import { verdict } from '@/domain/render/tiers';
-import type { ArticleSummary } from '@/domain/repository';
 import { Repository } from '@/domain/repository';
-import { READS, type ToolAnnotations } from '@/lib/mcp';
-import { z } from 'zod';
+import { READS } from '@/lib/mcp';
+import type { ToolAnnotations } from '@/lib/mcp';
+import type { ArticleSummary } from '@/domain/repository';
+import type { ToolContext } from '@/domain/mcp/tool-context';
 
 /** What `search_articles` accepts. */
 const SCHEMA = z.object({
@@ -61,7 +62,7 @@ const SCHEMA = z.object({
   domain: z
     .string()
     .max(253)
-    .regex(/^[a-z0-9.-]+$/i)
+    .regex(/^[a-z0-9.-]+$/iu)
     .optional()
     .describe('Only articles from this website, e.g. example.com.'),
   date_from: isoDate
@@ -111,7 +112,9 @@ export class SearchArticlesTool extends JsonTool<
     const db = services.openDatabase();
     const repo = new Repository(db);
     const feeds = await feedScope(repo, uid, args);
-    if (feeds?.length === 0) return { articles: [] };
+    if (feeds?.length === 0) {
+      return { articles: [] };
+    }
     const [read, training] = await Promise.all([
       args.read_filter === 'all' ? undefined : repo.readState(uid),
       args.include_hidden ? [] : repo.listClassifiers(uid),

@@ -5,8 +5,8 @@
  * rate is bounded, and the queue and history are capped.
  */
 
-import type { PlayerState } from '@/domain/player';
 import { parseFeedId } from '@/domain/api/feed-resource';
+import type { PlayerState } from '@/domain/player';
 
 /** The slowest and fastest a voice may read. */
 export const MIN_RATE = 0.5;
@@ -39,24 +39,36 @@ export function playerResource(state: PlayerState): PlayerResource {
   };
 }
 
+/** A list of article ids and the field's errors. */
+interface IdList {
+  readonly ids: number[];
+  readonly errors: string[];
+}
+
 /** A list of article ids, or the field's error. */
-function ids(value: unknown, field: string, errors: string[]): number[] {
+function ids(value: unknown, field: string): IdList {
   if (!Array.isArray(value)) {
-    errors.push(`${field}: must be an array of article ids.`);
-    return [];
+    return {
+      ids: [],
+      errors: [`${field}: must be an array of article ids.`],
+    };
   }
   if (value.length > MAX_PLAYER_ITEMS) {
-    errors.push(`${field}: must hold at most ${MAX_PLAYER_ITEMS} ids.`);
-    return [];
+    return {
+      ids: [],
+      errors: [`${field}: must hold at most ${MAX_PLAYER_ITEMS} ids.`],
+    };
   }
   const parsed = value.map((v) =>
     typeof v === 'string' ? parseFeedId(v) : undefined,
   );
   if (parsed.includes(undefined)) {
-    errors.push(`${field}: each article id must be a string id.`);
-    return [];
+    return {
+      ids: [],
+      errors: [`${field}: each article id must be a string id.`],
+    };
   }
-  return parsed as number[];
+  return { ids: parsed as number[], errors: [] };
 }
 
 /** A PUT body as the player's state, or what is wrong with it. */
@@ -65,34 +77,41 @@ export function parsePlayerInput(
 ):
   | { readonly ok: true; readonly value: PlayerState }
   | { readonly ok: false; readonly errors: readonly string[] } {
-  const errors: string[] = [];
   const rate = body['rate'];
-  if (typeof rate !== 'number' || rate < MIN_RATE || rate > MAX_RATE) {
-    errors.push(`rate: must be a number from ${MIN_RATE} to ${MAX_RATE}.`);
-  }
-  let current: PlayerState['current'] = null;
   const raw = body['current'];
-  if (raw === undefined) {
-    errors.push('current: required, an object or null.');
-  } else if (raw === null) {
-    // A null current is the default, so there is nothing to check.
-  } else {
-    const c = raw as Record<string, unknown>;
-    const id =
-      typeof c['article_id'] === 'string'
-        ? parseFeedId(c['article_id'])
-        : undefined;
-    const position = c['position'];
-    if (typeof raw !== 'object' || id === undefined) {
-      errors.push(`current.article_id: must be a string article id.`);
-    } else if (!Number.isInteger(position) || (position as number) < 0) {
-      errors.push(`current.position: must be a whole number of characters.`);
-    } else {
-      current = { article_id: id, position: position as number };
-    }
-  }
-  const queue = ids(body['queue'], 'queue', errors);
-  const history = ids(body['history'], 'history', errors);
+  const c = raw as Record<string, unknown>;
+  const id =
+    typeof c?.['article_id'] === 'string'
+      ? parseFeedId(c['article_id'])
+      : undefined;
+  const position = c?.['position'];
+  const given = raw !== undefined && raw !== null;
+  const objectBad = given && (typeof raw !== 'object' || id === undefined);
+  const positionBad =
+    given &&
+    !objectBad &&
+    (!Number.isInteger(position) || (position as number) < 0);
+  const currentFine = given && !objectBad && !positionBad;
+  const current: PlayerState['current'] =
+    currentFine && id !== undefined
+      ? { article_id: id, position: position as number }
+      : null;
+  const queueIds = ids(body['queue'], 'queue');
+  const historyIds = ids(body['history'], 'history');
+  const queue = queueIds.ids;
+  const history = historyIds.ids;
+  const errors: string[] = [
+    ...(typeof rate !== 'number' || rate < MIN_RATE || rate > MAX_RATE
+      ? [`rate: must be a number from ${MIN_RATE} to ${MAX_RATE}.`]
+      : []),
+    ...(raw === undefined ? ['current: required, an object or null.'] : []),
+    ...(objectBad ? ['current.article_id: must be a string article id.'] : []),
+    ...(positionBad
+      ? ['current.position: must be a whole number of characters.']
+      : []),
+    ...queueIds.errors,
+    ...historyIds.errors,
+  ];
   return errors.length > 0
     ? { ok: false, errors }
     : {

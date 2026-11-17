@@ -61,7 +61,7 @@ export async function readJson(
     case 'too-large': {
       return { ok: false, response: tooLarge(maxBytes) };
     }
-    case 'unparseable': {
+    default: {
       return {
         ok: false,
         response: problems.badRequest('The request body is not valid JSON.'),

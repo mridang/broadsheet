@@ -6,11 +6,8 @@
  * (disliked), each decided by the same verdict the paper uses.
  */
 
-import {
-  verdict,
-  type Classifiable,
-  type Training,
-} from '@/domain/render/tiers';
+import { verdict } from '@/domain/render/tiers';
+import type { Classifiable, Training } from '@/domain/render/tiers';
 import type { Article, Feed, Repository } from '@/domain/repository';
 
 /** A feed's unread stories by verdict. */
@@ -25,16 +22,12 @@ export function countVerdicts(
   stories: readonly Classifiable[],
   training: readonly Training[],
 ): ClassifierCounts {
-  let focus = 0;
-  let neutral = 0;
-  let hidden = 0;
-  for (const story of stories) {
-    const score = verdict(story, training);
-    if (score > 0) focus += 1;
-    else if (score < 0) hidden += 1;
-    else neutral += 1;
-  }
-  return { focus, neutral, hidden };
+  const scores = stories.map((story) => verdict(story, training));
+  return {
+    focus: scores.filter((score) => score > 0).length,
+    neutral: scores.filter((score) => score === 0).length,
+    hidden: scores.filter((score) => score < 0).length,
+  };
 }
 
 /** A feed's stories, marked with what verdicts read, counted by verdict. */

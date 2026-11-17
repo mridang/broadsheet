@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto';
 import {
   afterEach,
   beforeEach,
@@ -7,11 +8,9 @@ import {
   jest,
 } from '@jest/globals';
 
-import { createDatabase, type Database } from '@/domain/db/client';
-import { Repository } from '@/domain/repository';
-import { createHmac } from 'node:crypto';
-
 import { sql } from 'drizzle-orm';
+import { createDatabase } from '@/domain/db/client';
+import { Repository } from '@/domain/repository';
 
 import {
   FETCH_FAILED,
@@ -25,6 +24,7 @@ import {
 import { verifyIntent } from '@/domain/websub';
 import { APP_MIGRATIONS } from '../../lib/core/db/migrations';
 import { sqliteD1 } from '../../lib/core/db/sqlite-d1';
+import type { Database } from '@/domain/db/client';
 
 const collator = new Intl.Collator();
 
@@ -58,7 +58,9 @@ function serve(
       headers: (init?.headers ?? {}) as Record<string, string>,
     });
     const page = pages[input instanceof Request ? input.url : String(input)];
-    if (page === undefined) throw new Error('offline');
+    if (page === undefined) {
+      throw new Error('offline');
+    }
     return typeof page === 'function'
       ? page((init?.headers ?? {}) as Record<string, string>)
       : new Response(page);

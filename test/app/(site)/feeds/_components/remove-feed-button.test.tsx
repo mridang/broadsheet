@@ -4,7 +4,7 @@ import { RemoveFeedButton } from '@/app/(site)/feeds/_components/remove-feed-but
 import { html } from '../../../../components/render';
 
 const REMOVES_A_FEED_WITH_PATTERN =
-  /^<div><button type="button" class="[^"]*">Remove<\/button><\/div>$/;
+  /^<div><button type="button" class="[^"]*">Remove<\/button><\/div>$/u;
 
 describe('RemoveFeedButton', () => {
   it('removes a feed with a plain button, not a form', () => {

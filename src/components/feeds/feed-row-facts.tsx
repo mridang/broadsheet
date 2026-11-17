@@ -1,17 +1,17 @@
-import type { ReactElement } from 'react';
-
 import { formatName, updateFrequency } from '@/domain/render/feed-details';
-import type { Feed } from '@/domain/repository';
 import { relativeTime, storedDate } from '@/lib/intl';
 import { Badge } from '@/components/ui/badge';
-import { Icon, type IconName } from '@/components/ui/icons';
+import { Icon } from '@/components/ui/icons';
+import type { IconName } from '@/components/ui/icons';
+import type { Feed } from '@/domain/repository';
+import type { ReactElement } from 'react';
 
 /** The icon drawn beside each feed format's name. */
-const FORMAT_ICONS: Readonly<Record<string, IconName>> = {
-  rss: 'rss',
-  atom: 'atom',
-  rdf: 'rdf',
-};
+const FORMAT_ICONS = new Map<string, IconName>([
+  ['rss', 'rss'],
+  ['atom', 'atom'],
+  ['rdf', 'rdf'],
+]);
 
 /** A feed's format as a small badge with its icon: RSS, Atom or RSS 1.0. */
 export function FeedFormatBadge({
@@ -19,7 +19,7 @@ export function FeedFormatBadge({
 }: Readonly<{ format: string }>): ReactElement {
   return (
     <Badge tone="outline">
-      <Icon name={FORMAT_ICONS[format] ?? 'rss'} className="size-3.5" />
+      <Icon name={FORMAT_ICONS.get(format) ?? 'rss'} className="size-3.5" />
       {formatName(format)}
     </Badge>
   );
@@ -32,7 +32,9 @@ function Moment({
   now,
 }: Readonly<{ label: string; stored: string; now: Date }>): ReactElement {
   const date = storedDate(stored);
-  if (!date) return <span>{`${label} ${stored}`}</span>;
+  if (!date) {
+    return <span>{`${label} ${stored}`}</span>;
+  }
   return (
     <span>
       {label}{' '}
@@ -50,7 +52,7 @@ function Moment({
  */
 export function FeedRowFacts({
   feed,
-  now = new Date(),
+  now: given,
 }: Readonly<{
   feed: Pick<
     Feed,
@@ -58,6 +60,7 @@ export function FeedRowFacts({
   >;
   now?: Date;
 }>): ReactElement {
+  const now = given ?? new Date();
   return (
     <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
       {feed.format ? <FeedFormatBadge format={feed.format} /> : null}

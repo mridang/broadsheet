@@ -4,9 +4,9 @@ import { TagControls } from '@/app/(site)/saved/_components/tag-controls';
 import { html } from '../../../../components/render';
 
 const RENAMES_WITH_A_SUBMIT_PATTERN =
-  /<button type="submit"[^>]*>Rename<\/button>/;
+  /<button type="submit"[^>]*>Rename<\/button>/u;
 const RENAMES_WITH_A_SUBMIT_PATTERN_2 =
-  /<button type="button"[^>]*>Delete tag<\/button>/;
+  /<button type="button"[^>]*>Delete tag<\/button>/u;
 
 describe('TagControls', () => {
   const out = html(<TagControls tag="old news" />);

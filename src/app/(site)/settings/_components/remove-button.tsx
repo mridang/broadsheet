@@ -1,10 +1,9 @@
 'use client';
 
-import type { ReactElement } from 'react';
-
 import { useApiAction } from '@/components/api/use-api-action';
 import { buttonClass } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/notice';
+import type { ReactElement } from 'react';
 
 /** A "Remove" on a settings row: runs `remove`, then reloads to show the change. */
 export function RemoveButton({
@@ -23,7 +22,9 @@ export function RemoveButton({
         type="button"
         className={buttonClass({ variant: 'danger', size: 'sm' })}
         disabled={busy}
-        onClick={() => void run(remove, failure)}
+        onClick={() => {
+          void run(remove, failure);
+        }}
       >
         {label}
       </button>

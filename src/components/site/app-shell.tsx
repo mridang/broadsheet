@@ -1,5 +1,3 @@
-import type { ReactElement, ReactNode } from 'react';
-
 import { getDatabase } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
 import { getCurrentUser } from '@/lib/core/auth';
@@ -7,6 +5,7 @@ import { getCurrentUser } from '@/lib/core/auth';
 import { AppHeader } from '@/components/site/app-header';
 import { AppSidebar } from '@/components/site/app-sidebar';
 import { SkipLink } from '@/components/site/skip-link';
+import type { ReactElement, ReactNode } from 'react';
 
 /**
  * The frame of every page but the paper: the skip link, the top bar, the
@@ -17,15 +16,16 @@ export async function AppShell({
   children,
 }: Readonly<{ children: ReactNode }>): Promise<ReactElement> {
   const user = await getCurrentUser();
-  let feeds: Parameters<typeof AppSidebar>[0]['feeds'] = [];
-  if (user) {
-    const repo = new Repository(getDatabase());
-    const [list, counts] = await Promise.all([
-      repo.listFeeds(user.id),
-      repo.storyCounts(user.id),
-    ]);
-    feeds = list.map((f) => ({ ...f, count: counts.get(f.id) ?? 0 }));
-  }
+  const feeds: Parameters<typeof AppSidebar>[0]['feeds'] = user
+    ? await (async () => {
+        const repo = new Repository(getDatabase());
+        const [list, counts] = await Promise.all([
+          repo.listFeeds(user.id),
+          repo.storyCounts(user.id),
+        ]);
+        return list.map((f) => ({ ...f, count: counts.get(f.id) ?? 0 }));
+      })()
+    : [];
   const sidebar = <AppSidebar user={user} feeds={feeds} />;
   return (
     <div className="flex min-h-dvh flex-col">

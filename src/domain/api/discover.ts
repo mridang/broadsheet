@@ -18,12 +18,7 @@
  * Following any of them is `POST /api/feeds` with the feed's address.
  */
 
-import {
-  liveUid,
-  requestCookieResolver,
-  sessionUser,
-  type CurrentUserResolver,
-} from '@/domain/api/auth';
+import { liveUid, requestCookieResolver, sessionUser } from '@/domain/api/auth';
 import { rfc3339, parseFeedId } from '@/domain/api/feed-resource';
 import { idOf } from '@/domain/api/feeds';
 import {
@@ -31,8 +26,6 @@ import {
   GOOGLE_NEWS_TOPICS,
   googleNewsFeed,
   podcastsFrom,
-  type Conversion,
-  type Podcast,
 } from '@/domain/discover';
 import {
   ApiController,
@@ -46,15 +39,17 @@ import {
 } from '@/lib/core/api';
 import { getEnv } from '@/lib/core/runtime';
 import { getDatabase } from '@/domain/db/client';
-import {
-  Repository,
-  type FeedRecommendation,
-  type RankedSource,
-  type TrendingKind,
-  type User,
+import { Repository } from '@/domain/repository';
+import type { Conversion, Podcast } from '@/domain/discover';
+import type { CurrentUserResolver } from '@/domain/api/auth';
+import type {
+  FeedRecommendation,
+  RankedSource,
+  TrendingKind,
+  User,
 } from '@/domain/repository';
 
-const PARSE_RECOMMENDATION_PATTERN = /^https?:\/\/\S+$/i;
+const PARSE_RECOMMENDATION_PATTERN = /^https?:\/\/\S+$/iu;
 
 /** The signed-in caller's id. */
 interface UidContext {
@@ -74,20 +69,21 @@ const signedIn =
   });
 
 /** A list's parameters, refusing any not in `allowed`. */
-function params(
-  request: Request,
-  allowed: readonly string[],
-): { readonly get: (key: string) => string | null; readonly limit: number } {
+function params(request: Request, allowed: readonly string[]) {
   const query = new URL(request.url).searchParams;
-  const errors = [...new Set(query.keys())]
+  const errors = new Set(query.keys())
+    .values()
     .filter((key) => !allowed.includes(key) && key !== 'limit')
-    .map((key) => `${key}: not a parameter of this list.`);
+    .map((key) => `${key}: not a parameter of this list.`)
+    .toArray();
   if (errors.length > 0) {
     throw problems.badRequest('The request is not valid.', errors);
   }
   const limit = parseLimit(query.get('limit'), 10);
-  if (limit instanceof Response) throw limit;
-  return { get: (key) => query.get(key), limit };
+  if (limit instanceof Response) {
+    throw limit;
+  }
+  return { get: (key: string) => query.get(key), limit };
 }
 
 /** A source on the wire, as trending lists and searches show it. */
@@ -175,8 +171,15 @@ function upstreamFailed(service: string): Response {
   );
 }
 
+/** What a public search service answers: its list of results. */
+export interface SearchAnswer {
+  readonly results?: unknown;
+}
+
 /** Fetch JSON from a public search service, or undefined when it fails. */
-export async function fetchJson(url: string): Promise<unknown> {
+export async function fetchJson(
+  url: string,
+): Promise<SearchAnswer | undefined> {
   try {
     const res = await fetch(url, {
       headers: {
@@ -245,13 +248,17 @@ export const podcastsCollection = createPodcastsCollection();
 export function parseConversion(
   body: Readonly<Record<string, unknown>>,
 ): { ok: true; value: Conversion } | { ok: false; errors: string[] } {
-  const errors = Object.keys(body)
-    .filter((k) => k !== 'url' && k !== 'google_news')
-    .map((k) => `${k}: not a member of this request.`);
-  if ('url' in body === 'google_news' in body) {
-    errors.push('url or google_news: send exactly one.');
+  const errors = [
+    ...Object.keys(body)
+      .filter((k) => k !== 'url' && k !== 'google_news')
+      .map((k) => `${k}: not a member of this request.`),
+    ...('url' in body === 'google_news' in body
+      ? ['url or google_news: send exactly one.']
+      : []),
+  ];
+  if (errors.length > 0) {
+    return { ok: false, errors };
   }
-  if (errors.length > 0) return { ok: false, errors };
   if ('url' in body) {
     const found =
       typeof body['url'] === 'string' && body['url'].length <= 2000
@@ -302,7 +309,9 @@ export function createFeedConversions(
         request,
         'The body must be a JSON object.',
       );
-      if (!body.ok) throw body.response;
+      if (!body.ok) {
+        throw body.response;
+      }
       const input = parseConversion(body.value);
       if (!input.ok) {
         throw problems.badRequest(
@@ -390,32 +399,27 @@ export function parseRecommendation(
 ):
   | { ok: true; value: { url: string; title?: string; description: string } }
   | { ok: false; errors: string[] } {
-  const errors = Object.keys(body)
-    .filter((k) => !['url', 'title', 'description'].includes(k))
-    .map((k) => `${k}: not a member of this request.`);
   const url = body['url'];
-  if (
+  const title = body['title'];
+  const description = body['description'];
+  const urlBad =
     typeof url !== 'string' ||
     !PARSE_RECOMMENDATION_PATTERN.test(url) ||
-    url.length > 2000
-  ) {
-    errors.push('url: an http(s) address.');
-  }
-  const title = body['title'];
-  if (
-    title !== undefined &&
-    (typeof title !== 'string' || title.length > 200)
-  ) {
-    errors.push('title: at most 200 characters.');
-  }
-  const description = body['description'];
-  if (
+    url.length > 2000;
+  const titleBad =
+    title !== undefined && (typeof title !== 'string' || title.length > 200);
+  const descriptionBad =
     typeof description !== 'string' ||
     !description.trim() ||
-    description.length > 1000
-  ) {
-    errors.push('description: from 1 to 1000 characters.');
-  }
+    description.length > 1000;
+  const errors = [
+    ...Object.keys(body)
+      .filter((k) => !['url', 'title', 'description'].includes(k))
+      .map((k) => `${k}: not a member of this request.`),
+    ...(urlBad ? ['url: an http(s) address.'] : []),
+    ...(titleBad ? ['title: at most 200 characters.'] : []),
+    ...(descriptionBad ? ['description: from 1 to 1000 characters.'] : []),
+  ];
   return errors.length > 0
     ? { ok: false, errors }
     : {
@@ -491,7 +495,9 @@ export function createRecommendationsCollection(
           request,
           'The body must be a JSON object.',
         );
-        if (!body.ok) throw body.response;
+        if (!body.ok) {
+          throw body.response;
+        }
         const input = parseRecommendation(body.value);
         if (!input.ok) {
           throw problems.badRequest(
@@ -540,7 +546,9 @@ export function createRecommendationItem(
         'The body must be a JSON object.',
         ['application/merge-patch+json'],
       );
-      if (!body.ok) throw body.response;
+      if (!body.ok) {
+        throw body.response;
+      }
       const status = body.value['status'];
       const extra = Object.keys(body.value).filter((k) => k !== 'status');
       if (

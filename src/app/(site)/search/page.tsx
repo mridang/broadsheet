@@ -1,6 +1,3 @@
-import type { Metadata } from 'next';
-import type { ReactElement } from 'react';
-
 import { ensurePublicUser } from '@/domain/account';
 import { parseArticleQuery } from '@/domain/api/article-resource';
 import { getDatabase } from '@/domain/db/client';
@@ -14,6 +11,8 @@ import { EmptyState, Notice } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
 import { SaveSearchButton } from '@/app/(site)/search/_components/save-search-button';
 import { SavedSearches } from '@/app/(site)/search/_components/saved-searches';
+import type { ReactElement } from 'react';
+import type { Metadata } from 'next';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,9 +33,13 @@ export default async function SearchPage({
   searchParams: Promise<{ q?: string; cursor?: string; feed_id?: string }>;
 }>): Promise<ReactElement> {
   const { q = '', cursor, feed_id: feedId } = await searchParams;
-  const params = new URLSearchParams({ q: q });
-  if (cursor) params.set('cursor', cursor);
-  if (feedId) params.set('feed_id', feedId);
+  const params = new URLSearchParams({ q });
+  if (cursor) {
+    params.set('cursor', cursor);
+  }
+  if (feedId) {
+    params.set('feed_id', feedId);
+  }
   const input = parseArticleQuery(params);
   const query = input.ok ? input.query : { q: '', limit: 20 };
   const user = await getCurrentUser();
@@ -70,6 +73,7 @@ export default async function SearchPage({
           Words to find
         </label>
         <input
+          aria-label="Words to find"
           id="q"
           name="q"
           type="search"

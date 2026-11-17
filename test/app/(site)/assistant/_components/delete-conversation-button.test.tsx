@@ -4,7 +4,7 @@ import { DeleteConversationButton } from '@/app/(site)/assistant/_components/del
 import { html } from '../../../../components/render';
 
 const IS_A_BUTTON_THAT_PATTERN =
-  /<button type="button" class="[^"]*">Delete<\/button>/;
+  /<button type="button" class="[^"]*">Delete<\/button>/u;
 
 describe('DeleteConversationButton', () => {
   it('is a button that acts on the page', () => {

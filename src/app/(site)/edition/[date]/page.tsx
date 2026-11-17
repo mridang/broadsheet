@@ -1,4 +1,3 @@
-import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
 import { ensurePublicUser } from '@/domain/account';
@@ -19,6 +18,7 @@ import { ReadTracker } from '@/app/(site)/_components/read-tracker';
 import { ScrollReader } from '@/app/(site)/_components/scroll-reader';
 import { EditionBar } from '@/app/(site)/_components/edition-bar';
 import { KeyboardShortcuts } from '@/app/(site)/_components/keyboard-shortcuts';
+import type { Metadata } from 'next';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,7 +41,9 @@ export default async function Edition({
   params,
 }: Readonly<{ params: Params }>) {
   const { date } = await params;
-  if (!isIssueDate(date)) notFound();
+  if (!isIssueDate(date)) {
+    notFound();
+  }
   const user = await getCurrentUser();
   const repo = new Repository(getDatabase());
   const ownerId = user ? user.id : await ensurePublicUser();

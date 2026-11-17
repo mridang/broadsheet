@@ -6,12 +6,14 @@ import {
   registerWhenLoaded,
   subscribeToPush,
   unsubscribeFromPush,
-  type PushEnvironment,
   ServiceWorker,
   WORKER_URL,
-  type WorkerEnvironment,
 } from '@/components/site/service-worker';
 import { html } from '../render';
+import type {
+  PushEnvironment,
+  WorkerEnvironment,
+} from '@/components/site/service-worker';
 
 /** A browser stand-in: production, with service workers, still loading. */
 function browser(
@@ -51,13 +53,17 @@ describe('registerWhenLoaded', () => {
     });
     registerWhenLoaded(env);
     expect(env.register).not.toHaveBeenCalled();
-    for (const listener of listeners) listener();
+    expect(listeners).toHaveLength(1);
+    for (const listener of listeners) {
+      listener();
+    }
     expect(env.register).toHaveBeenCalledTimes(1);
   });
 
   it('hands back the way to stop waiting', () => {
     const stop = jest.fn();
     const cleanup = registerWhenLoaded(browser({ onLoad: () => stop }));
+    expect(typeof cleanup).toBe('function');
     cleanup?.();
     expect(stop).toHaveBeenCalledTimes(1);
   });
@@ -155,7 +161,7 @@ describe('unsubscribeFromPush', () => {
 
   it('still unsubscribes the browser when the server had already forgotten it', async () => {
     const { env, unsubscribe } = pushing(new Response(null, { status: 404 }));
-    await unsubscribeFromPush(env, '7');
+    await expect(unsubscribeFromPush(env, '7')).resolves.toBeUndefined();
     expect(unsubscribe).toHaveBeenCalled();
   });
 

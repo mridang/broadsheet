@@ -24,8 +24,12 @@ const { GET, POST } = await import('@/app/api/feeds/recommendations/route');
 
 let restore: () => void;
 let repo: Repository;
-let auth: Record<string, string>;
-let run: jest.Mock<(...args: unknown[]) => Promise<unknown>>;
+/** The Cookie header of the signed-in caller; empty for a signed-out one. */
+interface CallerCookie {
+  [name: string]: string;
+}
+let auth: CallerCookie;
+let run: jest.Mock<(...args: unknown[]) => Promise<object>>;
 
 async function cookieFor(uid: number): Promise<Record<string, string>> {
   return {
@@ -82,7 +86,7 @@ describe('POST /api/feeds/recommendations', () => {
     const body = await res.json<{ id: string; status: string }>();
     expect(body.status).toBe('pending');
     expect(res.headers.get('location')).toMatch(
-      new RegExp(`/api/feeds/recommendations/${body.id}$`),
+      new RegExp(`/api/feeds/recommendations/${body.id}$`, 'u'),
     );
   });
 

@@ -9,48 +9,49 @@ import { decodeEntities } from '@/utils/html-entities';
 
 import type { ScrapedItem } from './types';
 
-const DECODE_PATTERN = /<!\[CDATA\[([\s\S]*?)\]\]>/g;
-const DECODE_PATTERN_2 = /\s+/g;
-const HOST_OF_PATTERN = /^www\./;
-const TITLEIZE_PATTERN = /[-_]/g;
-const TITLEIZE_PATTERN_2 = /\b\w/g;
+const DECODE_PATTERN = /<!\[CDATA\[([\s\S]*?)\]\]>/gu;
+const DECODE_PATTERN_2 = /\s+/gu;
+const HOST_OF_PATTERN = /^www\./u;
+const TITLEIZE_PATTERN = /[-_]/gu;
+const TITLEIZE_PATTERN_2 = /\b\w/gu;
 const PAGE_DESCRIPTION_PATTERN =
-  /<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i;
+  /<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/iu;
 const IS_BOILERPLATE_PATTERN =
-  /Article URL:|Comments URL:|\bPoints:\s|#\s*Comments:/i;
-const EXTRACT_POINTS_PATTERN = /Points:\s*(\d+)/i;
-const XML_TEXT_PATTERN = /&#(x[0-9a-f]+|\d+);/gi;
-const XML_TEXT_PATTERN_2 = /^x/i;
-const FEED_HEADER_PATTERN = /<!--[\s\S]*?-->/g;
-const FEED_HEADER_PATTERN_2 = /<\?[\s\S]*?\?>/g;
-const FEED_HEADER_PATTERN_3 = /<!DOCTYPE[^>]*>/gi;
+  /Article URL:|Comments URL:|\bPoints:\s|#\s*Comments:/iu;
+const EXTRACT_POINTS_PATTERN = /Points:\s*(\d+)/iu;
+const XML_TEXT_PATTERN = /&#(x[0-9a-f]+|\d+);/giu;
+const XML_TEXT_PATTERN_2 = /^x/iu;
+const FEED_HEADER_PATTERN = /<!--[\s\S]*?-->/gu;
+const FEED_HEADER_PATTERN_2 = /<\?[\s\S]*?\?>/gu;
+const FEED_HEADER_PATTERN_3 = /<!DOCTYPE[^>]*>/giu;
 const FEED_HEADER_PATTERN_4 =
-  /(?<![\w:.-])([\w:.-]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
-const FEED_FORMAT_OF_PATTERN = /<rdf:RDF[\s>]/i;
-const FEED_FORMAT_OF_PATTERN_2 = /<rss[\s>]/i;
-const FEED_FORMAT_OF_PATTERN_3 = /<feed[\s>]/i;
-const FEED_DETAILS_PATTERN = /<(?:item|entry)[\s>]/i;
-const FEED_DETAILS_PATTERN_2 = /<image[\s>][\s\S]*?<\/image>/gi;
+  /(?<![\w:.-])([\w:.-]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/gu;
+const FEED_FORMAT_OF_PATTERN = /<rdf:RDF[\s>]/iu;
+const FEED_FORMAT_OF_PATTERN_2 = /<rss[\s>]/iu;
+const FEED_FORMAT_OF_PATTERN_3 = /<feed[\s>]/iu;
+const FEED_DETAILS_PATTERN = /<(?:item|entry)[\s>]/iu;
+const FEED_DETAILS_PATTERN_2 = /<image[\s>][\s\S]*?<\/image>/giu;
 const FEED_DETAILS_PATTERN_3 =
-  /<link\b(?=[^>]*\brel=["']alternate["'])[^>]*\bhref=["']([^"']+)["']/i;
+  /<link\b(?=[^>]*\brel=["']alternate["'])[^>]*\bhref=["']([^"']+)["']/iu;
 const FEED_DETAILS_PATTERN_4 =
-  /<link\b(?![^>]*\brel=)[^>]*\bhref=["']([^"']+)["']/i;
-const FEED_DETAILS_PATTERN_5 = /<image[\s>][\s\S]*?<url>([\s\S]*?)<\/url>/i;
-const FEED_DETAILS_PATTERN_6 = /<feed\b[^>]*\bxml:lang=["']([^"']+)["']/i;
-const BRACKETED_NAME_PATTERN = /\s/;
-const BRACKETED_NAME_PATTERN_2 = /[\n\r\u2028\u2029]/;
+  /<link\b(?![^>]*\brel=)[^>]*\bhref=["']([^"']+)["']/iu;
+const FEED_DETAILS_PATTERN_5 = /<image[\s>][\s\S]*?<url>([\s\S]*?)<\/url>/iu;
+const FEED_DETAILS_PATTERN_6 = /<feed\b[^>]*\bxml:lang=["']([^"']+)["']/iu;
+const BRACKETED_NAME_PATTERN = /\s/u;
+const BRACKETED_NAME_PATTERN_3 = /\S/u;
+const BRACKETED_NAME_PATTERN_2 = /[\n\r\u2028\u2029]/u;
 const ITEM_AUTHOR_PATTERN =
-  /<author[^>]*>[\s\S]*?<name[^>]*>([\s\S]*?)<\/name>/i;
-const ITEM_TAGS_PATTERN = /<category[^>]*>([\s\S]*?)<\/category>/gi;
-const ITEM_TAGS_PATTERN_2 = /<category[^>]*\bterm=["']([^"']+)["']/gi;
-const ITEM_IMAGE_PATTERN = /<img\b[^>]*?\bsrc\s*=\s*["']([^"']+)["']/gi;
-const ITEM_IMAGE_PATTERN_2 = /^https?:/i;
-const PARSE_FEED_PATTERN = /<item[\s>][\s\S]*?<\/item>/gi;
-const PARSE_FEED_PATTERN_2 = /<entry[\s>][\s\S]*?<\/entry>/gi;
-const PARSE_FEED_PATTERN_3 = /<link[^>]*href=["']([^"']+)["']/i;
+  /<author[^>]*>[\s\S]*?<name[^>]*>([\s\S]*?)<\/name>/iu;
+const ITEM_TAGS_PATTERN = /<category[^>]*>([\s\S]*?)<\/category>/giu;
+const ITEM_TAGS_PATTERN_2 = /<category[^>]*\bterm=["']([^"']+)["']/giu;
+const ITEM_IMAGE_PATTERN = /<img\b[^>]*?\bsrc\s*=\s*["']([^"']+)["']/giu;
+const ITEM_IMAGE_PATTERN_2 = /^https?:/iu;
+const PARSE_FEED_PATTERN = /<item[\s>][\s\S]*?<\/item>/giu;
+const PARSE_FEED_PATTERN_2 = /<entry[\s>][\s\S]*?<\/entry>/giu;
+const PARSE_FEED_PATTERN_3 = /<link[^>]*href=["']([^"']+)["']/iu;
 const ARTICLE_TEXT_PATTERN =
-  /<(p|h[2-4]|li|blockquote)\b[^>]*>([\s\S]*?)<\/\1>/gi;
-const ARTICLE_TEXT_PATTERN_2 = /^h/i;
+  /<(p|h[2-4]|li|blockquote)\b[^>]*>([\s\S]*?)<\/\1>/giu;
+const ARTICLE_TEXT_PATTERN_2 = /^h/iu;
 
 /** Most items kept from one fetch of a feed: enough for a full archive, not a runaway one. */
 const MAX_PER_FEED = 100;
@@ -63,7 +64,7 @@ export const decode = (s = ''): string =>
 function tag(block: string, name: string): string {
   const m = new RegExp(
     String.raw`<${name}[^>]*>([\s\S]*?)</${name}>`,
-    'i',
+    'iu',
   ).exec(block);
   return m?.[1] ? decode(m[1]) : '';
 }
@@ -80,13 +81,13 @@ const faviconFor = (u: string): string =>
   `https://www.google.com/s2/favicons?sz=64&domain=${hostOf(u)}`;
 
 // ---- clean source names (handover §6 / A.6) ----
-const OVERRIDES: Record<string, string> = {
-  'news.ycombinator.com': 'Hacker News',
-  'github.com': 'GitHub',
-  'youtube.com': 'YouTube',
-  'twitter.com': 'X',
-  'x.com': 'X',
-};
+const OVERRIDES = new Map([
+  ['news.ycombinator.com', 'Hacker News'],
+  ['github.com', 'GitHub'],
+  ['youtube.com', 'YouTube'],
+  ['twitter.com', 'X'],
+  ['x.com', 'X'],
+]);
 const BLOG_PLATFORMS = new Set([
   'blogspot.com',
   'substack.com',
@@ -120,15 +121,22 @@ const titleize = (s: string): string =>
 
 export function domainClean(host: string): string {
   const h = host.replace(HOST_OF_PATTERN, '');
-  const override = OVERRIDES[h];
-  if (override) return override;
+  const override = OVERRIDES.get(h);
+  if (override) {
+    return override;
+  }
   const labels = h.split('.');
   const reg2 = labels.slice(-2).join('.');
   if (BLOG_PLATFORMS.has(reg2) && labels.length >= 3) {
     return titleize(labels.at(-3) ?? h);
   }
-  const l = [...labels];
-  while (l.length > 2 && STRIP_SUB.has(l[0] ?? '')) l.shift();
+  const leading = labels.findIndex((label) => !STRIP_SUB.has(label));
+  const l = labels.slice(
+    Math.max(
+      0,
+      Math.min(leading === -1 ? labels.length : leading, labels.length - 2),
+    ),
+  );
   const penultimate = l.at(-2) ?? '';
   const nameLabel =
     l.length >= 3 && MULTI_TLD.has(penultimate) ? l.at(-3) : penultimate;
@@ -139,44 +147,45 @@ function metaContent(html: string, property: string): string {
   const m =
     new RegExp(
       `<meta[^>]+(?:property|name)=["']${property}["'][^>]+content=["']([^"']+)["']`,
-      'i',
+      'iu',
     ).exec(html) ??
     new RegExp(
       `<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${property}["']`,
-      'i',
+      'iu',
     ).exec(html);
   return m?.[1] ?? '';
 }
 
 export function ogImage(html: string, base: string): string {
-  for (const p of ['og:image', 'og:image:url', 'twitter:image']) {
-    const v = metaContent(html, p);
-    if (v) {
-      try {
-        return new URL(v, base).href;
-      } catch {
-        return v;
-      }
-    }
+  const v = ['og:image', 'og:image:url', 'twitter:image']
+    .map((p) => metaContent(html, p))
+    .find(Boolean);
+  if (!v) {
+    return '';
   }
-  return '';
+  try {
+    return new URL(v, base).href;
+  } catch {
+    return v;
+  }
 }
 
 export function pageDescription(html: string): string {
   const og =
     metaContent(html, 'og:description') ||
     metaContent(html, 'twitter:description');
-  if (og) return decode(og);
+  if (og) {
+    return decode(og);
+  }
   const m = PAGE_DESCRIPTION_PATTERN.exec(html);
   return m?.[1] ? decode(m[1]) : '';
 }
 
 export function siteName(html: string): string {
-  for (const p of ['og:site_name', 'application-name']) {
-    const v = metaContent(html, p);
-    if (v) return decode(v).slice(0, 40);
-  }
-  return '';
+  const v = ['og:site_name', 'application-name']
+    .map((p) => metaContent(html, p))
+    .find(Boolean);
+  return v ? decode(v).slice(0, 40) : '';
 }
 
 // hnrss feeds put HN metadata (not article text) in <description>.
@@ -248,49 +257,83 @@ export function feedHeader(xml: string): FeedElement[] {
     .replaceAll(FEED_HEADER_PATTERN, '')
     .replaceAll(FEED_HEADER_PATTERN_2, '')
     .replaceAll(FEED_HEADER_PATTERN_3, '');
-  const root: Open = { name: '', attributes: {}, text: '', children: [] };
-  const stack: Open[] = [root];
-  let count = 0;
-  const token = new RegExp(FEED_TOKEN, 'g');
-  for (const m of source.matchAll(token)) {
-    const top = stack.at(-1)!;
-    const name = m[3] ?? '';
-    if (m[1] !== undefined || m[6] !== undefined) {
-      top.text += m[1] ?? xmlText(m[6] ?? '');
-    } else if (m[2]) {
-      if (stack.length > 1 && top.name === name) {
-        stack.pop();
-        stack.at(-1)!.children.push({
-          name: top.name,
-          attributes: top.attributes,
-          text: top.text.replaceAll(DECODE_PATTERN_2, ' ').trim(),
-          children: top.children,
-        });
+  const closed = (open: Open): FeedElement => ({
+    name: open.name,
+    attributes: open.attributes,
+    text: open.text.replaceAll(DECODE_PATTERN_2, ' ').trim(),
+    children: open.children,
+  });
+  const initial = {
+    stack: [{ name: '', attributes: {}, text: '', children: [] }] as Open[],
+    count: 0,
+    done: false,
+  };
+  const parsed = [...source.matchAll(new RegExp(FEED_TOKEN, 'gu'))].reduce(
+    (state, m) => {
+      if (state.done) {
+        return state;
       }
-    } else {
-      count += 1;
-      if (count > MAX_HEADER_ELEMENTS * 50) break;
-      const attributes: Record<string, string> = {};
-      for (const a of (m[4] ?? '').matchAll(FEED_HEADER_PATTERN_4)) {
-        attributes[a[1] ?? ''] = xmlText(a[2] ?? a[3] ?? '');
+      const top = state.stack.at(-1)!;
+      const below = state.stack.slice(0, -1);
+      const name = m[3] ?? '';
+      if (m[1] !== undefined || m[6] !== undefined) {
+        return {
+          stack: [
+            ...below,
+            { ...top, text: top.text + (m[1] ?? xmlText(m[6] ?? '')) },
+          ],
+          count: state.count,
+          done: false,
+        };
       }
-      const open: Open = { name, attributes, text: '', children: [] };
-      if (m[5]) {
-        top.children.push({ ...open, children: [] });
-      } else {
-        stack.push(open);
+      if (m[2]) {
+        const parent = below.at(-1);
+        return state.stack.length > 1 && top.name === name && parent
+          ? {
+              stack: [
+                ...below.slice(0, -1),
+                { ...parent, children: [...parent.children, closed(top)] },
+              ],
+              count: state.count,
+              done: false,
+            }
+          : state;
       }
-    }
-  }
-  while (stack.length > 1) {
-    const top = stack.pop()!;
-    stack.at(-1)!.children.push({
-      name: top.name,
-      attributes: top.attributes,
-      text: top.text.replaceAll(DECODE_PATTERN_2, ' ').trim(),
-      children: top.children,
-    });
-  }
+      const count = state.count + 1;
+      if (count > MAX_HEADER_ELEMENTS * 50) {
+        return { stack: state.stack, count, done: true };
+      }
+      const open: Open = {
+        name,
+        attributes: Object.fromEntries(
+          Array.from(
+            (m[4] ?? '').matchAll(FEED_HEADER_PATTERN_4),
+            (a): [string, string] => [a[1] ?? '', xmlText(a[2] ?? a[3] ?? '')],
+          ),
+        ),
+        text: '',
+        children: [],
+      };
+      return {
+        stack: m[5]
+          ? [
+              ...below,
+              {
+                ...top,
+                children: [...top.children, { ...open, children: [] }],
+              },
+            ]
+          : [...below, top, open],
+        count,
+        done: false,
+      };
+    },
+    initial,
+  );
+  const root = parsed.stack.reduceRight((child, parent) => ({
+    ...parent,
+    children: [...parent.children, closed(child)],
+  }));
   const [document] = root.children;
   const container =
     document?.name === 'feed'
@@ -321,13 +364,13 @@ export interface FeedDetails {
 }
 
 /** Minutes in one `sy:updatePeriod`. */
-const PERIOD_MINUTES: Readonly<Record<string, number>> = {
-  hourly: 60,
-  daily: 1440,
-  weekly: 10_080,
-  monthly: 43_200,
-  yearly: 525_600,
-};
+const PERIOD_MINUTES = new Map([
+  ['hourly', 60],
+  ['daily', 1440],
+  ['weekly', 10_080],
+  ['monthly', 43_200],
+  ['yearly', 525_600],
+]);
 
 /** An address made absolute against `base`, or blank when it is not one. */
 function absolute(href: string, base: string): string {
@@ -340,9 +383,15 @@ function absolute(href: string, base: string): string {
 
 /** The format a feed's markup declares, or undefined when it declares none. */
 function feedFormatOf(xml: string): FeedFormat | undefined {
-  if (FEED_FORMAT_OF_PATTERN.test(xml)) return 'rdf';
-  if (FEED_FORMAT_OF_PATTERN_2.test(xml)) return 'rss';
-  if (FEED_FORMAT_OF_PATTERN_3.test(xml)) return 'atom';
+  if (FEED_FORMAT_OF_PATTERN.test(xml)) {
+    return 'rdf';
+  }
+  if (FEED_FORMAT_OF_PATTERN_2.test(xml)) {
+    return 'rss';
+  }
+  if (FEED_FORMAT_OF_PATTERN_3.test(xml)) {
+    return 'atom';
+  }
   return undefined;
 }
 
@@ -367,7 +416,7 @@ export function feedDetails(xml: string, feedUrl: string): FeedDetails {
     tag(withoutImage, 'updated') ||
     tag(withoutImage, 'dc:date');
   const date = changed ? new Date(changed) : null;
-  const period = PERIOD_MINUTES[tag(head, 'sy:updatePeriod').toLowerCase()];
+  const period = PERIOD_MINUTES.get(tag(head, 'sy:updatePeriod').toLowerCase());
   const frequency = Number(tag(head, 'sy:updateFrequency') || 1);
   const ttl = Number(tag(head, 'ttl'));
   const cadence =
@@ -407,25 +456,22 @@ export function bracketedName(raw: string): string {
   const end = word === -1 ? raw.length : word;
   const at = raw.indexOf('@', 1);
   const closed = raw.endsWith(')');
-  if (at === -1 || at + 2 > end || !closed) return raw.trim();
-  let gap = end;
-  while (gap < raw.length && BRACKETED_NAME_PATTERN.test(raw.charAt(gap)))
-    gap += 1;
+  if (at === -1 || at + 2 > end || !closed) {
+    return raw.trim();
+  }
+  const spaces = raw.slice(end).search(BRACKETED_NAME_PATTERN_3);
+  const gap = spaces === -1 ? raw.length : end + spaces;
   const opens = [
     gap,
     ...Array.from({ length: end - at - 2 }, (_, index) => end - 1 - index),
   ];
-  for (const open of opens) {
-    const name = raw.slice(open + 1, -1);
-    if (
-      raw.charAt(open) === '(' &&
-      open + 2 < raw.length &&
-      !BRACKETED_NAME_PATTERN_2.test(name)
-    ) {
-      return name.trim();
-    }
-  }
-  return raw.trim();
+  const open = opens.find(
+    (index) =>
+      raw.charAt(index) === '(' &&
+      index + 2 < raw.length &&
+      !BRACKETED_NAME_PATTERN_2.test(raw.slice(index + 1, -1)),
+  );
+  return open === undefined ? raw.trim() : raw.slice(open + 1, -1).trim();
 }
 
 /**
@@ -436,12 +482,14 @@ export function itemAuthor(block: string): string {
   const atom = ITEM_AUTHOR_PATTERN.exec(block);
   const named = bracketedName;
   const many = (name: string): string[] =>
-    Array.from(
-      block.matchAll(
-        new RegExp(String.raw`<${name}[^>]*>([\s\S]*?)</${name}>`, 'gi'),
+    [
+      ...block.matchAll(
+        new RegExp(String.raw`<${name}[^>]*>([\s\S]*?)</${name}>`, 'giu'),
       ),
-      (m) => named(decode(m[1] ?? '')),
-    ).filter(Boolean);
+    ].flatMap((m) => {
+      const author = named(decode(m[1] ?? ''));
+      return author ? [author] : [];
+    });
   const creators = many('dc:creator');
   const fallback = creators.length > 0 ? creators : many('author');
   const names = atom?.[1] ? [decode(atom[1])] : fallback;
@@ -450,14 +498,12 @@ export function itemAuthor(block: string): string {
 
 /** An item's categories: RSS `<category>` text and Atom `term`s, deduplicated. */
 export function itemTags(block: string): string[] {
-  const found = [
-    ...Array.from(block.matchAll(ITEM_TAGS_PATTERN), (m) => decode(m[1] ?? '')),
-    ...Array.from(block.matchAll(ITEM_TAGS_PATTERN_2), (m) =>
-      decode(m[1] ?? ''),
-    ),
-  ]
-    .map((t) => t.slice(0, MAX_TAG))
-    .filter(Boolean);
+  const found = [ITEM_TAGS_PATTERN, ITEM_TAGS_PATTERN_2]
+    .flatMap((pattern) => [...block.matchAll(pattern)])
+    .flatMap((m) => {
+      const tagText = decode(m[1] ?? '').slice(0, MAX_TAG);
+      return tagText ? [tagText] : [];
+    });
   return [...new Set(found)].slice(0, MAX_TAGS);
 }
 
@@ -465,7 +511,7 @@ export function itemTags(block: string): string[] {
 function attribute(opening: string, name: string): string {
   const m = new RegExp(
     String.raw`\b${name}\s*=\s*(?:"([^"]*)"|'([^']*)')`,
-    'i',
+    'iu',
   ).exec(opening);
   return xmlText(m?.[1] ?? m?.[2] ?? '').trim();
 }
@@ -484,12 +530,12 @@ const isPicture = (opening: string): boolean => {
  */
 export function itemImage(block: string, base: string): string {
   const urls = (name: string, pictures: boolean): string[] =>
-    Array.from(
-      block.matchAll(new RegExp(String.raw`<${name}\b([^>]*)>`, 'gi')),
-      (m) => m[1] ?? '',
-    )
-      .filter((o) => !pictures || isPicture(o))
-      .map((o) => attribute(o, 'url'));
+    [
+      ...block.matchAll(new RegExp(String.raw`<${name}\b([^>]*)>`, 'giu')),
+    ].flatMap((m) => {
+      const opening = m[1] ?? '';
+      return !pictures || isPicture(opening) ? [attribute(opening, 'url')] : [];
+    });
   const content = `${block}${xmlText(block)}`.replaceAll(DECODE_PATTERN, '$1');
   const found = [
     ...urls('enclosure', true),
@@ -499,61 +545,57 @@ export function itemImage(block: string, base: string): string {
       xmlText(m[1] ?? '').trim(),
     ),
   ];
-  for (const href of found) {
-    const url = absolute(href, base);
-    if (ITEM_IMAGE_PATTERN_2.test(url)) return url;
-  }
-  return '';
+  return (
+    found
+      .map((href) => absolute(href, base))
+      .find((url) => ITEM_IMAGE_PATTERN_2.test(url)) ?? ''
+  );
 }
 
 /** Minimal RSS 2.0 + Atom parser. */
-export function parseFeed(
-  xml: string,
-  feedUrl: string,
-): { title: string; items: ScrapedItem[] } {
+export function parseFeed(xml: string, feedUrl: string) {
   const title = tag(xml, 'title') || hostOf(feedUrl);
-  const items: ScrapedItem[] = [];
   const blocks =
     xml.match(PARSE_FEED_PATTERN) ?? xml.match(PARSE_FEED_PATTERN_2) ?? [];
-  for (const b of blocks) {
-    let link = tag(b, 'link');
+  const items = blocks.flatMap((b): ScrapedItem[] => {
+    const link = tag(b, 'link') || (PARSE_FEED_PATTERN_3.exec(b)?.[1] ?? '');
     if (!link) {
-      const m = PARSE_FEED_PATTERN_3.exec(b);
-      if (m?.[1]) link = m[1];
+      return [];
     }
-    if (!link) continue;
     const pub =
       tag(b, 'pubDate') ||
       tag(b, 'published') ||
       tag(b, 'updated') ||
       tag(b, 'dc:date');
     const date = pub ? new Date(pub) : null;
-    let summary = (
+    const text = (
       tag(b, 'description') ||
       tag(b, 'summary') ||
       tag(b, 'content') ||
       ''
     ).slice(0, 1200);
-    const points = extractPoints(summary);
-    if (isBoilerplate(summary)) summary = '';
+    const points = extractPoints(text);
+    const summary = isBoilerplate(text) ? '' : text;
     const comments = tag(b, 'comments').trim();
     const guid = tag(b, 'guid') || tag(b, 'id');
-    items.push({
-      ...(comments ? { comments_url: comments } : {}),
-      ...(guid ? { guid } : {}),
-      title: tag(b, 'title') || link,
-      url: link.trim(),
-      summary,
-      published_at:
-        date && !Number.isNaN(date.getTime()) ? date.toISOString() : '',
-      source: domainClean(hostOf(link)),
-      favicon: faviconFor(link),
-      image: itemImage(b, link.trim()),
-      points,
-      author: itemAuthor(b),
-      tags: itemTags(b),
-    });
-  }
+    return [
+      {
+        ...(comments ? { comments_url: comments } : {}),
+        ...(guid ? { guid } : {}),
+        title: tag(b, 'title') || link,
+        url: link.trim(),
+        summary,
+        published_at:
+          date && !Number.isNaN(date.getTime()) ? date.toISOString() : '',
+        source: domainClean(hostOf(link)),
+        favicon: faviconFor(link),
+        image: itemImage(b, link.trim()),
+        points,
+        author: itemAuthor(b),
+        tags: itemTags(b),
+      },
+    ];
+  });
   return { title, items: items.slice(0, MAX_PER_FEED) };
 }
 
@@ -562,11 +604,11 @@ const MAX_BODY = 60_000;
 
 /** Elements that never hold the story: code, chrome, navigation and forms. */
 const NOT_STORY =
-  /<(script|style|noscript|svg|template|nav|header|footer|aside|form|iframe|button)\b[\s\S]*?<\/\1>/gi;
+  /<(script|style|noscript|svg|template|nav|header|footer|aside|form|iframe|button)\b[\s\S]*?<\/\1>/giu;
 
 /** The inside of the first `<name>` element, or undefined when there is none. */
 function region(html: string, name: string): string | undefined {
-  return new RegExp(String.raw`<${name}\b[^>]*>([\s\S]*)</${name}>`, 'i').exec(
+  return new RegExp(String.raw`<${name}\b[^>]*>([\s\S]*)</${name}>`, 'iu').exec(
     html,
   )?.[1];
 }
@@ -586,41 +628,42 @@ export function articleText(html: string): string {
     region(clean, 'main') ??
     region(clean, 'body') ??
     clean;
-  const blocks: string[] = [];
-  for (const m of body.matchAll(ARTICLE_TEXT_PATTERN)) {
+  const blocks = [...body.matchAll(ARTICLE_TEXT_PATTERN)].flatMap((m) => {
     const heading = ARTICLE_TEXT_PATTERN_2.test(m[1] ?? '');
     const raw = decode(m[2] ?? '');
     const text = heading ? withoutPermalink(raw) : raw;
-    if (heading ? text : text.split(' ').length >= 4) blocks.push(text);
-  }
+    const keeps = heading ? !!text : text.split(' ').length >= 4;
+    return keeps ? [text] : [];
+  });
   return blocks.join('\n\n').slice(0, MAX_BODY);
 }
+
+const GRAPHEMES = new Intl.Segmenter();
 
 /** Drops the permalink glyph many sites put at either end of a heading (`#`, `¶`, `§`), then trims it. */
 function withoutPermalink(heading: string): string {
   const glyph = (c: string | undefined) => c !== undefined && '#¶§'.includes(c);
-  let start = 0;
-  let end = heading.length;
-  while (glyph(heading[start])) start += 1;
-  while (end > start && glyph(heading[end - 1])) end -= 1;
-  return heading.slice(start, end).trim();
+  const chars = Array.from(GRAPHEMES.segment(heading), (g) => g.segment);
+  const lead = chars.findIndex((c) => !glyph(c));
+  const start = lead === -1 ? chars.length : lead;
+  const last = chars.findLastIndex((c) => !glyph(c));
+  return chars
+    .slice(start, last + 1)
+    .join('')
+    .trim();
 }
 
 /** Removes every `<...>` run of one or more characters; same as `replaceAll(/<[^>]+>/g, '')`, in linear time. */
 function stripTags(html: string): string {
-  let out = '';
-  let from = 0;
-  let open = html.indexOf('<');
-  while (open !== -1) {
-    const close = html.indexOf('>', open + 1);
-    if (close === -1) break;
-    if (close === open + 1) {
-      open = html.indexOf('<', close);
-    } else {
-      out += html.slice(from, open);
-      from = close + 1;
-      open = html.indexOf('<', from);
-    }
-  }
-  return out + html.slice(from);
+  const parts = html.split('>');
+  const last = parts.length - 1;
+  return parts
+    .map((part, index) => {
+      const open = part.indexOf('<');
+      if (index < last && open !== -1 && open < part.length - 1) {
+        return part.slice(0, open);
+      }
+      return index < last ? `${part}>` : part;
+    })
+    .join('');
 }

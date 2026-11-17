@@ -10,7 +10,8 @@ describe('PROMPTS', () => {
   it.each(PROMPTS.map((p) => [p.name, p] as const))(
     '%s names only tools the server has',
     (_name, p) => {
-      const named = p.render({ topic: 't' }).match(/\b[a-z]+_[a-z_]+\b/g) ?? [];
+      const named =
+        p.render({ topic: 't' }).match(/\b[a-z]+_[a-z_]+\b/gu) ?? [];
       expect(
         named.filter(
           (n) => !toolNames.has(n) && n !== 'read_filter' && n !== 'feed_id',

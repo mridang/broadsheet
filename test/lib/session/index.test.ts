@@ -4,12 +4,12 @@ import { bytesToBase64Url } from '@/utils/base64';
 import {
   SESSION_TTL_SECONDS,
   SessionTokens,
-  type NewSession,
   requireSessionSecret,
   sessionIsCurrent,
 } from '@/lib/session';
+import type { NewSession } from '@/lib/session';
 
-const REFUSES_WHEN_THERE_IS_PATTERN = /SESSION_SECRET/;
+const REFUSES_WHEN_THERE_IS_PATTERN = /SESSION_SECRET/u;
 
 /** A value that is not there, for fields the test leaves out on purpose. */
 const unset = (): undefined => undefined;

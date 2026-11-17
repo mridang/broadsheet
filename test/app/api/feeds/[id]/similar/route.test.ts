@@ -60,8 +60,9 @@ describe('GET /api/feeds/:id/similar', () => {
   it('pages five at a time with a cursor', async () => {
     const mine = (await repo.addFeed(7, 'https://shared.test/f'))!;
     await repo.addFeed(8, 'https://shared.test/f');
-    for (let index = 0; index < 6; index++)
+    for (let index = 0; index < 6; index++) {
       await repo.addFeed(8, `https://extra${index}.test/f`);
+    }
     const listed = await similar(mine.id);
     const first = await listed.json<{
       next?: string;

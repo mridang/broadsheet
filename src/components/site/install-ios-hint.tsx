@@ -1,14 +1,15 @@
 'use client';
 
-import { useState, useSyncExternalStore, type ReactElement } from 'react';
-
+import { useState, useSyncExternalStore } from 'react';
 import {
   IOS_HINT_TEXT,
   readInstallEnvironment,
   rememberDismissed,
   shouldOfferIosInstall,
-  type InstallHost,
 } from '@/components/site/ios-install';
+import type { ReactElement } from 'react';
+
+import type { InstallHost } from '@/components/site/ios-install';
 
 /**
  * The Share button as Safari draws it: a square with an arrow leaving it. Kept

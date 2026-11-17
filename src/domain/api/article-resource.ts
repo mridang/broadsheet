@@ -6,16 +6,16 @@
  */
 
 import { parseFeedId } from '@/domain/api/feed-resource';
-import {
-  TRENDING_ORDERS,
-  type Article,
-  type ArticleQuery,
-  type ArticleSummary,
-  type TrendingArticle,
-  type TrendingOrder,
-  type TrendingQuery,
-} from '@/domain/repository';
+import { TRENDING_ORDERS } from '@/domain/repository';
 import { decodeCursor, MAX_LIMIT, DEFAULT_LIMIT } from '@/lib/core/api';
+import type {
+  Article,
+  ArticleQuery,
+  ArticleSummary,
+  TrendingArticle,
+  TrendingOrder,
+  TrendingQuery,
+} from '@/domain/repository';
 
 /** Longest search text accepted, in characters. */
 export const MAX_QUERY_LENGTH = 200;
@@ -52,7 +52,9 @@ export interface ArticleDetailResource extends ArticleResource {
 
 /** A stored timestamp as RFC 3339, or undefined when it does not parse. */
 function timestamp(stored: string | null): string | undefined {
-  if (!stored) return undefined;
+  if (!stored) {
+    return undefined;
+  }
   const ms = Date.parse(stored);
   return Number.isNaN(ms) ? undefined : new Date(ms).toISOString();
 }
@@ -173,80 +175,66 @@ export function parseArticleQuery(
   params: URLSearchParams,
   now: Date = new Date(),
 ): ArticleQueryInput {
-  const errors: string[] = [];
-  for (const key of new Set(params.keys())) {
-    if (!PARAMETERS.has(key)) {
-      errors.push(`${key}: not a parameter of this search.`);
-    }
-  }
   const order = params.get('order') ?? 'newest';
-  if (!ORDERS.has(order)) errors.push(`order: must be one of ${ORDER_LIST}.`);
   const ranked = TRENDING.has(order);
   const window = params.get('window');
-  if (window !== null) {
-    if (!ranked) errors.push('window: only with a trending order.');
-    else if (Object.hasOwn(WINDOWS, window)) {
-      // A known window for a trending order: nothing to report.
-    } else {
-      errors.push('window: must be day, week or month.');
-    }
-  }
   const q = (params.get('q') ?? '').trim();
-  if (q.length > MAX_QUERY_LENGTH) errors.push('q: too long.');
-  if (q && ranked) errors.push('q: not with a trending order.');
   const read = params.get('read');
-  if (read !== null) {
-    if (!ranked) errors.push('read: only with a trending order.');
-    else if (read === 'false') {
-      // The only accepted value: nothing to report.
-    } else {
-      errors.push('read: must be false.');
-    }
-  }
   const sort = params.get('sort');
-  if (sort !== null) {
-    if (!ranked) errors.push('sort: only with a trending order.');
-    else if (sort !== 'newest' && sort !== 'oldest') {
-      errors.push('sort: must be newest or oldest.');
-    } else {
-      // A valid sort for a trending order: nothing to report.
-    }
-  }
+  const sortOk = sort === 'newest' || sort === 'oldest';
   const rawFeed = params.get('feed_id');
   const feed = rawFeed === null ? undefined : parseFeedId(rawFeed);
-  if (rawFeed !== null && feed === undefined) {
-    errors.push('feed_id: not a feed id.');
-  } else if (feed !== undefined && ranked) {
-    errors.push('feed_id: not with a trending order.');
-  } else {
-    // A valid feed filter: nothing to report.
-  }
-  let before: number | undefined;
-  let after: TrendingQuery['after'];
   const cursor = params.get('cursor');
-  if (cursor !== null) {
-    const position = decodeCursor(cursor);
-    before = parseFeedId(position?.id ?? '');
-    const place = Number(position?.key);
-    if (
-      before === undefined ||
-      (ranked && (!Number.isInteger(place) || place < 0))
-    ) {
-      errors.push('cursor: not a cursor of this list.');
-    } else if (ranked) after = { position: place, id: before };
-    else {
-      // An unranked cursor is only an id: nothing more to set.
-    }
-  }
-  let limit = DEFAULT_LIMIT;
+  const position = cursor === null ? undefined : decodeCursor(cursor);
+  const before = cursor === null ? undefined : parseFeedId(position?.id ?? '');
+  const place = Number(position?.key);
+  const placeOk = Number.isInteger(place) && place >= 0;
+  const badCursor =
+    cursor !== null && (before === undefined || (ranked && !placeOk));
+  const cursorOk = cursor !== null && !badCursor;
+  const after: TrendingQuery['after'] =
+    cursorOk && ranked && before !== undefined
+      ? { position: place, id: before }
+      : undefined;
   const rawLimit = params.get('limit');
-  if (rawLimit !== null) {
-    limit = Number(rawLimit);
-    if (!Number.isInteger(limit) || limit < 1 || limit > MAX_LIMIT) {
-      errors.push(`limit: must be a whole number from 1 to ${MAX_LIMIT}.`);
-    }
+  const limit = rawLimit === null ? DEFAULT_LIMIT : Number(rawLimit);
+  const limitOk = Number.isInteger(limit) && limit >= 1 && limit <= MAX_LIMIT;
+  const errors: string[] = [
+    ...new Set(params.keys())
+      .values()
+      .filter((key) => !PARAMETERS.has(key))
+      .map((key) => `${key}: not a parameter of this search.`),
+    ...(ORDERS.has(order) ? [] : [`order: must be one of ${ORDER_LIST}.`]),
+    ...(window !== null && !ranked
+      ? ['window: only with a trending order.']
+      : []),
+    ...(window !== null && ranked && !Object.hasOwn(WINDOWS, window)
+      ? ['window: must be day, week or month.']
+      : []),
+    ...(q.length > MAX_QUERY_LENGTH ? ['q: too long.'] : []),
+    ...(q && ranked ? ['q: not with a trending order.'] : []),
+    ...(read !== null && !ranked ? ['read: only with a trending order.'] : []),
+    ...(read !== null && ranked && read !== 'false'
+      ? ['read: must be false.']
+      : []),
+    ...(sort !== null && !ranked ? ['sort: only with a trending order.'] : []),
+    ...(sort !== null && ranked && !sortOk
+      ? ['sort: must be newest or oldest.']
+      : []),
+    ...(rawFeed !== null && feed === undefined
+      ? ['feed_id: not a feed id.']
+      : []),
+    ...(feed !== undefined && ranked
+      ? ['feed_id: not with a trending order.']
+      : []),
+    ...(badCursor ? ['cursor: not a cursor of this list.'] : []),
+    ...(rawLimit !== null && !limitOk
+      ? [`limit: must be a whole number from 1 to ${MAX_LIMIT}.`]
+      : []),
+  ];
+  if (errors.length > 0) {
+    return { ok: false, errors };
   }
-  if (errors.length > 0) return { ok: false, errors };
   if (!ranked) {
     return {
       ok: true,

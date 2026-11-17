@@ -1,10 +1,10 @@
-import type { ArticleSummary } from '@/domain/repository';
-import type { River } from '@/domain/rivers';
 import {
   RiverPicker,
   UnpinRiverButton,
-  type RiverOption,
 } from '@/app/(site)/_components/river-controls';
+import type { RiverOption } from '@/app/(site)/_components/river-controls';
+import type { ArticleSummary } from '@/domain/repository';
+import type { River } from '@/domain/rivers';
 
 /** A pinned river with its name and newest stories. */
 export interface FilledRiver {

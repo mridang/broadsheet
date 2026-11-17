@@ -5,20 +5,21 @@
  * it, the arguments it accepts, and what it does when called.
  */
 
+import { z } from 'zod';
 import { articleResource } from '@/domain/api/article-resource';
-import type { ToolContext } from '@/domain/mcp/tool-context';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { rank } from '@/domain/render/tiers';
 import { Repository, sectionPath } from '@/domain/repository';
 import { todayEdition } from '@/domain/scraping/index';
-import { READS, type ToolAnnotations } from '@/lib/mcp';
-import { z } from 'zod';
+import { READS } from '@/lib/mcp';
+import type { ToolAnnotations } from '@/lib/mcp';
+import type { ToolContext } from '@/domain/mcp/tool-context';
 
 /** What `read_paper` accepts. */
 const SCHEMA = z.object({
   date: z
     .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .regex(/^\d{4}-\d{2}-\d{2}$/u)
     .optional()
     .describe('The edition, as YYYY-MM-DD. Leave out for the latest.'),
 });

@@ -65,7 +65,7 @@ describe('markManyRead', () => {
   it('sends nothing for no stories', () => {
     const fetch = spy();
     markManyRead([]);
-    expect(fetch).not.toHaveBeenCalled();
+    expect(fetch.mock.calls).toEqual([]);
   });
 });
 

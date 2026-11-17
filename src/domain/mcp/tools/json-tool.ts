@@ -10,22 +10,18 @@
  * becomes a refusal the assistant can act on rather than a protocol error.
  */
 
-import type { ToolContent, ToolContext } from '@/domain/mcp/tool-context';
 import { ToolFailureError } from '@/domain/mcp/tool-failure';
 import { checked } from '@/domain/mcp/tools/support';
-import { McpTool } from '@/lib/mcp';
-import {
-  dataResult,
-  errorResult,
-  type ToolResult,
-} from '@/domain/mcp/tool-results';
+import { McpTool, dataResult, errorResult } from '@/lib/mcp';
+import type { JsonContent, ToolResult } from '@/lib/mcp';
+import type { ToolContext } from '@/domain/mcp/tool-context';
 import type { z } from 'zod';
 
 /** A tool that answers with the facts it read. */
 export abstract class JsonTool<
   TName extends string,
   TInput extends z.ZodObject = z.ZodObject,
-> extends McpTool<TName, ToolContext, ToolContent, TInput> {
+> extends McpTool<TName, ToolContext, JsonContent, TInput> {
   /** Run the call and shape what it answered. */
   override async handle(
     args: z.infer<TInput>,
@@ -33,7 +29,7 @@ export abstract class JsonTool<
   ): Promise<ToolResult> {
     try {
       const data = await this.runParsed(args, context);
-      return dataResult(JSON.stringify(data), data as ToolContent);
+      return dataResult(JSON.stringify(data), data as JsonContent);
     } catch (error) {
       if (error instanceof ToolFailureError) {
         return errorResult(error.message);

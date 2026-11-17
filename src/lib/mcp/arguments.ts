@@ -12,15 +12,12 @@
  * as a refusal naming each problem.
  */
 
-import {
-  describeArguments,
-  isJsonObject,
-  validateJson,
-  type JsonSchema,
-} from './json-schema';
+import { describeArguments, isJsonObject, validateJson } from './json-schema';
 import { InvalidToolArgumentsError } from './tool-errors';
-import { errorResult, type ToolResult } from './results';
+import { errorResult } from './results';
 import { canonicalArguments } from './tool-args';
+import type { ToolResult } from './results';
+import type { JsonSchema } from './json-schema';
 import type { AnyMcpTool, ToolArgs } from './tool';
 
 /** Arguments that fit the schema, or the refusal to answer with instead. */

@@ -7,9 +7,9 @@ import {
 } from '@/app/(site)/discover/_components/discover-tabs';
 import { html } from '../../../../components/render';
 
-const MARKS_ONLY_THE_CURRENT_PATTERN = /aria-current="page"/g;
+const MARKS_ONLY_THE_CURRENT_PATTERN = /aria-current="page"/gu;
 const MARKS_ONLY_THE_CURRENT_PATTERN_2 =
-  /aria-current="page"[^>]*href="\/discover\?tab=podcasts"/;
+  /aria-current="page"[^>]*href="\/discover\?tab=podcasts"/u;
 
 describe('tabOf', () => {
   it.each(TABS.map(([id]) => id))('reads the %s tab', (id) => {
@@ -28,12 +28,14 @@ describe('DiscoverTabs', () => {
   const out = html(<DiscoverTabs current="podcasts" />);
 
   it('links each tab to its own address', () => {
-    for (const [id, label] of TABS)
+    for (const [id, label] of TABS) {
       expect(out).toMatch(
         new RegExp(
           String.raw`<a[^>]*href="/discover\?tab=${id}"[^>]*>${label}</a>`,
+          'u',
         ),
       );
+    }
   });
 
   it('marks only the current tab', () => {

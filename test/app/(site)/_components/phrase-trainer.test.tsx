@@ -11,15 +11,17 @@ describe('PhraseTrainer', () => {
   });
 
   it('offers every kind a phrase can match, Ask AI included', () => {
-    for (const kind of ['title', 'text', 'url', 'author', 'prompt'])
+    for (const kind of ['title', 'text', 'url', 'author', 'prompt']) {
       expect(out).toContain(`value="${kind}"`);
+    }
   });
 
   it('offers a regular expression and three scores', () => {
     expect(out).toContain('Regex');
-    for (const label of ['👍', '👎', '🚫'])
+    for (const label of ['👍', '👎', '🚫']) {
       expect(out).toMatch(
-        new RegExp(`<button type="button"[^>]*>${label}</button>`),
+        new RegExp(`<button type="button"[^>]*>${label}</button>`, 'u'),
       );
+    }
   });
 });

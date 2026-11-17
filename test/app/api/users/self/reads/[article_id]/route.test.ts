@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from '@jest/globals';
 
-import { createDatabase, type Database } from '@/domain/db/client';
+import { createDatabase } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
 import { SESSION_COOKIE } from '@/domain/auth/app';
 import { APP_MIGRATIONS } from '../../../../../../lib/core/db/migrations';
@@ -12,6 +12,7 @@ import {
   SESSION_SECRET,
   tokenFor,
 } from '../../../../../../domain/auth/auth-test-kit';
+import type { Database } from '@/domain/db/client';
 
 const { POST, PATCH, DELETE } =
   await import('@/app/api/users/self/reads/[article_id]/route');
@@ -19,7 +20,11 @@ const { POST, PATCH, DELETE } =
 let restore: () => void;
 let db: Database;
 let story: number;
-let auth: Record<string, string>;
+/** The Cookie header of the signed-in caller; empty for a signed-out one. */
+interface CallerCookie {
+  [name: string]: string;
+}
+let auth: CallerCookie;
 
 async function cookieFor(uid: number): Promise<Record<string, string>> {
   return {
@@ -72,7 +77,7 @@ describe('POST /api/users/self/reads/:article_id', () => {
     const res = await read(story);
     expect(res.status).toBe(201);
     expect(res.headers.get('location')).toMatch(
-      new RegExp(`/api/users/self/reads/${story}$`),
+      new RegExp(`/api/users/self/reads/${story}$`, 'u'),
     );
   });
 

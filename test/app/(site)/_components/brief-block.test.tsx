@@ -1,8 +1,8 @@
 import { describe, expect, it } from '@jest/globals';
 
 import { BriefBlock } from '@/app/(site)/_components/brief-block';
-import type { Article } from '@/domain/repository';
 import { html } from '../../../components/render';
+import type { Article } from '@/domain/repository';
 
 describe('BriefBlock', () => {
   it('lists each story with its source, and prints each address', () => {

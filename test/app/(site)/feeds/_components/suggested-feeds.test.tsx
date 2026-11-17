@@ -3,8 +3,8 @@ import { describe, expect, it } from '@jest/globals';
 import { SuggestedFeeds } from '@/app/(site)/feeds/_components/suggested-feeds';
 import { html } from '../../../../components/render';
 
-const LISTS_EACH_SUGGESTION_WITH_PATTERN = /<strong[^>]*>A<\/strong>/;
-const NAMES_A_SOURCE_WITH_PATTERN = /<strong[^>]*>a\.test<\/strong>/;
+const LISTS_EACH_SUGGESTION_WITH_PATTERN = /<strong[^>]*>A<\/strong>/u;
+const NAMES_A_SOURCE_WITH_PATTERN = /<strong[^>]*>a\.test<\/strong>/u;
 
 describe('SuggestedFeeds', () => {
   it('lists each suggestion with a Follow button', () => {

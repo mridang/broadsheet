@@ -6,7 +6,7 @@ import { html } from '../render';
 describe('Toast', () => {
   it('is a polite live region that is there before any message', () => {
     const out = html(<Toast />);
-    expect(out).toContain('role="status"');
+    expect(out).toContain('<output');
     expect(out).toContain('aria-live="polite"');
   });
 

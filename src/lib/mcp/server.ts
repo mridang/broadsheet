@@ -25,8 +25,8 @@ import {
   isNotification,
   isPlainObject,
   replyIdOf,
-  type ReplyId,
 } from '@/lib/mcp/protocol';
+import type { ReplyId } from '@/lib/mcp/protocol';
 
 /** A JSON-RPC 2.0 request/notification, as received (clients may leave any member out). */
 export interface JsonRpcMessage {
@@ -53,6 +53,7 @@ export type JsonRpcResponse =
     };
 
 /** A successful reply. */
+// eslint-disable-next-line tslop/no-object-parameters -- a result is any JSON object, and the public method type says so
 function succeeded(id: ReplyId, result: object): JsonRpcResponse {
   return { jsonrpc: '2.0', id, result };
 }
@@ -88,6 +89,7 @@ export interface McpMethod<Ctx> {
     ctx: Ctx,
   ) => object | Promise<object>;
   /** Caching hints for the result (fixed, or chosen from the result). */
+  // eslint-disable-next-line tslop/no-object-parameters -- a result is any JSON object, and the public method type says so
   readonly cache?: CacheHint | ((result: object) => CacheHint);
   /** The method belongs to the newest revision only (and so always gets its result fields). */
   readonly modernOnly?: true;
@@ -107,7 +109,7 @@ export interface McpServerOptions {
  * batching, CORS) is the caller's.
  */
 export class McpServer<Ctx> {
-  readonly #methods = new Map<string, McpMethod<Ctx>>();
+  #methods = new Map<string, McpMethod<Ctx>>();
   readonly #serverInfo: object;
   readonly #metaKey: string;
 
@@ -118,11 +120,12 @@ export class McpServer<Ctx> {
 
   /** Register a method the server answers. */
   register(method: string, handler: McpMethod<Ctx>): this {
-    this.#methods.set(method, handler);
+    this.#methods = new Map([...this.#methods, [method, handler]]);
     return this;
   }
 
   /** The `_meta` of a result, when it has one. */
+  // eslint-disable-next-line tslop/no-object-parameters -- a result is any JSON object, and the public method type says so
   #metaOf(result: object): Readonly<Record<string, unknown>> {
     return '_meta' in result && isPlainObject(result._meta) ? result._meta : {};
   }
@@ -133,7 +136,8 @@ export class McpServer<Ctx> {
    * (merged into any `_meta` the result already has). Older revisions get the
    * result as it is.
    */
-  #forModernClient(result: object, method: McpMethod<Ctx>): object {
+  // eslint-disable-next-line tslop/no-object-parameters -- a result is any JSON object, and the public method type says so
+  #forModernClient(result: object, method: McpMethod<Ctx>) {
     return {
       ...result,
       ...(typeof method.cache === 'function'

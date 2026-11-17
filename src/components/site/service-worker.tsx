@@ -42,7 +42,9 @@ export function applicationServerKey(
 
 /** Throw when a response is not a success, so the caller shows the failure. */
 async function expectOk(response: Response, what: string): Promise<Response> {
-  if (!response.ok) throw new Error(`${what} failed (${response.status})`);
+  if (!response.ok) {
+    throw new Error(`${what} failed (${response.status})`);
+  }
   return response;
 }
 
@@ -86,8 +88,9 @@ export async function unsubscribeFromPush(
   const response = await environment.fetch(`${PUSH_SUBSCRIPTIONS_PATH}/${id}`, {
     method: 'DELETE',
   });
-  if (response.status !== 404)
+  if (response.status !== 404) {
     await expectOk(response, 'Removing the push subscription');
+  }
   const subscription = await environment.pushManager.getSubscription();
   await subscription?.unsubscribe();
 }
@@ -96,7 +99,10 @@ export async function unsubscribeFromPush(
 export interface WorkerEnvironment {
   readonly production: boolean;
   readonly serviceWorker?: Readonly<{
-    register: (script: string, options: { scope: string }) => Promise<unknown>;
+    register: (
+      script: string,
+      options: { scope: string },
+    ) => Promise<ServiceWorkerRegistration | undefined>;
   }>;
   readonly readyState: DocumentReadyState;
   readonly onLoad: (listener: () => void) => () => void;

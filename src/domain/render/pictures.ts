@@ -8,7 +8,7 @@
  */
 
 import { imageSrc, isProxyableUrl } from '@/lib/cloudflare/images';
-import type { ImageSigner } from '@/lib/cloudflare/images/server';
+import type { ImageSigner } from '@/lib/cloudflare/images/signer';
 
 /**
  * The address to show the picture at `src` at, about `width` pixels wide, or

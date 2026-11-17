@@ -7,7 +7,7 @@ import {
   jest,
 } from '@jest/globals';
 
-import { createDatabase, type Database } from '@/domain/db/client';
+import { createDatabase } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
 import { SESSION_COOKIE } from '@/domain/auth/app';
 import { APP_MIGRATIONS } from '../../../../../lib/core/db/migrations';
@@ -19,6 +19,7 @@ import {
   SESSION_SECRET,
   tokenFor,
 } from '../../../../../domain/auth/auth-test-kit';
+import type { Database } from '@/domain/db/client';
 
 /** What the next refresh does: the source it is for, and how it went. */
 let works = true;
@@ -29,6 +30,7 @@ const refreshSource = jest.fn(
     return { ok: works, n: 0 };
   },
 );
+// eslint-disable-next-line tslop/no-module-mocking -- the route imports the scraper directly, so the test replaces that module; injecting it would change the route's public API
 jest.unstable_mockModule('@/domain/scraping/index', () => ({
   refreshSource,
   discoverFeed: async (url: string) => url,
@@ -40,7 +42,11 @@ let restore: () => void;
 let repo: Repository;
 let mine: number;
 let sourceId: number;
-let auth: Record<string, string>;
+/** The Cookie header of the signed-in caller; empty for a signed-out one. */
+interface CallerCookie {
+  [name: string]: string;
+}
+let auth: CallerCookie;
 
 beforeEach(async () => {
   works = true;
@@ -56,7 +62,9 @@ beforeEach(async () => {
   const feed = (await repo.addFeed(7, 'https://a.test/feed.xml'))!;
   mine = feed.id;
   sourceId = feed.source_id;
-  for (let n = 0; n < 4; n += 1) await repo.recordFetch(sourceId, 'timeout');
+  for (let n = 0; n < 4; n += 1) {
+    await repo.recordFetch(sourceId, 'timeout');
+  }
   auth = {
     cookie: `${SESSION_COOKIE}=${await tokenFor({ id: 7 }, { ep: 0 })}`,
   };

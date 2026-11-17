@@ -1,11 +1,10 @@
 'use client';
 
-import type { ReactElement } from 'react';
-
 import { followFeed } from '@/app/(site)/feeds/_components/feed-requests';
 import { useFeedAction } from '@/app/(site)/feeds/_components/use-feed-action';
 import { buttonClass } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/notice';
+import type { ReactElement } from 'react';
 
 /**
  * "Follow" on a feed found by Discover: follows it (`POST /api/feeds`) and
@@ -26,9 +25,9 @@ export function FollowButton({
           size: 'sm',
         })}
         disabled={busy || followed}
-        onClick={() =>
-          void run(async () => followFeed(url), 'Could not follow that feed.')
-        }
+        onClick={() => {
+          void run(async () => followFeed(url), 'Could not follow that feed.');
+        }}
       >
         {followed ? 'Following' : 'Follow'}
       </button>

@@ -1,17 +1,17 @@
 import { describe, expect, it } from '@jest/globals';
 
 import { FeedSummary } from '@/components/feeds/feed-summary';
-import type { Feed } from '@/domain/repository';
 import { html } from '../render';
+import type { Feed } from '@/domain/repository';
 
-const SHOWS_THE_NAME_FORMAT_PATTERN = /<h1[^>]*>Shopify Engineering<\/h1>/;
-const SHOWS_THE_NAME_FORMAT_PATTERN_2 = /<span[^>]*>Atom<\/span>/;
+const SHOWS_THE_NAME_FORMAT_PATTERN = /<h1[^>]*>Shopify Engineering<\/h1>/u;
+const SHOWS_THE_NAME_FORMAT_PATTERN_2 = /<span[^>]*>Atom<\/span>/u;
 const SHOWS_EVERY_DECLARED_FACT_PATTERN =
-  /<dt[^>]*>Generator<\/dt><dd[^>]*>WordPress<\/dd>/;
+  /<dt[^>]*>Generator<\/dt><dd[^>]*>WordPress<\/dd>/u;
 const SHOWS_EVERY_DECLARED_FACT_PATTERN_2 =
-  /<img src="\/img\?url=https%3A%2F%2Fexample\.com%2Fi\.png[^"]*" alt="The Blog"/;
-const SAYS_A_FEED_THAT_PATTERN = /<strong[^>]*>a\.test<\/strong>/;
-const SAYS_A_FEED_THAT_PATTERN_2 = />(Atom|RSS|JSON)[^<]*<\/span>/;
+  /<img src="\/img\?url=https%3A%2F%2Fexample\.com%2Fi\.png[^"]*" alt="The Blog"/u;
+const SAYS_A_FEED_THAT_PATTERN = /<strong[^>]*>a\.test<\/strong>/u;
+const SAYS_A_FEED_THAT_PATTERN_2 = />(Atom|RSS|JSON)[^<]*<\/span>/u;
 
 const feed = (over: Partial<Feed> = {}): Feed => ({
   id: 1,

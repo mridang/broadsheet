@@ -1,5 +1,3 @@
-import type { ReactElement } from 'react';
-
 import { feedResource } from '@/domain/api/feed-resource';
 import {
   formatName,
@@ -9,11 +7,12 @@ import {
 } from '@/domain/render/feed-details';
 import { pictureSrc } from '@/domain/render/pictures';
 import { hostOf } from '@/domain/render/tiers';
-import type { Feed } from '@/domain/repository';
-import { imageSigner } from '@/lib/cloudflare/images/server';
+import { imageSigner } from '@/lib/cloudflare/images/runtime';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/components/ui/cn';
 import { formatTimestamp, storedDate } from '@/lib/intl';
+import type { Feed } from '@/domain/repository';
+import type { ReactElement } from 'react';
 
 /** A stored timestamp as a short date and time, or the text unchanged. */
 function when(stored: string): string {

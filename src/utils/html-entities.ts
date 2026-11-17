@@ -1,31 +1,31 @@
 /** Named references feeds use for punctuation; numeric ones are decoded for any code point. */
-const NAMED: Readonly<Record<string, string>> = {
-  amp: '&',
-  lt: '<',
-  gt: '>',
-  quot: '"',
-  apos: "'",
-  nbsp: ' ',
-  ndash: '–',
-  mdash: '—',
-  hellip: '…',
-  lsquo: '‘',
-  rsquo: '’',
-  ldquo: '“',
-  rdquo: '”',
-  bull: '\u2022',
-  middot: '\u00B7',
-  laquo: '\u00AB',
-  raquo: '\u00BB',
-  copy: '\u00A9',
-  reg: '\u00AE',
-  trade: '\u2122',
-  times: '\u00D7',
-  deg: '\u00B0',
-  euro: '\u20AC',
-  larr: '\u2190',
-  rarr: '\u2192',
-};
+const NAMED = new Map([
+  ['amp', '&'],
+  ['lt', '<'],
+  ['gt', '>'],
+  ['quot', '"'],
+  ['apos', "'"],
+  ['nbsp', ' '],
+  ['ndash', '–'],
+  ['mdash', '—'],
+  ['hellip', '…'],
+  ['lsquo', '‘'],
+  ['rsquo', '’'],
+  ['ldquo', '“'],
+  ['rdquo', '”'],
+  ['bull', '\u2022'],
+  ['middot', '\u00B7'],
+  ['laquo', '\u00AB'],
+  ['raquo', '\u00BB'],
+  ['copy', '\u00A9'],
+  ['reg', '\u00AE'],
+  ['trade', '\u2122'],
+  ['times', '\u00D7'],
+  ['deg', '\u00B0'],
+  ['euro', '\u20AC'],
+  ['larr', '\u2190'],
+  ['rarr', '\u2192'],
+]);
 
 /**
  * Decode character references in one pass: numeric (`&#8211;`, `&#x2013;`)
@@ -35,9 +35,11 @@ const NAMED: Readonly<Record<string, string>> = {
  */
 export function decodeEntities(s: string): string {
   return s.replaceAll(
-    /&(?:#(\d+)|#x([0-9a-f]+)|([a-z]+));/gi,
+    /&(?:#(\d+)|#x([0-9a-f]+)|([a-z]+));/giu,
     (whole, dec?: string, hex?: string, name?: string) => {
-      if (name) return NAMED[name.toLowerCase()] ?? whole;
+      if (name) {
+        return NAMED.get(name.toLowerCase()) ?? whole;
+      }
       const n =
         dec === undefined ? Number.parseInt(hex ?? '', 16) : Number(dec);
 

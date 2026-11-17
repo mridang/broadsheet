@@ -1,16 +1,17 @@
 import { describe, expect, it, jest } from '@jest/globals';
 
 import { createDatabase } from '@/domain/db/client';
+import { APP_MIGRATIONS } from '../../lib/core/db/migrations';
+import { sqliteD1 } from '../../lib/core/db/sqlite-d1';
 import type { McpAuth } from '@/domain/mcp/auth';
 import type { User } from '@/domain/db/users';
 import type { RateLimitDeps } from '@/domain/mcp/request-limits';
 import type { RateLimitStore } from '@/lib/rate-limit';
-import { APP_MIGRATIONS } from '../../lib/core/db/migrations';
-import { sqliteD1 } from '../../lib/core/db/sqlite-d1';
 
 /** One empty database, which the tools reach for instead of Cloudflare's. */
 const db = createDatabase(sqliteD1(...APP_MIGRATIONS).d1);
 
+// eslint-disable-next-line tslop/no-module-mocking -- the MCP handler imports its tool services directly, so the test replaces that module; injecting it would change the handler's public API
 jest.unstable_mockModule('@/domain/mcp/tool-services', () => ({
   liveToolServices: { openDatabase: () => db, refresh: () => undefined },
   refresher: () => () => undefined,

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from '@jest/globals';
 
-import { createDatabase, type Database } from '@/domain/db/client';
+import { createDatabase } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
 import {
   frontPageRivers,
@@ -12,6 +12,7 @@ import {
 } from '@/domain/rivers';
 import { APP_MIGRATIONS } from '../lib/core/db/migrations';
 import { sqliteD1 } from '../lib/core/db/sqlite-d1';
+import type { Database } from '@/domain/db/client';
 
 const DAY = '2026-11-01';
 
@@ -188,9 +189,8 @@ describe('frontPageRivers', () => {
     const { rivers, options } = await frontPageRivers(db, uid);
     expect(rivers.map((r) => [r.label, r.stories.length])).toEqual([['R', 2]]);
     const choices = await riverChoices(db, uid);
-    expect(options.map((o) => o.river_id)).toEqual(
-      choices.map((o) => o.river_id),
-    );
-    expect(options.map((o) => o.river_id)).toContain('saves');
+    const optionIds = options.map((o) => o.river_id);
+    expect(optionIds).toEqual(choices.map((o) => o.river_id));
+    expect(optionIds).toContain('saves');
   });
 });

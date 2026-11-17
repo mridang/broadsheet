@@ -4,21 +4,25 @@ import { BRAND_URL, COLOR_SCHEME, INDEX_BY_DEFAULT } from '@/app/_brand';
 import manifest from '@/app/manifest';
 import { html } from '../components/render';
 
-const PUTS_THE_APP_S_NAME_PATTERN = /^%s · .+/;
+const PUTS_THE_APP_S_NAME_PATTERN = /^%s · .+/u;
 const IS_THE_DOCUMENT_ITS_PATTERN =
-  /<html lang="en" class="fonts-on-html" data-test="yes"/;
+  /<html lang="en" class="fonts-on-html" data-test="yes"/u;
 
 // The stylesheet, the fonts (which only work inside the Next compiler) and the
 // two scripts are not what is under test: the frame around the page is.
+// eslint-disable-next-line tslop/no-module-mocking -- the layout imports this module directly, so there is no seam to inject through
 jest.unstable_mockModule('@/app/globals.css', () => ({}));
+// eslint-disable-next-line tslop/no-module-mocking -- the layout imports this module directly, so there is no seam to inject through
 jest.unstable_mockModule('@/app/_fonts', () => ({
   HTML_CLASS: 'fonts-on-html',
   BODY_CLASS: 'classes-on-body',
   HTML_ATTRIBUTES: { 'data-test': 'yes' },
 }));
+// eslint-disable-next-line tslop/no-module-mocking -- the layout imports this module directly, so there is no seam to inject through
 jest.unstable_mockModule('@/components/site/service-worker', () => ({
   ServiceWorker: () => <i id="service-worker" />,
 }));
+// eslint-disable-next-line tslop/no-module-mocking -- the layout imports this module directly, so there is no seam to inject through
 jest.unstable_mockModule('@/components/site/theme-script', () => ({
   ThemeScript: () => <i id="theme-script" />,
 }));

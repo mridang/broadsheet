@@ -1,15 +1,17 @@
 import { beforeEach, describe, expect, it } from '@jest/globals';
 
-import { createDatabase, type Database } from '@/domain/db/client';
-import type { User } from '@/domain/db/users';
+import { createDatabase } from '@/domain/db/client';
+import { compareText } from '@/lib/intl';
 import { INSTRUCTIONS, SERVER_INFO } from '@/domain/mcp/server-info';
 import { handleMcpMessage, isAdvertisedTool } from '@/domain/mcp/server';
 import { TOOLS } from '@/domain/mcp/tool-definitions';
-import type { ToolServices } from '@/domain/mcp/tool-services';
 import { TOOL_REGISTRY } from '@/domain/mcp/tools';
 import { Repository } from '@/domain/repository';
 import { APP_MIGRATIONS } from '../../lib/core/db/migrations';
 import { sqliteD1 } from '../../lib/core/db/sqlite-d1';
+import type { ToolServices } from '@/domain/mcp/tool-services';
+import type { Database } from '@/domain/db/client';
+import type { User } from '@/domain/db/users';
 
 let db: Database;
 let services: ToolServices;
@@ -29,9 +31,6 @@ const call = async (method: string, params: Record<string, unknown> = {}) =>
     undefined,
     services,
   );
-
-/** Two names in alphabetical order. */
-const compareNames = (a: string, b: string) => a.localeCompare(b);
 
 /** The `result` of a reply, for a reply that has one. */
 const resultOf = async (
@@ -86,8 +85,8 @@ describe('tools/list', () => {
     const listed = (result['tools'] as { name: string }[]).map(
       (tool) => tool.name,
     );
-    expect(listed.toSorted(compareNames)).toEqual(
-      [...TOOL_REGISTRY.names].toSorted(compareNames),
+    expect(listed.toSorted(compareText)).toEqual(
+      [...TOOL_REGISTRY.names].toSorted(compareText),
     );
   });
 

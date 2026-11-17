@@ -1,13 +1,12 @@
-import type { ReactElement, ReactNode } from 'react';
-
 import { BRAND_NAME } from '@/app/_brand';
-import type { User } from '@/domain/repository';
 
 import { Wordmark } from '@/components/site/logo';
 import { SignOutButton } from '@/components/site/sign-out-button';
 import { ButtonLink, TextLink } from '@/components/ui/button';
 import { MENU_ITEM, Menu, MenuDivider } from '@/components/ui/menu';
 import { Icon } from '@/components/ui/icons';
+import type { User } from '@/domain/repository';
+import type { ReactElement, ReactNode } from 'react';
 
 /**
  * The bar across the top of every app page: the name (home to the paper), a
@@ -52,6 +51,7 @@ export function AppHeader({
             />
             <input
               name="q"
+              aria-label="Search the archive"
               type="search"
               maxLength={200}
               placeholder="Search stories"

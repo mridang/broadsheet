@@ -9,18 +9,12 @@
  */
 
 import {
-  type IssueView,
   issueResource,
   issueSummaryResource,
   parseIssueQuery,
   parseIssueRequest,
-  type IssueQuery,
 } from '@/domain/api/issue-resource';
-import {
-  liveUid,
-  requestCookieResolver,
-  type CurrentUserResolver,
-} from '@/domain/api/auth';
+import { liveUid, requestCookieResolver } from '@/domain/api/auth';
 import { idOf } from '@/domain/api/feeds';
 import {
   problems,
@@ -30,22 +24,22 @@ import {
   page,
   readJsonObject,
 } from '@/lib/core/api';
-import { Repository, type IssueListing } from '@/domain/repository';
+import { Repository } from '@/domain/repository';
 import { getDatabase } from '@/domain/db/client';
-import {
-  isIssueDate,
-  publishIssue,
-  storedIssue,
-  type Issue,
-} from '@/domain/issues';
+import { isIssueDate, publishIssue, storedIssue } from '@/domain/issues';
 import { getEnv } from '@/lib/core/runtime';
+import type { Issue } from '@/domain/issues';
+import type { IssueListing } from '@/domain/repository';
+import type { CurrentUserResolver } from '@/domain/api/auth';
+import type { IssueView, IssueQuery } from '@/domain/api/issue-resource';
 
 /** Lays out and stores one person's issue for a day, with its note. */
-export type Publisher = (userId: number, date: string) => Promise<unknown>;
+export type Publisher = (userId: number, date: string) => Promise<void>;
 
 /** The production publisher: Workers AI and D1 from the Worker's bindings. */
-const publishWithEnv: Publisher = async (userId, date) =>
-  publishIssue(getDatabase(), getEnv(), userId, date);
+const publishWithEnv: Publisher = async (userId, date) => {
+  await publishIssue(getDatabase(), getEnv(), userId, date);
+};
 
 /** What `uid` has done that marks an issue's copies. */
 async function viewFor(repo: Repository, uid: number): Promise<IssueView> {
@@ -87,7 +81,9 @@ export function createIssueItem(
       { request, uid },
     ): Promise<{ issue: Issue; view: IssueView } | undefined> => {
       const date = idOf(request);
-      if (!isIssueDate(date)) return undefined;
+      if (!isIssueDate(date)) {
+        return undefined;
+      }
       const repo = new Repository(getDatabase());
       const issue = await storedIssue(repo, uid, date);
       return issue ? { issue, view: await viewFor(repo, uid) } : undefined;
@@ -171,7 +167,9 @@ export function createIssuesCollection(
           request,
           'The request must be a JSON object.',
         );
-        if (!body.ok) throw body.response;
+        if (!body.ok) {
+          throw body.response;
+        }
         const input = parseIssueRequest(body.value);
         if (!input.ok) {
           throw problems.badRequest('The request is not valid.', input.errors);
@@ -193,7 +191,9 @@ export function createIssuesCollection(
         };
       },
       encode: ({ issue, replaced, view }) => {
-        if (!issue) return problems.notFound('edition');
+        if (!issue) {
+          return problems.notFound('edition');
+        }
         const at = `/api/editions/self/issues/${issue.date}`;
         return replaced
           ? ok(issueResource(issue, view), { location: at })

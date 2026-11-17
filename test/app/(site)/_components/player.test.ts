@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
 
+import { z } from 'zod';
 import {
   EMPTY,
   MAX_ITEMS,
@@ -16,7 +17,6 @@ import {
   toggleQueued,
   updatePlayer,
 } from '@/app/(site)/_components/player';
-import { z } from 'zod';
 
 const real = globalThis.fetch;
 afterEach(() => {
@@ -135,8 +135,9 @@ describe('the page’s player', () => {
     globalThis.fetch = fetch;
     await loadPlayer();
     jest.useFakeTimers();
-    updatePlayer((p) => ({ ...p, rate: 1 }));
+    updatePlayer((p) => ({ ...p, rate: 1.5 }));
     jest.runAllTimers();
+    expect(getPlayer().rate).toBe(1.5);
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 

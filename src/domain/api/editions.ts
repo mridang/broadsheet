@@ -7,11 +7,7 @@
  * person and answers 404 for an edition that is not theirs.
  */
 
-import {
-  liveUid,
-  requestCookieResolver,
-  type CurrentUserResolver,
-} from '@/domain/api/auth';
+import { liveUid, requestCookieResolver } from '@/domain/api/auth';
 import {
   editionResource,
   parseEditionInput,
@@ -27,13 +23,12 @@ import {
   created,
   noContent,
 } from '@/lib/core/api';
-import {
-  Repository,
-  type CustomEdition,
-  type EditionChanges,
-} from '@/domain/repository';
+import { Repository } from '@/domain/repository';
 import { getDatabase } from '@/domain/db/client';
-import { isIssueDate, storedEditionIssue, type Issue } from '@/domain/issues';
+import { isIssueDate, storedEditionIssue } from '@/domain/issues';
+import type { CustomEdition, EditionChanges } from '@/domain/repository';
+import type { CurrentUserResolver } from '@/domain/api/auth';
+import type { Issue } from '@/domain/issues';
 
 /** The signed-in caller's id and the request, for an edition endpoint. */
 interface UidContext {
@@ -66,7 +61,9 @@ async function checkSections(
   uid: number,
   changes: EditionChanges,
 ): Promise<void> {
-  if (!changes.section_ids?.length) return;
+  if (!changes.section_ids?.length) {
+    return;
+  }
   const sections = await repo.listSections(uid);
   const own = new Set(sections.map((s) => s.id));
   const foreign = changes.section_ids.filter((id) => !own.has(id));
@@ -141,9 +138,13 @@ export function createEditionItem(
         { request, uid },
       ): Promise<CustomEdition | undefined> => {
         const id = parseFeedId(idOf(request));
-        if (id === undefined) return undefined;
+        if (id === undefined) {
+          return undefined;
+        }
         const repo = new Repository(getDatabase());
-        if (!(await repo.getCustomEdition(uid, id))) return undefined;
+        if (!(await repo.getCustomEdition(uid, id))) {
+          return undefined;
+        }
         await checkSections(repo, uid, changes);
         return repo.updateCustomEdition(uid, id, changes);
       },
@@ -189,7 +190,9 @@ export function createEditionIssueItem(
     handle: async (_input, { request, uid }): Promise<Issue | undefined> => {
       const id = editionIdOf(request);
       const date = idOf(request);
-      if (id === undefined || !isIssueDate(date)) return undefined;
+      if (id === undefined || !isIssueDate(date)) {
+        return undefined;
+      }
       const repo = new Repository(getDatabase());
       return (await repo.getCustomEdition(uid, id))
         ? storedEditionIssue(repo, id, date)

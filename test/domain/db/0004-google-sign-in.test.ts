@@ -2,12 +2,11 @@ import path from 'node:path';
 import { readFile } from 'node:fs/promises';
 import { beforeEach, describe, expect, it } from '@jest/globals';
 
+import { sqliteD1 } from '../../lib/core/db/sqlite-d1';
 import type { DatabaseSync } from 'node:sqlite';
 
-import { sqliteD1 } from '../../lib/core/db/sqlite-d1';
-
-const KEEPS_THE_GOOGLE_ACCOUNT_PATTERN = /UNIQUE/;
-const KEEPS_THE_GOOGLE_ACCOUNT_PATTERN_2 = /NOT NULL/;
+const KEEPS_THE_GOOGLE_ACCOUNT_PATTERN = /UNIQUE/u;
+const KEEPS_THE_GOOGLE_ACCOUNT_PATTERN_2 = /NOT NULL/u;
 
 let raw: DatabaseSync;
 
@@ -24,11 +23,15 @@ beforeEach(async () => {
   const feed = raw.prepare(
     'INSERT INTO feeds (id, user_id, url) VALUES (?, ?, ?)',
   );
-  for (const id of [1, 2, 3, 4]) feed.run(id, id, `https://f/${id}`);
+  for (const id of [1, 2, 3, 4]) {
+    feed.run(id, id, `https://f/${id}`);
+  }
   const article = raw.prepare(
     "INSERT INTO articles (feed_id, url, edition) VALUES (?, ?, '2026-10-20')",
   );
-  for (const id of [1, 2, 3, 4]) article.run(id, `https://x/${id}`);
+  for (const id of [1, 2, 3, 4]) {
+    article.run(id, `https://x/${id}`);
+  }
   raw.exec(
     await readFile(
       path.join(process.cwd(), 'migrations', '0004_google_sign_in.sql'),

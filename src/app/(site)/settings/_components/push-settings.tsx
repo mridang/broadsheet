@@ -1,16 +1,17 @@
 'use client';
 
-import { useEffect, useState, type ReactElement } from 'react';
+import { useEffect, useState } from 'react';
 
 import { useApiAction } from '@/components/api/use-api-action';
 import {
   subscribeToPush,
   unsubscribeFromPush,
-  type PushEnvironment,
 } from '@/components/site/service-worker';
 import { buttonClass } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ErrorText, Notice } from '@/components/ui/notice';
+import type { PushEnvironment } from '@/components/site/service-worker';
+import type { ReactElement } from 'react';
 
 /** Where this browser stands with pushes. */
 type PushState = 'unsupported' | 'loading' | 'off' | { readonly id: string };
@@ -88,7 +89,9 @@ export function PushSettings({
             size: 'sm',
           })}
           disabled={busy || state === 'loading'}
-          onClick={() => void toggle()}
+          onClick={() => {
+            void toggle();
+          }}
         >
           {on
             ? 'Stop notifying this browser'

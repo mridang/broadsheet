@@ -6,20 +6,17 @@
  * feeds. It shows only counts, never who.
  */
 
-import {
-  liveUid,
-  requestCookieResolver,
-  type CurrentUserResolver,
-} from '@/domain/api/auth';
+import { liveUid, requestCookieResolver } from '@/domain/api/auth';
 import { parseSourceQuery, sourceResource } from '@/domain/api/source-resource';
 import { problems, ApiController, page, parseLimit } from '@/lib/core/api';
 import { getDatabase } from '@/domain/db/client';
 import { rankedSourceResource } from '@/domain/api/discover';
-import {
-  Repository,
-  type RankedSource,
-  type SourceTrendingQuery,
-  type TrendingSource,
+import { Repository } from '@/domain/repository';
+import type { CurrentUserResolver } from '@/domain/api/auth';
+import type {
+  RankedSource,
+  SourceTrendingQuery,
+  TrendingSource,
 } from '@/domain/repository';
 
 /** A search of the sources anyone follows: its text and how many to list. */
@@ -36,14 +33,16 @@ interface SourceSearch {
 export function parseSourceSearch(
   params: URLSearchParams,
 ): { ok: true; search: SourceSearch } | { ok: false; errors: string[] } {
-  const errors = [...new Set(params.keys())]
-    .filter((key) => key !== 'q' && key !== 'limit')
-    .map((key) => `${key}: not a parameter of a search.`);
   const q = (params.get('q') ?? '').trim();
-  if (q.length < 2 || q.length > 200)
-    errors.push('q: from 2 to 200 characters.');
   const limit = parseLimit(params.get('limit'), 10);
-  if (limit instanceof Response) errors.push('limit: not a valid page size.');
+  const errors = [
+    ...new Set(params.keys())
+      .values()
+      .filter((key) => key !== 'q' && key !== 'limit')
+      .map((key) => `${key}: not a parameter of a search.`),
+    ...(q.length < 2 || q.length > 200 ? ['q: from 2 to 200 characters.'] : []),
+    ...(limit instanceof Response ? ['limit: not a valid page size.'] : []),
+  ];
   return errors.length > 0 || limit instanceof Response
     ? { ok: false, errors }
     : { ok: true, search: { q, limit } };

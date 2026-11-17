@@ -1,4 +1,5 @@
-import { Icon, type IconName } from '@/components/ui/icons';
+import { Icon } from '@/components/ui/icons';
+import type { IconName } from '@/components/ui/icons';
 import type { ReactElement, ReactNode } from 'react';
 
 /** A quiet message that stands where content would be: "nothing here yet". */

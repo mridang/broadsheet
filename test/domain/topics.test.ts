@@ -2,7 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 
 import { TOPICS, findTopic } from '@/domain/topics';
 
-const HAS_UNIQUE_IDS_AND_PATTERN = /^[a-z]+$/;
+const HAS_UNIQUE_IDS_AND_PATTERN = /^[a-z]+$/u;
 
 describe('TOPICS', () => {
   it('has unique ids and valid starter feeds', () => {

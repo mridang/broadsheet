@@ -1,5 +1,5 @@
-const BASE64_URL_PATTERN = /={1,2}$/;
-const FROM_BASE64_URL_PATTERN = /^[A-Za-z0-9_-]*={0,2}$/;
+const BASE64_URL_PATTERN = /\u003D{1,2}$/u;
+const FROM_BASE64_URL_PATTERN = /^[A-Za-z0-9_-]*={0,2}$/u;
 /**
  * @packageDocumentation
  *
@@ -10,9 +10,7 @@ const FROM_BASE64_URL_PATTERN = /^[A-Za-z0-9_-]*={0,2}$/;
 
 /** Bytes as unpadded base64url. */
 export function base64Url(bytes: Uint8Array): string {
-  let binary = '';
-  for (const byte of bytes) binary += String.fromCodePoint(byte);
-  return btoa(binary)
+  return btoa(Array.from(bytes, (byte) => String.fromCodePoint(byte)).join(''))
     .replaceAll('+', '-')
     .replaceAll('/', '_')
     .replace(BASE64_URL_PATTERN, '');
@@ -22,7 +20,9 @@ export function base64Url(bytes: Uint8Array): string {
 export function fromBase64Url(
   text: string,
 ): Uint8Array<ArrayBuffer> | undefined {
-  if (!FROM_BASE64_URL_PATTERN.test(text)) return undefined;
+  if (!FROM_BASE64_URL_PATTERN.test(text)) {
+    return undefined;
+  }
   const base64 = text
     .replace(BASE64_URL_PATTERN, '')
     .replaceAll('-', '+')

@@ -20,14 +20,18 @@ describe('operatorRefusal', () => {
 
   it('marks the invocation as the operator once authorised', async () => {
     operatorRefusal(request('Bearer shh'), { CRON_SECRET: 'shh' });
-    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise((resolve) => {
+      setImmediate(resolve);
+    });
     expect(tracing.attributes).toEqual({ 'auth.method': 'operator' });
   });
 
   it('does not mark a refused caller', async () => {
     jest.spyOn(console, 'error').mockImplementation(() => undefined);
     operatorRefusal(request('Bearer nope'), { CRON_SECRET: 'shh' });
-    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise((resolve) => {
+      setImmediate(resolve);
+    });
     expect(tracing.attributes).toEqual({});
   });
 

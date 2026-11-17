@@ -4,6 +4,7 @@ import type { User } from '@/domain/repository';
 
 const seedDefaults = jest.fn<(userId: number) => Promise<void>>();
 
+// eslint-disable-next-line tslop/no-module-mocking -- the module reads the runtime (cookies or the Cloudflare context), which a test cannot supply, so the test replaces it before importing the code under test
 jest.unstable_mockModule('@/domain/account', () => ({ seedDefaults }));
 
 const { OTHER_FLOWS, afterSignIn } = await import('@/domain/auth/hooks');

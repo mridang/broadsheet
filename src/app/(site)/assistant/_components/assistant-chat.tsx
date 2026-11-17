@@ -1,14 +1,14 @@
 'use client';
 
+import { useState } from 'react';
+import { z } from 'zod';
 import { Chip } from '@/components/ui/badge';
 import { TextLink, buttonClass } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useState, type SubmitEvent, type ReactElement } from 'react';
 
 import {
   sendMessage,
   startConversation,
-  type Turn,
 } from '@/app/(site)/assistant/_components/assistant-requests';
 import { useApiAction } from '@/components/api/use-api-action';
 import { Markdown } from '@/components/site/markdown';
@@ -16,7 +16,8 @@ import { MAX_QUESTION_LENGTH } from '@/domain/assistant';
 import { CARD } from '@/components/ui/field';
 import { ErrorText } from '@/components/ui/notice';
 import { cn } from '@/components/ui/cn';
-import { z } from 'zod';
+import type { Turn } from '@/app/(site)/assistant/_components/assistant-requests';
+import type { SubmitEvent, ReactElement } from 'react';
 
 /** The one field the message form posts. */
 const messageForm = z.object({ content: z.string().default('') });
@@ -55,6 +56,9 @@ function TurnView({ turn }: Readonly<{ turn: Turn }>): ReactElement {
   );
 }
 
+const NO_TURNS: readonly Turn[] = [];
+const NO_SUGGESTIONS: readonly string[] = [];
+
 /**
  * A conversation with the archive assistant. The conversation is started on
  * the first question (or reopened with its turns); each answer cites the
@@ -62,8 +66,8 @@ function TurnView({ turn }: Readonly<{ turn: Turn }>): ReactElement {
  */
 export function AssistantChat({
   conversationId,
-  initialTurns = [],
-  suggestions = [],
+  initialTurns = NO_TURNS,
+  suggestions = NO_SUGGESTIONS,
 }: Readonly<{
   conversationId?: string;
   initialTurns?: readonly Turn[];
@@ -93,7 +97,9 @@ export function AssistantChat({
     const content = messageForm
       .parse(Object.fromEntries(new FormData(form)))
       .content.trim();
-    if (content) send(content, form);
+    if (content) {
+      send(content, form);
+    }
   };
   return (
     <>

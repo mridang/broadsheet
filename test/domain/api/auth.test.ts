@@ -1,13 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from '@jest/globals';
 
-import type { DatabaseSync } from 'node:sqlite';
-
-import {
-  requireLiveUid,
-  requireUid,
-  requireUser,
-  type Auth,
-} from '@/domain/api/auth';
+import { requireLiveUid, requireUid, requireUser } from '@/domain/api/auth';
 import { SESSION_COOKIE } from '@/domain/auth/app';
 import { APP_MIGRATIONS } from '../../lib/core/db/migrations';
 import {
@@ -15,6 +8,8 @@ import {
   sqliteD1,
 } from '../../lib/core/db/sqlite-d1';
 import { SESSION_SECRET, tokenFor } from '../auth/auth-test-kit';
+import type { Auth } from '@/domain/api/auth';
+import type { DatabaseSync } from 'node:sqlite';
 
 const ORIGIN = 'https://app.test';
 

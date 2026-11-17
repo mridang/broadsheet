@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
 
-import { GoogleOAuthClient, SIGN_IN_SCOPES } from '@/lib/google';
 import { z } from 'zod';
+import { GoogleOAuthClient, SIGN_IN_SCOPES } from '@/lib/google';
 
-const REPORTS_GOOGLE_S_ANSWER_WHEN_PATTERN = /invalid_grant/;
-const REFUSES_A_TOKEN_EXCHANGE_PATTERN = /clientSecret is required/;
+const REPORTS_GOOGLE_S_ANSWER_WHEN_PATTERN = /invalid_grant/u;
+const REFUSES_A_TOKEN_EXCHANGE_PATTERN = /clientSecret is required/u;
 
 const client = new GoogleOAuthClient({
   clientId: 'client-id',

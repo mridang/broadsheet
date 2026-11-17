@@ -1,10 +1,9 @@
 'use client';
 
-import type { ReactElement } from 'react';
-
 import { useApiAction } from '@/components/api/use-api-action';
 import { Button } from '@/components/ui/button';
 import { markFeedRead } from '@/app/(site)/_components/story-requests';
+import type { ReactElement } from 'react';
 
 /** Marks every unread story of one feed read, then reloads the paper. */
 export function MarkFeedReadButton({
@@ -17,12 +16,12 @@ export function MarkFeedReadButton({
         variant="ghost"
         size="sm"
         disabled={action.busy}
-        onClick={() =>
+        onClick={() => {
           void action.run(
             async () => markFeedRead(feedId),
             'Could not mark read.',
-          )
-        }
+          );
+        }}
       >
         Mark read
       </Button>

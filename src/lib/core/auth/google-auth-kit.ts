@@ -16,21 +16,22 @@
  * ```
  */
 
-import { NextResponse, type NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 
 import { GoogleOAuthClient } from '@/lib/google/auth';
-import type { GoogleUserResponse } from '@/lib/google/auth';
 // eslint-disable-next-line unicorn/no-keyword-prefix -- newState is an exported name of the module's public surface, so it is not renamed
 import { checkState, newState, safeReturnPath } from '@/lib/web-security';
-import { finishFlow, startFlowCookies } from './flow-cookies';
-import { getCurrentUser } from './current-user';
-import type { FlowContext, OtherFlow } from '@/domain/auth/sign-in';
-import type { User } from '@/domain/auth/store';
 import { problem } from '@/lib/core/api';
 import { setErrorContext } from '@/lib/core/observability/context';
 import { getEnv } from '@/lib/core/runtime';
 import { appOrigin } from '@/lib/core/origin';
 import { logError, logWarn } from '@/utils/logging';
+import { getCurrentUser } from './current-user';
+import { finishFlow, startFlowCookies } from './flow-cookies';
+import type { User } from '@/domain/repository';
+import type { FlowContext, OtherFlow } from '@/domain/auth/sign-in';
+import type { NextRequest } from 'next/server';
+import type { GoogleUserResponse } from '@/lib/google/auth';
 
 /**
  * Why a round trip failed, as shown next to an error in Workers Issues. A fixed
@@ -207,6 +208,7 @@ export class GoogleAuthKit {
           request.cookies.get(this.#config.returnCookie)?.value,
         ),
       };
+      // eslint-disable-next-line functional/no-let -- the catch block reports the last step reached
       let step: CallbackStep = 'exchange';
       try {
         await setErrorContext({ 'auth.step': step });

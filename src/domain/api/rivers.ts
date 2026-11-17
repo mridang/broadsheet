@@ -8,11 +8,7 @@
  * editions.
  */
 
-import {
-  liveUid,
-  requestCookieResolver,
-  type CurrentUserResolver,
-} from '@/domain/api/auth';
+import { liveUid, requestCookieResolver } from '@/domain/api/auth';
 import { parseFeedId } from '@/domain/api/feed-resource';
 import { idOf } from '@/domain/api/feeds';
 import {
@@ -29,14 +25,11 @@ import {
   noContent,
   page,
 } from '@/lib/core/api';
-import { getDatabase, type Database } from '@/domain/db/client';
-import {
-  ownsTarget,
-  parseRiverId,
-  RiverRepository,
-  type River,
-  type RiverInput,
-} from '@/domain/rivers';
+import { getDatabase } from '@/domain/db/client';
+import { ownsTarget, parseRiverId, RiverRepository } from '@/domain/rivers';
+import type { Database } from '@/domain/db/client';
+import type { CurrentUserResolver } from '@/domain/api/auth';
+import type { River, RiverInput } from '@/domain/rivers';
 
 /** The signed-in caller's id and the request, for a river endpoint. */
 interface UidContext {
@@ -52,7 +45,9 @@ async function bodyOf(
     request,
     'The river must be a JSON object.',
   );
-  if (!body.ok) throw body.response;
+  if (!body.ok) {
+    throw body.response;
+  }
   return body.value;
 }
 
@@ -62,12 +57,14 @@ async function checkOwned(
   uid: number,
   list: readonly RiverInput[],
 ): Promise<void> {
-  const errors: string[] = [];
-  for (const river of list) {
-    if (!(await ownsTarget(db, uid, parseRiverId(river.river_id)!))) {
-      errors.push(`river_id: no such ${river.river_id}.`);
-    }
-  }
+  const owned = await Promise.all(
+    list.map(async (river) =>
+      ownsTarget(db, uid, parseRiverId(river.river_id)!),
+    ),
+  );
+  const errors = list.flatMap((river, index) =>
+    owned[index] ? [] : [`river_id: no such ${river.river_id}.`],
+  );
   if (errors.length > 0) {
     throw problems.badRequest('The river is not valid.', errors);
   }

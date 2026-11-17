@@ -1,11 +1,11 @@
-import {
-  MAX_LIVE_GRANTS_PER_APP,
-  type CodeRecord,
-  type GrantRecord,
-  type OAuthClient,
-  type OAuthStore,
-  type TokenRecord,
-  type TokenRow,
+import { MAX_LIVE_GRANTS_PER_APP } from '@/lib/oauth';
+import type {
+  CodeRecord,
+  GrantRecord,
+  OAuthClient,
+  OAuthStore,
+  TokenRecord,
+  TokenRow,
 } from '@/lib/oauth';
 
 /** A token as the memory store keeps it. */

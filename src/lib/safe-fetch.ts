@@ -20,8 +20,8 @@
 
 import { parseUrl } from '@/utils/url';
 
-const IS_PUBLIC_WEB_URL_PATTERN = /\.$/;
-const IS_PUBLIC_WEB_URL_PATTERN_2 = /^[\d.]+$/;
+const IS_PUBLIC_WEB_URL_PATTERN = /\.$/u;
+const IS_PUBLIC_WEB_URL_PATTERN_2 = /^[\d.]+$/u;
 
 /**
  * Who we say we are when the caller names nobody. A caller passes its own
@@ -35,7 +35,7 @@ const MAX_URL_LENGTH = 2048;
 
 /** Name endings that are not on the public web (private networks, reserved names). */
 const NOT_PUBLIC =
-  /\.(local|localhost|localdomain|internal|intranet|private|lan|home|corp|test|invalid|example|arpa)$/;
+  /\.(local|localhost|localdomain|internal|intranet|private|lan|home|corp|test|invalid|example|arpa)$/u;
 
 /**
  * Whether an address is a public web address we are willing to fetch: http or

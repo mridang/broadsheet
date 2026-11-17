@@ -1,4 +1,3 @@
-import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 
 import { getCurrentUser } from '@/lib/core/auth';
@@ -31,6 +30,7 @@ import { TrendingFeeds } from '@/app/(site)/feeds/_components/trending-feeds';
 import { feedVerdictCounts } from '@/domain/classifier-counts';
 import { parseSourceQuery } from '@/domain/api/source-resource';
 import { RemoveSectionButton } from '@/app/(site)/feeds/_components/remove-section-button';
+import type { Metadata } from 'next';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,7 +51,9 @@ export default async function FeedsPage({
 }>) {
   const imported = await searchParams;
   const user = await getCurrentUser();
-  if (!user) redirect('/login');
+  if (!user) {
+    redirect('/login');
+  }
   const repo = new Repository(getDatabase());
   const [feeds, sections, suggestions] = await Promise.all([
     repo.listFeeds(user.id),
@@ -124,11 +126,11 @@ export default async function FeedsPage({
           <ImportFeedsForm />
         </div>
         {imported.added === undefined ? null : (
-          <p role="status" className="mt-3 text-sm text-muted">
+          <output className="mt-3 block text-sm text-muted">
             Imported {Number(imported.added) || 0} feeds, skipped{' '}
             {Number(imported.skipped) || 0} already followed and rejected{' '}
             {Number(imported.rejected) || 0}.
-          </p>
+          </output>
         )}
       </div>
       {feeds.length > 0 ? (

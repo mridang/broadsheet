@@ -9,7 +9,6 @@
 
 import { and, desc, eq, gt, sql } from 'drizzle-orm';
 
-import type { Database } from '@/domain/db/client';
 import {
   articles,
   feedNotifications,
@@ -22,6 +21,7 @@ import {
   userActivity,
 } from '@/domain/db/schema';
 import { notMuted } from '@/domain/repository';
+import type { Database } from '@/domain/db/client';
 
 /** How a feed may notify: a web push, an email, or a webhook `story` event. */
 export const NOTIFICATION_CHANNELS = ['web', 'email', 'webhook'] as const;
@@ -173,7 +173,9 @@ export class NotificationRepository {
         and(eq(subscriptions.id, feedId), eq(subscriptions.user_id, userId)),
       )
       .limit(1);
-    if (!feed) return undefined;
+    if (!feed) {
+      return undefined;
+    }
     const [before] = await this.#db
       .select({ id: feedNotifications.subscription_id })
       .from(feedNotifications)
@@ -379,7 +381,9 @@ export class NotificationRepository {
           ),
         )
         .limit(1);
-      if (!feed) return undefined;
+      if (!feed) {
+        return undefined;
+      }
     }
     if (input.section_id !== undefined) {
       const [section] = await this.#db
@@ -389,7 +393,9 @@ export class NotificationRepository {
           and(eq(sections.id, input.section_id), eq(sections.user_id, userId)),
         )
         .limit(1);
-      if (!section) return undefined;
+      if (!section) {
+        return undefined;
+      }
     }
     const [row] = await this.#db
       .insert(notificationRules)

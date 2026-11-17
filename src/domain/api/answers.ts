@@ -15,18 +15,11 @@ import {
   modelFor,
   streamAnswer,
   withoutThinking,
-  type AnswerModelName,
   parseAnswerRequest,
   parseQuestion,
-  type AnswerModel,
-  type AnswerRequest,
 } from '@/domain/assistant';
 import { budget, overBudget } from '@/domain/api/usage';
-import {
-  liveUid,
-  requestCookieResolver,
-  type CurrentUserResolver,
-} from '@/domain/api/auth';
+import { liveUid, requestCookieResolver } from '@/domain/api/auth';
 import { parseFeedId } from '@/domain/api/feed-resource';
 import {
   ApiController,
@@ -39,6 +32,12 @@ import { getEnv } from '@/lib/core/runtime';
 import { getDatabase } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
 import { logWarn } from '@/utils/logging';
+import type { CurrentUserResolver } from '@/domain/api/auth';
+import type {
+  AnswerModelName,
+  AnswerModel,
+  AnswerRequest,
+} from '@/domain/assistant';
 
 /** The signed-in caller's id and the request. */
 interface UidContext {
@@ -96,7 +95,9 @@ export async function readQuestion(
   key: 'question' | 'content',
 ): Promise<string> {
   const body = await readJsonObject(request, 'The body must be a JSON object.');
-  if (!body.ok) throw body.response;
+  if (!body.ok) {
+    throw body.response;
+  }
   const input = parseQuestion(body.value, key);
   if (!input.ok) {
     throw problems.badRequest('The question is not valid.', input.errors);
@@ -107,7 +108,9 @@ export async function readQuestion(
 /** Read the body of a question about an article, or throw the 4xx. */
 async function readAnswerRequest(request: Request): Promise<AnswerRequest> {
   const body = await readJsonObject(request, 'The body must be a JSON object.');
-  if (!body.ok) throw body.response;
+  if (!body.ok) {
+    throw body.response;
+  }
   const input = parseAnswerRequest(body.value);
   if (!input.ok) {
     throw problems.badRequest('The question is not valid.', input.errors);
@@ -136,15 +139,18 @@ function streamed(
       const send = (event: string, data: unknown) =>
         controller.enqueue(encoder.encode(sseEvent(event, data)));
       send('start', {});
+      // eslint-disable-next-line functional/no-let -- the reply is built up as the model streams it
       let text = '';
       try {
+        // eslint-disable-next-line functional/no-loop-statements -- each piece is awaited and sent in order as it arrives
         for await (const piece of pieces) {
           text += piece;
           send('chunk', { text: piece });
         }
         const answer = withoutThinking(text);
-        if (!answer)
+        if (!answer) {
           throw new AnswerUnavailableError('The model gave no answer.');
+        }
         send('complete', await finish(answer));
       } catch (error) {
         logWarn({
@@ -195,7 +201,9 @@ export function createAnswersCollection(
       const id = parseFeedId(parentIdOf(request));
       const article =
         id === undefined ? undefined : await repo.getArticle(uid, id);
-      if (!article) return problems.notFound('article');
+      if (!article) {
+        return problems.notFound('article');
+      }
       const preset = question.kind === 'preset' ? question.preset : undefined;
       const text =
         question.kind === 'preset'
@@ -227,7 +235,7 @@ export function createAnswersCollection(
         const resource = await answered(cached, true);
         return stream
           ? streamed(
-              (async function* () {
+              (async function* cachedAnswer() {
                 yield cached;
               })(),
               async () => resource,
@@ -235,11 +243,15 @@ export function createAnswersCollection(
           : resource;
       }
       const refusal = await overBudget(repo, uid, 'answer');
-      if (refusal) return refusal;
+      if (refusal) {
+        return refusal;
+      }
       const prompt = articlePrompt(article, text, history);
       const keep = async (answer: string): Promise<AnswerResource> => {
         await repo.recordUsage(uid, 'answer');
-        if (key) await repo.storeAnswer(uid, article.id, key, answer);
+        if (key) {
+          await repo.storeAnswer(uid, article.id, key, answer);
+        }
         return answered(answer, false);
       };
       if (stream) {

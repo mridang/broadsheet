@@ -5,11 +5,7 @@
  * resource keyed by the feed. Each runs as the signed-in person.
  */
 
-import {
-  liveUid,
-  requestCookieResolver,
-  type CurrentUserResolver,
-} from '@/domain/api/auth';
+import { liveUid, requestCookieResolver } from '@/domain/api/auth';
 import { parseFeedId } from '@/domain/api/feed-resource';
 import { idOf } from '@/domain/api/feeds';
 import {
@@ -19,12 +15,7 @@ import {
   parseNotificationRuleInput,
 } from '@/domain/api/notification-resource';
 import { getDatabase } from '@/domain/db/client';
-import {
-  NotificationRepository,
-  type NotificationRule,
-  type NotificationRuleInput,
-  type NotificationSetting,
-} from '@/domain/notifications';
+import { NotificationRepository } from '@/domain/notifications';
 import {
   ApiController,
   created,
@@ -33,6 +24,12 @@ import {
   problems,
   readJsonObject,
 } from '@/lib/core/api';
+import type {
+  NotificationRule,
+  NotificationRuleInput,
+  NotificationSetting,
+} from '@/domain/notifications';
+import type { CurrentUserResolver } from '@/domain/api/auth';
 
 /** The signed-in caller's id and the request. */
 interface UidContext {
@@ -76,7 +73,9 @@ export function createNotificationItem(
           request,
           'The notification must be a JSON object.',
         );
-        if (!body.ok) throw body.response;
+        if (!body.ok) {
+          throw body.response;
+        }
         const input = parseNotificationInput(body.value);
         if (!input.ok) {
           throw problems.badRequest(
@@ -88,14 +87,18 @@ export function createNotificationItem(
       },
       handle: async (setting, { request, uid }): Promise<Stored> => {
         const feedId = parseFeedId(idOf(request));
-        if (feedId === undefined) return undefined;
+        if (feedId === undefined) {
+          return undefined;
+        }
         const stored = await new NotificationRepository(
           getDatabase(),
         ).setFeedNotification(uid, feedId, setting);
         return stored && { feedId, setting, created: stored.created };
       },
       encode: (stored) => {
-        if (!stored) return problems.notFound('feed');
+        if (!stored) {
+          return problems.notFound('feed');
+        }
         const body = notificationResource(stored.feedId, stored.setting);
         const at = `/api/users/self/notifications/${stored.feedId}`;
         return stored.created ? created(body, at) : ok(body, { location: at });
@@ -143,7 +146,9 @@ export function createNotificationRules(
         request,
         'The notification rule must be a JSON object.',
       );
-      if (!body.ok) throw body.response;
+      if (!body.ok) {
+        throw body.response;
+      }
       const input = parseNotificationRuleInput(body.value);
       if (!input.ok) {
         throw problems.badRequest(

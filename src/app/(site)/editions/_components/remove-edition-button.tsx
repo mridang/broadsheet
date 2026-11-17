@@ -1,11 +1,10 @@
 'use client';
 
-import type { ReactElement } from 'react';
-
 import { useApiAction } from '@/components/api/use-api-action';
 import { removeEdition } from '@/app/(site)/editions/_components/edition-requests';
 import { buttonClass } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/notice';
+import type { ReactElement } from 'react';
 
 /** "Remove" on a custom edition; its stored issues go with it. */
 export function RemoveEditionButton({
@@ -18,12 +17,12 @@ export function RemoveEditionButton({
         type="button"
         className={buttonClass({ variant: 'danger', size: 'sm' })}
         disabled={busy}
-        onClick={() =>
+        onClick={() => {
           void run(
             async () => removeEdition(id),
             'Could not remove that edition.',
-          )
-        }
+          );
+        }}
       >
         Remove
       </button>

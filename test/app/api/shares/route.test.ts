@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from '@jest/globals';
 
-import { createDatabase, type Database } from '@/domain/db/client';
+import { createDatabase } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
 import { ShareRepository } from '@/domain/shares';
 import { SESSION_COOKIE } from '@/domain/auth/app';
@@ -10,6 +10,7 @@ import {
   sqliteD1,
 } from '../../../lib/core/db/sqlite-d1';
 import { SESSION_SECRET, tokenFor } from '../../../domain/auth/auth-test-kit';
+import type { Database } from '@/domain/db/client';
 
 const { GET } = await import('@/app/api/shares/route');
 

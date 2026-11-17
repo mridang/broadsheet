@@ -8,19 +8,10 @@
  * large OPML imports in the {@link FeedImportRun} Workflow.
  */
 
-import {
-  WorkflowEntrypoint,
-  type WorkflowEvent,
-  type WorkflowStep,
-} from 'cloudflare:workers';
+import { WorkflowEntrypoint } from 'cloudflare:workers';
 
-import {
-  dueSlots,
-  writeScheduledBriefing,
-  type Slot,
-} from '@/domain/briefings';
+import { dueSlots, writeScheduledBriefing } from '@/domain/briefings';
 import { clusterEdition } from '@/domain/clustering';
-import type { OpmlFeed } from '@/domain/api/opml';
 import { createDatabase } from '@/domain/db/client';
 import { purgeOAuthData } from '@/domain/db/oauth';
 import { FeedImportRuns, IMPORT_CHUNK } from '@/domain/feed-import-runs';
@@ -37,9 +28,12 @@ import {
   backfillRecent,
   refreshSource,
   scrapeSource,
-  type Fetchable,
 } from '@/domain/scraping/index';
 import { errorMessage, logError, logInfo } from '@/utils/logging';
+import type { Fetchable } from '@/domain/scraping/index';
+import type { Slot } from '@/domain/briefings';
+import type { WorkflowEvent, WorkflowStep } from 'cloudflare:workers';
+import type { OpmlFeed } from '@/domain/api/opml';
 
 /** How a source's fetch is retried before it is recorded as failed. */
 const FETCH_STEP = {
@@ -108,26 +102,32 @@ export class DailyScrape extends WorkflowEntrypoint<
         }),
       );
     });
-    let ok = 0;
-    let articles = 0;
-    for (const source of sources) {
-      try {
-        const result = await step.do(
-          `fetch source ${source.id}`,
-          FETCH_STEP,
-          async () => scrapeSource(db, this.env, source, edition),
-        );
-        articles += result.articles;
-        if (!result.failed) ok++;
-      } catch (error) {
-        await step.do(`record failure of source ${source.id}`, async () => {
-          await new Repository(db).recordFetch(
-            source.id,
-            error instanceof Error ? error.message : FETCH_FAILED,
+    // Steps run one after another, in order, so each source is a reduce step.
+    const { ok, articles } = await sources.reduce(
+      async (previous, source) => {
+        const totals = await previous;
+        try {
+          const result = await step.do(
+            `fetch source ${source.id}`,
+            FETCH_STEP,
+            async () => scrapeSource(db, this.env, source, edition),
           );
-        });
-      }
-    }
+          return {
+            ok: totals.ok + (result.failed ? 0 : 1),
+            articles: totals.articles + result.articles,
+          };
+        } catch (error) {
+          await step.do(`record failure of source ${source.id}`, async () => {
+            await new Repository(db).recordFetch(
+              source.id,
+              error instanceof Error ? error.message : FETCH_FAILED,
+            );
+          });
+          return totals;
+        }
+      },
+      Promise.resolve({ ok: 0, articles: 0 }),
+    );
     if (event.payload?.fetchOnly) {
       logInfo({
         event: 'fetch.completed',
@@ -147,11 +147,10 @@ export class DailyScrape extends WorkflowEntrypoint<
         notifications.notifiedUserIds(),
         notifications.ruleUserIds(),
       ]);
-      const ids = new Set(feeds);
-      for (const id of rules) ids.add(id);
-      return [...ids].toSorted((a, b) => a - b);
+      return [...new Set([feeds, rules].flat())].toSorted((a, b) => a - b);
     });
-    for (const reader of notified) {
+    await notified.reduce(async (previous, reader) => {
+      await previous;
       try {
         await step.do(`notify new stories for user ${reader}`, async () =>
           notifyNewStories(this.env, db, reader, edition),
@@ -163,27 +162,26 @@ export class DailyScrape extends WorkflowEntrypoint<
           error: errorMessage(error),
         });
       }
-    }
+    }, Promise.resolve());
     await step.do('backfill recent editions', async () => {
       await backfillRecent(db, this.env, 7);
     });
     const readers = await step.do('list readers', async () =>
       new Repository(db).readerIds(),
     );
-    let issues = 0;
-    for (const reader of readers) {
+    const readerIssues = await readers.reduce(async (previous, reader) => {
+      const count = await previous;
       try {
         await step.do(`lay out issue for user ${reader}`, AI_STEP, async () =>
           publishIssue(db, this.env, reader, edition),
         );
-        issues++;
       } catch (error) {
         logError({
           event: 'issue.failed',
           user: reader,
           error: errorMessage(error),
         });
-        continue;
+        return count;
       }
       try {
         await step.do(`notify user ${reader}`, async () =>
@@ -196,26 +194,29 @@ export class DailyScrape extends WorkflowEntrypoint<
           error: errorMessage(error),
         });
       }
-    }
+      return count + 1;
+    }, Promise.resolve(0));
     const papers = await step.do('list custom editions', async () =>
       new Repository(db).allCustomEditions(),
     );
-    for (const paper of papers) {
+    const issues = await papers.reduce(async (previous, paper) => {
+      const count = await previous;
       try {
         await step.do(
           `lay out issue for edition ${paper.id}`,
           AI_STEP,
           async () => publishEditionIssue(db, this.env, paper, edition),
         );
-        issues++;
+        return count + 1;
       } catch (error) {
         logError({
           event: 'issue.failed',
           edition: paper.id,
           error: errorMessage(error),
         });
+        return count;
       }
-    }
+    }, Promise.resolve(readerIssues));
     logInfo({
       event: 'scrape.completed',
       edition,
@@ -249,18 +250,25 @@ export async function dueBriefings(
     repo.readerIds(),
     repo.allPreferences(),
   ]);
-  const due: DueBriefing[] = [];
-  for (const user of readers) {
-    for (const { slot, date } of dueSlots(
-      prefs.get(user) ?? DEFAULT_PREFERENCES,
-      at,
-    )) {
-      if (!(await repo.findBriefing(user, slot, date))) {
-        due.push({ user, slot, date });
-      }
-    }
-  }
-  return due;
+  const candidates = readers.flatMap((user) =>
+    dueSlots(prefs.get(user) ?? DEFAULT_PREFERENCES, at).map(
+      ({ slot, date }): DueBriefing => ({ user, slot, date }),
+    ),
+  );
+  // Looked up one at a time, as before, so the database sees no burst.
+  return candidates.reduce<Promise<DueBriefing[]>>(
+    async (previous, candidate) => {
+      const due = await previous;
+      return (await repo.findBriefing(
+        candidate.user,
+        candidate.slot,
+        candidate.date,
+      ))
+        ? due
+        : [...due, candidate];
+    },
+    Promise.resolve([]),
+  );
 }
 
 /**
@@ -276,46 +284,61 @@ export class BriefingRun extends WorkflowEntrypoint<CloudflareEnv> {
   ): Promise<{ due: number; written: number }> {
     const db = createDatabase(this.env.DB);
     const at = new Date(event.payload.at);
-    let written = 0;
-    for (const { user, slot, date } of event.payload.due) {
-      try {
-        const done = await step.do(
-          `brief user ${user} ${slot} ${date}`,
-          AI_STEP,
-          async () => {
-            if (await new Repository(db).findBriefing(user, slot, date)) {
-              return null;
-            }
-            const { briefing } = await writeScheduledBriefing(
-              db,
-              this.env,
-              user,
-              slot,
-              date,
-              at,
+    const written = await event.payload.due.reduce(
+      async (previous, { user, slot, date }) => {
+        const count = await previous;
+        const failed = (error: unknown) => {
+          logError({
+            event: 'briefing.failed',
+            user,
+            slot,
+            date,
+            error: errorMessage(error),
+          });
+        };
+        try {
+          const done = await step.do(
+            `brief user ${user} ${slot} ${date}`,
+            AI_STEP,
+            async () => {
+              if (await new Repository(db).findBriefing(user, slot, date)) {
+                return null;
+              }
+              const { briefing } = await writeScheduledBriefing(
+                db,
+                this.env,
+                user,
+                slot,
+                date,
+                at,
+              );
+              return briefing?.status === 'complete'
+                ? { id: briefing.id, title: briefing.title }
+                : null;
+            },
+          );
+          if (!done) {
+            return count;
+          }
+          try {
+            await step.do(
+              `notify user ${user} of briefing ${done.id}`,
+              async () =>
+                sendBriefingReady(this.env, db, user, done.id, done.title).then(
+                  () => null,
+                ),
             );
-            return briefing?.status === 'complete'
-              ? { id: briefing.id, title: briefing.title }
-              : null;
-          },
-        );
-        if (!done) continue;
-        written++;
-        await step.do(`notify user ${user} of briefing ${done.id}`, async () =>
-          sendBriefingReady(this.env, db, user, done.id, done.title).then(
-            () => null,
-          ),
-        );
-      } catch (error) {
-        logError({
-          event: 'briefing.failed',
-          user,
-          slot,
-          date,
-          error: errorMessage(error),
-        });
-      }
-    }
+          } catch (error) {
+            failed(error);
+          }
+          return count + 1;
+        } catch (error) {
+          failed(error);
+          return count;
+        }
+      },
+      Promise.resolve(0),
+    );
     logInfo({
       event: 'briefings.completed',
       due: event.payload.due.length,
@@ -355,29 +378,46 @@ export class FeedImportRun extends WorkflowEntrypoint<
     const { id, user, feeds } = event.payload;
     const db = createDatabase(this.env.DB);
     const runs = new FeedImportRuns(db);
-    const added: { id: number; url: string }[] = [];
-    try {
-      for (let start = 0; start < feeds.length; start += IMPORT_CHUNK) {
+    const chunks = Array.from(
+      { length: Math.ceil(feeds.length / IMPORT_CHUNK) },
+      (_, index) => index * IMPORT_CHUNK,
+    );
+    const imported = await chunks.reduce(
+      async (previous, start) => {
+        const soFar = await previous;
+        if (soFar.failed) {
+          return soFar;
+        }
         const chunk = feeds.slice(start, start + IMPORT_CHUNK);
-        added.push(
-          ...(await step.do(
+        try {
+          const rows = await step.do(
             `import feeds from ${start}`,
             FETCH_STEP,
             async () => runs.importChunk(id, user, chunk),
-          )),
-        );
-      }
-    } catch (error) {
-      await step.do('mark failed', async () => runs.finish(id, 'failed'));
-      logError({
-        event: 'import.failed',
-        import: id,
-        error: errorMessage(error),
-      });
+          );
+          return { ...soFar, added: [...soFar.added, ...rows] };
+        } catch (error) {
+          await step.do('mark failed', async () => runs.finish(id, 'failed'));
+          logError({
+            event: 'import.failed',
+            import: id,
+            error: errorMessage(error),
+          });
+          return { ...soFar, failed: true };
+        }
+      },
+      Promise.resolve({
+        added: [] as { id: number; url: string }[],
+        failed: false,
+      }),
+    );
+    const { added, failed } = imported;
+    if (failed) {
       return { added: added.length };
     }
     await step.do('mark complete', async () => runs.finish(id, 'complete'));
-    for (const source of added.slice(0, FIRST_FETCHES)) {
+    await added.slice(0, FIRST_FETCHES).reduce(async (previous, source) => {
+      await previous;
       try {
         await step.do(`fetch source ${source.id}`, FETCH_STEP, async () =>
           refreshSource(db, this.env, source).then(() => null),
@@ -389,7 +429,7 @@ export class FeedImportRun extends WorkflowEntrypoint<
           error: errorMessage(error),
         });
       }
-    }
+    }, Promise.resolve());
     logInfo({ event: 'import.completed', import: id, added: added.length });
     return { added: added.length };
   }
@@ -430,7 +470,9 @@ export async function purgeExpired(
 async function startBriefings(env: CloudflareEnv, at: Date): Promise<void> {
   try {
     const due = await dueBriefings(new Repository(createDatabase(env.DB)), at);
-    if (due.length === 0) return;
+    if (due.length === 0) {
+      return;
+    }
     const run = await env.BRIEFINGS.create({
       params: { due, at: at.toISOString() },
     });

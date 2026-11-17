@@ -5,13 +5,14 @@
  * it, the arguments it accepts, and what it does when called.
  */
 
-import type { ToolContext } from '@/domain/mcp/tool-context';
+import { z } from 'zod';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { collect, MAX_SEARCH, shareResource } from '@/domain/mcp/tools/support';
 import { Repository } from '@/domain/repository';
 import { ShareRepository } from '@/domain/shares';
-import { READS, type ToolAnnotations } from '@/lib/mcp';
-import { z } from 'zod';
+import { READS } from '@/lib/mcp';
+import type { ToolContext } from '@/domain/mcp/tool-context';
+import type { ToolAnnotations } from '@/lib/mcp';
 
 /** What `get_shared_stories` accepts. */
 const SCHEMA = z.object({

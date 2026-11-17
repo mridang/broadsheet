@@ -155,8 +155,9 @@ export abstract class McpTool<
       string,
       unknown
     >;
-    delete schema['$schema'];
-    return schema;
+    return Object.fromEntries(
+      Object.entries(schema).filter(([key]) => key !== '$schema'),
+    );
   }
 
   /** The shape of the structured content this tool returns, where it has one. */

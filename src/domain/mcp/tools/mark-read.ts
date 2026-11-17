@@ -5,13 +5,14 @@
  * it, the arguments it accepts, and what it does when called.
  */
 
-import type { ToolContext } from '@/domain/mcp/tool-context';
+import { z } from 'zod';
 import { ToolFailureError } from '@/domain/mcp/tool-failure';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { feedScope, id, MAX_MARK } from '@/domain/mcp/tools/support';
 import { Repository } from '@/domain/repository';
-import { type ToolAnnotations, writes } from '@/lib/mcp';
-import { z } from 'zod';
+import { writes } from '@/lib/mcp';
+import type { ToolContext } from '@/domain/mcp/tool-context';
+import type { ToolAnnotations } from '@/lib/mcp';
 
 /** What `mark_read` accepts. */
 const SCHEMA = z.object({
@@ -83,15 +84,15 @@ export class MarkReadTool extends JsonTool<'mark_read', typeof SCHEMA> {
         : new Date(Date.now() - older_than_days * 86_400_000)
             .toISOString()
             .slice(0, 10);
-    let sweep: number[] = [];
-    if ((feeds !== undefined || to !== undefined) && feeds?.length !== 0) {
-      const found = await repo.searchArticles(uid, {
-        limit: MAX_MARK,
-        ...(feeds ? { feeds } : {}),
-        ...(to ? { to } : {}),
-      });
-      sweep = found.map((a) => a.id);
-    }
+    const found =
+      (feeds !== undefined || to !== undefined) && feeds?.length !== 0
+        ? await repo.searchArticles(uid, {
+            limit: MAX_MARK,
+            ...(feeds ? { feeds } : {}),
+            ...(to ? { to } : {}),
+          })
+        : [];
+    const sweep = found.map((a) => a.id);
     const ids = [...new Set(article_ids).union(new Set(sweep))].slice(
       0,
       MAX_MARK,

@@ -4,9 +4,9 @@ import { StoryRow } from '@/components/stories/story-row';
 import { html } from '../render';
 
 const SHOWS_WHERE_THE_STORY_PATTERN =
-  /<a href="\/article\/1"[^>]*>A headline<\/a>/;
+  /<a href="\/article\/1"[^>]*>A headline<\/a>/u;
 const SHOWS_ITS_PICTURE_THROUGH_PATTERN =
-  /<img src="\/img\?url=https%3A%2F%2Fexample\.com%2Fp\.jpg/;
+  /<img src="\/img\?url=https%3A%2F%2Fexample\.com%2Fp\.jpg/u;
 
 describe('StoryRow', () => {
   it('shows where the story is from, its title, excerpt and links', async () => {

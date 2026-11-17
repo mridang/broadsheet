@@ -13,7 +13,7 @@ import { NextResponse } from 'next/server';
 import { appOrigin } from '@/lib/core/origin';
 import { isSameOriginPost } from '@/lib/web-security';
 import { getCurrentUser } from './current-user';
-import type { User } from '@/domain/auth/store';
+import type { User } from '@/domain/repository';
 
 /** A problem response with the fixed shape every refusal here has. */
 function refusal(

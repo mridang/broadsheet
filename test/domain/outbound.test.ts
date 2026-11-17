@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it } from '@jest/globals';
 
-import { createDatabase, type Database } from '@/domain/db/client';
+import { createDatabase } from '@/domain/db/client';
 import { OutboundRepository } from '@/domain/outbound';
 import { Repository } from '@/domain/repository';
-import type { ScrapedItem } from '@/lib/scraping';
 import { APP_MIGRATIONS } from '../lib/core/db/migrations';
 import { sqliteD1 } from '../lib/core/db/sqlite-d1';
+import type { Database } from '@/domain/db/client';
+import type { ScrapedItem } from '@/lib/scraping';
 
 let db: Database;
 let repo: OutboundRepository;
@@ -168,7 +169,7 @@ describe('bodies', () => {
     const ids = articles.map((a) => a.id);
     const bodies = await repo.bodies(ids);
     expect(bodies.size).toBe(94);
-    expect(await repo.bodies([])).toEqual(new Map());
+    expect(await repo.bodies([])).toEqual(new Map<number, string>());
   });
 });
 

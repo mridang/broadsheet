@@ -10,8 +10,8 @@ import { shouldPurge, unitRandom } from '@/lib/oauth/retention';
 
 /** The two sweeps a clean-up runs: stale OAuth rows, and idle rate-limit counters. */
 export interface Sweeps {
-  readonly purgeOAuth: () => Promise<unknown>;
-  readonly purgeRateLimits: () => Promise<unknown>;
+  readonly purgeOAuth: () => Promise<void>;
+  readonly purgeRateLimits: () => Promise<void>;
 }
 
 /**

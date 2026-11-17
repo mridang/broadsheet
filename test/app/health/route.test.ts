@@ -6,10 +6,12 @@ const app = {
   health: { ok: true, details: {} as Record<string, unknown> },
 };
 
+// eslint-disable-next-line tslop/no-module-mocking -- the route imports its runtime directly, so there is no seam to inject a fake through
 jest.unstable_mockModule('@/lib/core/runtime', () => ({
   isDatabaseBound: () => app.bound,
 }));
 
+// eslint-disable-next-line tslop/no-module-mocking -- the route imports its health report directly, so there is no seam to inject a fake through
 jest.unstable_mockModule('@/lib/core/health', () => ({
   appHealth: async () => app.health,
 }));

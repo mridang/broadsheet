@@ -37,13 +37,13 @@ describe('ListItem', () => {
         <ListItem
           title="Hacker News"
           detail="20 stories"
-          actions={<button>Go</button>}
+          actions={<button type="button">Go</button>}
         />
       </List>,
     );
     expect(out).toContain('aria-label="Feeds"');
     expect(out).toContain('Hacker News');
     expect(out).toContain('20 stories');
-    expect(out).toContain('<button>Go</button>');
+    expect(out).toContain('<button type="button">Go</button>');
   });
 });

@@ -8,7 +8,7 @@ import {
 } from '@jest/globals';
 
 const SENDS_A_PICTURE_SEALED_PATTERN =
-  /^public, max-age=\d+, s-maxage=\d+, immutable$/;
+  /^public, max-age=\d+, s-maxage=\d+, immutable$/u;
 
 /** The secret the mocked Worker holds; the route signs and checks with it. */
 const SECRET = 'test-secret';
@@ -19,6 +19,7 @@ const context = {
   waiting: [] as Promise<unknown>[],
 };
 
+// eslint-disable-next-line tslop/no-module-mocking -- the module reads the runtime (cookies or the Cloudflare context), which a test cannot supply, so the test replaces it before importing the code under test
 jest.unstable_mockModule('@opennextjs/cloudflare', () => ({
   getCloudflareContext: () => ({
     env: context.env,
@@ -28,7 +29,7 @@ jest.unstable_mockModule('@opennextjs/cloudflare', () => ({
 
 // The server entry reaches the Cloudflare runtime, so it is imported after the
 // mock; the package index (the render constants) is client-safe either way.
-const { ImageSigner } = await import('@/lib/cloudflare/images/server');
+const { ImageSigner } = await import('@/lib/cloudflare/images/signer');
 const { ALLOWED_HOSTS, ALLOWED_WIDTHS, DEFAULT_WIDTH } =
   await import('@/lib/cloudflare/images');
 const { GET } = await import('@/app/img/route');
@@ -38,7 +39,7 @@ const PHOTO = `https://${ALLOWED_HOSTS?.[0] ?? 'photos.example.org'}/soup.jpg`;
 const WIDTH = ALLOWED_WIDTHS[0] ?? DEFAULT_WIDTH;
 
 const realFetch = globalThis.fetch;
-const realCaches = Reflect.get(globalThis, 'caches');
+const realCaches = (globalThis as { caches?: unknown }).caches;
 let fetched: string[];
 
 /** Make every fetch answer with a fresh response from `respond`. */

@@ -1,6 +1,5 @@
-import type { Metadata } from 'next';
-import { Badge } from '@/components/ui/badge';
 import { redirect } from 'next/navigation';
+import { Badge } from '@/components/ui/badge';
 
 import { getCurrentUser } from '@/lib/core/auth';
 import { getDatabase } from '@/domain/db/client';
@@ -12,8 +11,9 @@ import { buttonClass } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
 import { countOf } from '@/lib/intl';
+import type { Metadata } from 'next';
 
-const BEFORE_OF_PATTERN = /^[1-9]\d{0,14}$/;
+const BEFORE_OF_PATTERN = /^[1-9]\d{0,14}$/u;
 
 export const dynamic = 'force-dynamic';
 
@@ -39,7 +39,9 @@ export default async function BriefingsPage({
   searchParams: Promise<{ before?: string }>;
 }>) {
   const user = await getCurrentUser();
-  if (!user) redirect('/login');
+  if (!user) {
+    redirect('/login');
+  }
   const query = await searchParams;
   const before = beforeOf(query.before);
   const rows = await new Repository(getDatabase()).listBriefings(

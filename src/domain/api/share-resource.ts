@@ -9,7 +9,7 @@
 import { rfc3339 } from '@/domain/api/feed-resource';
 import type { SharedStory } from '@/domain/shares';
 
-const PARSE_SHARER_IDS_PATTERN = /^[1-9]\d{0,14}$/;
+const PARSE_SHARER_IDS_PATTERN = /^[1-9]\d{0,14}$/u;
 
 /** Longest the comment on a share may be. */
 export const MAX_COMMENTS = 5000;
@@ -82,11 +82,15 @@ export function parseSharerIds(
   raw: readonly string[],
 ): { ok: true; ids?: number[] } | { ok: false; errors: string[] } {
   const parts = raw.flatMap((r) => r.split(',')).filter(Boolean);
-  if (parts.length === 0) return { ok: true };
+  if (parts.length === 0) {
+    return { ok: true };
+  }
   if (parts.length > 100) {
     return { ok: false, errors: ['user_id: at most 100 people.'] };
   }
   const bad = parts.filter((p) => !PARSE_SHARER_IDS_PATTERN.test(p));
-  if (bad.length > 0) return { ok: false, errors: ['user_id: not an id.'] };
+  if (bad.length > 0) {
+    return { ok: false, errors: ['user_id: not an id.'] };
+  }
   return { ok: true, ids: [...new Set(parts.map(Number))] };
 }

@@ -6,12 +6,8 @@
  * stores one per reader, and the paper reads the stored issue back, laying a
  * day out live only when none was stored.
  */
-import type { Database } from '@/domain/db/client';
 import {
   Repository,
-  type Article,
-  type CustomEdition,
-  type Preferences,
   autoMarkReadDays,
   filedIn,
   sectionAndDescendants,
@@ -21,20 +17,17 @@ import {
   parseBriefedStories,
   selectStories,
   writeBriefing,
-  type BriefedStory,
-  type Candidate,
 } from '@/domain/briefing';
 import { toCandidates } from '@/domain/briefings';
 import { scorePrompts } from '@/domain/prompts';
-import {
-  layOut,
-  parseLayout,
-  storyIds,
-  type DeskGroup,
-  type Layout,
-} from '@/domain/render/layout';
+import { compareText } from '@/lib/intl';
+import { layOut, parseLayout, storyIds } from '@/domain/render/layout';
+import type { BriefedStory, Candidate } from '@/domain/briefing';
+import type { Article, CustomEdition, Preferences } from '@/domain/repository';
+import type { DeskGroup, Layout } from '@/domain/render/layout';
+import type { Database } from '@/domain/db/client';
 
-const IS_ISSUE_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const IS_ISSUE_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/u;
 
 /** One day's paper: its layout and, when one was written, the note. */
 export interface Issue {
@@ -109,7 +102,7 @@ export async function composeLayout(
             const unread =
               !reads || reads.ids.has(a.id) || !reads.urls.has(a.url);
             const inWindow =
-              !oldest || !a.edition || a.edition.localeCompare(oldest) >= 0;
+              !oldest || !a.edition || compareText(a.edition, oldest) >= 0;
             return unread && inWindow && (!pick?.keep || pick.keep(a.id));
           })
           // The reader's AI prompts this story matched, for `verdict`.
@@ -124,19 +117,19 @@ export async function composeLayout(
     { id: null, name: null },
     ...sections.map((s) => ({ id: s.id, name: sectionPath(sections, s.id) })),
   ]
+    .values()
     .map((group) => ({
       name: group.name,
-      desks: desks.filter(({ feed }) =>
-        group.id === null
-          ? !sections.some((s) => s.id === feed.section_id)
-          : feed.section_id === group.id,
-      ),
+      desks: desks
+        .filter(({ feed }) =>
+          group.id === null
+            ? !sections.some((s) => s.id === feed.section_id)
+            : feed.section_id === group.id,
+        )
+        .filter((desk) => desk.articles.length || !pick?.keep),
     }))
-    .map((group) => ({
-      ...group,
-      desks: group.desks.filter((desk) => desk.articles.length || !pick?.keep),
-    }))
-    .filter((group) => group.desks.length);
+    .filter((group) => group.desks.length)
+    .toArray();
   // The copies of the paper's stories it does not print: from other days
   // within the lookback, or desks left out.
   const clusterIds = desks.flatMap(({ articles }) =>
@@ -216,7 +209,9 @@ async function briefedUrls(
   stored: string | null | undefined,
 ): Promise<Set<string>> {
   const ids = parseBriefedStories(stored ?? null).map((s) => s.id);
-  if (ids.length === 0) return new Set();
+  if (ids.length === 0) {
+    return new Set();
+  }
   const articles = await repo.articlesByIds(ids);
   return new Set(articles.map((a) => a.url));
 }
@@ -448,7 +443,9 @@ export async function issueFor(
 
 /** Whether `date` is a calendar date written YYYY-MM-DD. */
 export function isIssueDate(date: string): boolean {
-  if (!IS_ISSUE_DATE_PATTERN.test(date)) return false;
+  if (!IS_ISSUE_DATE_PATTERN.test(date)) {
+    return false;
+  }
   const ms = Date.parse(`${date}T00:00:00Z`);
   return !Number.isNaN(ms) && new Date(ms).toISOString().startsWith(date);
 }

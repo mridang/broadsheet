@@ -1,12 +1,11 @@
 'use client';
 
-import type { ReactElement, SubmitEvent } from 'react';
-
 import { importTopics } from '@/app/(site)/feeds/_components/feed-requests';
 import { useFeedAction } from '@/app/(site)/feeds/_components/use-feed-action';
-import type { Topic } from '@/domain/topics';
 import { buttonClass } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/notice';
+import type { Topic } from '@/domain/topics';
+import type { ReactElement, SubmitEvent } from 'react';
 
 /**
  * What a new reader sees before following anything: pick topics and their
@@ -36,6 +35,7 @@ export function TopicPicker({
               key={topic.id}
             >
               <input
+                aria-label={topic.name}
                 type="checkbox"
                 name="topic"
                 value={topic.id}

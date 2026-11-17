@@ -1,13 +1,15 @@
 import { beforeEach, describe, expect, it } from '@jest/globals';
 
-import { createDatabase, type Database } from '@/domain/db/client';
+import { createDatabase } from '@/domain/db/client';
 import { highlightsText, keeps, serveFeed } from '@/domain/feed-out';
-import { OutboundRepository, type FeedTokenInput } from '@/domain/outbound';
+import { OutboundRepository } from '@/domain/outbound';
 import { Repository } from '@/domain/repository';
 import { sha256Hex } from '@/lib/outbound/tokens';
-import type { ScrapedItem } from '@/lib/scraping';
 import { APP_MIGRATIONS } from '../lib/core/db/migrations';
 import { sqliteD1 } from '../lib/core/db/sqlite-d1';
+import type { FeedTokenInput } from '@/domain/outbound';
+import type { Database } from '@/domain/db/client';
+import type { ScrapedItem } from '@/lib/scraping';
 
 let db: Database;
 const ORIGIN = 'https://paper.test';

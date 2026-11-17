@@ -5,14 +5,15 @@
  * it, the arguments it accepts, and what it does when called.
  */
 
+import { z } from 'zod';
 import { articleResource } from '@/domain/api/article-resource';
-import type { ToolContext } from '@/domain/mcp/tool-context';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { collect, MAX_SEARCH } from '@/domain/mcp/tools/support';
 import { verdict } from '@/domain/render/tiers';
 import { Repository } from '@/domain/repository';
-import { READS, type ToolAnnotations } from '@/lib/mcp';
-import { z } from 'zod';
+import { READS } from '@/lib/mcp';
+import type { ToolAnnotations } from '@/lib/mcp';
+import type { ToolContext } from '@/domain/mcp/tool-context';
 
 /** What `get_infrequent_stories` accepts. */
 const SCHEMA = z.object({
@@ -77,10 +78,12 @@ export class GetInfrequentStoriesTool extends JsonTool<
     const db = services.openDatabase();
     const repo = new Repository(db);
     const monthly = await repo.storiesPerMonth(uid);
-    const quiet = [...monthly]
-      .filter(([, n]) => n <= args.stories_per_month)
-      .map(([f]) => f);
-    if (quiet.length === 0) return { feed_ids: [], articles: [] };
+    const quiet = [...monthly].flatMap(([f, n]) =>
+      n <= args.stories_per_month ? [f] : [],
+    );
+    if (quiet.length === 0) {
+      return { feed_ids: [], articles: [] };
+    }
     const [read, training] = await Promise.all([
       args.read_filter === 'all' ? undefined : repo.readState(uid),
       args.include_hidden ? [] : repo.listClassifiers(uid),

@@ -6,8 +6,6 @@
  * The values come from `_brand.ts`; nothing here is specific to one app.
  */
 
-import type { Metadata, Viewport } from 'next';
-
 import {
   BRAND_DESCRIPTION,
   BRAND_NAME,
@@ -18,6 +16,7 @@ import {
   INDEX_BY_DEFAULT,
   THEME_COLOR,
 } from '@/app/_brand';
+import type { Metadata, Viewport } from 'next';
 
 /** The tab title of a page called `title`: its own name, then the app's. */
 function titleOf(title: string): string {

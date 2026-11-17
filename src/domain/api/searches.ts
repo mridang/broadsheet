@@ -7,19 +7,11 @@
  * person.
  */
 
-import {
-  liveUid,
-  requestCookieResolver,
-  type CurrentUserResolver,
-} from '@/domain/api/auth';
+import { liveUid, requestCookieResolver } from '@/domain/api/auth';
 import { parseFeedId } from '@/domain/api/feed-resource';
 import { idOf } from '@/domain/api/feeds';
-import { newestPage, pageRequest, type PageRequest } from '@/domain/api/paging';
-import {
-  parseSearchInput,
-  searchResource,
-  type SearchInput,
-} from '@/domain/api/search-resource';
+import { newestPage, pageRequest } from '@/domain/api/paging';
+import { parseSearchInput, searchResource } from '@/domain/api/search-resource';
 import {
   readJsonObject,
   problems,
@@ -28,10 +20,14 @@ import {
   created,
   noContent,
   page,
-  type Slice,
 } from '@/lib/core/api';
-import { Repository, type SavedSearch } from '@/domain/repository';
+import { Repository } from '@/domain/repository';
 import { getDatabase } from '@/domain/db/client';
+import type { PageRequest } from '@/domain/api/paging';
+import type { SearchInput } from '@/domain/api/search-resource';
+import type { Slice } from '@/lib/core/api';
+import type { SavedSearch } from '@/domain/repository';
+import type { CurrentUserResolver } from '@/domain/api/auth';
 
 /** The signed-in caller's id and the request, for a saved-search endpoint. */
 interface UidContext {
@@ -86,7 +82,9 @@ export function createSearchesCollection(
           request,
           'The saved search must be a JSON object.',
         );
-        if (!body.ok) throw body.response;
+        if (!body.ok) {
+          throw body.response;
+        }
         const input = parseSearchInput(body.value);
         if (!input.ok) {
           throw problems.badRequest(

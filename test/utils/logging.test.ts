@@ -28,7 +28,9 @@ describe('error context', () => {
   it('logError records the event name, and nothing else, on the active span', async () => {
     jest.spyOn(console, 'error').mockImplementation(() => undefined);
     logError({ event: 'auth.callback.failed', error: 'secret-ish text' });
-    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise((resolve) => {
+      setImmediate(resolve);
+    });
     expect(tracing.exceptions).toEqual([
       { name: 'LoggedError', message: 'auth.callback.failed' },
     ]);
@@ -39,7 +41,9 @@ describe('error context', () => {
     jest.spyOn(console, 'log').mockImplementation(() => undefined);
     logWarn({ event: 'a' });
     logInfo({ event: 'b' });
-    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise((resolve) => {
+      setImmediate(resolve);
+    });
     expect(tracing.exceptions).toEqual([]);
   });
 });

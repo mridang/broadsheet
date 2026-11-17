@@ -7,7 +7,7 @@ import {
   jest,
 } from '@jest/globals';
 
-import { createDatabase, type Database } from '@/domain/db/client';
+import { createDatabase } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
 import {
   callbackUrl,
@@ -17,6 +17,7 @@ import {
 } from '@/domain/websub';
 import { APP_MIGRATIONS } from '../lib/core/db/migrations';
 import { sqliteD1 } from '../lib/core/db/sqlite-d1';
+import type { Database } from '@/domain/db/client';
 
 const LINKS = { hub: 'https://hub.test/', self: 'https://a.test/f' };
 const NOW = Date.parse('2026-11-01T00:00:00Z');

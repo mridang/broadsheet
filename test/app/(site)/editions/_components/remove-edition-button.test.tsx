@@ -4,7 +4,7 @@ import { RemoveEditionButton } from '@/app/(site)/editions/_components/remove-ed
 import { html } from '../../../../components/render';
 
 const REMOVES_AN_EDITION_WITH_PATTERN =
-  /^<div><button type="button" class="[^"]*">Remove<\/button><\/div>$/;
+  /^<div><button type="button" class="[^"]*">Remove<\/button><\/div>$/u;
 
 describe('RemoveEditionButton', () => {
   it('removes an edition with a plain button, not a form', () => {

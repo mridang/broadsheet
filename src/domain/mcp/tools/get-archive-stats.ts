@@ -5,11 +5,12 @@
  * it, the arguments it accepts, and what it does when called.
  */
 
-import type { ToolContext } from '@/domain/mcp/tool-context';
+import { z } from 'zod';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { Repository } from '@/domain/repository';
-import { READS, type ToolAnnotations } from '@/lib/mcp';
-import { z } from 'zod';
+import { READS } from '@/lib/mcp';
+import type { ToolContext } from '@/domain/mcp/tool-context';
+import type { ToolAnnotations } from '@/lib/mcp';
 
 /** What `get_archive_stats` accepts. */
 const SCHEMA = z.object({});

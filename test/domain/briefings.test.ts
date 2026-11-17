@@ -13,18 +13,16 @@ import {
   sqliteTime,
   writeScheduledBriefing,
 } from '@/domain/briefings';
-import { createDatabase, type Database } from '@/domain/db/client';
-import {
-  DEFAULT_PREFERENCES,
-  Repository,
-  type Article,
-} from '@/domain/repository';
-import type { ScrapedItem } from '@/lib/scraping';
+import { createDatabase } from '@/domain/db/client';
+import { DEFAULT_PREFERENCES, Repository } from '@/domain/repository';
 import { APP_MIGRATIONS } from '../lib/core/db/migrations';
 import { sqliteD1 } from '../lib/core/db/sqlite-d1';
+import type { Article } from '@/domain/repository';
+import type { Database } from '@/domain/db/client';
+import type { ScrapedItem } from '@/lib/scraping';
 
-const NAMES_A_CUSTOM_TIME_PATTERN = /^Afternoon/;
-const STORES_A_COMPLETE_BRIEFING_PATTERN = /^Morning Daily Briefing — /;
+const NAMES_A_CUSTOM_TIME_PATTERN = /^Afternoon/u;
+const STORES_A_COMPLETE_BRIEFING_PATTERN = /^Morning Daily Briefing — /u;
 
 describe('isTimeZone', () => {
   it('knows an IANA zone and refuses a made-up one', () => {

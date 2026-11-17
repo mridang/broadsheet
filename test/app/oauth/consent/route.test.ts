@@ -7,26 +7,25 @@ import {
   jest,
 } from '@jest/globals';
 
-import type { DatabaseSync } from 'node:sqlite';
-
 import { handleConsent } from '@/app/oauth/consent/handler';
-import type { CurrentUserResolver } from '@/domain/api/auth';
 import { s256 } from '@/lib/oauth';
+import { SCOPE_READ, SCOPE_WRITE } from '@/domain/mcp/app';
 import {
   installCloudflareContext,
   sqliteD1,
 } from '../../../lib/core/db/sqlite-d1';
 import { quietSecurityLogs } from '../../../lib/oauth/quiet-logs';
-import { SCOPE_READ, SCOPE_WRITE } from '@/domain/mcp/app';
 import { APP_MIGRATIONS } from '../../../lib/core/db/migrations';
 import urls from '../../../fixtures/insecure-urls.json' with { type: 'json' };
+import type { CurrentUserResolver } from '@/domain/api/auth';
+import type { DatabaseSync } from 'node:sqlite';
 
-const SENDS_AN_APPROVAL_BACK_PATTERN = /^cdn_/;
+const SENDS_AN_APPROVAL_BACK_PATTERN = /^cdn_/u;
 
 /** Who is signed in; null means nobody. */
 /** `ended`: the person signed out everywhere, though the cookie itself still verifies. */
-const session: { uid: number | null; ended: boolean } = {
-  uid: 7,
+const session = {
+  uid: 7 as number | null,
   ended: false,
 };
 
@@ -245,7 +244,7 @@ describe('POST /oauth/consent', () => {
       const info = jest.spyOn(console, 'info').mockImplementation(() => {});
       await consent({ access: 'read' });
       expect(
-        info.mock.calls.map(([line]): unknown => JSON.parse(String(line))),
+        info.mock.calls.map(([line]) => JSON.parse(String(line)) as object),
       ).toContainEqual(
         expect.objectContaining({
           event: 'oauth.scope_narrowed',
@@ -262,7 +261,7 @@ describe('POST /oauth/consent', () => {
     const info = jest.spyOn(console, 'info').mockImplementation(() => {});
     await consent({ decision: 'deny' });
     expect(
-      info.mock.calls.map(([line]): unknown => JSON.parse(String(line))),
+      info.mock.calls.map(([line]) => JSON.parse(String(line)) as object),
     ).toContainEqual(
       expect.objectContaining({
         event: 'oauth.consent_denied',

@@ -5,8 +5,7 @@
  * file and naming it here; nothing else holds a list to keep in step.
  */
 
-import { ToolRegistry, type NameOf } from '@/lib/mcp';
-import type { ToolContent, ToolContext } from '@/domain/mcp/tool-context';
+import { ToolRegistry } from '@/lib/mcp';
 import { ListFeedsTool } from '@/domain/mcp/tools/list-feeds';
 import { GetFeedTool } from '@/domain/mcp/tools/get-feed';
 import { FollowFeedTool } from '@/domain/mcp/tools/follow-feed';
@@ -38,6 +37,8 @@ import { GetSharedStoriesTool } from '@/domain/mcp/tools/get-shared-stories';
 import { GetInfrequentStoriesTool } from '@/domain/mcp/tools/get-infrequent-stories';
 import { GetArchiveStatsTool } from '@/domain/mcp/tools/get-archive-stats';
 import { ManageNotificationsTool } from '@/domain/mcp/tools/manage-notifications';
+import type { JsonContent, NameOf } from '@/lib/mcp';
+import type { ToolContext } from '@/domain/mcp/tool-context';
 
 export { ListFeedsTool } from '@/domain/mcp/tools/list-feeds';
 export { GetFeedTool } from '@/domain/mcp/tools/get-feed';
@@ -116,5 +117,5 @@ export type ToolName = NameOf<typeof TOOLS>;
 export const TOOL_REGISTRY = new ToolRegistry<
   ToolName,
   ToolContext,
-  ToolContent
+  JsonContent
 >(TOOLS);

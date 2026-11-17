@@ -30,12 +30,12 @@
  * request through.
  */
 
+import { errorMessage, logError } from '@/utils/logging';
 import { clientSubject } from './client-address';
 import { CSP_REPORT_PATH } from './reporting';
 import { DISCOVERY_PATHS, STATIC_PREFIXES } from './site';
-import { errorMessage, logError } from '@/utils/logging';
 
-const COUNTER_KEY_PATTERN = /^Bearer\s+(\S+)$/i;
+const COUNTER_KEY_PATTERN = /^Bearer\s+(\S+)$/iu;
 
 /** One Workers Rate Limiting binding: `limit` says whether `key` may go ahead. */
 export interface RateLimitBinding {
@@ -293,7 +293,7 @@ export function tooManyRequests(
         },
       );
     }
-    case 'text': {
+    default: {
       return new Response(`${TOO_MANY}\n`, {
         status: 429,
         headers: { ...common, 'Content-Type': 'text/plain; charset=utf-8' },

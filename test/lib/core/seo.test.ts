@@ -1,12 +1,12 @@
 import { describe, expect, it } from '@jest/globals';
 
+import { z } from 'zod';
 import { jsonLdText, landingJsonLd } from '@/lib/core/seo';
 import {
   SITE_APPLICATION_CATEGORY,
   SITE_FEATURES,
   SITE_REQUIREMENTS,
 } from '@/utils/site';
-import { z } from 'zod';
 
 describe('landingJsonLd', () => {
   const graph = landingJsonLd()['@graph'] as Record<string, unknown>[];

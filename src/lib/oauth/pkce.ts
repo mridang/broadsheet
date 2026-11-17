@@ -8,7 +8,7 @@
 
 import { bytesToBase64Url } from '@/utils/base64';
 
-const IS_WELL_FORMED_CHALLENGE_PATTERN = /^[A-Za-z0-9\-_]{43}$/;
+const IS_WELL_FORMED_CHALLENGE_PATTERN = /^[A-Za-z0-9\-_]{43}$/u;
 
 /** The `S256` code challenge for a verifier. */
 export async function s256(verifier: string): Promise<string> {
@@ -20,7 +20,7 @@ export async function s256(verifier: string): Promise<string> {
 }
 
 /** A verifier is 43–128 characters from the unreserved set (RFC 7636 §4.1). */
-const VERIFIER = /^[A-Za-z0-9\-._~]{43,128}$/;
+const VERIFIER = /^[A-Za-z0-9\-._~]{43,128}$/u;
 
 /** Whether `verifier` is well formed and hashes to `challenge`. */
 export async function verifyPkce(
@@ -38,7 +38,9 @@ export async function verifyPkce(
   const diff = Array.from(
     { length: computed.length },
     (_, index) =>
+      // eslint-disable-next-line no-bitwise -- constant-time comparison: XOR of each pair of characters
       (computed.codePointAt(index) ?? 0) ^ (challenge.codePointAt(index) ?? 0),
+    // eslint-disable-next-line no-bitwise -- constant-time comparison: OR of all the differences
   ).reduce((all, one) => all | one, 0);
   return diff === 0;
 }

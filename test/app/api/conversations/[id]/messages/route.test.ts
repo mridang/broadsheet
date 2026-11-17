@@ -8,7 +8,7 @@ import {
 } from '@jest/globals';
 
 import { DAILY_LIMITS } from '@/domain/assistant';
-import { createDatabase, type Database } from '@/domain/db/client';
+import { createDatabase } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
 import { SESSION_COOKIE } from '@/domain/auth/app';
 import { APP_MIGRATIONS } from '../../../../../lib/core/db/migrations';
@@ -20,6 +20,7 @@ import {
   SESSION_SECRET,
   tokenFor,
 } from '../../../../../domain/auth/auth-test-kit';
+import type { Database } from '@/domain/db/client';
 
 const { POST } = await import('@/app/api/conversations/[id]/messages/route');
 
@@ -27,8 +28,12 @@ let restore: () => void;
 let db: Database;
 let story: number;
 let conversation: number;
-let auth: Record<string, string>;
-let run: jest.Mock<(...args: unknown[]) => Promise<unknown>>;
+/** The Cookie header of the signed-in caller; empty for a signed-out one. */
+interface CallerCookie {
+  [name: string]: string;
+}
+let auth: CallerCookie;
+let run: jest.Mock<(...args: unknown[]) => Promise<object>>;
 
 async function cookieFor(uid: number): Promise<Record<string, string>> {
   return {
@@ -102,7 +107,7 @@ describe('POST /api/conversations/:id/messages', () => {
   it('answers with the conversation’s Location', async () => {
     const res = await send(conversation, '{"content":"Is rust safe?"}');
     expect(res.headers.get('location')).toMatch(
-      new RegExp(`/api/conversations/${conversation}$`),
+      new RegExp(`/api/conversations/${conversation}$`, 'u'),
     );
   });
 

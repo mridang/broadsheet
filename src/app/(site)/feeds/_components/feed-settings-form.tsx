@@ -1,13 +1,13 @@
 'use client';
 
-import type { SubmitEvent, ReactElement } from 'react';
-
+import { z } from 'zod';
 import { editFeed } from '@/app/(site)/feeds/_components/feed-requests';
+
 import { useFeedAction } from '@/app/(site)/feeds/_components/use-feed-action';
 import { buttonClass } from '@/components/ui/button';
 import { CHECK_LABEL } from '@/components/ui/field';
 import { ErrorText } from '@/components/ui/notice';
-import { z } from 'zod';
+import type { SubmitEvent, ReactElement } from 'react';
 
 /** The fields the feed settings form posts. */
 const feedSettingsForm = z.object({
@@ -91,7 +91,13 @@ export function FeedSettingsForm({
           ))}
         </select>
         <label className={CHECK_LABEL}>
-          <input name="muted" type="checkbox" defaultChecked={muted} /> Muted
+          <input
+            aria-label="Muted"
+            name="muted"
+            type="checkbox"
+            defaultChecked={muted}
+          />{' '}
+          Muted
         </label>
         <button
           className={buttonClass({ variant: 'outline' })}

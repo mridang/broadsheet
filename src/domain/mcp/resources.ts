@@ -11,11 +11,11 @@ import { feedResource } from '@/domain/api/feed-resource';
 import { sectionResource } from '@/domain/api/section-resource';
 import { Repository } from '@/domain/repository';
 import { ToolFailureError } from '@/domain/mcp/tool-failure';
-import type { ToolContext } from './tool-context';
 import { compareText } from '@/lib/intl';
+import type { ToolContext } from './tool-context';
 
 /** The URI of one feed. */
-const FEED_URI = /^broadsheet:\/\/feeds\/([1-9]\d{0,15})$/;
+const FEED_URI = /^broadsheet:\/\/feeds\/([1-9]\d{0,15})$/u;
 
 /**
  * A resource the server offers: a fixed `uri`, or a `uriTemplate` whose
@@ -69,15 +69,15 @@ export const RESOURCES: readonly McpResource<ToolContext>[] = [
     read: async (_params, { user, services }) => {
       const db = services.openDatabase();
       const uid = user.id;
-      const counts = new Map<string, number>();
-      for (const save of await new Repository(db).listSaves(uid)) {
-        for (const tag of save.tags)
-          counts.set(tag, (counts.get(tag) ?? 0) + 1);
-      }
+      const saves = await new Repository(db).listSaves(uid);
+      const counts = Map.groupBy(
+        saves.flatMap((save) => save.tags),
+        (tag) => tag,
+      );
       return {
         tags: [...counts]
           .toSorted(([a], [b]) => compareText(a, b))
-          .map(([tag, count]) => ({ tag, count })),
+          .map(([tag, tagged]) => ({ tag, count: tagged.length })),
       };
     },
   },
@@ -104,7 +104,9 @@ export const RESOURCES: readonly McpResource<ToolContext>[] = [
       const db = services.openDatabase();
       const uid = user.id;
       const account = await new Repository(db).getUser(uid);
-      if (!account) throw new ToolFailureError('There is no such account.');
+      if (!account) {
+        throw new ToolFailureError('There is no such account.');
+      }
       return {
         email: account.email,
         ...(account.name ? { name: account.name } : {}),
@@ -123,7 +125,9 @@ export const RESOURCES: readonly McpResource<ToolContext>[] = [
       const db = services.openDatabase();
       const uid = user.id;
       const feed = await new Repository(db).getFeed(uid, Number(feed_id));
-      if (!feed) throw new ToolFailureError('There is no such feed.');
+      if (!feed) {
+        throw new ToolFailureError('There is no such feed.');
+      }
       return feedResource(feed);
     },
   },

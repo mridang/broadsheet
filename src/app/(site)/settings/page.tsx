@@ -1,4 +1,3 @@
-import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 
 import { getCurrentUser } from '@/lib/core/auth';
@@ -19,6 +18,7 @@ import { RemoveWebhookButton } from '@/app/(site)/settings/_components/remove-we
 import { RevokeTokenButton } from '@/app/(site)/settings/_components/revoke-token-button';
 import { List, ListItem } from '@/components/ui/card';
 import { PageHeader, PageSection } from '@/components/ui/page-header';
+import type { Metadata } from 'next';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,8 +30,12 @@ function scopeText(
   token: { scope: string; tag: string | null; section_id: number | null },
   sections: ReadonlyMap<number, string>,
 ): string {
-  if (token.scope === 'edition') return 'The whole edition';
-  if (token.scope === 'highlights') return 'Highlights';
+  if (token.scope === 'edition') {
+    return 'The whole edition';
+  }
+  if (token.scope === 'highlights') {
+    return 'Highlights';
+  }
   if (token.scope === 'section') {
     return `Section: ${sections.get(token.section_id ?? 0) ?? 'removed'}`;
   }
@@ -40,7 +44,9 @@ function scopeText(
 
 export default async function SettingsPage() {
   const user = await getCurrentUser();
-  if (!user) redirect('/login');
+  if (!user) {
+    redirect('/login');
+  }
   const db = getDatabase();
   const outbound = new OutboundRepository(db);
   const repo = new Repository(db);

@@ -12,8 +12,7 @@
  * stories apart. Matches merge by union-find into clusters of at most
  * {@link MAX_CLUSTER} spanning two or more sources.
  */
-import type { Database } from '@/domain/db/client';
-import { Repository, type Clusterable } from '@/domain/repository';
+import { Repository } from '@/domain/repository';
 import {
   MIN_TITLE_LENGTH,
   fuzzyMatch,
@@ -22,6 +21,8 @@ import {
   significantWords,
 } from '@/domain/titles';
 import { logInfo } from '@/utils/logging';
+import type { Clusterable } from '@/domain/repository';
+import type { Database } from '@/domain/db/client';
 
 /** The Workers AI model articles are embedded with (768 dimensions). */
 export const EMBEDDING_MODEL = '@cf/baai/bge-base-en-v1.5';
@@ -62,69 +63,84 @@ export interface ClusterItem {
 
 /** The cosine similarity of two vectors (0 when either is all zeros). */
 export function cosine(a: readonly number[], b: readonly number[]): number {
-  let dot = 0;
-  let na = 0;
-  let nb = 0;
-  for (let index = 0; index < Math.min(a.length, b.length); index++) {
-    const x = a[index] ?? 0;
-    const y = b[index] ?? 0;
-    dot += x * y;
-    na += x * x;
-    nb += y * y;
-  }
+  const terms = Array.from(
+    { length: Math.min(a.length, b.length) },
+    (_, index) => ({
+      x: a[index] ?? 0,
+      y: b[index] ?? 0,
+    }),
+  );
+  const dot = terms.reduce((sum, { x, y }) => sum + x * y, 0);
+  const na = terms.reduce((sum, { x }) => sum + x * x, 0);
+  const nb = terms.reduce((sum, { y }) => sum + y * y, 0);
   return na && nb ? dot / Math.sqrt(na * nb) : 0;
 }
 
 /** Union-find over indexes, refusing a union that would pass `cap` members. */
 class Groups {
-  readonly #parent: number[];
-  readonly #size: number[];
+  readonly #parent: readonly number[];
+  readonly #size: readonly number[];
 
-  constructor(
-    n: number,
+  private constructor(
+    parent: readonly number[],
+    size: readonly number[],
     readonly cap: number,
   ) {
-    this.#parent = Array.from({ length: n }, (_, index) => index);
-    this.#size = Array.from({ length: n }, () => 1);
+    this.#parent = parent;
+    this.#size = size;
+  }
+
+  static of(n: number, cap: number): Groups {
+    return new Groups(
+      Array.from({ length: n }, (_, index) => index),
+      Array.from({ length: n }, () => 1),
+      cap,
+    );
   }
 
   rootOf(index: number): number {
-    let root = index;
-    while (this.#parent[root] !== root) root = this.#parent[root] ?? root;
-    this.#parent[index] = root;
-    return root;
+    const parent = this.#parent[index] ?? index;
+    return parent === index ? index : this.rootOf(parent);
   }
 
-  union(index: number, index6: number): void {
+  union(index: number, index6: number): Groups {
     const a = this.rootOf(index);
     const b = this.rootOf(index6);
-    if (a === b) return;
+    if (a === b) {
+      return this;
+    }
     const size = (this.#size[a] ?? 1) + (this.#size[b] ?? 1);
-    if (size > this.cap) return;
-    this.#parent[b] = a;
-    this.#size[a] = size;
+    if (size > this.cap) {
+      return this;
+    }
+    return new Groups(
+      this.#parent.with(b, a),
+      this.#size.with(a, size),
+      this.cap,
+    );
   }
 }
 
 /** Every pair of items that share a title word not too common to count. */
 function candidatePairs(words: readonly Set<string>[]): [number, number][] {
-  const index = new Map<string, number[]>();
-  for (const [index5, set] of words.entries()) {
-    for (const w of set) index.set(w, [...(index.get(w) ?? []), index5]);
-  }
+  const index = Map.groupBy(
+    words.flatMap((set, at) => Array.from(set, (w) => ({ w, at }))),
+    ({ w }) => w,
+  );
   // Keyed by pair, so a pair found twice keeps its first place and is kept once.
-  const seen = new Map<string, [number, number]>();
-  for (const members of index.values()) {
-    if (members.length > COMMON_WORD) continue;
-    for (let x = 0; x < members.length; x++) {
-      for (let y = x + 1; y < members.length; y++) {
-        const index4 = members[x] ?? 0;
-        const position = members[y] ?? 0;
-        seen.set(`${index4}:${position}`, [index4, position]);
-      }
-    }
-  }
-  return [...seen.values()];
+  const pairs = index
+    .values()
+    .map((group) => group.map(({ at }) => at))
+    .filter((members) => members.length <= COMMON_WORD)
+    .flatMap((members) =>
+      members.flatMap((first, x) =>
+        members.slice(x + 1).map((second): [number, number] => [first, second]),
+      ),
+    )
+    .toArray();
+  return [
+    ...new Map(pairs.map((pair) => [`${pair[0]}:${pair[1]}`, pair])).values(),
+  ];
 }
 
 /**
@@ -139,38 +155,47 @@ export function clusterGroups(
   threshold: number = SAME_STORY,
 ): number[][] {
   const words = items.map((it) => significantWords(it.title, it.feed_title));
-  const groups = new Groups(items.length, MAX_CLUSTER);
-  const exact = new Map<string, number>();
-  for (const [index, it] of items.entries()) {
-    const key = normaliseTitle(it.title);
-    if (key.length < MIN_TITLE_LENGTH) continue;
-    const first = exact.get(key);
-    if (first === undefined) exact.set(key, index);
-    else groups.union(first, index);
-  }
-  for (const [index, index3] of candidatePairs(words)) {
+  const keys = items.map((it) => normaliseTitle(it.title));
+  const firstOf = new Map(
+    keys.map((key, index): [string, number] => [key, index]).toReversed(),
+  );
+  const exactPairs = keys.flatMap((key, index): [number, number][] => {
+    const first = firstOf.get(key);
+    return key.length >= MIN_TITLE_LENGTH &&
+      first !== undefined &&
+      first !== index
+      ? [[first, index]]
+      : [];
+  });
+  const fuzzyPairs = candidatePairs(words).filter(([index, index3]) => {
     const a = items[index];
     const b = items[index3];
-    if (!a || !b || a.source_id === b.source_id) continue;
+    if (!a || !b || a.source_id === b.source_id) {
+      return false;
+    }
     const wa = words[index] ?? new Set<string>();
     const wb = words[index3] ?? new Set<string>();
     const close =
       a.vector && b.vector && cosine(a.vector, b.vector) >= threshold;
-    if (fuzzyMatch(wa, wb) || (close && relatedMatch(wa, wb))) {
-      groups.union(index, index3);
-    }
-  }
-  const byRoot = new Map<number, number[]>();
-  for (const [index] of items.entries()) {
-    const root = groups.rootOf(index);
-    byRoot.set(root, [...(byRoot.get(root) ?? []), index]);
-  }
-  return [...byRoot.values()]
+    return fuzzyMatch(wa, wb) || (close === true && relatedMatch(wa, wb));
+  });
+  const groups = [exactPairs, fuzzyPairs]
+    .flat()
+    .reduce(
+      (merged, [first, second]) => merged.union(first, second),
+      Groups.of(items.length, MAX_CLUSTER),
+    );
+  const byRoot = Map.groupBy([...items.keys()], (index) =>
+    groups.rootOf(index),
+  );
+  return byRoot
+    .values()
     .filter(
       (members) =>
         new Set(members.map((index) => items[index]?.source_id)).size > 1,
     )
-    .map((members) => members.map((index) => items[index]?.id ?? 0));
+    .map((members) => members.map((index) => items[index]?.id ?? 0))
+    .toArray();
 }
 
 /** What an article is embedded from: its title and the start of its summary. */
@@ -180,10 +205,9 @@ export function embeddingText(a: Clusterable): string {
 
 /** Cut `list` into runs of at most `size`. */
 function batches<T>(list: readonly T[], size: number): T[][] {
-  const out: T[][] = [];
-  for (let index = 0; index < list.length; index += size)
-    out.push(list.slice(index, index + size));
-  return out;
+  return Array.from({ length: Math.ceil(list.length / size) }, (_, index) =>
+    list.slice(index * size, (index + 1) * size),
+  );
 }
 
 /** The vectors Vectorize already holds for these articles, by id. */
@@ -191,15 +215,18 @@ async function storedVectors(
   index: VectorizeIndex,
   ids: readonly number[],
 ): Promise<Map<number, number[]>> {
-  const found = new Map<number, number[]>();
-  for (const part of batches(ids, LOOKUP_BATCH)) {
+  return batches(ids, LOOKUP_BATCH).reduce(async (previous, part) => {
+    const found = await previous;
     // Vectorize's getByIds, not Testing Library's sync query of that name.
 
-    for (const v of await index.getByIds(part.map(String))) {
-      found.set(Number(v.id), [...v.values]);
-    }
-  }
-  return found;
+    const rows = await index.getByIds(part.map(String));
+    return new Map(
+      [
+        [...found],
+        rows.map((v): [number, number[]] => [Number(v.id), [...v.values]]),
+      ].flat(),
+    );
+  }, Promise.resolve(new Map<number, number[]>()));
 }
 
 /** Embed articles with Workers AI and store their vectors in Vectorize. */
@@ -209,8 +236,8 @@ async function embedAll(
   articles: readonly Clusterable[],
   edition: string,
 ): Promise<Map<number, number[]>> {
-  const made = new Map<number, number[]>();
-  for (const part of batches(articles, EMBED_BATCH)) {
+  return batches(articles, EMBED_BATCH).reduce(async (previous, part) => {
+    const made = await previous;
     const out = await env.AI.run(EMBEDDING_MODEL, {
       text: part.map((a) => embeddingText(a)),
     });
@@ -219,7 +246,9 @@ async function embedAll(
       const values = data[index2];
       return values ? [{ a, values }] : [];
     });
-    if (vectors.length === 0) continue;
+    if (vectors.length === 0) {
+      return made;
+    }
     await index.upsert(
       vectors.map(({ a, values }) => ({
         id: String(a.id),
@@ -227,9 +256,13 @@ async function embedAll(
         metadata: { edition, source_id: a.source_id },
       })),
     );
-    for (const { a, values } of vectors) made.set(a.id, values);
-  }
-  return made;
+    return new Map(
+      [
+        [...made],
+        vectors.map(({ a, values }): [number, number[]] => [a.id, values]),
+      ].flat(),
+    );
+  }, Promise.resolve(new Map<number, number[]>()));
 }
 
 /**
@@ -254,14 +287,14 @@ export async function clusterEdition(
   const repo = new Repository(db);
   const from = daysBefore(edition, LOOKBACK_DAYS - 1);
   const articles = await repo.windowArticles(from, edition);
-  const vectors = await storedVectors(
+  const stored = await storedVectors(
     index,
     articles.map((a) => a.id),
   );
-  const fresh = articles.filter((a) => !vectors.has(a.id));
-  for (const [id, values] of await embedAll(env, index, fresh, edition)) {
-    vectors.set(id, values);
-  }
+  const fresh = articles.filter((a) => !stored.has(a.id));
+  const vectors = new Map(
+    [[...stored], [...(await embedAll(env, index, fresh, edition))]].flat(),
+  );
   const groups = clusterGroups(
     articles.map((a) => {
       const vector = vectors.get(a.id);

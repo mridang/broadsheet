@@ -7,9 +7,9 @@ import {
 } from '@/components/ui/page-header';
 import { html } from '../render';
 
-const TITLES_THE_PAGE_WITH_PATTERN = /<h1[^>]*>Your feeds<\/h1>/;
-const IS_LABELLED_BY_ITS_PATTERN = /<section aria-labelledby="stories"/;
-const IS_LABELLED_BY_ITS_PATTERN_2 = /<h2 id="stories"[^>]*>Stories<\/h2>/;
+const TITLES_THE_PAGE_WITH_PATTERN = /<h1[^>]*>Your feeds<\/h1>/u;
+const IS_LABELLED_BY_ITS_PATTERN = /<section aria-labelledby="stories"/u;
+const IS_LABELLED_BY_ITS_PATTERN_2 = /<h2 id="stories"[^>]*>Stories<\/h2>/u;
 
 describe('PageHeader', () => {
   it('titles the page with its description and actions', () => {

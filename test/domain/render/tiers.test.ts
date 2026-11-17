@@ -1,6 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
 
-import type { Article } from '@/domain/repository';
 import {
   ago,
   assignTiers,
@@ -11,8 +10,9 @@ import {
   tagsOf,
   titleHas,
   verdict,
-  type Classifiable,
 } from '@/domain/render/tiers';
+import type { Classifiable } from '@/domain/render/tiers';
+import type { Article } from '@/domain/repository';
 
 function article(over: Partial<Article>): Article {
   return {
@@ -347,7 +347,12 @@ describe('rank at a level', () => {
     ['all', [1, 2, 3]],
   ] as const)('keeps at %s the stories %j', (level, ids) => {
     expect(
-      rank([hated, plain, liked], training, new Map(), level).map((a) => a.id),
+      rank(
+        [hated, plain, liked],
+        training,
+        new Map<number, number>(),
+        level,
+      ).map((a) => a.id),
     ).toEqual(ids);
   });
 });

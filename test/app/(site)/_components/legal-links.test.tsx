@@ -3,11 +3,11 @@ import { describe, expect, it } from '@jest/globals';
 import { LegalLinks } from '@/app/(site)/_components/legal-links';
 import { html } from '../../../components/render';
 
-const IS_A_NAVIGATION_LANDMARK_PATTERN = /^<nav aria-label="Legal"/;
+const IS_A_NAVIGATION_LANDMARK_PATTERN = /^<nav aria-label="Legal"/u;
 const LINKS_THE_PRIVACY_POLICY_PATTERN =
-  /<a [^>]*href="\/privacy"[^>]*>Privacy<\/a>/;
+  /<a [^>]*href="\/privacy"[^>]*>Privacy<\/a>/u;
 const LINKS_THE_PRIVACY_POLICY_PATTERN_2 =
-  /<a [^>]*href="\/terms"[^>]*>Terms<\/a>/;
+  /<a [^>]*href="\/terms"[^>]*>Terms<\/a>/u;
 
 describe('LegalLinks', () => {
   const out = html(<LegalLinks />);

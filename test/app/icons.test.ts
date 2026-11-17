@@ -1,11 +1,11 @@
-import { describe, expect, it } from '@jest/globals';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { describe, expect, it } from '@jest/globals';
 
 import { BRAND_NAME } from '@/app/_brand';
 import { pngIsOpaque, pngSize } from '../png';
 
-const HAS_A_SCALABLE_ICON_PATTERN = /^<svg [^>]*viewBox=/;
+const HAS_A_SCALABLE_ICON_PATTERN = /^<svg [^>]*viewBox=/u;
 
 const app = (name: string) => path.join(process.cwd(), 'src/app', name);
 

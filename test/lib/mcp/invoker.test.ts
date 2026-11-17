@@ -7,8 +7,6 @@ import {
   ToolInvoker,
   ToolRegistry,
   UnknownToolError,
-  type FailureExplainer,
-  type FailureLog,
 } from '@/lib/mcp';
 import {
   CountTool,
@@ -16,8 +14,9 @@ import {
   FetchTool,
   RenameTool,
   fixtureContext,
-  type FixtureContext,
 } from './tool-fixtures';
+import type { FailureExplainer, FailureLog } from '@/lib/mcp';
+import type { FixtureContext } from './tool-fixtures';
 
 /** The text of a result's one piece of content. */
 const textOf = (result: { content: readonly { text: string }[] }) =>
@@ -109,8 +108,9 @@ describe('ToolInvoker.invoke', () => {
       context,
     );
     expect(result.isError).toBe(true);
-    expect(textOf(result)).toContain('Invalid arguments for count');
-    expect(textOf(result)).toContain('The arguments are: limit.');
+    const text = textOf(result);
+    expect(text).toContain('Invalid arguments for count');
+    expect(text).toContain('The arguments are: limit.');
     expect(context.ran).toEqual([]);
   });
 
@@ -155,8 +155,9 @@ describe('ToolInvoker.invokeOrExplain', () => {
       fixtureContext(),
     );
     expect(result.isError).toBe(true);
-    expect(textOf(result)).toContain('Something went wrong with the database');
-    expect(textOf(result)).not.toContain('secret detail');
+    const text = textOf(result);
+    expect(text).toContain('Something went wrong with the database');
+    expect(text).not.toContain('secret detail');
     expect(log.entries).toHaveLength(1);
     expect(log.entries[0]?.service).toBe('the database');
   });
@@ -224,8 +225,9 @@ describe('ToolInvoker and a tool that names its backing service', () => {
       new NoExplanations(),
       log,
     ).invokeOrExplain({ name: 'count' }, fixtureContext());
-    expect(textOf(result)).toContain('Something went wrong with the archive');
-    expect(textOf(result)).not.toContain('connection reset');
+    const text = textOf(result);
+    expect(text).toContain('Something went wrong with the archive');
+    expect(text).not.toContain('connection reset');
     expect(log.entries[0]?.service).toBe('the archive');
   });
 

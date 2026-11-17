@@ -4,9 +4,10 @@ import SiteNotFound, { metadata } from '@/app/(site)/not-found';
 import { html } from '../../components/render';
 
 const IS_A_LEVEL_ONE_HEADING_PATTERN =
-  /<h1[^>]*>We couldn&#x27;t find that page<\/h1>/;
-const OFFERS_THE_WAY_BACK_PATTERN = /href="\/"[^>]*>Back to the front page/;
-const OFFERS_THE_WAY_BACK_PATTERN_2 = /href="\/search"[^>]*>Search the archive/;
+  /<h1[^>]*>We couldn&#x27;t find that page<\/h1>/u;
+const OFFERS_THE_WAY_BACK_PATTERN = /href="\/"[^>]*>Back to the front page/u;
+const OFFERS_THE_WAY_BACK_PATTERN_2 =
+  /href="\/search"[^>]*>Search the archive/u;
 
 describe('SiteNotFound', () => {
   const out = html(<SiteNotFound />);

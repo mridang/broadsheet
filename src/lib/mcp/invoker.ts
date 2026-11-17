@@ -13,14 +13,15 @@
  */
 
 import { ArgumentChecker } from './arguments';
-import type { FailureExplainer } from './failures';
-import { errorResult, type JsonContent, type ToolResult } from './results';
-import type { ToolRegistry } from './registry';
+import { errorResult } from './results';
 import {
   BackendFailureError,
   InvalidToolArgumentsError,
   UnknownToolError,
 } from './tool-errors';
+import type { JsonContent, ToolResult } from './results';
+import type { FailureExplainer } from './failures';
+import type { ToolRegistry } from './registry';
 import type { ToolArgs } from './tool';
 
 /** Somewhere to record a failure that is not shown to the assistant. */

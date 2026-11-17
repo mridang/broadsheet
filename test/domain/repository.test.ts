@@ -1,10 +1,8 @@
 import { beforeEach, describe, expect, it } from '@jest/globals';
 import { sql } from 'drizzle-orm';
 
-import type { DatabaseSync } from 'node:sqlite';
-
 import { ShareRepository } from '@/domain/shares';
-import { createDatabase, type Database } from '@/domain/db/client';
+import { createDatabase } from '@/domain/db/client';
 import {
   anyWordQuery,
   FETCH_HISTORY_LIMIT,
@@ -21,19 +19,20 @@ import {
   sectionPath,
   treeOrder,
   storyTime,
-  type Profile,
-  type Section,
 } from '@/domain/repository';
-import type { ScrapedItem } from '@/lib/scraping';
 import { APP_MIGRATIONS } from '../lib/core/db/migrations';
 import { expectIndexed, recordedDatabase } from '../lib/core/db/plan';
 import { sqliteD1 } from '../lib/core/db/sqlite-d1';
+import type { Profile, Section } from '@/domain/repository';
+import type { Database } from '@/domain/db/client';
+import type { ScrapedItem } from '@/lib/scraping';
+import type { DatabaseSync } from 'node:sqlite';
 
 const collator = new Intl.Collator();
 
-const READS_THE_DUE_SOURCES_PATTERN = /SCAN sources/;
-const READS_THE_DUE_SOURCES_PATTERN_2 = /TEMP B-TREE/;
-const FINDS_THE_NOTIFYING_FEEDS_PATTERN = /SCAN feed_notifications/;
+const READS_THE_DUE_SOURCES_PATTERN = /SCAN sources/u;
+const READS_THE_DUE_SOURCES_PATTERN_2 = /TEMP B-TREE/u;
+const FINDS_THE_NOTIFYING_FEEDS_PATTERN = /SCAN feed_notifications/u;
 
 // Thin adapters over the Repository handle, so each case reads as a one-liner.
 const upsertUser = async (d: Database, p: Profile) =>
@@ -145,8 +144,10 @@ describe('getFeedByUrl and removeFeed', () => {
     const feed = (await addFeed(db, 1, 'https://a.test/f'))!;
     expect(await removeFeed(db, 2, feed.id)).toBe(false);
     expect(await listFeeds(db, 1)).toHaveLength(1);
-    expect(await removeFeed(db, 1, feed.id)).toBe(true);
-    expect(await removeFeed(db, 1, feed.id)).toBe(false);
+    const firstCall1 = await removeFeed(db, 1, feed.id);
+    const secondCall1 = await removeFeed(db, 1, feed.id);
+    expect(firstCall1).toBe(true);
+    expect(secondCall1).toBe(false);
     expect(await listFeeds(db, 1)).toHaveLength(0);
   });
 });
@@ -228,8 +229,10 @@ describe('sections', () => {
     const feed = (await addFeed(db, 1, 'https://a.test/f'))!;
     await repo.updateFeed(1, feed.id, { section_id: s.id });
     expect(await repo.removeSection(2, s.id)).toBe(false);
-    expect(await repo.removeSection(1, s.id)).toBe(true);
-    expect(await repo.removeSection(1, s.id)).toBe(false);
+    const firstCall2 = await repo.removeSection(1, s.id);
+    const secondCall2 = await repo.removeSection(1, s.id);
+    expect(firstCall2).toBe(true);
+    expect(secondCall2).toBe(false);
     const getFeedResult2 = await repo.getFeed(1, feed.id);
     expect(getFeedResult2?.section_id).toBeNull();
   });
@@ -267,8 +270,9 @@ describe('recordFetch', () => {
     expect(await minutesAway(repo)).toBeLessThan(1);
     await repo.recordFetch(source_id, 'down');
     expect(Math.round(await minutesAway(repo))).toBe(1440);
-    for (let index = 0; index < 10; index++)
+    for (let index = 0; index < 10; index++) {
       await repo.recordFetch(source_id, 'down');
+    }
     expect(Math.round(await minutesAway(repo))).toBe(MAX_BACKOFF_MINUTES);
   });
 
@@ -452,8 +456,10 @@ describe('saved searches', () => {
     expect(await repo.listSearches(2)).toEqual([]);
     expect(await repo.getSearch(2, a.search.id)).toBeUndefined();
     expect(await repo.removeSearch(2, a.search.id)).toBe(false);
-    expect(await repo.removeSearch(1, a.search.id)).toBe(true);
-    expect(await repo.removeSearch(1, a.search.id)).toBe(false);
+    const firstCall3 = await repo.removeSearch(1, a.search.id);
+    const secondCall3 = await repo.removeSearch(1, a.search.id);
+    expect(firstCall3).toBe(true);
+    expect(secondCall3).toBe(false);
   });
 });
 
@@ -921,8 +927,10 @@ describe('saves', () => {
     const repo = new Repository(db);
     const { id } = await oneStory();
     await repo.saveArticle(1, id, []);
-    expect(await repo.unsaveArticle(1, id)).toBe(true);
-    expect(await repo.unsaveArticle(1, id)).toBe(false);
+    const firstCall4 = await repo.unsaveArticle(1, id);
+    const secondCall4 = await repo.unsaveArticle(1, id);
+    expect(firstCall4).toBe(true);
+    expect(secondCall4).toBe(false);
   });
 
   it('keeps a saved story when its edition is written again', async () => {
@@ -969,8 +977,10 @@ describe('reads', () => {
   it('notes a read once and reports its id and address', async () => {
     const repo = new Repository(db);
     const { id } = await oneStory();
-    expect(await repo.markRead(1, id)).toBe(true);
-    expect(await repo.markRead(1, id)).toBe(false);
+    const firstCall5 = await repo.markRead(1, id);
+    const secondCall5 = await repo.markRead(1, id);
+    expect(firstCall5).toBe(true);
+    expect(secondCall5).toBe(false);
     const state = await repo.readState(1);
     expect([...state.ids]).toEqual([id]);
     expect([...state.urls]).toEqual(['https://x/1']);
@@ -997,8 +1007,10 @@ describe('reads', () => {
     const { id } = await oneStory();
     await repo.markRead(1, id);
     expect(await repo.markUnread(2, id)).toBe(false);
-    expect(await repo.markUnread(1, id)).toBe(true);
-    expect(await repo.markUnread(1, id)).toBe(false);
+    const firstCall6 = await repo.markUnread(1, id);
+    const secondCall6 = await repo.markUnread(1, id);
+    expect(firstCall6).toBe(true);
+    expect(secondCall6).toBe(false);
     const readStateResult4 = await repo.readState(1);
     expect(readStateResult4.ids.size).toBe(0);
   });
@@ -1166,7 +1178,7 @@ describe('storyCounts', () => {
       storyNumbered(2),
     ]);
     expect(await repo.storyCounts(1)).toEqual(new Map([[feed.id, 2]]));
-    expect(await repo.storyCounts(2)).toEqual(new Map());
+    expect(await repo.storyCounts(2)).toEqual(new Map<number, number>());
   });
 });
 
@@ -1369,7 +1381,9 @@ describe('articleTitles', () => {
     expect(await repo.articleTitles([a!.id, 999])).toEqual(
       new Map([[a!.id, 'One']]),
     );
-    expect(await repo.articleTitles([])).toEqual(new Map());
+    expect(await repo.articleTitles([])).toEqual(
+      new Map<number, string | null>(),
+    );
   });
 });
 
@@ -1509,7 +1523,9 @@ describe('trendingArticles', () => {
   async function read(person: number, article: number, seconds = 0) {
     const repo = new Repository(db);
     await repo.markRead(person, article);
-    if (seconds) await repo.recordReadTime(person, article, seconds);
+    if (seconds) {
+      await repo.recordReadTime(person, article, seconds);
+    }
   }
 
   const rank = async (
@@ -1548,7 +1564,9 @@ describe('trendingArticles', () => {
       await read(b, id);
     }
     const repo = new Repository(db);
-    const page = async (query: object) =>
+    const page = async (
+      query: Partial<Parameters<Repository['trendingArticles']>[1]>,
+    ) =>
       repo.trendingArticles(a, {
         order: 'reads',
         since: EVER,
@@ -1613,7 +1631,9 @@ describe('trendingArticles', () => {
     expect(await rank(a, { order: 'good_reads' })).toEqual([]);
     await repo.saveArticle(c, ids[1]!, []);
     expect(await rank(a, { order: 'good_reads' })).toEqual([[ids[1], 2]]);
-    for (const p of [a, b, c, d]) await read(p, ids[2]!, 40);
+    for (const p of [a, b, c, d]) {
+      await read(p, ids[2]!, 40);
+    }
     await read(a, ids[0]!, 600);
     await read(b, ids[0]!, 600);
     await repo.saveArticle(c, ids[0]!, []);
@@ -1739,8 +1759,12 @@ describe('trendingSources', () => {
     const repo = new Repository(db);
     const { people, sources, stories } = await seed();
     const [a, b, c] = people as [number, number, number];
-    for (const p of [a, b, c]) await repo.markRead(p, stories[1]!);
-    for (const p of [a, b]) await repo.markRead(p, stories[0]!);
+    for (const p of [a, b, c]) {
+      await repo.markRead(p, stories[1]!);
+    }
+    for (const p of [a, b]) {
+      await repo.markRead(p, stories[0]!);
+    }
     const trendingSourcesResult = await repo.trendingSources({
       ...query,
       order: 'reads',
@@ -1761,7 +1785,9 @@ describe('trendingSources', () => {
     expect(await repo.trendingSources({ ...query, order: 'reads' })).toEqual(
       [],
     );
-    for (const p of people) await repo.markRead(p, stories[1]!);
+    for (const p of people) {
+      await repo.markRead(p, stories[1]!);
+    }
     expect(
       await repo.trendingSources({
         ...query,
@@ -2748,8 +2774,10 @@ describe('marking unread and many read', () => {
     const repo = new Repository(db);
     const { ids } = await three();
     await repo.markRead(1, ids[0]!);
-    expect(await repo.markUnread(1, ids[0]!)).toBe(true);
-    expect(await repo.markUnread(1, ids[0]!)).toBe(false);
+    const firstCall7 = await repo.markUnread(1, ids[0]!);
+    const secondCall7 = await repo.markUnread(1, ids[0]!);
+    expect(firstCall7).toBe(true);
+    expect(secondCall7).toBe(false);
     const readStateResult5 = await repo.readState(1);
     expect(readStateResult5.ids.size).toBe(0);
   });
@@ -3123,8 +3151,9 @@ describe('trendingSites and searchSources', () => {
   /** Three people; a popular source, a rising one, a quiet but well-read one. */
   async function setup(): Promise<Repository> {
     const repo = new Repository(db);
-    for (const uid of [1, 2, 3])
+    for (const uid of [1, 2, 3]) {
       await addFeed(db, uid, 'https://popular.test/f', 'Popular');
+    }
     const quiet = (await addFeed(db, 2, 'https://quiet.test/f', 'Quiet Gem'))!;
     await db.run(
       sql`UPDATE subscriptions SET created_at = datetime('now', '-30 days')`,

@@ -17,10 +17,8 @@ import {
   converse,
   passageBlock,
   storyBlock,
-  type AnswerModel,
-  type ToolCall,
-  type ToolDefinition,
 } from '@/domain/assistant';
+import type { AnswerModel, ToolCall, ToolDefinition } from '@/domain/assistant';
 import type { Message, Passage, Repository } from '@/domain/repository';
 
 /** Most stories one search returns. */
@@ -30,7 +28,7 @@ const MAX_RESULTS = 20;
 const STORY_LENGTH = 8000;
 
 /** A day as the tools take one. */
-const DAY = /^\d{4}-\d{2}-\d{2}$/;
+const DAY = /^\d{4}-\d{2}-\d{2}$/u;
 
 /** A JSON Schema property: a string, with a description. */
 const text = (description: string) => ({ type: 'string', description });
@@ -169,7 +167,7 @@ function day(value: unknown): string | undefined {
 export class ToolRunner {
   readonly #repo: Repository;
   readonly #uid: number;
-  readonly #seen = new Map<number, string | null>();
+  #seen: ReadonlyMap<number, string | null> = new Map();
 
   constructor(repo: Repository, uid: number) {
     this.#repo = repo;
@@ -183,7 +181,12 @@ export class ToolRunner {
 
   /** Note stories as shown, and set them out for the model. */
   show(passages: readonly Passage[]): string {
-    for (const p of passages) this.#seen.set(p.id, p.title);
+    this.#seen = new Map(
+      [
+        this.#seen,
+        new Map(passages.map((p): [number, string | null] => [p.id, p.title])),
+      ].flatMap((seen) => [...seen]),
+    );
     return passages.length > 0
       ? passages.map((passage) => passageBlock(passage)).join('\n\n')
       : 'No stories found.';
@@ -195,7 +198,9 @@ export class ToolRunner {
     switch (call.name) {
       case 'search_stories': {
         const query = asString(args['query']);
-        if (!query) return 'search_stories needs a query.';
+        if (!query) {
+          return 'search_stories needs a query.';
+        }
         return this.show(
           await this.#repo.retrievePassages(this.#uid, query, {
             since: day(args['since']),
@@ -216,7 +221,17 @@ export class ToolRunner {
       }
       case 'saved_summary': {
         const summary = await this.#repo.savedSummary(this.#uid);
-        for (const r of summary.recent) this.#seen.set(r.id, r.title);
+        this.#seen = new Map(
+          [
+            this.#seen,
+            new Map(
+              summary.recent.map((r): [number, string | null] => [
+                r.id,
+                r.title,
+              ]),
+            ),
+          ].flatMap((seen) => [...seen]),
+        );
         return JSON.stringify(summary);
       }
       case 'search_shared_stories': {
@@ -241,8 +256,10 @@ export class ToolRunner {
         const article = id
           ? await this.#repo.reachableArticle(this.#uid, id)
           : undefined;
-        if (!article) return `No story with id ${String(args['id'])}.`;
-        this.#seen.set(article.id, article.title);
+        if (!article) {
+          return `No story with id ${String(args['id'])}.`;
+        }
+        this.#seen = new Map([...this.#seen, [article.id, article.title]]);
         const annotation = await this.#repo.saveAnnotation(
           this.#uid,
           article.id,

@@ -1,9 +1,8 @@
 import Link from 'next/link';
+import { cn } from '@/components/ui/cn';
 import type { ComponentProps, ReactElement, ReactNode } from 'react';
 
-import { cn } from '@/components/ui/cn';
-
-const TEXT_LINK_PATTERN = /^https?:/;
+const TEXT_LINK_PATTERN = /^https?:/u;
 
 /** The colours of each kind of button. */
 const VARIANTS = {

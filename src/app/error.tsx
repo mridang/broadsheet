@@ -1,11 +1,10 @@
 'use client';
 
-import type { ReactElement } from 'react';
-
 import { BarePage, MessagePage } from '@/components/site/bare-page';
 import { Button, ButtonLink } from '@/components/ui/button';
 
 import { ERROR_REASSURANCE } from '@/app/_brand';
+import type { ReactElement } from 'react';
 
 /**
  * The page shown when something breaks while a page is being built or run.

@@ -4,7 +4,7 @@ import { RemoveSectionButton } from '@/app/(site)/feeds/_components/remove-secti
 import { html } from '../../../../components/render';
 
 const REMOVES_A_SECTION_OR_PATTERN =
-  /^<div class="[^"]*"><button type="button" class="[^"]*">Remove<\/button><button type="button" class="[^"]*">Remove with feeds<\/button><\/div>$/;
+  /^<div class="[^"]*"><button type="button" class="[^"]*">Remove<\/button><button type="button" class="[^"]*">Remove with feeds<\/button><\/div>$/u;
 
 describe('RemoveSectionButton', () => {
   it('removes a section, or it and its feeds, with plain buttons, not a form', () => {

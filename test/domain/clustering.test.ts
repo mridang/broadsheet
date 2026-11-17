@@ -10,10 +10,11 @@ import {
   daysBefore,
   clusterGroups,
 } from '@/domain/clustering';
-import { createDatabase, type Database } from '@/domain/db/client';
+import { createDatabase } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
 import { APP_MIGRATIONS } from '../lib/core/db/migrations';
 import { sqliteD1 } from '../lib/core/db/sqlite-d1';
+import type { Database } from '@/domain/db/client';
 
 describe('cosine', () => {
   it('is 1 for the same direction', () => {
@@ -257,13 +258,17 @@ describe('clusterEdition', () => {
   function env(stored = new Map<string, number[]>()) {
     const upsert = jest.fn(
       async (vectors: { id: string; values: number[] }[]) => {
-        for (const v of vectors) stored.set(v.id, v.values);
+        for (const v of vectors) {
+          stored.set(v.id, v.values);
+        }
         return { ids: [], count: vectors.length };
       },
     );
     const run = jest.fn(async (_model: string, input: { text: string[] }) => ({
       data: input.text.map((t) => {
-        if (t.startsWith('Earthquake')) return [1, 0, 0];
+        if (t.startsWith('Earthquake')) {
+          return [1, 0, 0];
+        }
         return t.endsWith('1') ? [0, 1, 0] : [0, 0, 1];
       }),
     }));
@@ -304,7 +309,7 @@ describe('clusterEdition', () => {
     await clusterEdition(db, env(stored).env, '2026-11-01');
     const again = env(stored);
     await clusterEdition(db, again.env, '2026-11-01');
-    expect(again.run).not.toHaveBeenCalled();
+    expect(again.run.mock.calls).toEqual([]);
   });
 
   it('finds a copy published days before, within the lookback', async () => {

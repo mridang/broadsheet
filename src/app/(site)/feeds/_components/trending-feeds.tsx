@@ -1,7 +1,5 @@
 'use client';
 
-import type { ReactElement } from 'react';
-
 import { followFeed } from '@/app/(site)/feeds/_components/feed-requests';
 import { useFeedAction } from '@/app/(site)/feeds/_components/use-feed-action';
 import { hostOf } from '@/domain/render/tiers';
@@ -10,6 +8,7 @@ import { List } from '@/components/ui/card';
 import { ErrorText } from '@/components/ui/notice';
 import { PageSection } from '@/components/ui/page-header';
 import { countOf } from '@/lib/intl';
+import type { ReactElement } from 'react';
 
 /** A source trending across the app, as the feed manager lists it. */
 export interface TrendingFeed {
@@ -37,12 +36,12 @@ function TrendingRow({ feed }: Readonly<{ feed: TrendingFeed }>): ReactElement {
         type="button"
         className={buttonClass({ variant: 'outline', size: 'sm' })}
         disabled={busy}
-        onClick={() =>
+        onClick={() => {
           void run(
             async () => followFeed(feed.url),
             'Could not follow that feed.',
-          )
-        }
+          );
+        }}
       >
         Follow
       </button>
@@ -54,7 +53,9 @@ function TrendingRow({ feed }: Readonly<{ feed: TrendingFeed }>): ReactElement {
 export function TrendingFeeds({
   feeds,
 }: Readonly<{ feeds: readonly TrendingFeed[] }>): ReactElement | null {
-  if (feeds.length === 0) return null;
+  if (feeds.length === 0) {
+    return null;
+  }
   return (
     <PageSection id="trending" title="Trending feeds">
       <List>

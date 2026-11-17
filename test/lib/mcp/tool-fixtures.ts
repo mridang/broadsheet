@@ -17,10 +17,12 @@ import {
   errorResult,
   textResult,
   writes,
-  type ArgumentSpellings,
-  type JsonSchema,
-  type ToolAnnotations,
-  type ToolResult,
+} from '@/lib/mcp';
+import type {
+  ArgumentSpellings,
+  JsonSchema,
+  ToolAnnotations,
+  ToolResult,
 } from '@/lib/mcp';
 
 /** What the fixture tools are handed. */
@@ -82,7 +84,7 @@ export class FetchTool extends McpTool<'fetch', FixtureContext> {
   override readonly meta = { 'x-widget': 'page' };
 
   override async handle(
-    _args: object,
+    _args: { readonly url: string },
     context: FixtureContext,
   ): Promise<ToolResult> {
     context.ran.push(this.name);
@@ -145,7 +147,7 @@ export class DeleteTool extends McpTool<'delete', FixtureContext> {
   }
 
   override async handle(
-    _args: object,
+    _args: Record<string, never>,
     context: FixtureContext,
   ): Promise<ToolResult> {
     context.ran.push(this.name);

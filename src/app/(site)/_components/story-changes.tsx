@@ -19,7 +19,9 @@ export function StoryChanges({
         className="mt-2 rounded-control border border-line bg-surface p-3 leading-relaxed text-muted"
       >
         {storyChanges(original, current).map((c, index) => {
-          if (c.op === 'same') return <span key={index}>{`${c.text} `}</span>;
+          if (c.op === 'same') {
+            return <span key={index}>{`${c.text} `}</span>;
+          }
           if (c.op === 'del') {
             return (
               <del

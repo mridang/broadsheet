@@ -1,4 +1,3 @@
-const B64U_ENCODE_PATTERN = /={1,2}$/;
 /**
  * @packageDocumentation
  *
@@ -14,34 +13,23 @@ export function b64uDecode(input: string): Uint8Array {
   const std = input.replaceAll('-', '+').replaceAll('_', '/');
   const padded = std + PAD.repeat((4 - (std.length % 4)) % 4);
   const bin = atob(padded);
-  const out = new Uint8Array(bin.length);
-  for (let index = 0; index < bin.length; index += 1) {
-    out[index] = bin.codePointAt(index) ?? 0;
-  }
-  return out;
+  return Uint8Array.from(bin, (char) => char.codePointAt(0) ?? 0);
 }
 
 /** Encode a byte buffer as base64url (no `=` padding). @public */
 export function b64uEncode(bytes: Uint8Array): string {
-  let s = '';
-  for (const byte of bytes) {
-    s += String.fromCodePoint(byte);
-  }
-  return btoa(s)
-    .replaceAll('+', '-')
-    .replaceAll('/', '_')
-    .replace(B64U_ENCODE_PATTERN, '');
+  const s = Array.from(bytes, (byte) => String.fromCodePoint(byte)).join('');
+  return btoa(s).replaceAll('+', '-').replaceAll('/', '_').replaceAll(PAD, '');
 }
 
 /** Concatenate any number of byte arrays in order. @public */
 export function concatBytes(...parts: readonly Uint8Array[]): Uint8Array {
   const total = parts.reduce((sum, part) => sum + part.length, 0);
   const out = new Uint8Array(total);
-  let offset = 0;
-  for (const part of parts) {
+  parts.reduce((offset, part) => {
     out.set(part, offset);
-    offset += part.length;
-  }
+    return offset + part.length;
+  }, 0);
   return out;
 }
 

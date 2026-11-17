@@ -1,7 +1,7 @@
-const NORMALISE_TITLE_PATTERN = /[-/]/g;
+const NORMALISE_TITLE_PATTERN = /[-/]/gu;
 const NORMALISE_TITLE_PATTERN_2 = /[^\p{L}\p{N}\s]/gu;
-const NORMALISE_TITLE_PATTERN_3 = /\s+/g;
-const SIGNIFICANT_WORDS_PATTERN = /^\d+$/;
+const NORMALISE_TITLE_PATTERN_3 = /\s+/gu;
+const SIGNIFICANT_WORDS_PATTERN = /^\d+$/u;
 /**
  * @packageDocumentation
  *
@@ -74,12 +74,8 @@ export function significantWords(
 }
 
 /** Words two sets share, and that count over the smaller set's size. */
-export function overlap(
-  a: ReadonlySet<string>,
-  b: ReadonlySet<string>,
-): { readonly shared: number; readonly coefficient: number } {
-  let shared = 0;
-  for (const w of a) if (b.has(w)) shared++;
+export function overlap(a: ReadonlySet<string>, b: ReadonlySet<string>) {
+  const shared = [...a].filter((w) => b.has(w)).length;
   const smaller = Math.min(a.size, b.size);
   return { shared, coefficient: smaller ? shared / smaller : 0 };
 }
@@ -95,7 +91,9 @@ export function fuzzyMatch(
   a: ReadonlySet<string>,
   b: ReadonlySet<string>,
 ): boolean {
-  if (a.size < FUZZY_MIN_WORDS || b.size < FUZZY_MIN_WORDS) return false;
+  if (a.size < FUZZY_MIN_WORDS || b.size < FUZZY_MIN_WORDS) {
+    return false;
+  }
   const { shared, coefficient } = overlap(a, b);
   return shared >= FUZZY_MIN_SHARED && coefficient >= FUZZY_MIN_OVERLAP;
 }

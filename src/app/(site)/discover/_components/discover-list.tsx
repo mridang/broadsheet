@@ -1,8 +1,7 @@
-import type { ReactElement } from 'react';
-
 import { FollowButton } from '@/app/(site)/discover/_components/follow-button';
 import { hostOf } from '@/domain/render/tiers';
 import { List } from '@/components/ui/card';
+import type { ReactElement } from 'react';
 
 /** A feed Discover found, ready to show: its picture is already a served address. */
 export interface DiscoveredFeed {

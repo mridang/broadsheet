@@ -6,11 +6,10 @@
  * bring the cookie's hints up to date.
  */
 
-import type { NextResponse } from 'next/server';
-
 import { SESSION_COOKIE, sessionClaims } from '@/domain/auth/app';
 import { SESSION_TTL_SECONDS, SessionTokens } from '@/lib/session';
-import type { User } from '@/domain/auth/store';
+import type { NextResponse } from 'next/server';
+import type { User } from '@/domain/repository';
 
 /**
  * Set a fresh session cookie for `user` on `response`. `claims` replaces the

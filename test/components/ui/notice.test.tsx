@@ -3,7 +3,7 @@ import { describe, expect, it } from '@jest/globals';
 import { EmptyState, ErrorText, Notice } from '@/components/ui/notice';
 import { html } from '../render';
 
-const IS_ANNOUNCED_AS_AN_PATTERN = /<p role="alert"[^>]*>Broke<\/p>/;
+const IS_ANNOUNCED_AS_AN_PATTERN = /<p role="alert"[^>]*>Broke<\/p>/u;
 
 describe('EmptyState', () => {
   it('says what is missing and what to do about it', () => {

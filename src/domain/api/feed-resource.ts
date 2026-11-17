@@ -5,19 +5,19 @@
  * address a client posts to follow a new one.
  */
 
-import type { Feed, FeedChanges } from '@/domain/repository';
-import type { FeedElement } from '@/lib/scraping';
 import {
   iconResource,
   isAutoMarkReadDays,
   parseIcon,
-  type IconResource,
 } from '@/domain/api/icon-resource';
+import type { IconResource } from '@/domain/api/icon-resource';
+import type { Feed, FeedChanges } from '@/domain/repository';
+import type { FeedElement } from '@/lib/scraping';
 
 const SQLITE_TIME_PATTERN =
-  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/i;
-const RFC3339_PATTERN = /^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2})$/;
-const PARSE_FEED_ID_PATTERN = /^[1-9]\d{0,14}$/;
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/iu;
+const RFC3339_PATTERN = /^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2})$/u;
+const PARSE_FEED_ID_PATTERN = /^[1-9]\d{0,14}$/u;
 
 /** Longest feed address accepted, in characters. */
 export const MAX_FEED_URL_LENGTH = 2048;
@@ -54,7 +54,9 @@ export interface FeedResource {
 
 /** The stored header JSON as elements, or none when unreadable. */
 function storedHeader(json: string | null): FeedElement[] {
-  if (!json) return [];
+  if (!json) {
+    return [];
+  }
   try {
     const parsed: unknown = JSON.parse(json);
     return Array.isArray(parsed) ? (parsed as FeedElement[]) : [];
@@ -181,108 +183,136 @@ export type FeedChangesInput =
 export function parseFeedChanges(
   body: Readonly<Record<string, unknown>>,
 ): FeedChangesInput {
-  const errors: string[] = [];
-  const changes: { -readonly [K in keyof FeedChanges]: FeedChanges[K] } = {};
-  for (const key of Object.keys(body)) {
-    if (
-      ![
-        'title',
-        'url',
-        'muted',
-        'muted_until',
-        'section_id',
-        'section_ids',
-        'position',
-        'custom_icon',
-        'auto_mark_read_days',
-      ].includes(key)
-    ) {
-      errors.push(`${key}: not a member of a feed that can be changed.`);
-    }
+  interface Part {
+    readonly changes: FeedChanges;
+    readonly errors: readonly string[];
   }
-  if ('title' in body) {
+  const notSent: Part = { changes: {}, errors: [] };
+  const bad = (...errors: string[]): Part => ({ changes: {}, errors });
+  const known = new Set([
+    'title',
+    'url',
+    'muted',
+    'muted_until',
+    'section_id',
+    'section_ids',
+    'position',
+    'custom_icon',
+    'auto_mark_read_days',
+  ]);
+  const titlePart = (): Part => {
     const title = body['title'];
-    if (title === null) changes.title = null;
-    else if (typeof title !== 'string') errors.push('title: must be a string.');
-    else if (title.trim().length > MAX_NAME_LENGTH) {
-      errors.push('title: too long.');
-    } else changes.title = title.trim() || null;
-  }
-  if ('url' in body) {
+    if (title === null) {
+      return { changes: { title: null }, errors: [] };
+    }
+    if (typeof title !== 'string') {
+      return bad('title: must be a string.');
+    }
+    if (title.trim().length > MAX_NAME_LENGTH) {
+      return bad('title: too long.');
+    }
+    return { changes: { title: title.trim() || null }, errors: [] };
+  };
+  const urlPart = (): Part => {
     const address = parseFeedInput({ url: body['url'] });
-    if (address.ok) changes.url = address.url;
-    else errors.push(...address.errors);
-  }
-  if ('muted' in body) {
+    return address.ok
+      ? { changes: { url: address.url }, errors: [] }
+      : bad(...address.errors);
+  };
+  const mutedPart = (): Part => {
     const muted = body['muted'];
-    if (typeof muted === 'boolean') changes.muted = muted;
-    else errors.push('muted: must be true or false.');
-  }
-  if ('muted_until' in body) {
+    return typeof muted === 'boolean'
+      ? { changes: { muted }, errors: [] }
+      : bad('muted: must be true or false.');
+  };
+  const mutedUntilPart = (): Part => {
     const raw = body['muted_until'];
+    if (raw === null) {
+      return { changes: { muted_until: null }, errors: [] };
+    }
     const at = typeof raw === 'string' ? sqliteTime(raw) : undefined;
-    if (raw === null) changes.muted_until = null;
-    else if (at === undefined) {
-      errors.push('muted_until: must be an RFC 3339 date-time.');
-    } else changes.muted_until = at;
-  }
-  if ('position' in body) {
+    return at === undefined
+      ? bad('muted_until: must be an RFC 3339 date-time.')
+      : { changes: { muted_until: at }, errors: [] };
+  };
+  const positionPart = (): Part => {
     const position = body['position'];
-    if (
+    const ok =
       typeof position === 'number' &&
       Number.isInteger(position) &&
       position >= 0 &&
-      position <= MAX_FEED_POSITION
-    ) {
-      changes.position = position;
-    } else {
-      errors.push(
-        `position: must be a whole number from 0 to ${MAX_FEED_POSITION}.`,
-      );
-    }
-  }
-  if ('section_id' in body) {
+      position <= MAX_FEED_POSITION;
+    return ok
+      ? { changes: { position }, errors: [] }
+      : bad(`position: must be a whole number from 0 to ${MAX_FEED_POSITION}.`);
+  };
+  const sectionPart = (): Part => {
     const raw = body['section_id'];
+    if (raw === null) {
+      return { changes: { section_id: null }, errors: [] };
+    }
     const id = typeof raw === 'string' ? parseFeedId(raw) : undefined;
-    if (raw === null) changes.section_id = null;
-    else if (id === undefined) errors.push('section_id: not a section id.');
-    else changes.section_id = id;
-  }
-  if ('section_ids' in body) {
+    return id === undefined
+      ? bad('section_id: not a section id.')
+      : { changes: { section_id: id }, errors: [] };
+  };
+  const sectionsPart = (): Part => {
+    if ('section_id' in body) {
+      return bad('section_ids: send either section_id or section_ids.');
+    }
     const raw = body['section_ids'];
     const ids = Array.isArray(raw)
       ? raw.map((r) => (typeof r === 'string' ? parseFeedId(r) : undefined))
       : undefined;
-    if ('section_id' in body) {
-      errors.push('section_ids: send either section_id or section_ids.');
-    } else if (
-      !ids ||
-      ids.includes(undefined) ||
-      new Set(ids).size !== ids.length ||
-      ids.length > MAX_FEED_SECTIONS
-    ) {
-      errors.push(
-        `section_ids: a list of up to ${MAX_FEED_SECTIONS} different section ids.`,
-      );
-    } else changes.section_ids = ids as number[];
-  }
-  if ('custom_icon' in body) {
+    const ok =
+      ids !== undefined &&
+      !ids.includes(undefined) &&
+      new Set(ids).size === ids.length &&
+      ids.length <= MAX_FEED_SECTIONS;
+    return ok
+      ? { changes: { section_ids: ids as number[] }, errors: [] }
+      : bad(
+          `section_ids: a list of up to ${MAX_FEED_SECTIONS} different section ids.`,
+        );
+  };
+  const iconPart = (): Part => {
     const icon = parseIcon(body['custom_icon'], 'custom_icon');
-    if (icon.ok) {
-      changes.custom_icon = icon.icon && JSON.stringify(icon.icon);
-    } else {
-      errors.push(...icon.errors);
-    }
-  }
-  if ('auto_mark_read_days' in body) {
+    return icon.ok
+      ? {
+          changes: { custom_icon: icon.icon && JSON.stringify(icon.icon) },
+          errors: [],
+        }
+      : bad(...icon.errors);
+  };
+  const daysPart = (): Part => {
     const days = body['auto_mark_read_days'];
-    if (days === null || isAutoMarkReadDays(days)) {
-      changes.auto_mark_read_days = days;
-    } else {
-      errors.push(
-        'auto_mark_read_days: a whole number from 0 to 365, or null.',
-      );
-    }
-  }
+    return days === null || isAutoMarkReadDays(days)
+      ? { changes: { auto_mark_read_days: days }, errors: [] }
+      : bad('auto_mark_read_days: a whole number from 0 to 365, or null.');
+  };
+  const members: readonly (readonly [string, () => Part])[] = [
+    ['title', titlePart],
+    ['url', urlPart],
+    ['muted', mutedPart],
+    ['muted_until', mutedUntilPart],
+    ['position', positionPart],
+    ['section_id', sectionPart],
+    ['section_ids', sectionsPart],
+    ['custom_icon', iconPart],
+    ['auto_mark_read_days', daysPart],
+  ];
+  const parts: readonly Part[] = [
+    {
+      changes: {},
+      errors: Object.keys(body)
+        .filter((key) => !known.has(key))
+        .map((key) => `${key}: not a member of a feed that can be changed.`),
+    },
+    ...members.map(([key, part]) => (key in body ? part() : notSent)),
+  ];
+  const errors = parts.flatMap((part) => part.errors);
+  const changes = Object.fromEntries(
+    parts.flatMap((part) => Object.entries(part.changes)),
+  ) as FeedChanges;
   return errors.length > 0 ? { ok: false, errors } : { ok: true, changes };
 }

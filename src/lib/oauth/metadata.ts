@@ -13,9 +13,10 @@
  * both documents describe the same origin.
  */
 
-import { RESOURCE_NAME } from '@/domain/mcp/app';
+import { BRAND_NAME } from '@/app/_brand';
+import { SUPPORTED_SCOPES } from '@/domain/mcp/app';
 import { ASSERTION_ALGORITHMS } from '@/lib/oauth/client';
-import { SCOPE_OFFLINE_ACCESS, SUPPORTED_SCOPES } from '@/lib/oauth/scopes';
+import { SCOPE_OFFLINE_ACCESS } from '@/lib/oauth/scopes';
 import { parseUrl } from '@/utils/url';
 
 /** Path of the OAuth-protected MCP endpoint. */
@@ -35,13 +36,8 @@ export function issuerOf(origin: string): string {
 }
 
 /** A path without its trailing slashes. */
-const withoutTrailingSlashes = (path: string): string => {
-  let end = path.length;
-  while (end > 0 && path.codePointAt(end - 1) === 47) {
-    end -= 1;
-  }
-  return path.slice(0, end);
-};
+const withoutTrailingSlashes = (path: string): string =>
+  path.endsWith('/') ? withoutTrailingSlashes(path.slice(0, -1)) : path;
 
 /**
  * Whether a client-supplied `resource` names this MCP server. The value is read
@@ -95,7 +91,7 @@ export function protectedResourceMetadata(
     authorization_servers: [issuerOf(origin)],
     scopes_supported: SUPPORTED_SCOPES,
     bearer_methods_supported: ['header'],
-    resource_name: RESOURCE_NAME,
+    resource_name: BRAND_NAME,
   };
 }
 

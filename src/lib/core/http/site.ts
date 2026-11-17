@@ -39,7 +39,7 @@ export const EDGE_TTL_SECONDS = 300;
  * all and not marked noindex.
  */
 export const OPEN_FILES =
-  /^\/(opengraph-image\.png|twitter-image\.png|icon\.svg|apple-icon\.png|favicon\.ico|manifest\.webmanifest|robots\.txt|sitemap\.xml|llms\.txt|security-policy\.txt|\.well-known\/.*|icons\/.*)$/;
+  /^\/(opengraph-image\.png|twitter-image\.png|icon\.svg|apple-icon\.png|favicon\.ico|manifest\.webmanifest|robots\.txt|sitemap\.xml|llms\.txt|security-policy\.txt|\.well-known\/.*|icons\/.*)$/u;
 
 /** The small files that rarely change, and for which a stale copy is harmless. */
 export const RARELY_CHANGING: ReadonlySet<string> = new Set([

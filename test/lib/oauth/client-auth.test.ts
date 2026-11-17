@@ -1,13 +1,5 @@
 import { beforeAll, describe, expect, it, jest } from '@jest/globals';
-import {
-  SignJWT,
-  UnsecuredJWT,
-  exportJWK,
-  generateKeyPair,
-  type JWK,
-  type CryptoKey,
-} from 'jose';
-
+import { SignJWT, UnsecuredJWT, exportJWK, generateKeyPair } from 'jose';
 import {
   CLIENT_ASSERTION_TYPE,
   MAX_ASSERTION_LENGTH,
@@ -16,13 +8,15 @@ import {
   assertionSubject,
   fetchJwks,
   verifyClientAssertion,
-  type AssertionDeps,
 } from '../../../src/lib/oauth/client-auth';
+import type { CryptoKey, JSONWebKeySet } from 'jose';
 
-const VERIFY_CLIENT_ASSERTION_PATTERN = /signed client_assertion/;
-const REFUSES_AN_ASSERTION_THAT_PATTERN = /too large/;
-const REFUSES_WHEN_THE_CLIENT_PATTERN = /keys could not be fetched/;
-const REFUSES_THE_SAME_ASSERTION_PATTERN = /already used/;
+import type { AssertionDeps } from '../../../src/lib/oauth/client-auth';
+
+const VERIFY_CLIENT_ASSERTION_PATTERN = /signed client_assertion/u;
+const REFUSES_AN_ASSERTION_THAT_PATTERN = /too large/u;
+const REFUSES_WHEN_THE_CLIENT_PATTERN = /keys could not be fetched/u;
+const REFUSES_THE_SAME_ASSERTION_PATTERN = /already used/u;
 
 const CLIENT = 'https://chatgpt.com/oauth/client.json';
 const JWKS_URI = 'https://chatgpt.com/oauth/jwks.json';
@@ -33,7 +27,7 @@ const AUTH = { method: 'private_key_jwt', jwksUri: JWKS_URI } as const;
 
 let privateKey: CryptoKey;
 let otherKey: CryptoKey;
-let jwks: { keys: JWK[] };
+let jwks: JSONWebKeySet;
 
 beforeAll(async () => {
   const pair = await generateKeyPair('RS256', { extractable: true });
@@ -52,6 +46,7 @@ async function sign(
   alg = 'RS256',
   drop: string[] = [],
 ) {
+  // eslint-disable-next-line tslop/no-known-value-widening -- the claims are overridden with arbitrary values, some of them undefined
   const all: Record<string, unknown> = {
     iss: CLIENT,
     sub: CLIENT,
@@ -76,7 +71,7 @@ function deps(keys: unknown = jwks): AssertionDeps & { used: Set<string> } {
   const used = new Set<string>();
   return {
     used,
-    fetchJwks: async () => keys,
+    fetchJwks: async () => keys as JSONWebKeySet,
     claimAssertion: async (client, jti) => {
       const key = `${client} ${jti}`;
       return used.has(key) ? false : (used.add(key), true);

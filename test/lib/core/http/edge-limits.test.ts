@@ -12,17 +12,18 @@ import {
   genericClass,
   genericLimits,
   tooManyRequests,
-  type GenericClass,
-  type RateLimitBinding,
+  DISCOVERY_PATHS,
+  EDGE_LIMITS,
+  STATIC_PREFIXES,
 } from '@/lib/core/http';
-import { DISCOVERY_PATHS, EDGE_LIMITS, STATIC_PREFIXES } from '@/lib/core/http';
 import ips from '../../../fixtures/ips.json';
+import type { GenericClass, RateLimitBinding } from '@/lib/core/http';
 
 const collator = new Intl.Collator();
 
-const COUNTS_A_SIGNED_IN_PERSON_PATTERN = /^p:[0-9a-f]{32}$/;
-const COUNTS_A_BEARER_TOKEN_PATTERN = /^t:[0-9a-f]{32}$/;
-const COUNTS_A_PERSON_IN_PATTERN = /^p:/;
+const COUNTS_A_SIGNED_IN_PERSON_PATTERN = /^p:[0-9a-f]{32}$/u;
+const COUNTS_A_BEARER_TOKEN_PATTERN = /^t:[0-9a-f]{32}$/u;
+const COUNTS_A_PERSON_IN_PATTERN = /^p:/u;
 
 /** A static file under the app's own first static prefix. */
 const staticFile = `${STATIC_PREFIXES[0] ?? '/'}static/x.js`;
@@ -96,8 +97,9 @@ describe('counterKey', () => {
         new Headers({ cookie: `app_session=${value}` }),
         'app_session',
       );
-    expect(await of('one')).toBe(await of('one'));
-    expect(await of('one')).not.toBe(await of('two'));
+    const one = await of('one');
+    expect(one).toBe(await of('one'));
+    expect(one).not.toBe(await of('two'));
   });
 
   it('falls back to the address for a caller with no cookie', async () => {
@@ -161,8 +163,10 @@ describe('edgeLimitRefusal', () => {
   it('refuses the request after the allowance, with Retry-After', async () => {
     const env = { RL_SITE: binding(2) };
     const headers = { 'cf-connecting-ip': '203.0.113.7' };
-    expect(await edgeLimitRefusal(get('/', headers), env, limits)).toBeNull();
-    expect(await edgeLimitRefusal(get('/', headers), env, limits)).toBeNull();
+    const firstTry = await edgeLimitRefusal(get('/', headers), env, limits);
+    const secondTry = await edgeLimitRefusal(get('/', headers), env, limits);
+    expect(firstTry).toBeNull();
+    expect(secondTry).toBeNull();
     const refused = await edgeLimitRefusal(get('/', headers), env, limits);
     expect(refused?.status).toBe(429);
     expect(refused?.headers.get('retry-after')).toBe('60');

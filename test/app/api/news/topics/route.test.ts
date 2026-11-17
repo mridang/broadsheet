@@ -21,8 +21,12 @@ import {
 const { GET } = await import('@/app/api/news/topics/route');
 
 let restore: () => void;
-let auth: Record<string, string>;
-let run: jest.Mock<(...args: unknown[]) => Promise<unknown>>;
+/** The Cookie header of the signed-in caller; empty for a signed-out one. */
+interface CallerCookie {
+  [name: string]: string;
+}
+let auth: CallerCookie;
+let run: jest.Mock<(...args: unknown[]) => Promise<object>>;
 
 async function cookieFor(uid: number): Promise<Record<string, string>> {
   return {

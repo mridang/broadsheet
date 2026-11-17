@@ -1,11 +1,10 @@
 'use client';
 
-import type { ReactElement } from 'react';
-
 import { deleteConversation } from '@/app/(site)/assistant/_components/assistant-requests';
 import { useApiAction } from '@/components/api/use-api-action';
 import { buttonClass } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/notice';
+import type { ReactElement } from 'react';
 
 /** "Delete" beside a past conversation; reloads the assistant without it. */
 export function DeleteConversationButton({
@@ -20,12 +19,12 @@ export function DeleteConversationButton({
         type="button"
         className={buttonClass({ variant: 'danger', size: 'xs' })}
         disabled={busy}
-        onClick={() =>
+        onClick={() => {
           void run(
             async () => deleteConversation(id),
             'Could not delete that conversation.',
-          )
-        }
+          );
+        }}
       >
         Delete
       </button>

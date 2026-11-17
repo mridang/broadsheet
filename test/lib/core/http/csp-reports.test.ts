@@ -2,7 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 
 import { MAX_REPORTS_PER_REQUEST, summariseReports } from '@/lib/core/http';
 
-const CUTS_EVERY_FIELD_SHORT_PATTERN = /[\r\n]/;
+const CUTS_EVERY_FIELD_SHORT_PATTERN = /[\r\n]/u;
 
 /** A Reporting API report. */
 const modern = (body: Record<string, unknown>, type = 'csp-violation') => ({

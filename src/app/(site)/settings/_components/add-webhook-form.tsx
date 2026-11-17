@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, type ReactElement, type SubmitEvent } from 'react';
+import { useState } from 'react';
 
+import { z } from 'zod';
 import { useApiAction } from '@/components/api/use-api-action';
 import { addWebhook } from '@/app/(site)/settings/_components/settings-requests';
 import { buttonClass } from '@/components/ui/button';
 import { CHECK_LABEL } from '@/components/ui/field';
 import { ErrorText } from '@/components/ui/notice';
-import { z } from 'zod';
+import type { ReactElement, SubmitEvent } from 'react';
 
 /** The one text field the webhook form posts. */
 const webhookForm = z.object({ url: z.string().default('') });
@@ -64,16 +65,33 @@ export function AddWebhookForm(): ReactElement {
         </div>
         <div className="flex flex-wrap gap-x-5 gap-y-2">
           <label className={CHECK_LABEL}>
-            <input name="events" type="checkbox" value="save" defaultChecked />{' '}
+            <input
+              aria-label="Saves"
+              name="events"
+              type="checkbox"
+              value="save"
+              defaultChecked
+            />{' '}
             Saves
           </label>
           <label className={CHECK_LABEL}>
-            <input name="events" type="checkbox" value="like" defaultChecked />{' '}
+            <input
+              aria-label="Likes"
+              name="events"
+              type="checkbox"
+              value="like"
+              defaultChecked
+            />{' '}
             Likes
           </label>
           <label className={CHECK_LABEL}>
-            <input name="events" type="checkbox" value="story" /> New stories in
-            notifying feeds
+            <input
+              aria-label="New stories in notifying feeds"
+              name="events"
+              type="checkbox"
+              value="story"
+            />{' '}
+            New stories in notifying feeds
           </label>
         </div>
       </form>

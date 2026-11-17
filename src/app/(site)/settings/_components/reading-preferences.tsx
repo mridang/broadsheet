@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, type ReactElement, type ReactNode } from 'react';
+import { useState } from 'react';
 
 import { ensureOk } from '@/components/api/problem-message';
 import { useApiAction } from '@/components/api/use-api-action';
 import { Card } from '@/components/ui/card';
 import { Toggle } from '@/components/ui/input';
 import { ErrorText } from '@/components/ui/notice';
+import type { ReactElement, ReactNode } from 'react';
 
 /** The intelligence levels, as the reader picks them. */
 const LEVELS = [
@@ -105,7 +106,9 @@ export function ReadingPreferences({
             value={days}
             disabled={action.busy}
             onChange={(event) => setDays(event.target.value)}
-            onBlur={() => void save({ auto_mark_read_days: Number(days) })}
+            onBlur={() => {
+              void save({ auto_mark_read_days: Number(days) });
+            }}
           />
           days
         </span>

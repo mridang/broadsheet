@@ -1,7 +1,7 @@
-const TITLE_KEY_PATTERN = /[-/]/g;
+const TITLE_KEY_PATTERN = /[-/]/gu;
 const TITLE_KEY_PATTERN_2 = /[^\p{L}\p{N}_\s]/gu;
-const TITLE_KEY_PATTERN_3 = /\s+/g;
-const DOMAIN_OF_PATTERN = /^www\./;
+const TITLE_KEY_PATTERN_3 = /\s+/gu;
+const DOMAIN_OF_PATTERN = /^www\./u;
 /**
  * @packageDocumentation
  *
@@ -59,22 +59,22 @@ export const MIN_FOLLOW_SCORE = 4;
 const TOPIC_KEYWORDS: readonly (readonly [string, RegExp])[] = [
   [
     'technology',
-    /\b(ai|android|code|developer|hack|security|software|technology|windows)\b/,
+    /\b(ai|android|code|developer|hack|security|software|technology|windows)\b/u,
   ],
   [
     'science',
-    /\b(astronomy|biology|climate|earth|medicine|physics|science|space|weather)\b/,
+    /\b(astronomy|biology|climate|earth|medicine|physics|science|space|weather)\b/u,
   ],
-  ['sports & games', /\b(football|game|gaming|soccer|sport|world cup|xbox)\b/],
+  ['sports & games', /\b(football|game|gaming|soccer|sport|world cup|xbox)\b/u],
   [
     'business & work',
-    /\b(business|economy|finance|job|labor|money|tax|trade|work)\b/,
+    /\b(business|economy|finance|job|labor|money|tax|trade|work)\b/u,
   ],
   [
     'politics & law',
-    /\b(court|democracy|election|government|law|politics|senate|trump)\b/,
+    /\b(court|democracy|election|government|law|politics|senate|trump)\b/u,
   ],
-  ['culture & history', /\b(art|book|culture|film|history|music|reading)\b/],
+  ['culture & history', /\b(art|book|culture|film|history|music|reading)\b/u],
 ];
 
 /** A story's topic from its title, or `other`. */
@@ -159,14 +159,18 @@ export function rank(order: ListOrder, a: Activity): Ranked | undefined {
         : undefined;
     }
     case 'long_reads': {
-      if (a.words < MIN_LONG_WORDS) return undefined;
+      if (a.words < MIN_LONG_WORDS) {
+        return undefined;
+      }
       const deep = capped.filter((s) => s >= neededSeconds(a.words));
       return deep.length >= MIN_PEOPLE
         ? { id: a.id, count: deep.length, keys: [second(deep), deep.length] }
         : undefined;
     }
     case 'good_reads': {
-      if (a.words < MIN_GOOD_WORDS) return undefined;
+      if (a.words < MIN_GOOD_WORDS) {
+        return undefined;
+      }
       const deep = capped.filter((s) => s >= GOOD_READ_SECONDS);
       const qualifies =
         deep.length >= MIN_PEOPLE &&
@@ -179,16 +183,32 @@ export function rank(order: ListOrder, a: Activity): Ranked | undefined {
           }
         : undefined;
     }
+    default: {
+      return undefined;
+    }
   }
 }
 
 /** Highest keys first, then the newer story. */
 export function byRank(a: Ranked, b: Ranked): number {
-  for (let index = 0; index < Math.max(a.keys.length, b.keys.length); index++) {
-    const d = (b.keys[index] ?? 0) - (a.keys[index] ?? 0);
-    if (d) return d;
-  }
-  return b.id - a.id;
+  return (
+    Array.from(
+      { length: Math.max(a.keys.length, b.keys.length) },
+      (_, index) => (b.keys[index] ?? 0) - (a.keys[index] ?? 0),
+    ).find(Boolean) ?? b.id - a.id
+  );
+}
+
+/** What one block of a spread list has taken so far. */
+interface Block<T> {
+  readonly block: readonly T[];
+  readonly deferred: readonly T[];
+  readonly sources: ReadonlySet<number>;
+  readonly domains: ReadonlySet<string>;
+  readonly publishers: ReadonlySet<string>;
+  readonly topics: ReadonlyMap<string, number>;
+  readonly clusters: ReadonlySet<number>;
+  readonly titles: ReadonlySet<string>;
 }
 
 /** What spreading a list out looks at for each story. */
@@ -214,61 +234,88 @@ export function diversify<T extends Candidate>(
   ranked: readonly T[],
   smallSlots = 0,
 ): T[] {
-  let remaining = [...ranked];
-  const out: T[] = [];
-  const clusters = new Set<number>();
-  const titles = new Set<string>();
-  while (remaining.length > 0) {
-    const block: T[] = [];
-    const deferred: T[] = [];
-    const sources = new Set<number>();
-    const domains = new Set<string>();
-    const publishers = new Set<string>();
-    const topics = new Map<string, number>();
+  const next = (
+    remaining: readonly T[],
+    clusters: ReadonlySet<number>,
+    titles: ReadonlySet<string>,
+    out: readonly T[],
+  ): T[] => {
+    if (remaining.length === 0) {
+      return [...out];
+    }
     const small = smallSlots
       ? remaining
           .filter((c) => c.followers > 0 && c.followers <= SMALL_FEED_FOLLOWERS)
           .slice(0, smallSlots)
       : [];
     const ordered = [...small, ...remaining.filter((c) => !small.includes(c))];
-    const take = (c: (typeof ordered)[number]) => {
-      block.push(c);
-      sources.add(c.source);
-      if (c.domain) domains.add(c.domain);
-      if (c.publisher) publishers.add(c.publisher);
-      if (c.topic !== 'other') {
-        topics.set(c.topic, (topics.get(c.topic) ?? 0) + 1);
-      }
-      if (c.cluster !== null) clusters.add(c.cluster);
-      if (c.title) titles.add(c.title);
-    };
-    for (const c of ordered) {
+    const step = (state: Block<T>, c: T): Block<T> => {
       const alreadyUsed =
-        (c.cluster !== null && clusters.has(c.cluster)) ||
-        (c.title && titles.has(c.title));
-      if (alreadyUsed) continue;
+        (c.cluster !== null && state.clusters.has(c.cluster)) ||
+        (c.title && state.titles.has(c.title));
+      if (alreadyUsed) {
+        return state;
+      }
       const capped = c.topic !== 'other';
       const sameFeed =
-        sources.has(c.source) || (c.domain && domains.has(c.domain));
-      const samePublisher = c.publisher && publishers.has(c.publisher);
+        state.sources.has(c.source) ||
+        (c.domain && state.domains.has(c.domain));
+      const samePublisher = c.publisher && state.publishers.has(c.publisher);
       const overTopic =
-        capped && (topics.get(c.topic) ?? 0) >= MAX_TOPIC_PER_BLOCK;
+        capped && (state.topics.get(c.topic) ?? 0) >= MAX_TOPIC_PER_BLOCK;
       if (
-        block.length >= BLOCK_SIZE ||
+        state.block.length >= BLOCK_SIZE ||
         sameFeed ||
         samePublisher ||
         overTopic
       ) {
-        deferred.push(c);
-      } else {
-        take(c);
+        return { ...state, deferred: [...state.deferred, c] };
       }
-    }
-    if (block.length === 0) break;
-    out.push(...block);
-    remaining = deferred;
-  }
-  return capSourceShare(out);
+      return {
+        block: [...state.block, c],
+        deferred: state.deferred,
+        sources: new Set([...state.sources, c.source]),
+        domains: c.domain
+          ? new Set([...state.domains, c.domain])
+          : state.domains,
+        publishers: c.publisher
+          ? new Set([...state.publishers, c.publisher])
+          : state.publishers,
+        topics: capped
+          ? new Map([
+              ...state.topics,
+              [c.topic, (state.topics.get(c.topic) ?? 0) + 1],
+            ])
+          : state.topics,
+        clusters:
+          c.cluster === null
+            ? state.clusters
+            : new Set([...state.clusters, c.cluster]),
+        titles: c.title ? new Set([...state.titles, c.title]) : state.titles,
+      };
+    };
+    const place = (rest: readonly T[], state: Block<T>): Block<T> => {
+      const [c, ...others] = rest;
+      return c === undefined ? state : place(others, step(state, c));
+    };
+    const result = place(ordered, {
+      block: [],
+      deferred: [],
+      sources: new Set<number>(),
+      domains: new Set<string>(),
+      publishers: new Set<string>(),
+      topics: new Map<string, number>(),
+      clusters,
+      titles,
+    });
+    return result.block.length === 0
+      ? [...out]
+      : next(result.deferred, result.clusters, result.titles, [
+          ...out,
+          ...result.block,
+        ]);
+  };
+  return capSourceShare(next(ranked, new Set(), new Set(), []));
 }
 
 /**
@@ -276,56 +323,56 @@ export function diversify<T extends Candidate>(
  * than {@link MAX_SOURCE_SHARE} of a list of ten or more.
  */
 export function capSourceShare<T extends Candidate>(list: readonly T[]): T[] {
-  let capped = [...list];
-  const fields = ['source', 'domain', 'publisher'] as const;
-  while (capped.length >= 10) {
-    const limit = Math.max(1, Math.floor(capped.length * MAX_SOURCE_SHARE));
-    const counts = fields.map((field) => {
-      const seen = new Map<unknown, number>();
-      for (const c of capped) {
-        if (c[field]) seen.set(c[field], (seen.get(c[field]) ?? 0) + 1);
-      }
-      return seen;
-    });
-    const kept = fields.map(() => new Map<unknown, number>());
-    const filtered = capped.filter((c) => {
-      if (
-        fields.some(
-          (f, index) => c[f] && (kept[index]!.get(c[f]) ?? 0) >= limit,
-        )
-      ) {
-        return false;
-      }
-      for (const [index, f] of fields.entries()) {
-        if (c[f]) kept[index]!.set(c[f], (kept[index]!.get(c[f]) ?? 0) + 1);
-      }
-      return true;
-    });
-    // When every count is within the limit the filter keeps everything anyway.
-    if (
-      counts.every((seen) => [...seen.values()].every((n) => n <= limit)) ||
-      filtered.length === capped.length
-    ) {
-      break;
-    }
-    capped = filtered;
+  if (list.length < 10) {
+    return [...list];
   }
-  return capped;
+  const fields = ['source', 'domain', 'publisher'] as const;
+  const limit = Math.max(1, Math.floor(list.length * MAX_SOURCE_SHARE));
+  const withinLimit = fields.every((field) =>
+    [
+      ...Map.groupBy(
+        list.filter((c) => c[field]),
+        (c) => c[field],
+      ).values(),
+    ].every((group) => group.length <= limit),
+  );
+  const keep = (rest: readonly T[], kept: readonly T[]): readonly T[] => {
+    const [c, ...others] = rest;
+    if (c === undefined) {
+      return kept;
+    }
+    const refused = fields.some(
+      (f) => c[f] && kept.filter((k) => k[f] === c[f]).length >= limit,
+    );
+    return keep(others, refused ? kept : [...kept, c]);
+  };
+  const filtered = keep(list, []);
+  // When every count is within the limit the filter keeps everything anyway.
+  return withinLimit || filtered.length === list.length
+    ? [...list]
+    : capSourceShare([...filtered]);
 }
 
 /** How much a follow `daysAgo` counts for, over a window of `days`. */
 export function decayWeight(days: number, daysAgo: number): number {
-  const tables: Record<number, readonly number[]> = {
-    1: [1],
-    7: [1, 0.85, 0.7, 0.55, 0.4, 0.3, 0.2],
-    30: [
-      1, 0.97, 0.93, 0.9, 0.87, 0.83, 0.8, 0.77, 0.73, 0.7, 0.67, 0.63, 0.6,
-      0.57, 0.53, 0.5, 0.47, 0.43, 0.4, 0.37, 0.33, 0.3, 0.27, 0.23, 0.2, 0.17,
-      0.13, 0.1, 0.07, 0.03,
+  const tables = new Map([
+    [1, [1]],
+    [7, [1, 0.85, 0.7, 0.55, 0.4, 0.3, 0.2]],
+    [
+      30,
+      [
+        1, 0.97, 0.93, 0.9, 0.87, 0.83, 0.8, 0.77, 0.73, 0.7, 0.67, 0.63, 0.6,
+        0.57, 0.53, 0.5, 0.47, 0.43, 0.4, 0.37, 0.33, 0.3, 0.27, 0.23, 0.2,
+        0.17, 0.13, 0.1, 0.07, 0.03,
+      ],
     ],
-  };
-  const table = tables[days];
-  if (table) return table[daysAgo] ?? 0;
-  if (daysAgo >= days) return 0;
+  ]);
+  const table = tables.get(days);
+  if (table) {
+    return table[daysAgo] ?? 0;
+  }
+  if (daysAgo >= days) {
+    return 0;
+  }
   return Math.max(0.03, 1 - (daysAgo * 0.97) / Math.max(days - 1, 1));
 }

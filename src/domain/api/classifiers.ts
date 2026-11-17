@@ -5,18 +5,14 @@
  * Each runs as the signed-in person, as the feed controllers do.
  */
 
-import {
-  liveUid,
-  requestCookieResolver,
-  type CurrentUserResolver,
-} from '@/domain/api/auth';
+import { liveUid, requestCookieResolver } from '@/domain/api/auth';
 import {
   classifierResource,
   parseClassifierInput,
 } from '@/domain/api/classifier-resource';
 import { parseFeedId } from '@/domain/api/feed-resource';
 import { idOf } from '@/domain/api/feeds';
-import { newestPage, pageRequest, type PageRequest } from '@/domain/api/paging';
+import { newestPage, pageRequest } from '@/domain/api/paging';
 import {
   readJsonObject,
   problems,
@@ -25,15 +21,14 @@ import {
   created,
   noContent,
   page,
-  type Slice,
 } from '@/lib/core/api';
-import {
-  Repository,
-  type Classifier,
-  type ClassifierInput,
-} from '@/domain/repository';
+import { Repository } from '@/domain/repository';
 import { getDatabase } from '@/domain/db/client';
 import { fireWebhooks } from '@/domain/notify';
+import type { Classifier, ClassifierInput } from '@/domain/repository';
+import type { Slice } from '@/lib/core/api';
+import type { PageRequest } from '@/domain/api/paging';
+import type { CurrentUserResolver } from '@/domain/api/auth';
 
 /** The signed-in caller's id and the request, for a classifier endpoint. */
 interface UidContext {
@@ -90,7 +85,9 @@ export function createClassifiersCollection(
           request,
           'The classifier must be a JSON object.',
         );
-        if (!body.ok) throw body.response;
+        if (!body.ok) {
+          throw body.response;
+        }
         const input = parseClassifierInput(body.value);
         if (!input.ok) {
           throw problems.badRequest(

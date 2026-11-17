@@ -9,12 +9,12 @@
  * the lead and features are, and disliked ones leave the paper. A story many
  * sources covered (its cluster's size) weighs more.
  */
-import type { Article } from '@/domain/repository';
 import { regexProblem } from '@/domain/rules';
 import { foldText, relativeTime, truncate } from '@/lib/intl';
+import type { Article } from '@/domain/repository';
 
 const WORDY_PATTERN = /[\p{L}\p{N}\p{M}_]/u;
-const HOST_OF_PATTERN = /^www\./;
+const HOST_OF_PATTERN = /^www\./u;
 
 export type Tier = 'lead' | 'feature' | 'standard' | 'brief';
 
@@ -39,10 +39,8 @@ export const IMG_WIDTH: Record<Tier, number> = {
  * Sort a section by this (desc) so the highest-scored story becomes the lead.
  */
 export function weight(a: Article): number {
-  let w = Math.log((a.points ?? 0) + 1);
-  if (a.image) w += 0.6;
-  if ((a.summary ?? '').length < 300) w *= 0.6;
-  return w;
+  const w = Math.log((a.points ?? 0) + 1) + (a.image ? 0.6 : 0);
+  return (a.summary ?? '').length < 300 ? w * 0.6 : w;
 }
 
 /**
@@ -115,17 +113,26 @@ const wordy = (c: string | undefined): boolean => !!c && WORDY_PATTERN.test(c);
 export function titleHas(title: string | null, phrase: string): boolean {
   const t = (title ?? '').toLowerCase();
   const p = phrase.toLowerCase();
-  if (!p) return false;
+  if (!p) {
+    return false;
+  }
+  // eslint-disable-next-line functional/no-let, functional/no-loop-statements -- overlapping occurrences are scanned from each start in turn
   for (let at = t.indexOf(p); at >= 0; at = t.indexOf(p, at + 1)) {
-    if (!wordy(p[0]) || !wordy(t[at - 1])) return true;
+    if (!wordy(p[0]) || !wordy(t[at - 1])) {
+      return true;
+    }
   }
   return false;
 }
 
 /** A story's tags, whether stored as JSON or already a list. */
 export function tagsOf(tags: Classifiable['tags']): readonly string[] {
-  if (!tags) return [];
-  if (typeof tags !== 'string') return tags;
+  if (!tags) {
+    return [];
+  }
+  if (typeof tags !== 'string') {
+    return tags;
+  }
   try {
     const parsed: unknown = JSON.parse(tags);
     return Array.isArray(parsed)
@@ -138,7 +145,9 @@ export function tagsOf(tags: Classifiable['tags']): readonly string[] {
 
 /** Whether one classifier matches the story (case-insensitively). */
 export function matches(story: Classifiable, c: Training): boolean {
-  if (c.is_regex) return regexMatches(story, c);
+  if (c.is_regex) {
+    return regexMatches(story, c);
+  }
   switch (c.kind) {
     case 'prompt': {
       return c.id !== undefined && !!story.prompt_ids?.has(c.id);
@@ -172,8 +181,10 @@ export function matches(story: Classifiable, c: Training): boolean {
 
 /** Whether a classifier's scope reaches the story's feed. */
 function inScope(story: Classifiable, c: Training): boolean {
-  if (c.scope_feed_id != null) return story.feed_id === c.scope_feed_id;
-  if (c.scope_section_id != null) {
+  if (c.scope_feed_id !== null && c.scope_feed_id !== undefined) {
+    return story.feed_id === c.scope_feed_id;
+  }
+  if (c.scope_section_id !== null && c.scope_section_id !== undefined) {
     return story.section_id === c.scope_section_id;
   }
   return true;
@@ -187,7 +198,10 @@ function inScope(story: Classifiable, c: Training): boolean {
  */
 function regexMatches(story: Classifiable, c: Training): boolean {
   const text = regexSubject(story, c.kind);
-  if (!text || regexProblem(c.value)) return false;
+  if (!text || regexProblem(c.value)) {
+    return false;
+  }
+  // eslint-disable-next-line require-unicode-regexp -- user-supplied patterns are validated by regexProblem without the u flag, which rejects escapes that were valid before
   return new RegExp(c.value, 'i').test(text.slice(0, MAX_REGEX_TEXT));
 }
 
@@ -229,9 +243,15 @@ export type Verdict = -2 | -1 | 0 | 1;
  * then a like beats a dislike.
  */
 function score(hits: readonly Training[]): Verdict {
-  if (hits.some((c) => c.score <= -2)) return -2;
-  if (hits.some((c) => c.score > 0)) return 1;
-  if (hits.some((c) => c.score < 0)) return -1;
+  if (hits.some((c) => c.score <= -2)) {
+    return -2;
+  }
+  if (hits.some((c) => c.score > 0)) {
+    return 1;
+  }
+  if (hits.some((c) => c.score < 0)) {
+    return -1;
+  }
   return 0;
 }
 
@@ -249,7 +269,9 @@ export function verdict(
   const hits = training.filter((c) => inScope(story, c) && matches(story, c));
   // An AI prompt that matches decides, as NewsBlur's prompt score does.
   const prompted = score(hits.filter((c) => c.kind === 'prompt'));
-  if (prompted) return prompted;
+  if (prompted) {
+    return prompted;
+  }
   return (
     score(hits.filter((c) => !BROAD.has(c.kind))) ||
     score(hits.filter((c) => BROAD.has(c.kind)))
@@ -279,12 +301,14 @@ export function rank<T extends Article & Classifiable>(
   const covered = (a: T): number =>
     a.cluster_id === null ? 1 : (coverage.get(a.cluster_id) ?? 1);
   return arts
+    .values()
     .map((a) => ({
       a,
       v: verdict(a, training),
       w: weight(a) + coverageBoost(covered(a)),
     }))
     .filter((x) => shows(x.v, level))
+    .toArray()
     .toSorted((x, y) => y.v - x.v || y.w - x.w)
     .map((x) => x.a);
 }
@@ -295,10 +319,15 @@ export function assignTiers(arts: Article[]): Tier[] {
   return arts.map((a, index) => {
     const hasImg = !!a.image;
     const size2 = (a.summary ?? '').length;
-    if (index === 0 && n >= 5) return 'lead';
-    if (index <= Math.max(1, Math.floor(n / 6)) && hasImg && size2 > 200)
+    if (index === 0 && n >= 5) {
+      return 'lead';
+    }
+    if (index <= Math.max(1, Math.floor(n / 6)) && hasImg && size2 > 200) {
       return 'feature';
-    if ((!size2 || size2 < 120) && index >= n * 0.5) return 'brief';
+    }
+    if ((!size2 || size2 < 120) && index >= n * 0.5) {
+      return 'brief';
+    }
     return 'standard';
   });
 }
@@ -310,7 +339,9 @@ export function excerpt(s: string | null, n: number): string {
 }
 
 export function ago(iso: string | null): string {
-  if (!iso || Number.isNaN(Date.parse(iso))) return '';
+  if (!iso || Number.isNaN(Date.parse(iso))) {
+    return '';
+  }
   return relativeTime(iso);
 }
 
@@ -349,7 +380,9 @@ const MONTHS = [
 /** Format a YYYY-MM-DD edition date as "Saturday, June 21, 2026" (UTC, no ICU). */
 export function formatEdition(date: string): string {
   const [y, m, d] = date.split('-').map(Number);
-  if (!y || !m || !d) return date;
+  if (!y || !m || !d) {
+    return date;
+  }
   const dt = new Date(Date.UTC(y, m - 1, d));
   return `${WEEKDAYS[dt.getUTCDay()]}, ${MONTHS[m - 1]} ${d}, ${y}`;
 }

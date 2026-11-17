@@ -76,19 +76,23 @@ describe('iconCandidates', () => {
 });
 
 describe('firstWorkingIcon', () => {
-  const answers: Record<string, Response | Error> = {
-    'https://x.test/missing.png': new Response(null, { status: 404 }),
-    'https://x.test/page.png': new Response('<html>', {
-      headers: { 'content-type': 'text/html' },
-    }),
-    'https://x.test/down.png': new Error('offline'),
-    'https://x.test/good.png': new Response('png', {
-      headers: { 'content-type': 'image/png' },
-    }),
-  };
+  const answers = new Map<string, Response | Error>([
+    ['https://x.test/missing.png', new Response(null, { status: 404 })],
+    [
+      'https://x.test/page.png',
+      new Response('<html>', { headers: { 'content-type': 'text/html' } }),
+    ],
+    ['https://x.test/down.png', new Error('offline')],
+    [
+      'https://x.test/good.png',
+      new Response('png', { headers: { 'content-type': 'image/png' } }),
+    ],
+  ]);
   const fetcher = async (url: string) => {
-    const answer = answers[url];
-    if (!answer || answer instanceof Error) throw answer ?? new Error('none');
+    const answer = answers.get(url);
+    if (!answer || answer instanceof Error) {
+      throw answer ?? new Error('none');
+    }
     return answer;
   };
 

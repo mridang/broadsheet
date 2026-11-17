@@ -6,10 +6,11 @@ import {
   feedVerdictCounts,
 } from '@/domain/classifier-counts';
 import { createDatabase } from '@/domain/db/client';
-import type { Training } from '@/domain/render/tiers';
-import { Repository, type Article } from '@/domain/repository';
+import { Repository } from '@/domain/repository';
 import { APP_MIGRATIONS } from '../lib/core/db/migrations';
 import { sqliteD1 } from '../lib/core/db/sqlite-d1';
+import type { Article } from '@/domain/repository';
+import type { Training } from '@/domain/render/tiers';
 
 const training: Training[] = [
   { kind: 'title', value: 'rust', score: 1 },

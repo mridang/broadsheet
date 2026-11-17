@@ -7,8 +7,8 @@
 
 import { eq } from 'drizzle-orm';
 
-import type { Database } from '@/domain/db/client';
 import { users } from '@/domain/db/schema';
+import type { Database } from '@/domain/db/client';
 
 /** One signed-in person, as this app stores them. */
 export type User = typeof users.$inferSelect;

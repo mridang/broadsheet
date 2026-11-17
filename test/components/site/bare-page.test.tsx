@@ -5,9 +5,9 @@ import { BarePage, MessagePage } from '@/components/site/bare-page';
 import { html } from '../render';
 
 const STARTS_WITH_A_SKIP_PATTERN =
-  /^<div[^>]*><a href="#main"[^>]*>Skip to content<\/a>/;
+  /^<div[^>]*><a href="#main"[^>]*>Skip to content<\/a>/u;
 const HAS_THE_PAGE_HEADING_PATTERN =
-  /<h1[^>]*>We couldn&#x27;t find that page<\/h1>/;
+  /<h1[^>]*>We couldn&#x27;t find that page<\/h1>/u;
 
 describe('BarePage', () => {
   it('brings its own main landmark and a wordmark that links home', () => {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useRef, useState, type ReactElement } from 'react';
+import { useId, useRef, useState } from 'react';
 
 import { problemText } from '@/components/api/problem-message';
 import { setShared } from '@/app/(site)/_components/story-requests';
@@ -8,6 +8,7 @@ import { CHIP } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { HINT } from '@/components/ui/field';
 import { Menu } from '@/components/ui/menu';
+import type { ReactElement } from 'react';
 
 /**
  * "Share" on a story, as NewsBlur's share dialog: a popover with an optional
@@ -32,19 +33,21 @@ export function ShareButton({
   const [isShared, setIsShared] = useState(shared);
   const [comments, setComments] = useState('');
   const [busy, setBusy] = useState(false);
-  const [errorText, setError] = useState<string>();
+  const [errorText, setErrorText] = useState<string>();
   const panel = useRef<HTMLDetailsElement>(null);
   const field = useId();
 
   async function run(share: boolean): Promise<void> {
     setBusy(true);
-    setError(undefined);
+    setErrorText(undefined);
     try {
       await setShared(articleId, share, comments);
       setIsShared(share);
-      if (panel.current) panel.current.open = false;
+      if (panel.current) {
+        panel.current.removeAttribute('open');
+      }
     } catch (error) {
-      setError(problemText(error, 'Could not share.'));
+      setErrorText(problemText(error, 'Could not share.'));
     } finally {
       setBusy(false);
     }
@@ -68,6 +71,7 @@ export function ShareButton({
         Comment <span className="text-subtle">(optional)</span>
       </label>
       <textarea
+        aria-label="Comment (optional)"
         id={field}
         rows={3}
         maxLength={5000}
@@ -85,7 +89,9 @@ export function ShareButton({
             variant="outline"
             size="xs"
             disabled={busy}
-            onClick={() => void run(false)}
+            onClick={() => {
+              void run(false);
+            }}
           >
             Unshare
           </Button>

@@ -13,7 +13,6 @@
  */
 
 import { errorMessage, logError } from '@/utils/logging';
-import type { User } from '@/domain/db/users';
 import {
   CORS_HEADERS,
   SCOPE_READ,
@@ -21,7 +20,6 @@ import {
   scopeForMessage,
   wwwAuthenticate,
 } from '@/lib/oauth';
-import type { McpAuth } from '@/domain/mcp/auth';
 import { ALLOWED_ORIGINS_SETTING, getEnvSafe } from '@/domain/mcp/env';
 import {
   ERROR_INTERNAL,
@@ -39,8 +37,6 @@ import {
   withoutId,
   MODERN_VERSION,
   replyIdOf,
-  type ProtocolMessage,
-  type ProtocolRefusal,
 } from '@/lib/mcp';
 import {
   MAX_BATCH,
@@ -48,19 +44,22 @@ import {
   chargeRefusedBody,
   liveRateLimitDeps,
   readJsonBody,
-  type RateLimitDeps,
 } from '@/domain/mcp/request-limits';
-import {
-  handleMcpMessage,
-  isAdvertisedTool,
-  type JsonRpcResponse,
-} from '@/domain/mcp/server';
+import { handleMcpMessage, isAdvertisedTool } from '@/domain/mcp/server';
+import type {
+  JsonRpcResponse,
+  ProtocolMessage,
+  ProtocolRefusal,
+} from '@/lib/mcp';
+import type { RateLimitDeps } from '@/domain/mcp/request-limits';
+import type { McpAuth } from '@/domain/mcp/auth';
+import type { User } from '@/domain/db/users';
 
 /**
  * Replies carry a person's own data and are never meant to be stored by a shared
  * cache; the MCP-level `cacheScope` hints tell a client what it may keep.
  */
-const NO_STORE: Readonly<Record<string, string>> = {
+const NO_STORE = {
   'Cache-Control': 'no-store',
 };
 
@@ -122,7 +121,7 @@ export function unauthorizedResponse(
 }
 
 /** Header names as a browser lists them in a preflight: tokens separated by commas. */
-const REQUESTED_HEADERS = /^[A-Za-z0-9-]+(?:\s*,\s*[A-Za-z0-9-]+)*$/;
+const REQUESTED_HEADERS = /^[A-Za-z0-9-]+(?:\s*,\s*[A-Za-z0-9-]+)*$/u;
 
 /** The longest list of requested headers worth echoing back. */
 const MAX_REQUESTED_HEADERS_LENGTH = 512;
@@ -142,7 +141,7 @@ export function corsFor(
   request: Request,
   selfOrigin: string,
   extraOrigins: string | undefined = configuredOrigins(),
-): Readonly<Record<string, string>> {
+) {
   const origin = request.headers.get('origin');
   if (origin === null) {
     return CORS_HEADERS;

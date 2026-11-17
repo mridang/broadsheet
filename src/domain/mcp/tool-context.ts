@@ -6,17 +6,12 @@
  * failures are worth explaining to an assistant.
  */
 
-import {
-  ReadWriteScopes,
-  type FailureExplainer,
-  type JsonContent,
-} from '@/lib/mcp';
-import type { User } from '@/domain/db/users';
+import { ReadWriteScopes } from '@/lib/mcp';
 import { SCOPE_READ, SCOPE_WRITE, explainFailure } from '@/domain/mcp/app';
-import {
-  liveToolServices,
-  type ToolServices,
-} from '@/domain/mcp/tool-services';
+import { liveToolServices } from '@/domain/mcp/tool-services';
+import type { ToolServices } from '@/domain/mcp/tool-services';
+import type { FailureExplainer } from '@/lib/mcp';
+import type { User } from '@/domain/db/users';
 
 /**
  * What every tool in this app is given: who is calling, and the outside things
@@ -38,13 +33,6 @@ export function toolContext(
 ): ToolContext {
   return { user, services };
 }
-
-/**
- * What this app's tools return as structured content. They answer with the
- * facts they read, shaped by what each tool does, so nothing narrower is said
- * here.
- */
-export type ToolContent = JsonContent;
 
 /** Which sign-in a call needs, by what the tool says about its own effects. */
 export const TOOL_SCOPES = new ReadWriteScopes(SCOPE_READ, SCOPE_WRITE);

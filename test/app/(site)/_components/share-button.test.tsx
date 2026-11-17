@@ -3,21 +3,21 @@ import { describe, expect, it } from '@jest/globals';
 import { ShareButton } from '@/app/(site)/_components/share-button';
 import { html } from '../../../components/render';
 
-const OFFERS_TO_SHARE_A_PATTERN = /^<details class="[^"]*print:hidden/;
+const OFFERS_TO_SHARE_A_PATTERN = /^<details class="[^"]*print:hidden/u;
 const OFFERS_TO_SHARE_A_PATTERN_2 =
-  /<summary[^>]*aria-label="Share A"[^>]*>Share<\/summary>/;
+  /<summary[^>]*aria-label="Share A"[^>]*>Share<\/summary>/u;
 const OFFERS_TO_SHARE_A_PATTERN_3 =
-  /<button type="submit"[^>]*>Share<\/button>/;
+  /<button type="submit"[^>]*>Share<\/button>/u;
 const SAYS_A_SHARED_STORY_PATTERN =
-  /<button type="submit"[^>]*>Update<\/button>/;
+  /<button type="submit"[^>]*>Update<\/button>/u;
 const SAYS_A_SHARED_STORY_PATTERN_2 =
-  /<button type="button"[^>]*>Unshare<\/button>/;
-const LABELS_THE_COMMENT_AND_PATTERN = /<label for="[^"]+"[^>]*>Comment/;
+  /<button type="button"[^>]*>Unshare<\/button>/u;
+const LABELS_THE_COMMENT_AND_PATTERN = /<label for="[^"]+"[^>]*>Comment/u;
 const OPENS_FROM_A_BUTTON_PATTERN =
-  /^<span class="[^"]*print:hidden[^"]*" data-action="share"/;
+  /^<span class="[^"]*print:hidden[^"]*" data-action="share"/u;
 const OPENS_FROM_A_BUTTON_PATTERN_2 =
-  /<button type="button" aria-label="Share A"[^>]*>Share<\/button>/;
-const OPENS_FROM_A_BUTTON_PATTERN_3 = /popover="auto" data-popover=""/;
+  /<button type="button" aria-label="Share A"[^>]*>Share<\/button>/u;
+const OPENS_FROM_A_BUTTON_PATTERN_3 = /popover="auto" data-popover=""/u;
 
 describe('ShareButton', () => {
   it('offers to share a story not yet shared, off paper', () => {

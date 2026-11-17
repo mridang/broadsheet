@@ -8,8 +8,8 @@
 
 import { and, desc, eq, getTableColumns, inArray, lt } from 'drizzle-orm';
 
-import type { Database } from '@/domain/db/client';
 import { articles, shares, users } from '@/domain/db/schema';
+import type { Database } from '@/domain/db/client';
 import type { ArticleSummary } from '@/domain/repository';
 
 /** A shared story. */

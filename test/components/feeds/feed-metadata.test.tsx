@@ -4,11 +4,11 @@ import { FeedMetadata } from '@/components/feeds/feed-metadata';
 import { html } from '../render';
 
 const SHOWS_EVERY_ELEMENT_WITH_PATTERN =
-  /Generator <code[^>]*>generator<\/code>/;
+  /Generator <code[^>]*>generator<\/code>/u;
 const SHOWS_EVERY_ELEMENT_WITH_PATTERN_2 =
-  /Link \(Atom\) <code[^>]*>atom:link<\/code>/;
-const SHOWS_EVERY_ELEMENT_WITH_PATTERN_3 = /<code[^>]*>rel<\/code> self/;
-const SHOWS_EVERY_ELEMENT_WITH_PATTERN_4 = /Width <code[^>]*>width<\/code>/;
+  /Link \(Atom\) <code[^>]*>atom:link<\/code>/u;
+const SHOWS_EVERY_ELEMENT_WITH_PATTERN_3 = /<code[^>]*>rel<\/code> self/u;
+const SHOWS_EVERY_ELEMENT_WITH_PATTERN_4 = /Width <code[^>]*>width<\/code>/u;
 
 describe('FeedMetadata', () => {
   it('shows every element with its label, text, attributes and children', () => {

@@ -17,11 +17,7 @@ import {
   parseFeedId,
   parseFeedInput,
 } from '@/domain/api/feed-resource';
-import {
-  liveUid,
-  requestCookieResolver,
-  type CurrentUserResolver,
-} from '@/domain/api/auth';
+import { liveUid, requestCookieResolver } from '@/domain/api/auth';
 import {
   readJsonObject,
   readBodyText,
@@ -32,44 +28,32 @@ import {
   decodeCursor,
   sliceAfter,
   ApiController,
-  type ApiResponse,
   ok,
   accepted,
   created,
   noContent,
 } from '@/lib/core/api';
-import {
-  Repository,
-  type Feed,
-  type FeedChanges,
-  type Section,
-  type FeedStatistics,
-} from '@/domain/repository';
-import {
-  feedClassifierCounts,
-  type ClassifierCounts,
-} from '@/domain/classifier-counts';
+import { Repository } from '@/domain/repository';
+import { feedClassifierCounts } from '@/domain/classifier-counts';
 import { discoverFeed, refreshSource } from '@/domain/scraping/index';
 import { getEnv, runInBackground } from '@/lib/core/runtime';
 import { getDatabase } from '@/domain/db/client';
-import {
-  buildOpml,
-  OPML_TYPE,
-  parseOpml,
-  type OpmlEntry,
-  type OpmlFeed,
-} from '@/domain/api/opml';
-import {
-  importFeeds,
-  MAX_IMPORT_FEEDS,
-  type ImportSummary,
-} from '@/domain/feed-import';
-import {
-  FeedImportRuns,
-  IMPORT_CHUNK,
-  type ImportRun,
-} from '@/domain/feed-import-runs';
+import { buildOpml, OPML_TYPE, parseOpml } from '@/domain/api/opml';
+import { importFeeds, MAX_IMPORT_FEEDS } from '@/domain/feed-import';
+import { FeedImportRuns, IMPORT_CHUNK } from '@/domain/feed-import-runs';
 import { findTopic } from '@/domain/topics';
+import type { OpmlEntry, OpmlFeed } from '@/domain/api/opml';
+import type { ImportSummary } from '@/domain/feed-import';
+import type { ImportRun } from '@/domain/feed-import-runs';
+import type { ClassifierCounts } from '@/domain/classifier-counts';
+import type {
+  Feed,
+  FeedChanges,
+  Section,
+  FeedStatistics,
+} from '@/domain/repository';
+import type { ApiResponse } from '@/lib/core/api';
+import type { CurrentUserResolver } from '@/domain/api/auth';
 
 /** The signed-in caller's id and the request, for a feed endpoint. */
 interface UidContext {
@@ -137,7 +121,9 @@ function feedPage(
 ): ApiResponse<unknown> | Response {
   const url = new URL(request.url);
   const limit = parseLimit(url.searchParams.get('limit'));
-  if (limit instanceof Response) return limit;
+  if (limit instanceof Response) {
+    return limit;
+  }
   const raw = url.searchParams.get('cursor');
   const after = raw ? decodeCursor(raw) : undefined;
   if (raw && !after) {
@@ -287,46 +273,55 @@ export function createFeedItem(
         }
         return input.changes;
       },
-      handle: async (changes, { request, uid }): Promise<Feed | undefined> => {
+      handle: async (
+        requested,
+        { request, uid },
+      ): Promise<Feed | undefined> => {
         const id = parseFeedId(idOf(request));
-        if (id === undefined) return undefined;
+        if (id === undefined) {
+          return undefined;
+        }
         const repo = new Repository(getDatabase());
-        if (!(await repo.getFeed(uid, id))) return undefined;
-        await checkSections(repo, uid, changes);
-        if (changes.url !== undefined) {
-          const current = await repo.getFeed(uid, id);
-          if (!current) return undefined;
-          let address: string = changes.url;
-          if (address !== current.url) {
-            // A page's address follows the feed it declares (NewsBlur's
-            // "change feed link").
-            const found = await discoverFeed(address);
-            if (!found) {
-              throw problems.badRequest('The change is not valid.', [
-                'url: no feed was found at this address.',
-              ]);
-            }
-            address = found;
-          }
-          changes = { ...changes, url: address };
-          const taken = await repo.getFeedByUrl(uid, address);
-          if (taken && taken.id !== id) {
-            throw problem(
-              409,
-              '/problems/conflict',
-              'Conflict',
-              'The person already follows a feed at that address.',
-              { errors: ['url: already followed.'] },
-            );
-          }
-          if (address === current.url) {
-            const rest = { ...changes };
-            Reflect.deleteProperty(rest, 'url');
-            return repo.updateFeed(uid, id, rest);
-          }
+        if (!(await repo.getFeed(uid, id))) {
+          return undefined;
+        }
+        await checkSections(repo, uid, requested);
+        if (requested.url === undefined) {
+          return repo.updateFeed(uid, id, requested);
+        }
+        const current = await repo.getFeed(uid, id);
+        if (!current) {
+          return undefined;
+        }
+        // A page's address follows the feed it declares (NewsBlur's
+        // "change feed link").
+        const address =
+          requested.url === current.url
+            ? requested.url
+            : await discoverFeed(requested.url);
+        if (!address) {
+          throw problems.badRequest('The change is not valid.', [
+            'url: no feed was found at this address.',
+          ]);
+        }
+        const changes = { ...requested, url: address };
+        const taken = await repo.getFeedByUrl(uid, address);
+        if (taken && taken.id !== id) {
+          throw problem(
+            409,
+            '/problems/conflict',
+            'Conflict',
+            'The person already follows a feed at that address.',
+            { errors: ['url: already followed.'] },
+          );
+        }
+        if (address === current.url) {
+          const rest = { ...changes };
+          Reflect.deleteProperty(rest, 'url');
+          return repo.updateFeed(uid, id, rest);
         }
         const updated = await repo.updateFeed(uid, id, changes);
-        if (updated && changes.url !== undefined) {
+        if (updated) {
           runInBackground(
             refreshSource(getDatabase(), getEnv(), sourceOf(updated)).catch(
               () => undefined,
@@ -387,7 +382,7 @@ export function idOf(request: Request): string {
 }
 
 /** The source a feed reads from, as the scraper fetches it. */
-function sourceOf(feed: Feed): { readonly id: number; readonly url: string } {
+function sourceOf(feed: Feed) {
   return { id: feed.source_id, url: feed.url };
 }
 
@@ -493,7 +488,9 @@ async function countedStatistics(
     repo.getFeed(uid, id),
     repo.feedStatistics(uid, id),
   ]);
-  if (!feed || !stats) return undefined;
+  if (!feed || !stats) {
+    return undefined;
+  }
   return {
     ...stats,
     classifier_counts: await feedClassifierCounts(repo, uid, feed),
@@ -501,9 +498,8 @@ async function countedStatistics(
 }
 
 /** The API's view of {@link CountedStatistics}; absent members are unknown. */
-export function statisticsResource(
-  stats: CountedStatistics,
-): Record<string, unknown> {
+export function statisticsResource(stats: CountedStatistics) {
+  const lastLoad = stats.fetch_history[0]?.duration_ms;
   const fetched = stats.last_fetched_at
     ? rfc3339(stats.last_fetched_at)
     : undefined;
@@ -528,9 +524,9 @@ export function statisticsResource(
       : {}),
     archive_count: stats.archive_count,
     classifier_counts: stats.classifier_counts,
-    ...(stats.fetch_history[0]?.duration_ms == null
+    ...(lastLoad === undefined || lastLoad === null
       ? {}
-      : { last_load_time_ms: stats.fetch_history[0].duration_ms }),
+      : { last_load_time_ms: lastLoad }),
     fetch_history: stats.fetch_history.map((h) => {
       const fetchedAt = h.fetched_at ? rfc3339(h.fetched_at) : undefined;
       return {
@@ -560,7 +556,9 @@ async function decodeImport(request: Request): Promise<ImportInput> {
       request,
       'The import must be a JSON object.',
     );
-    if (!body.ok) throw body.response;
+    if (!body.ok) {
+      throw body.response;
+    }
     const ids = body.value['topic_ids'];
     if (
       !Array.isArray(ids) ||
@@ -665,6 +663,7 @@ export function createFeedImports(
         return { kind: 'started', run };
       }
       const summary = await importFeeds(new Repository(db), uid, input.feeds);
+      // eslint-disable-next-line functional/no-loop-statements -- each feed starts its own background refresh in turn; nothing is collected
       for (const feed of summary.feeds.slice(0, FIRST_FETCHES)) {
         runInBackground(
           refreshSource(db, env, sourceOf(feed)).catch(() => undefined),
@@ -742,7 +741,9 @@ export function createFeedRetries(
       const id = statisticsId(request);
       const repo = new Repository(getDatabase());
       const feed = id === undefined ? undefined : await repo.getFeed(uid, id);
-      if (!feed) return undefined;
+      if (!feed) {
+        return undefined;
+      }
       await repo.clearFailures(feed.source_id);
       const outcome = await refreshSource(
         getDatabase(),
@@ -812,20 +813,21 @@ export function createFeedMoves(
         request,
         'The move must be a JSON object.',
       );
-      if (!body.ok) throw body.response;
-      const errors: string[] = [];
-      for (const key of Object.keys(body.value)) {
-        if (key !== 'feed_ids' && key !== 'section_id') {
-          errors.push(`${key}: not a member of a move.`);
-        }
+      if (!body.ok) {
+        throw body.response;
       }
       const ids = feedIdsOf(body.value);
-      if (typeof ids === 'string') errors.push(ids);
       const raw = body.value['section_id'];
       const section = typeof raw === 'string' ? parseFeedId(raw) : undefined;
-      if (raw !== null && section === undefined) {
-        errors.push('section_id: a section id, or null for none.');
-      }
+      const errors = [
+        ...Object.keys(body.value)
+          .filter((key) => key !== 'feed_ids' && key !== 'section_id')
+          .map((key) => `${key}: not a member of a move.`),
+        ...(typeof ids === 'string' ? [ids] : []),
+        ...(raw !== null && section === undefined
+          ? ['section_id: a section id, or null for none.']
+          : []),
+      ];
       if (errors.length > 0 || typeof ids === 'string') {
         throw problems.badRequest('The move is not valid.', errors);
       }
@@ -864,7 +866,9 @@ export function createFeedRemovals(
         request,
         'The removal must be a JSON object.',
       );
-      if (!body.ok) throw body.response;
+      if (!body.ok) {
+        throw body.response;
+      }
       const extra = Object.keys(body.value)
         .filter((key) => key !== 'feed_ids')
         .map((key) => `${key}: not a member of a removal.`);

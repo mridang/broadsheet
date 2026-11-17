@@ -1,7 +1,5 @@
 import { beforeEach, describe, expect, it } from '@jest/globals';
 
-import { MemoryStore } from './memory-store';
-import { quietSecurityLogs, type LogSpy } from './quiet-logs';
 import {
   ACCESS_TTL_SECONDS,
   CODE_TTL_SECONDS,
@@ -14,22 +12,24 @@ import {
   issueAuthorizationCode,
   revokeToken,
   s256,
-  type CodeRecord,
-  type OAuthFailure,
-  type TokenResponse,
   withinRefreshGrace,
 } from '@/lib/oauth';
 import { SCOPE_READ, SCOPE_WRITE } from '@/domain/mcp/app';
+import { MemoryStore } from './memory-store';
+import { quietSecurityLogs } from './quiet-logs';
+import type { LogSpy } from './quiet-logs';
+import type { CodeRecord, OAuthFailure, TokenResponse } from '@/lib/oauth';
 
-const ISSUES_TOKENS_FOR_A_PATTERN = /^cdn_at_/;
-const ISSUES_TOKENS_FOR_A_PATTERN_2 = /^cdn_rt_/;
+const ISSUES_TOKENS_FOR_A_PATTERN = /^cdn_at_/u;
+const ISSUES_TOKENS_FOR_A_PATTERN_2 = /^cdn_rt_/u;
 
 const RESOURCE = 'https://site.example/mcp';
 const VERIFIER = 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk';
 const NOW = 1_000_000;
 
 /** A value that is deliberately missing, as opposed to a key that is left out. */
-let absent: undefined;
+// eslint-disable-next-line sonarjs/no-undefined-assignment -- a key set to undefined is what these tests send
+const absent = undefined;
 
 const isFailure = (r: TokenResponse | OAuthFailure): r is OAuthFailure =>
   'ok' in r;
@@ -438,10 +438,13 @@ describe('exchangeRefreshToken', () => {
       const first = (await redeem(code)) as TokenResponse;
       // The other process rotates the token between our read and our write.
       const racing = new Proxy(store, {
-        get(target, property): unknown {
+        get(target, property) {
           if (property !== 'rotateRefreshToken') {
+            // eslint-disable-next-line tslop/no-reflect-get -- the proxy forwards every other property of the store untouched
             const value: unknown = Reflect.get(target, property, target);
-            return typeof value === 'function' ? value.bind(target) : value;
+            return typeof value === 'function'
+              ? (value.bind(target) as unknown)
+              : value;
           }
           return async (hash: string, now: number) => {
             await target.rotateRefreshToken(hash, now, []);
@@ -465,12 +468,15 @@ describe('exchangeRefreshToken', () => {
     it('revokes when rotation fails and nothing explains why', async () => {
       const first = (await redeem(code)) as TokenResponse;
       const failing = new Proxy(store, {
-        get(target, property): unknown {
+        get(target, property) {
           if (property === 'rotateRefreshToken') {
             return async () => false;
           }
+          // eslint-disable-next-line tslop/no-reflect-get -- the proxy forwards every other property of the store untouched
           const value: unknown = Reflect.get(target, property, target);
-          return typeof value === 'function' ? value.bind(target) : value;
+          return typeof value === 'function'
+            ? (value.bind(target) as unknown)
+            : value;
         },
       });
       const result = await exchangeRefreshToken(

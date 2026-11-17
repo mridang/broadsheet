@@ -1,11 +1,6 @@
 'use client';
 
-import {
-  useEffect,
-  useState,
-  useSyncExternalStore,
-  type ReactElement,
-} from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 
 import {
   EMPTY,
@@ -18,19 +13,25 @@ import {
   toggleQueued,
   updatePlayer,
 } from '@/app/(site)/_components/player';
-import { webSpeech, type ReadAloud } from '@/app/(site)/_components/read-aloud';
-import { CHIP } from '@/app/(site)/_components/story-actions';
+import { webSpeech } from '@/app/(site)/_components/read-aloud';
+import { CHIP } from '@/components/ui/badge';
 import { cn } from '@/components/ui/cn';
+import type { ReadAloud } from '@/app/(site)/_components/read-aloud';
+import type { ReactElement } from 'react';
 
 /** One reader for the page, so starting one story stops the last. */
+// eslint-disable-next-line functional/no-let -- page-wide reader, made on first use
 let shared: ReadAloud | null | undefined;
 
 /** Whether the person's player was asked for yet. */
+// eslint-disable-next-line functional/no-let -- page-wide load, started on first use
 let loading: Promise<void> | undefined;
 
 /** The page's reader, made on first use. */
 function browserReader(): ReadAloud | null {
-  if (shared === undefined) shared = webSpeech(globalThis);
+  if (shared === undefined) {
+    shared = webSpeech(globalThis);
+  }
   return shared;
 }
 
@@ -75,10 +76,14 @@ export function ListenButton({
   const [playing, setPlaying] = useState(false);
 
   useEffect(() => {
-    if (reader) loading ??= loadPlayer();
+    if (reader) {
+      loading ??= loadPlayer();
+    }
   }, [reader]);
 
-  if (!reader) return null;
+  if (!reader) {
+    return null;
+  }
   const queued = player.queue.includes(articleId);
   return (
     <>
@@ -101,10 +106,14 @@ export function ListenButton({
             text,
             (completed) => {
               setPlaying(false);
-              if (!completed) return;
+              if (!completed) {
+                return;
+              }
               const { player: after, next } = finish(getPlayer());
               updatePlayer(() => after);
-              if (next !== undefined) listenTo(next);
+              if (next !== undefined) {
+                listenTo(next);
+              }
             },
             {
               rate: now.rate,

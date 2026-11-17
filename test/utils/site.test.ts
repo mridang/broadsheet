@@ -11,8 +11,8 @@ import {
   TERMS_LAST_UPDATED,
 } from '@/utils/site';
 
-const GIVES_THE_SITE_AN_PATTERN = /^https:\/\/[^/]+$/;
-const SITE_IDENTITY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const GIVES_THE_SITE_AN_PATTERN = /^https:\/\/[^/]+$/u;
+const SITE_IDENTITY_PATTERN = /^\d{4}-\d{2}-\d{2}$/u;
 
 describe('site identity', () => {
   it('gives the site an https address with no trailing slash', () => {

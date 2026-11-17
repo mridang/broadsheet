@@ -119,7 +119,7 @@ function hasType(type: JsonType, value: unknown): boolean {
     case 'object': {
       return isJsonObject(value);
     }
-    case 'null': {
+    default: {
       return value === null;
     }
   }
@@ -146,7 +146,7 @@ function typeWords(type: JsonType): string {
     case 'object': {
       return 'an object';
     }
-    case 'null': {
+    default: {
       return 'null';
     }
   }
@@ -186,10 +186,17 @@ type Path = readonly (string | number)[];
 /** The longest a property name is quoted in a message; a hostile key can be a megabyte long. */
 const NAME_QUOTE_LIMIT = 40;
 
+/** Cuts text at grapheme boundaries. */
+const SEGMENTER = new Intl.Segmenter();
+
 /** A property name as it is quoted in a message, cut short when it is absurdly long. */
 function quotedKey(key: string): string {
   return key.length > NAME_QUOTE_LIMIT
-    ? `${key.slice(0, NAME_QUOTE_LIMIT)}…`
+    ? `${Iterator.from(SEGMENTER.segment(key))
+        .take(NAME_QUOTE_LIMIT)
+        .map(({ segment }) => segment)
+        .toArray()
+        .join('')}…`
     : key;
 }
 

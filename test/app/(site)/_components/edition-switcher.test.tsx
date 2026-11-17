@@ -4,8 +4,8 @@ import { EditionSwitcher } from '@/app/(site)/_components/edition-switcher';
 import { html } from '../../../components/render';
 
 const MARKS_THE_DAILY_PAPER_PATTERN =
-  /<a class="[^"]*" href="\/" aria-current="page">Daily<\/a>/;
-const LINKS_EACH_CUSTOM_EDITION_PATTERN = /href="\/\?edition=4">Weekend<\/a>/;
+  /<a class="[^"]*" href="\/" aria-current="page">Daily<\/a>/u;
+const LINKS_EACH_CUSTOM_EDITION_PATTERN = /href="\/\?edition=4">Weekend<\/a>/u;
 
 describe('EditionSwitcher', () => {
   it('marks the daily paper when no custom edition shows', () => {

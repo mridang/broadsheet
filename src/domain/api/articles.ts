@@ -11,27 +11,26 @@ import {
   articleResource,
   parseArticleQuery,
   trendingArticleResource,
-  type ArticleResource,
-  type ArticleQueryInput,
 } from '@/domain/api/article-resource';
-import {
-  liveUid,
-  requestCookieResolver,
-  type CurrentUserResolver,
-} from '@/domain/api/auth';
+import { liveUid, requestCookieResolver } from '@/domain/api/auth';
 import { parseFeedId } from '@/domain/api/feed-resource';
 import { idOf } from '@/domain/api/feeds';
 import { problems, ApiController, ok, page } from '@/lib/core/api';
-import {
-  Repository,
-  type Article,
-  type ArticleQuery,
-  type ArticleSummary,
-  type DiscoveredArticle,
-  type TrendingQuery,
-} from '@/domain/repository';
+import { Repository } from '@/domain/repository';
 import { getDatabase } from '@/domain/db/client';
 import { withText } from '@/domain/scraping/index';
+import type {
+  Article,
+  ArticleQuery,
+  ArticleSummary,
+  DiscoveredArticle,
+  TrendingQuery,
+} from '@/domain/repository';
+import type { CurrentUserResolver } from '@/domain/api/auth';
+import type {
+  ArticleResource,
+  ArticleQueryInput,
+} from '@/domain/api/article-resource';
 
 /** The signed-in caller's id and the request, for an article endpoint. */
 interface UidContext {
@@ -139,7 +138,9 @@ export function createArticleItem(
     method: 'GET',
     handle: async (_input, { request, uid }): Promise<Article | undefined> => {
       const id = parseFeedId(idOf(request));
-      if (id === undefined) return undefined;
+      if (id === undefined) {
+        return undefined;
+      }
       const db = getDatabase();
       const article = await new Repository(db).getArticle(uid, id);
       return article && withText(db, article);
@@ -188,13 +189,16 @@ export function discoveredArticleResource(
 /** The `scope` of a `/similar` request, or the 400 for a bad one. */
 function similarScope(request: Request): SimilarScope {
   const params = new URL(request.url).searchParams;
-  const errors = [...new Set(params.keys())]
-    .filter((key) => key !== 'scope')
-    .map((key) => `${key}: not a parameter of this list.`);
   const scope = params.get('scope') ?? 'followed';
-  if (scope !== 'followed' && scope !== 'all') {
-    errors.push('scope: followed or all.');
-  }
+  const errors = [
+    ...new Set(params.keys())
+      .values()
+      .filter((key) => key !== 'scope')
+      .map((key) => `${key}: not a parameter of this list.`),
+    ...(scope === 'followed' || scope === 'all'
+      ? []
+      : ['scope: followed or all.']),
+  ];
   if (errors.length > 0) {
     throw problems.badRequest('The request is not valid.', errors);
   }
@@ -226,10 +230,14 @@ export function createSimilarArticles(
       { request, uid },
     ): Promise<readonly unknown[] | undefined> => {
       const id = articleIdOf(request);
-      if (id === undefined) return undefined;
+      if (id === undefined) {
+        return undefined;
+      }
       const repo = new Repository(getDatabase());
       const article = await repo.getArticle(uid, id);
-      if (!article) return undefined;
+      if (!article) {
+        return undefined;
+      }
       if (scope === 'all') {
         const discovered =
           (await repo.discoverArticles(uid, article.id, MAX_DISCOVERED)) ?? [];
@@ -270,7 +278,9 @@ export function createArticleExtractions(
     method: 'POST',
     handle: async (_input, { request, uid }): Promise<Article | undefined> => {
       const id = articleIdOf(request);
-      if (id === undefined) return undefined;
+      if (id === undefined) {
+        return undefined;
+      }
       const db = getDatabase();
       const article = await new Repository(db).getArticle(uid, id);
       return article && withText(db, article, true);

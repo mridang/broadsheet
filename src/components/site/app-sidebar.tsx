@@ -1,11 +1,11 @@
-import type { ReactElement } from 'react';
-
-import type { User } from '@/domain/repository';
-
-import { FeedRail, type RailFeed } from '@/components/feeds/feed-rail';
+import { FeedRail } from '@/components/feeds/feed-rail';
 import { InstallButton } from '@/components/site/install-button';
 import { SidebarLink } from '@/components/site/sidebar-link';
-import { Icon, type IconName } from '@/components/ui/icons';
+import { Icon } from '@/components/ui/icons';
+import type { RailFeed } from '@/components/feeds/feed-rail';
+import type { User } from '@/domain/repository';
+import type { IconName } from '@/components/ui/icons';
+import type { ReactElement } from 'react';
 
 /** The app's places, as the sidebar lists them: where, what, and its icon. */
 type Place = readonly [href: string, label: string, icon: IconName];

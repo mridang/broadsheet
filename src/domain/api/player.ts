@@ -5,14 +5,10 @@
  * playback state, media queue and history in one document.
  */
 
-import {
-  liveUid,
-  requestCookieResolver,
-  type CurrentUserResolver,
-} from '@/domain/api/auth';
+import { liveUid, requestCookieResolver } from '@/domain/api/auth';
 import { parsePlayerInput, playerResource } from '@/domain/api/player-resource';
 import { getDatabase } from '@/domain/db/client';
-import { PlayerRepository, type PlayerState } from '@/domain/player';
+import { PlayerRepository } from '@/domain/player';
 import {
   ApiController,
   noContent,
@@ -20,6 +16,8 @@ import {
   problems,
   readJsonObject,
 } from '@/lib/core/api';
+import type { PlayerState } from '@/domain/player';
+import type { CurrentUserResolver } from '@/domain/api/auth';
 
 /** The signed-in caller's id and the request. */
 interface UidContext {
@@ -60,7 +58,9 @@ export function createPlayerItem(
           request,
           'The player must be a JSON object.',
         );
-        if (!body.ok) throw body.response;
+        if (!body.ok) {
+          throw body.response;
+        }
         const input = parsePlayerInput(body.value);
         if (!input.ok) {
           throw problems.badRequest('The player is not valid.', input.errors);

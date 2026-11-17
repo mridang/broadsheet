@@ -17,14 +17,18 @@ export interface ReadClock {
 
 /** A clock that starts in view at `now` when `visible`. */
 export function readClock(visible: boolean, now: number): ReadClock {
+  // eslint-disable-next-line functional/no-let -- the clock's running state
   let shown = visible ? now : null;
+  // eslint-disable-next-line functional/no-let -- the clock's running state
   let spent = 0;
   return {
     show(at) {
       shown ??= at;
     },
     hide(at) {
-      if (shown !== null) spent += at - shown;
+      if (shown !== null) {
+        spent += at - shown;
+      }
       shown = null;
       return Math.round(spent / 1000);
     },
@@ -41,8 +45,11 @@ export function ReadTimer({ id }: Readonly<{ id: number }>): null {
     markRead(id);
     const clock = readClock(document.visibilityState === 'visible', Date.now());
     function onChange() {
-      if (document.visibilityState === 'visible') clock.show(Date.now());
-      else recordReadTime(id, clock.hide(Date.now()));
+      if (document.visibilityState === 'visible') {
+        clock.show(Date.now());
+      } else {
+        recordReadTime(id, clock.hide(Date.now()));
+      }
     }
     function onLeave() {
       recordReadTime(id, clock.hide(Date.now()));

@@ -1,7 +1,6 @@
-import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
 import { Badge, CHIP } from '@/components/ui/badge';
 import { TextLink } from '@/components/ui/button';
-import { redirect } from 'next/navigation';
 
 import { getCurrentUser } from '@/lib/core/auth';
 import { getDatabase } from '@/domain/db/client';
@@ -17,6 +16,7 @@ import { MENU_TRIGGER, Menu } from '@/components/ui/menu';
 import { StoryRow } from '@/components/stories/story-row';
 import { EmptyState } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
+import type { Metadata } from 'next';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,7 +33,9 @@ export default async function SavedPage({
   searchParams: Promise<{ tag?: string }>;
 }>) {
   const user = await getCurrentUser();
-  if (!user) redirect('/login');
+  if (!user) {
+    redirect('/login');
+  }
   const { tag } = await searchParams;
   const repo = new Repository(getDatabase());
   const [saves, tags] = await Promise.all([

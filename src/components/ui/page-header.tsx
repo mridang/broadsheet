@@ -1,6 +1,5 @@
-import type { ReactElement, ReactNode } from 'react';
-
 import { cn } from '@/components/ui/cn';
+import type { ReactElement, ReactNode } from 'react';
 
 /**
  * The top of an app page: its title, a line saying what the page is for, and

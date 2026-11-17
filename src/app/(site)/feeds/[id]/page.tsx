@@ -1,6 +1,4 @@
-import type { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
-import type { ReactElement } from 'react';
 
 import { FeedMetadata } from '@/components/feeds/feed-metadata';
 import { FeedSummary } from '@/components/feeds/feed-summary';
@@ -13,6 +11,8 @@ import { StoryRow, ROW_LINK } from '@/components/stories/story-row';
 import { buttonClass } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/notice';
 import { PageSection } from '@/components/ui/page-header';
+import type { ReactElement } from 'react';
+import type { Metadata } from 'next';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,13 +34,19 @@ export default async function FeedPage({
   searchParams: Promise<{ before?: string }>;
 }>): Promise<ReactElement> {
   const user = await getCurrentUser();
-  if (!user) redirect('/login');
+  if (!user) {
+    redirect('/login');
+  }
   const route = await params;
   const id = parseFeedId(route.id);
-  if (id === undefined) notFound();
+  if (id === undefined) {
+    notFound();
+  }
   const repo = new Repository(getDatabase());
   const feed = await repo.getFeed(user.id, id);
-  if (!feed) notFound();
+  if (!feed) {
+    notFound();
+  }
   const query = await searchParams;
   const before = parseFeedId(query.before ?? '');
   const rows = await repo.searchArticles(user.id, {

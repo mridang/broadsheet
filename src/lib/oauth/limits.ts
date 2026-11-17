@@ -16,12 +16,9 @@ import { errorMessage, logError } from '@/utils/logging';
 import { oauthError } from '@/lib/oauth/http';
 import { logSecurityEvent } from '@/lib/oauth/security-log';
 import { clientSubject } from '@/lib/core/http/client-address';
-import {
-  rateLimit,
-  type RateLimit,
-  type RateLimitStore,
-} from '@/lib/rate-limit';
+import { rateLimit } from '@/lib/rate-limit';
 import { countOf } from '@/lib/intl';
+import type { RateLimit, RateLimitStore } from '@/lib/rate-limit';
 
 /**
  * The limits. Registration is generous per hour (a legitimate assistant

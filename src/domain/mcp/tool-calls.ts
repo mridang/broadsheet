@@ -5,17 +5,15 @@
  * tools, its failure explainer and somewhere to record a backend failure.
  */
 
-import { ToolInvoker, type ToolArgs, type ToolResult } from '@/lib/mcp';
-import type { User } from '@/domain/db/users';
-import {
-  TOOL_FAILURES,
-  toolContext,
-  type ToolContent,
-  type ToolContext,
-} from '@/domain/mcp/tool-context';
-import { TOOL_REGISTRY, type ToolName } from '@/domain/mcp/tools';
-import type { ToolServices } from '@/domain/mcp/tool-services';
+import { ToolInvoker } from '@/lib/mcp';
+import { TOOL_FAILURES, toolContext } from '@/domain/mcp/tool-context';
+import { TOOL_REGISTRY } from '@/domain/mcp/tools';
 import { errorMessage, logError } from '@/utils/logging';
+import type { ToolContext } from '@/domain/mcp/tool-context';
+import type { ToolName } from '@/domain/mcp/tools';
+import type { ToolServices } from '@/domain/mcp/tool-services';
+import type { JsonContent, ToolArgs, ToolResult } from '@/lib/mcp';
+import type { User } from '@/domain/db/users';
 
 /**
  * Where a backend failure is recorded. What actually failed stays in our logs,
@@ -32,7 +30,7 @@ const FAILURE_LOG = {
   },
 };
 
-const INVOKER = new ToolInvoker<ToolName, ToolContext, ToolContent>({
+const INVOKER = new ToolInvoker<ToolName, ToolContext, JsonContent>({
   registry: TOOL_REGISTRY,
   failures: TOOL_FAILURES,
   log: FAILURE_LOG,

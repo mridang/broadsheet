@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState, type ReactElement } from 'react';
-
+import { useEffect, useState } from 'react';
 import { cn } from '@/components/ui/cn';
+import type { ReactElement } from 'react';
 
 /** How long a toast stays up, in milliseconds. */
 const SHOW_FOR = 4000;
@@ -26,14 +26,15 @@ export function Toast({
   const shown = message && expired !== key ? message : undefined;
 
   useEffect((): (() => void) | undefined => {
-    if (!message) return undefined;
+    if (!message) {
+      return undefined;
+    }
     const timer = setTimeout(() => setExpired(key), SHOW_FOR);
     return () => clearTimeout(timer);
   }, [message, key]);
 
   return (
-    <div
-      role="status"
+    <output
       aria-live="polite"
       className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex justify-center px-4 print:hidden"
     >
@@ -47,6 +48,6 @@ export function Toast({
           {shown}
         </p>
       ) : null}
-    </div>
+    </output>
   );
 }

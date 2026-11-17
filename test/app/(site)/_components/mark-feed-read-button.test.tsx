@@ -4,7 +4,7 @@ import { MarkFeedReadButton } from '@/app/(site)/_components/mark-feed-read-butt
 import { html } from '../../../components/render';
 
 const IS_A_BUTTON_THAT_PATTERN =
-  /<button type="button"[^>]*>Mark read<\/button>/;
+  /<button type="button"[^>]*>Mark read<\/button>/u;
 
 describe('MarkFeedReadButton', () => {
   it('is a button that acts on the page', () => {

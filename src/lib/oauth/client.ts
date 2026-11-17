@@ -20,8 +20,8 @@ import { bytesToBase64Url } from '@/utils/base64';
 import { SITE_NAME, SITE_URL } from '@/utils/site';
 import { parseUrl } from '@/utils/url';
 
-const IS_METADATA_DOCUMENT_URL_PATTERN = /^[\d.]+$/;
-const DOCUMENT_TTL_SECONDS_PATTERN = /^max-age=(\d+)$/;
+const IS_METADATA_DOCUMENT_URL_PATTERN = /^[\d.]+$/u;
+const DOCUMENT_TTL_SECONDS_PATTERN = /^max-age=(\d+)$/u;
 
 /** A client as the authorization server uses it. */
 export interface OAuthClient {
@@ -530,7 +530,7 @@ export function parseRegistrationText(text: string): Registration {
 export function registrationResponse(
   client: Readonly<OAuthClient>,
   issuedAt: number,
-): Readonly<Record<string, unknown>> {
+) {
   return {
     client_id: client.clientId,
     client_name: client.name,

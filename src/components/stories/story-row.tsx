@@ -1,7 +1,6 @@
-import type { ReactElement, ReactNode } from 'react';
-
 import { pictureSrc } from '@/domain/render/pictures';
-import { imageSigner } from '@/lib/cloudflare/images/server';
+import { imageSigner } from '@/lib/cloudflare/images/runtime';
+import type { ReactElement, ReactNode } from 'react';
 
 /** A story as a list row shows it. */
 export interface RowStory {

@@ -5,17 +5,18 @@
  * it, the arguments it accepts, and what it does when called.
  */
 
+import { z } from 'zod';
 import {
   classifierResource,
   parseClassifierInput,
 } from '@/domain/api/classifier-resource';
 import { ToolFailureError } from '@/domain/mcp/tool-failure';
-import type { ToolContext } from '@/domain/mcp/tool-context';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { checked, id, TRAINABLE } from '@/domain/mcp/tools/support';
 import { Repository } from '@/domain/repository';
-import { type ToolAnnotations, writes } from '@/lib/mcp';
-import { z } from 'zod';
+import { writes } from '@/lib/mcp';
+import type { ToolAnnotations } from '@/lib/mcp';
+import type { ToolContext } from '@/domain/mcp/tool-context';
 
 /** What `train_classifier` accepts. */
 const SCHEMA = z.object({
@@ -67,7 +68,9 @@ export class TrainClassifierTool extends JsonTool<
     const input = args as Record<string, unknown> & { feed_id: number };
     const repo = new Repository(db);
     const feed = await repo.getFeed(uid, input.feed_id);
-    if (!feed) throw new ToolFailureError('There is no such feed.');
+    if (!feed) {
+      throw new ToolFailureError('There is no such feed.');
+    }
     if (input['like_feed'] && input['dislike_feed']) {
       throw new ToolFailureError('Like or dislike the feed, not both.');
     }
@@ -89,12 +92,15 @@ export class TrainClassifierTool extends JsonTool<
           ]
         : []),
     ];
-    if (wanted.length === 0)
+    if (wanted.length === 0) {
       throw new ToolFailureError('Send something to train.');
+    }
     const inputs = wanted.map((w) => checked(parseClassifierInput(w)).input);
     const trained = [];
+    // eslint-disable-next-line functional/no-loop-statements -- classifiers are added one after another, in order
     for (const one of inputs) {
       const added = await repo.addClassifier(uid, one);
+      // eslint-disable-next-line functional/immutable-data -- collects the classifiers as they are added
       trained.push(added.classifier);
     }
     return { classifiers: trained.map((c) => classifierResource(c)) };

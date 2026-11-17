@@ -9,8 +9,6 @@ import { ToolCatalogue } from '@/lib/mcp';
 import { TOOL_SCOPES } from '@/domain/mcp/tool-context';
 import { TOOL_REGISTRY } from '@/domain/mcp/tools';
 
-export type { ToolName } from '@/domain/mcp/tools';
-
 /** The advertised form of every tool this server offers. */
 export const TOOL_CATALOGUE = new ToolCatalogue(TOOL_REGISTRY, TOOL_SCOPES);
 

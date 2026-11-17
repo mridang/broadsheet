@@ -4,13 +4,13 @@ import { Menu, MenuDivider, MenuItem, MenuLabel } from '@/components/ui/menu';
 import { html } from '../render';
 
 const IS_A_BUTTON_THAT_PATTERN =
-  /<button type="button" aria-label="More actions" aria-expanded="false"[^>]*class="chip"/;
-const IS_A_BUTTON_THAT_PATTERN_2 = /<div[^>]*popover="auto" data-popover=""/;
+  /<button type="button" aria-label="More actions" aria-expanded="false"[^>]*class="chip"/u;
+const IS_A_BUTTON_THAT_PATTERN_2 = /<div[^>]*popover="auto" data-popover=""/u;
 const GIVES_ITS_PANEL_THE_PATTERN =
-  /data-popover=""[^>]*class="[^"]*overflow-y-auto[^"]*w-72/;
-const PUTS_THE_CALLER_S_CLASSES_PATTERN = /^<div class="print:hidden">/;
-const IS_A_BUTTON_THAT_PATTERN_3 = /^<button type="button"/;
-const IS_A_HAIRLINE_PATTERN = /^<hr class="[^"]*border-line/;
+  /data-popover=""[^>]*class="[^"]*overflow-y-auto[^"]*w-72/u;
+const PUTS_THE_CALLER_S_CLASSES_PATTERN = /^<div class="print:hidden">/u;
+const IS_A_BUTTON_THAT_PATTERN_3 = /^<button type="button"/u;
+const IS_A_HAIRLINE_PATTERN = /^<hr class="[^"]*border-line/u;
 
 describe('Menu', () => {
   const out = html(

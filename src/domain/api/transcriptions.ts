@@ -14,15 +14,12 @@ import {
   transcribe,
 } from '@/domain/assistant';
 import { answerModel, assistantUnavailable } from '@/domain/api/answers';
-import {
-  liveUid,
-  requestCookieResolver,
-  type CurrentUserResolver,
-} from '@/domain/api/auth';
+import { liveUid, requestCookieResolver } from '@/domain/api/auth';
 import { overBudget } from '@/domain/api/usage';
 import { ApiController, ok, problem, problems } from '@/lib/core/api';
 import { getDatabase } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
+import type { CurrentUserResolver } from '@/domain/api/auth';
 
 /** What a recording was heard to say. */
 export interface TranscriptionResource {
@@ -50,7 +47,9 @@ export async function readAudio(request: Request): Promise<Uint8Array> {
     throw tooLarge();
   }
   const audio = new Uint8Array(await request.arrayBuffer());
-  if (audio.length > MAX_AUDIO_BYTES) throw tooLarge();
+  if (audio.length > MAX_AUDIO_BYTES) {
+    throw tooLarge();
+  }
   if (audio.length === 0) {
     throw problems.badRequest('The recording is empty.', ['body: empty.']);
   }
@@ -74,7 +73,9 @@ export function createTranscriptionsCollection(
     handle: async (audio, { uid }) => {
       const repo = new Repository(getDatabase());
       const refusal = await overBudget(repo, uid, 'transcription');
-      if (refusal) return refusal;
+      if (refusal) {
+        return refusal;
+      }
       try {
         const text = await transcribe(answerModel(), audio);
         await repo.recordUsage(uid, 'transcription');

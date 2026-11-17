@@ -9,7 +9,6 @@
 
 import { and, desc, eq, getTableColumns, inArray, or } from 'drizzle-orm';
 
-import type { Database } from '@/domain/db/client';
 import {
   articles,
   feedTokens,
@@ -19,11 +18,9 @@ import {
   subscriptions,
   webhooks,
 } from '@/domain/db/schema';
-import {
-  notMuted,
-  sectionAndDescendants,
-  type ArticleSummary,
-} from '@/domain/repository';
+import { notMuted, sectionAndDescendants } from '@/domain/repository';
+import type { ArticleSummary } from '@/domain/repository';
+import type { Database } from '@/domain/db/client';
 
 /** A browser told when the day's issue is ready. */
 export type PushSubscription = typeof pushSubscriptions.$inferSelect;
@@ -332,7 +329,9 @@ export class OutboundRepository {
       .where(followed)
       .orderBy(desc(articles.edition))
       .limit(1);
-    if (!newest?.edition) return [];
+    if (!newest?.edition) {
+      return [];
+    }
     return this.#db
       .select(summaryColumns)
       .from(articles)
@@ -344,16 +343,16 @@ export class OutboundRepository {
 
   /** The kept text of these stories, by id (stories with none are left out). */
   async bodies(ids: readonly number[]): Promise<Map<number, string>> {
-    const rows = [];
     // D1 binds at most about 100 values in one statement.
-    for (let at = 0; at < ids.length; at += 90) {
-      rows.push(
-        ...(await this.#db
+    const chunks = await Promise.all(
+      Array.from({ length: Math.ceil(ids.length / 90) }, async (_, chunk) =>
+        this.#db
           .select({ id: articles.id, body: articles.body_text })
           .from(articles)
-          .where(inArray(articles.id, ids.slice(at, at + 90)))),
-      );
-    }
+          .where(inArray(articles.id, ids.slice(chunk * 90, chunk * 90 + 90))),
+      ),
+    );
+    const rows = chunks.flat();
     return new Map(
       rows.flatMap((r) => (r.body ? [[r.id, r.body] as const] : [])),
     );

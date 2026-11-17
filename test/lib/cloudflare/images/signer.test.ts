@@ -1,8 +1,8 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { ImageSigner } from '@/lib/cloudflare/images/server';
+import { ImageSigner } from '@/lib/cloudflare/images/signer';
 
-const SIGNS_A_PICTURE_ADDRESS_PATTERN = /^[A-Za-z0-9_-]{43}$/;
+const SIGNS_A_PICTURE_ADDRESS_PATTERN = /^[A-Za-z0-9_-]{43}$/u;
 
 const URL_A = 'https://news.example.org/photo.jpg';
 const URL_B = 'https://news.example.org/other.jpg';
@@ -17,8 +17,13 @@ describe('ImageSigner', () => {
   });
 
   it('is the same every time, so a page and its cache agree', async () => {
-    expect(await signer.sign(URL_A)).toBe(await signer.sign(URL_A));
-    expect(await signer.sign(URL_A)).not.toBe(await signer.sign(URL_B));
+    const [first, again, other] = await Promise.all([
+      signer.sign(URL_A),
+      signer.sign(URL_A),
+      signer.sign(URL_B),
+    ]);
+    expect(first).toBe(again);
+    expect(first).not.toBe(other);
   });
 
   it('refuses a signature made for another address', async () => {

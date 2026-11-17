@@ -6,18 +6,15 @@
  */
 
 import { parseFeedId } from '@/domain/api/feed-resource';
-import {
-  sqliteSince,
-  WINDOWS,
-  type TrendingWindow,
-} from '@/domain/api/article-resource';
-import {
-  SOURCE_ORDERS,
-  type SourceOrder,
-  type SourceTrendingQuery,
-  type TrendingSource,
-} from '@/domain/repository';
+import { sqliteSince, WINDOWS } from '@/domain/api/article-resource';
+import { SOURCE_ORDERS } from '@/domain/repository';
 import { decodeCursor, MAX_LIMIT, DEFAULT_LIMIT } from '@/lib/core/api';
+import type { TrendingWindow } from '@/domain/api/article-resource';
+import type {
+  SourceOrder,
+  SourceTrendingQuery,
+  TrendingSource,
+} from '@/domain/repository';
 
 /** A source with no story in this many days is stale. */
 export const STALE_DAYS = 365;
@@ -78,38 +75,41 @@ export function parseSourceQuery(
   params: URLSearchParams,
   now: Date = new Date(),
 ): SourceQueryInput {
-  const errors: string[] = [];
-  for (const key of new Set(params.keys())) {
-    if (!PARAMETERS.has(key))
-      errors.push(`${key}: not a parameter of this list.`);
-  }
   const order = params.get('order');
-  if (!(SOURCE_ORDERS as readonly (string | null)[]).includes(order)) {
-    errors.push(`order: must be one of ${SOURCE_ORDERS.join(', ')}.`);
-  }
   const window = params.get('window') ?? 'week';
-  if (!Object.hasOwn(WINDOWS, window)) {
-    errors.push('window: must be day, week or month.');
-  }
-  let after: SourceTrendingQuery['after'];
   const cursor = params.get('cursor');
-  if (cursor !== null) {
-    const position = decodeCursor(cursor);
-    const id = parseFeedId(position?.id ?? '');
-    const count = Number(position?.key);
-    if (id === undefined || !position?.key || !Number.isFinite(count)) {
-      errors.push('cursor: not a cursor of this list.');
-    } else after = { count, id };
-  }
-  let limit = DEFAULT_LIMIT;
+  const position = cursor === null ? undefined : decodeCursor(cursor);
+  const id = parseFeedId(position?.id ?? '');
+  const count = Number(position?.key);
+  const badCursor =
+    cursor !== null &&
+    (id === undefined || !position?.key || !Number.isFinite(count));
+  const after: SourceTrendingQuery['after'] =
+    cursor !== null && !badCursor && id !== undefined
+      ? { count, id }
+      : undefined;
   const rawLimit = params.get('limit');
-  if (rawLimit !== null) {
-    limit = Number(rawLimit);
-    if (!Number.isInteger(limit) || limit < 1 || limit > MAX_LIMIT) {
-      errors.push(`limit: must be a whole number from 1 to ${MAX_LIMIT}.`);
-    }
+  const limit = rawLimit === null ? DEFAULT_LIMIT : Number(rawLimit);
+  const limitOk = Number.isInteger(limit) && limit >= 1 && limit <= MAX_LIMIT;
+  const errors: string[] = [
+    ...new Set(params.keys())
+      .values()
+      .filter((key) => !PARAMETERS.has(key))
+      .map((key) => `${key}: not a parameter of this list.`),
+    ...((SOURCE_ORDERS as readonly (string | null)[]).includes(order)
+      ? []
+      : [`order: must be one of ${SOURCE_ORDERS.join(', ')}.`]),
+    ...(Object.hasOwn(WINDOWS, window)
+      ? []
+      : ['window: must be day, week or month.']),
+    ...(badCursor ? ['cursor: not a cursor of this list.'] : []),
+    ...(rawLimit !== null && !limitOk
+      ? [`limit: must be a whole number from 1 to ${MAX_LIMIT}.`]
+      : []),
+  ];
+  if (errors.length > 0) {
+    return { ok: false, errors };
   }
-  if (errors.length > 0) return { ok: false, errors };
   const days = WINDOWS[window as TrendingWindow];
   return {
     ok: true,

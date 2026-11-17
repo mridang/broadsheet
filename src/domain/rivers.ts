@@ -10,14 +10,15 @@
 
 import { and, asc, eq } from 'drizzle-orm';
 
-import type { Database } from '@/domain/db/client';
 import { rivers } from '@/domain/db/schema';
 import { editionIssueFor } from '@/domain/issues';
 import { storyIds } from '@/domain/render/layout';
-import { Repository, type ArticleSummary } from '@/domain/repository';
+import { Repository } from '@/domain/repository';
+import type { ArticleSummary } from '@/domain/repository';
+import type { Database } from '@/domain/db/client';
 
 const PARSE_RIVER_ID_PATTERN =
-  /^(feed|section|search|edition):([1-9]\d{0,14})$/;
+  /^(feed|section|search|edition):([1-9]\d{0,14})$/u;
 
 /** The columns a river can sit in. */
 export const RIVER_SIDES = ['left', 'right'] as const;
@@ -52,7 +53,9 @@ export type RiverTarget =
 
 /** Read a river id, or undefined when it names nothing a river can list. */
 export function parseRiverId(riverId: string): RiverTarget | undefined {
-  if (riverId === 'all' || riverId === 'saves') return { kind: riverId };
+  if (riverId === 'all' || riverId === 'saves') {
+    return { kind: riverId };
+  }
   const match = PARSE_RIVER_ID_PATTERN.exec(riverId);
   return match
     ? {
@@ -103,7 +106,9 @@ export class RiverRepository {
       .set({ river_id: input.river_id })
       .where(at)
       .returning();
-    if (moved) return { river: riverOf(moved), created: false };
+    if (moved) {
+      return { river: riverOf(moved), created: false };
+    }
     const [row] = await this.#db
       .insert(rivers)
       .values({ user_id: userId, ...input })
@@ -131,17 +136,20 @@ export class RiverRepository {
       .delete(rivers)
       .where(and(eq(rivers.id, id), eq(rivers.user_id, userId)))
       .returning();
-    if (!gone) return false;
+    if (!gone) {
+      return false;
+    }
     const all = await this.list(userId);
     const rest = all.filter((r) => r.side === gone.side);
-    for (const [position, river] of rest.entries()) {
+    await rest.reduce<Promise<void>>(async (previous, river, position) => {
+      await previous;
       if (river.position !== position) {
         await this.#db
           .update(rivers)
           .set({ position })
           .where(eq(rivers.id, river.id));
       }
-    }
+    }, Promise.resolve());
     return true;
   }
 }
@@ -173,6 +181,9 @@ export async function ownsTarget(
     case 'edition': {
       return !!(await repo.getCustomEdition(userId, target.id));
     }
+    default: {
+      return false;
+    }
   }
 }
 
@@ -187,7 +198,9 @@ export async function riverStories(
   limit: number,
 ): Promise<ArticleSummary[]> {
   const target = parseRiverId(riverId);
-  if (!target || !(await ownsTarget(db, userId, target))) return [];
+  if (!target || !(await ownsTarget(db, userId, target))) {
+    return [];
+  }
   const repo = new Repository(db);
   switch (target.kind) {
     case 'all': {
@@ -230,9 +243,14 @@ export async function riverStories(
     case 'edition': {
       const edition = await repo.getCustomEdition(userId, target.id);
       const [latest] = await repo.listEditions(userId);
-      if (!edition || !latest) return [];
+      if (!edition || !latest) {
+        return [];
+      }
       const issue = await editionIssueFor(repo, edition, latest);
       return repo.articlesByIds(storyIds(issue.layout).slice(0, limit));
+    }
+    default: {
+      return [];
     }
   }
 }

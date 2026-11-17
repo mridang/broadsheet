@@ -8,11 +8,9 @@ import {
   useRef,
   useState,
   useSyncExternalStore,
-  type ReactElement,
-  type ReactNode,
 } from 'react';
-
 import { cn } from '@/components/ui/cn';
+import type { ReactElement, ReactNode } from 'react';
 
 /**
  * Whether focus has moved out of a popover to somewhere else on the page.
@@ -77,7 +75,9 @@ type Placement = Readonly<{ top: number; right: number }>;
  * hides itself, and the `popover` attribute does nothing.
  * @param panel - Any element; the API is looked for on it.
  */
-export function supportsPopover(panel: object): boolean {
+export function supportsPopover(
+  panel: Element | Readonly<Record<string, unknown>>,
+): boolean {
   return 'popover' in panel;
 }
 
@@ -336,18 +336,15 @@ export function PopoverStatus({
   children,
 }: Readonly<{ children: ReactNode }>): ReactElement {
   return (
-    <p
-      role="status"
-      className="flex h-10 items-center gap-3 px-3 text-sm font-medium text-muted"
-    >
+    <output className="flex h-10 items-center gap-3 px-3 text-sm font-medium text-muted">
       {children}
-    </p>
+    </output>
   );
 }
 
 /** A thin rule between groups of items in a popover panel. */
 export function PopoverSeparator(): ReactElement {
-  return <div className="my-1.5 h-px bg-ink/10" role="separator" />;
+  return <hr className="my-1.5 h-px border-0 bg-ink/10" />;
 }
 
 /** A small, non-interactive caption in a popover panel (who is signed in, say). */
