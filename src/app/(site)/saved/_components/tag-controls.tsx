@@ -1,13 +1,14 @@
 'use client';
 
+import { useState } from 'react';
 import { cn } from '@/components/ui/cn';
 import { SMALL_FIELD } from '@/components/ui/field';
-import { useState, type ReactElement } from 'react';
 
 import { ensureOk } from '@/components/api/problem-message';
 import { useApiAction } from '@/components/api/use-api-action';
 import { Button } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/notice';
+import type { ReactElement } from 'react';
 
 const path = (tag: string) =>
   `/api/users/self/saves/tags/${encodeURIComponent(tag)}`;
@@ -51,12 +52,12 @@ export function TagControls({ tag }: Readonly<{ tag: string }>): ReactElement {
         variant="danger"
         size="xs"
         disabled={action.busy}
-        onClick={() =>
+        onClick={() => {
           void action.run(async () => {
             await ensureOk(await fetch(path(tag), { method: 'DELETE' }));
             go('/saved');
-          }, 'Could not delete the tag.')
-        }
+          }, 'Could not delete the tag.');
+        }}
       >
         Delete tag
       </Button>

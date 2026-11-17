@@ -21,11 +21,12 @@ import {
   tokenFor,
 } from '../../../../domain/auth/auth-test-kit';
 
-const POST_API_FEEDS_IMPORTS_PATTERN = /^topic_ids:/;
+const POST_API_FEEDS_IMPORTS_PATTERN = /^topic_ids:/u;
 
-const refreshSource = jest.fn<(...args: unknown[]) => Promise<unknown>>(
+const refreshSource = jest.fn<(...args: unknown[]) => Promise<object>>(
   async () => ({ ok: true, n: 0 }),
 );
+// eslint-disable-next-line tslop/no-module-mocking -- the route imports the scraper directly, so the test replaces that module; injecting it would change the route's public API
 jest.unstable_mockModule('@/domain/scraping/index', () => ({
   refreshSource,
   discoverFeed: async (url: string) => url,
@@ -40,7 +41,11 @@ const create = jest.fn<(options: unknown) => Promise<{ id: string }>>(
 let restore: () => void;
 let made: ReturnType<typeof sqliteD1>;
 let repo: Repository;
-let auth: Record<string, string>;
+/** The Cookie header of the signed-in caller; empty for a signed-out one. */
+interface CallerCookie {
+  [name: string]: string;
+}
+let auth: CallerCookie;
 const origin = 'https://app.test';
 
 beforeEach(async () => {
@@ -96,6 +101,7 @@ describe('POST /api/feeds/imports', () => {
       sections_added: 1,
       rejected: [
         {
+          // eslint-disable-next-line no-script-url -- the address is the input the import must reject
           url: 'javascript:x',
           reason: 'url: must be an http or https address.',
         },

@@ -1,4 +1,3 @@
-import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 
 import { getCurrentUser } from '@/lib/core/auth';
@@ -14,6 +13,7 @@ import { EmptyState } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
 import { Tabs } from '@/components/ui/tabs';
 import { TextLink } from '@/components/ui/button';
+import type { Metadata } from 'next';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,7 +36,9 @@ export default async function SharedPage({
   searchParams: Promise<{ user?: string; before?: string }>;
 }>) {
   const user = await getCurrentUser();
-  if (!user) redirect('/login');
+  if (!user) {
+    redirect('/login');
+  }
   const query = await searchParams;
   const sharer =
     query.user === 'self' ? user.id : parseFeedId(query.user ?? '');

@@ -1,23 +1,24 @@
 import { describe, expect, it } from '@jest/globals';
 
 import { StoryCard, StoryMenuItems } from '@/app/(site)/_components/story-card';
-import type { Article } from '@/domain/repository';
 import { html } from '../../../components/render';
+import type { Article } from '@/domain/repository';
 
 const IS_COVERED_BY_ONE_PATTERN =
-  /<a class="[^"]*" data-story-link="" href="https:\/\/a\.test\/story" target="_blank" rel="noopener noreferrer" aria-label="A headline">/;
-const IS_COVERED_BY_ONE_PATTERN_2 = /<h2[^>]*>A headline<\/h2>/;
-const BADGES_A_CLUSTERED_STORY_PATTERN = /<ul[^>]*aria-label="Also covered by"/;
-const SHOWS_WHAT_CHANGED_IN_PATTERN = /<del[^>]*>was said\. <\/del>/;
+  /<a class="[^"]*" data-story-link="" href="https:\/\/a\.test\/story" target="_blank" rel="noopener noreferrer" aria-label="A headline">/u;
+const IS_COVERED_BY_ONE_PATTERN_2 = /<h2[^>]*>A headline<\/h2>/u;
+const BADGES_A_CLUSTERED_STORY_PATTERN =
+  /<ul[^>]*aria-label="Also covered by"/u;
+const SHOWS_WHAT_CHANGED_IN_PATTERN = /<del[^>]*>was said\. <\/del>/u;
 const LETS_A_READER_SHARE_PATTERN =
-  /<button type="button" aria-label="More actions"/;
-const DIMS_A_READ_STORY_S_PATTERN = /<article[^>]*opacity/;
-const DIMS_A_READ_STORY_S_PATTERN_2 = /<h2[^>]*group-data-read:opacity-55/;
+  /<button type="button" aria-label="More actions"/u;
+const DIMS_A_READ_STORY_S_PATTERN = /<article[^>]*opacity/u;
+const DIMS_A_READ_STORY_S_PATTERN_2 = /<h2[^>]*group-data-read:opacity-55/u;
 const LETS_THE_SAVE_BUTTON_PATTERN =
-  /<button[^>]*pointer-events-auto[^>]*data-action="save"/;
-const LETS_THE_SAVE_BUTTON_PATTERN_2 = /<img[^>]*class="pointer-events-none /;
+  /<button[^>]*pointer-events-auto[^>]*data-action="save"/u;
+const LETS_THE_SAVE_BUTTON_PATTERN_2 = /<img[^>]*class="pointer-events-none /u;
 const SHOWS_ITS_PHOTO_THROUGH_PATTERN =
-  /src="\/img\?url=https%3A%2F%2Fexample\.com%2Fp\.jpg/;
+  /src="\/img\?url=https%3A%2F%2Fexample\.com%2Fp\.jpg/u;
 
 const article = (over: Partial<Article> = {}): Article =>
   ({

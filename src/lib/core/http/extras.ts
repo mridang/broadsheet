@@ -8,12 +8,8 @@
  */
 
 import { SESSION_COOKIE } from '@/domain/auth/app';
-import {
-  GENERIC_CLASSES,
-  genericClass,
-  type ClassSpec,
-  type EdgeLimits,
-} from './edge-limits';
+import { GENERIC_CLASSES, genericClass } from './edge-limits';
+import type { ClassSpec, EdgeLimits } from './edge-limits';
 
 /** The kinds of request this app counts besides the classes every app has. */
 type OwnClass = 'auth' | 'ai';
@@ -39,10 +35,10 @@ const CLASSES: Readonly<Record<OwnClass, ClassSpec>> = {
 
 /** The requests that ask Workers AI a question. */
 const AI_PATHS = [
-  /^\/api\/articles\/[^/]+\/answers$/,
-  /^\/events\/articles\/[^/]+\/answers$/,
-  /^\/api\/conversations\/[^/]+\/messages$/,
-  /^\/api\/transcriptions$/,
+  /^\/api\/articles\/[^/]+\/answers$/u,
+  /^\/events\/articles\/[^/]+\/answers$/u,
+  /^\/api\/conversations\/[^/]+\/messages$/u,
+  /^\/api\/transcriptions$/u,
 ];
 
 /** The class of a request this app counts specially, or undefined when it is one of the classes every app has. */

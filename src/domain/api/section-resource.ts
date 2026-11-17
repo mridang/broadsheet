@@ -14,8 +14,8 @@ import {
   iconResource,
   isAutoMarkReadDays,
   parseIcon,
-  type IconResource,
 } from '@/domain/api/icon-resource';
+import type { IconResource } from '@/domain/api/icon-resource';
 import type { Section, SectionChanges } from '@/domain/repository';
 
 /** Highest position a section may take. */
@@ -66,68 +66,60 @@ export function parseSectionInput(
   body: Readonly<Record<string, unknown>>,
   required: boolean,
 ): SectionInput {
-  const errors: string[] = [];
-  const changes: { -readonly [K in keyof SectionChanges]: SectionChanges[K] } =
-    {};
-  for (const key of Object.keys(body)) {
-    if (
-      ![
-        'name',
-        'position',
-        'parent_id',
-        'icon',
-        'auto_mark_read_days',
-      ].includes(key)
-    ) {
-      errors.push(`${key}: not a member of a section.`);
-    }
-  }
   const name = body['name'];
-  if (name === undefined) {
-    if (required) errors.push('name: required.');
-  } else if (typeof name !== 'string' || !name.trim()) {
-    errors.push('name: must be a non-blank string.');
-  } else if (name.trim().length > MAX_NAME_LENGTH) {
-    errors.push('name: too long.');
-  } else changes.name = name.trim();
+  const nameText = typeof name === 'string' ? name.trim() : '';
+  const nameBad = name !== undefined && nameText === '';
+  const nameLong = name !== undefined && nameText.length > MAX_NAME_LENGTH;
   const position = body['position'];
-  if (position !== undefined) {
-    if (
-      typeof position === 'number' &&
-      Number.isInteger(position) &&
-      position >= 0 &&
-      position <= MAX_POSITION
-    ) {
-      changes.position = position;
-    } else
-      errors.push(
-        `position: must be a whole number from 0 to ${MAX_POSITION}.`,
-      );
-  }
-  if ('parent_id' in body) {
-    const raw = body['parent_id'];
-    const id = typeof raw === 'string' ? parseFeedId(raw) : undefined;
-    if (raw === null) changes.parent_id = null;
-    else if (id === undefined) errors.push('parent_id: not a section id.');
-    else changes.parent_id = id;
-  }
-  if ('icon' in body) {
-    const icon = parseIcon(body['icon'], 'icon');
-    if (icon.ok) {
-      changes.icon = icon.icon && JSON.stringify(icon.icon);
-    } else {
-      errors.push(...icon.errors);
-    }
-  }
-  if ('auto_mark_read_days' in body) {
-    const days = body['auto_mark_read_days'];
-    if (days === null || isAutoMarkReadDays(days)) {
-      changes.auto_mark_read_days = days;
-    } else {
-      errors.push(
-        'auto_mark_read_days: a whole number from 0 to 365, or null.',
-      );
-    }
-  }
+  const positionOk =
+    typeof position === 'number' &&
+    Number.isInteger(position) &&
+    position >= 0 &&
+    position <= MAX_POSITION;
+  const rawParent = body['parent_id'];
+  const parent =
+    typeof rawParent === 'string' ? parseFeedId(rawParent) : undefined;
+  const parentBad =
+    'parent_id' in body && rawParent !== null && parent === undefined;
+  const icon = 'icon' in body ? parseIcon(body['icon'], 'icon') : undefined;
+  const days = body['auto_mark_read_days'];
+  const daysOk = days === null || isAutoMarkReadDays(days);
+  const errors: string[] = [
+    ...Object.keys(body)
+      .filter(
+        (key) =>
+          ![
+            'name',
+            'position',
+            'parent_id',
+            'icon',
+            'auto_mark_read_days',
+          ].includes(key),
+      )
+      .map((key) => `${key}: not a member of a section.`),
+    ...(name === undefined && required ? ['name: required.'] : []),
+    ...(nameBad ? ['name: must be a non-blank string.'] : []),
+    ...(!nameBad && nameLong ? ['name: too long.'] : []),
+    ...(position !== undefined && !positionOk
+      ? [`position: must be a whole number from 0 to ${MAX_POSITION}.`]
+      : []),
+    ...(parentBad ? ['parent_id: not a section id.'] : []),
+    ...(icon && !icon.ok ? icon.errors : []),
+    ...('auto_mark_read_days' in body && !daysOk
+      ? ['auto_mark_read_days: a whole number from 0 to 365, or null.']
+      : []),
+  ];
+  const changes: SectionChanges = {
+    ...(name !== undefined && !nameBad && !nameLong ? { name: nameText } : {}),
+    ...(position !== undefined && positionOk ? { position } : {}),
+    ...('parent_id' in body && rawParent === null ? { parent_id: null } : {}),
+    ...('parent_id' in body && parent !== undefined
+      ? { parent_id: parent }
+      : {}),
+    ...(icon?.ok ? { icon: icon.icon && JSON.stringify(icon.icon) } : {}),
+    ...('auto_mark_read_days' in body && daysOk
+      ? { auto_mark_read_days: days }
+      : {}),
+  };
   return errors.length > 0 ? { ok: false, errors } : { ok: true, changes };
 }

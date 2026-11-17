@@ -1,19 +1,19 @@
 import { describe, expect, it } from '@jest/globals';
 
 import { AccountPanel, AppHeader } from '@/components/site/app-header';
-import type { User } from '@/domain/repository';
 import { html } from '../render';
+import type { User } from '@/domain/repository';
 
 const OFFERS_TO_SIGN_IN_PATTERN =
-  /<a class="[^"]*" href="\/login">Sign in<\/a>/;
+  /<a class="[^"]*" href="\/login">Sign in<\/a>/u;
 const OPENS_AN_ACCOUNT_MENU_PATTERN =
-  /<button type="button" aria-label="Account"/;
+  /<button type="button" aria-label="Account"/u;
 const NAMES_THE_PERSON_AND_PATTERN =
-  /<button type="button" class="[^"]*">Sign out<\/button>/;
+  /<button type="button" class="[^"]*">Sign out<\/button>/u;
 const SEARCHES_THE_ARCHIVE_WITH_PATTERN =
-  /<form role="search"[^>]*action="\/search" method="get"/;
+  /<form role="search"[^>]*action="\/search" method="get"/u;
 const PUTS_THE_MENU_IN_PATTERN =
-  /<details[^>]*>[\s\S]*Menu[\s\S]*the menu[\s\S]*<\/details>/;
+  /<details[^>]*>[\s\S]*Menu[\s\S]*the menu[\s\S]*<\/details>/u;
 
 const user = (overrides: Partial<User> = {}): User => ({
   id: 1,

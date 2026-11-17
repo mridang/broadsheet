@@ -17,7 +17,11 @@ const route = await import('@/app/api/feeds/imports/[id]/route');
 
 let restore: () => void;
 let runs: FeedImportRuns;
-let auth: Record<string, string>;
+/** The Cookie header of the signed-in caller; empty for a signed-out one. */
+interface CallerCookie {
+  [name: string]: string;
+}
+let auth: CallerCookie;
 const origin = 'https://app.test';
 
 beforeEach(async () => {

@@ -7,16 +7,17 @@
  */
 
 import { D1OAuthStore } from '@/domain/db/oauth';
-import { getUserById, type User } from '@/domain/db/users';
+import { getUserById } from '@/domain/db/users';
 import {
   ACCESS_PREFIX,
   authenticateAccessToken,
   bearerToken,
   resourceUri,
-  type AccessIdentity,
 } from '@/lib/oauth';
 import { getDatabase } from '@/domain/db/client';
 import { setErrorContext } from '@/lib/core/observability/context';
+import type { AccessIdentity } from '@/lib/oauth';
+import type { User } from '@/domain/db/users';
 
 /** Who the request is from, or why it is not allowed in. */
 export type McpAuth =
@@ -52,8 +53,9 @@ export interface McpAuthDeps {
  * without a database lookup, which keeps a flood of made-up tokens from costing
  * two D1 reads apiece.
  */
-const ACCESS_TOKEN_SHAPE = new RegExp(
+const ACCESS_TOKEN_PATTERN = new RegExp(
   `^${ACCESS_PREFIX}_[A-Za-z0-9_-]{20,200}$`,
+  'u',
 );
 
 /** The real database, opened only once a token has actually been sent. */
@@ -83,7 +85,7 @@ export async function authenticateMcpRequest(
   if (!token) {
     return { kind: 'no-token' };
   }
-  if (!ACCESS_TOKEN_SHAPE.test(token)) {
+  if (!ACCESS_TOKEN_PATTERN.test(token)) {
     return { kind: 'invalid-token' };
   }
   const { identify, findUser, now } = deps();

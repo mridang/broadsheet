@@ -8,7 +8,7 @@ import {
   sha256Hex,
 } from '@/lib/outbound/tokens';
 
-const MAKES_A_FRESH_43_CHARACTER_PATTERN = /^[A-Za-z0-9_-]{43}$/;
+const MAKES_A_FRESH_43_CHARACTER_PATTERN = /^[A-Za-z0-9_-]{43}$/u;
 
 describe('base64Url and fromBase64Url', () => {
   it('round-trips bytes without padding or url-unsafe characters', () => {

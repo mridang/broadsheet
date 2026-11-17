@@ -1,13 +1,13 @@
-import { describe, expect, it } from '@jest/globals';
 import { access, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
+import { describe, expect, it } from '@jest/globals';
 
 import { BACKGROUND_COLOR, THEME_COLOR } from '@/app/_brand';
 import manifest from '@/app/manifest';
 import { pngSize } from '../png';
 
 const WRITES_THE_APP_S_NAME_PATTERN = /^\p{Lu}/u;
-const MEETS_WHAT_CHROME_NEEDS_PATTERN = /^\//;
+const MEETS_WHAT_CHROME_NEEDS_PATTERN = /^\//u;
 
 /** The names of the chunks a PNG file is made of, in order. */
 async function pngChunks(file: string): Promise<readonly string[]> {

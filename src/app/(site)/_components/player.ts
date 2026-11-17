@@ -66,7 +66,7 @@ export function progress(player: Player, position: number): Player {
  * The current story ended: nothing is current and the next queued story, if
  * any, is the one to read.
  */
-export function finish(player: Player): { player: Player; next?: number } {
+export function finish(player: Player) {
   const [next] = player.queue;
   return {
     player: { ...player, current: null },
@@ -89,7 +89,9 @@ export function toResource(player: Player) {
 
 /** The API's player, or the empty one for anything it cannot read. */
 export function fromResource(body: unknown): Player {
-  if (typeof body !== 'object' || body === null) return EMPTY;
+  if (typeof body !== 'object' || body === null) {
+    return EMPTY;
+  }
   const b = body as Record<string, unknown>;
   const ids = (v: unknown) =>
     Array.isArray(v)
@@ -109,9 +111,12 @@ export function fromResource(body: unknown): Player {
 }
 
 /** The page's player, shared by every Listen button and the keys. */
+// eslint-disable-next-line functional/no-let -- the page's one shared player, replaced on every change
 let state: Player = EMPTY;
 const listeners = new Set<() => void>();
+// eslint-disable-next-line functional/no-let -- set once the player is loaded for a signed-in person
 let signedIn = false;
+// eslint-disable-next-line functional/no-let -- the pending save timer, replaced on every change
 let saving: ReturnType<typeof setTimeout> | undefined;
 
 /** The player as it stands. */
@@ -121,7 +126,9 @@ export function getPlayer(): Player {
 
 /** Be told when the player changes; returns the way to stop. */
 export function subscribePlayer(listener: () => void): () => void {
+  // eslint-disable-next-line functional/immutable-data -- the page's registry of listeners
   listeners.add(listener);
+  // eslint-disable-next-line functional/immutable-data -- the page's registry of listeners
   return () => listeners.delete(listener);
 }
 
@@ -131,8 +138,13 @@ export function subscribePlayer(listener: () => void): () => void {
  */
 export function updatePlayer(change: (player: Player) => Player): void {
   state = change(state);
-  for (const listener of listeners) listener();
-  if (!signedIn) return;
+  // eslint-disable-next-line functional/no-loop-statements -- calls each listener in turn
+  for (const listener of listeners) {
+    listener();
+  }
+  if (!signedIn) {
+    return;
+  }
   clearTimeout(saving);
   saving = setTimeout(() => {
     void fetch('/api/users/self/player', {
@@ -151,10 +163,15 @@ export function updatePlayer(change: (player: Player) => Player): void {
 export async function loadPlayer(): Promise<void> {
   try {
     const res = await fetch('/api/users/self/player');
-    if (!res.ok) return;
+    if (!res.ok) {
+      return;
+    }
     signedIn = true;
     state = fromResource(await res.json());
-    for (const listener of listeners) listener();
+    // eslint-disable-next-line functional/no-loop-statements -- calls each listener in turn
+    for (const listener of listeners) {
+      listener();
+    }
   } catch {
     // Offline or signed out: listening still works for this page.
   }

@@ -1,8 +1,6 @@
-import type { Metadata } from 'next';
-import { ButtonLink, TextLink } from '@/components/ui/button';
-import { List, ListItem } from '@/components/ui/card';
 import { redirect } from 'next/navigation';
-import type { ReactElement } from 'react';
+import { List, ListItem } from '@/components/ui/card';
+import { ButtonLink, TextLink } from '@/components/ui/button';
 
 import { AssistantChat } from '@/app/(site)/assistant/_components/assistant-chat';
 import { DeleteConversationButton } from '@/app/(site)/assistant/_components/delete-conversation-button';
@@ -13,6 +11,8 @@ import { getDatabase } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
 import { getCurrentUser } from '@/lib/core/auth';
 import { PageHeader, PageSection } from '@/components/ui/page-header';
+import type { ReactElement } from 'react';
+import type { Metadata } from 'next';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,7 +33,9 @@ export default async function AssistantPage({
   searchParams: Promise<{ c?: string }>;
 }>): Promise<ReactElement> {
   const user = await getCurrentUser();
-  if (!user) redirect('/login');
+  if (!user) {
+    redirect('/login');
+  }
   const repo = new Repository(getDatabase());
   const query = await searchParams;
   const id = parseFeedId(query.c ?? '');

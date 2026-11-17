@@ -7,7 +7,7 @@ import {
   jest,
 } from '@jest/globals';
 
-import { createDatabase, type Database } from '@/domain/db/client';
+import { createDatabase } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
 import { SESSION_COOKIE } from '@/domain/auth/app';
 import { APP_MIGRATIONS } from '../../../../lib/core/db/migrations';
@@ -19,6 +19,7 @@ import {
   SESSION_SECRET,
   tokenFor,
 } from '../../../../domain/auth/auth-test-kit';
+import type { Database } from '@/domain/db/client';
 
 const collator = new Intl.Collator();
 
@@ -36,6 +37,7 @@ const refreshSource = jest.fn(
     return { ok: how === 'ok', n: 0 };
   },
 );
+// eslint-disable-next-line tslop/no-module-mocking -- the route imports the scraper directly, so the test replaces that module; injecting it would change the route's public API
 jest.unstable_mockModule('@/domain/scraping/index', () => ({
   refreshSource,
   discoverFeed: async (url: string) => url,
@@ -45,7 +47,11 @@ const { POST } = await import('@/app/api/feeds/refreshes/route');
 
 let restore: () => void;
 /** The Cookie header the browser sends; empty for a signed-out caller. */
-let auth: Record<string, string>;
+/** The Cookie header of the signed-in caller; empty for a signed-out one. */
+interface CallerCookie {
+  [name: string]: string;
+}
+let auth: CallerCookie;
 
 /** A Cookie header carrying a signed session for `uid`. */
 async function cookieFor(uid: number): Promise<Record<string, string>> {

@@ -13,29 +13,36 @@
  */
 
 import { BRAND_NAME, BRAND_SHORT_NAME, BRAND_URL } from '@/app/_brand';
-import { getDatabase, type Database } from '@/domain/db/client';
-import { storyEmail, type EmailEnvironment } from '@/domain/api/emails';
-import {
-  NotificationRepository,
-  type FollowedStory,
-  type NotifiableStory,
-  type NotificationRule,
-  type NotificationChannel,
-  type NotificationFilter,
-} from '@/domain/notifications';
-import { OutboundRepository, type WebhookEvent } from '@/domain/outbound';
-import { verdict, type Verdict } from '@/domain/render/tiers';
+import { getDatabase } from '@/domain/db/client';
+import { storyEmail } from '@/domain/api/emails';
+import { NotificationRepository } from '@/domain/notifications';
+import { OutboundRepository } from '@/domain/outbound';
+import { verdict } from '@/domain/render/tiers';
 import { askPrompt, PROMPT_BATCH } from '@/domain/prompts';
 import { inScope, matchesRule } from '@/domain/rules';
 import { budget } from '@/domain/api/usage';
-import { Repository, type User } from '@/domain/repository';
+import { Repository } from '@/domain/repository';
 import { runInBackground } from '@/lib/core/runtime';
 import { signatureHeaders } from '@/lib/outbound/signature';
-import { WebPushSender, type PushPayload } from '@/lib/push';
-import { fetchCapped, type SafeFetcher } from '@/lib/safe-fetch';
+import { WebPushSender } from '@/lib/push';
+import { fetchCapped } from '@/lib/safe-fetch';
 import { errorMessage, logError } from '@/utils/logging';
+import type { PushPayload } from '@/lib/push';
+import type { SafeFetcher } from '@/lib/safe-fetch';
+import type { User } from '@/domain/repository';
+import type { Verdict } from '@/domain/render/tiers';
+import type { WebhookEvent } from '@/domain/outbound';
+import type {
+  FollowedStory,
+  NotifiableStory,
+  NotificationRule,
+  NotificationChannel,
+  NotificationFilter,
+} from '@/domain/notifications';
+import type { EmailEnvironment } from '@/domain/api/emails';
+import type { Database } from '@/domain/db/client';
 
-const DELIVER_WEBHOOKS_PATTERN = /\.\d{3}Z$/;
+const DELIVER_WEBHOOKS_PATTERN = /\.\d{3}Z$/u;
 
 /** How we introduce ourselves to push services and webhook receivers. */
 const USER_AGENT = `${BRAND_SHORT_NAME} (+${BRAND_URL})`;
@@ -66,7 +73,9 @@ async function post(
     userAgent: USER_AGENT,
     ...(fetcher ? { fetcher } : {}),
   });
-  if (result.ok) return { ok: true };
+  if (result.ok) {
+    return { ok: true };
+  }
   return result.reason === 'status'
     ? { ok: false, status: result.status }
     : { ok: false };
@@ -110,9 +119,11 @@ async function pushToBrowsers(
   payload: PushPayload,
   fetcher?: SafeFetcher,
 ): Promise<PushOutcome> {
-  const outcome = { sent: 0, failed: 0, removed: 0 };
+  const outcome: PushOutcome = { sent: 0, failed: 0, removed: 0 };
   const vapid = vapidOf(env);
-  if (!vapid) return outcome;
+  if (!vapid) {
+    return outcome;
+  }
   const sender = new WebPushSender(vapid, {
     // Through safe-fetch, so a stored endpoint can only reach the public web.
     fetcher: async (url, init) => {
@@ -127,23 +138,23 @@ async function pushToBrowsers(
       });
     },
   });
-  for (const target of await repo.pushSubscriptions(userId)) {
+  const targets = await repo.pushSubscriptions(userId);
+  return targets.reduce<Promise<PushOutcome>>(async (previous, target) => {
+    const current = await previous;
     try {
       const result = await sender.send(target, payload);
       if (result.gone) {
         await repo.removePushEndpoint(target.endpoint);
-        outcome.removed += 1;
-      } else if (result.status >= 200 && result.status < 300) {
-        outcome.sent += 1;
-      } else {
-        outcome.failed += 1;
+        return { ...current, removed: current.removed + 1 };
       }
+      return result.status >= 200 && result.status < 300
+        ? { ...current, sent: current.sent + 1 }
+        : { ...current, failed: current.failed + 1 };
     } catch (error) {
       logError({ event: 'push.failed', error: errorMessage(error) });
-      outcome.failed += 1;
+      return { ...current, failed: current.failed + 1 };
     }
-  }
-  return outcome;
+  }, Promise.resolve(outcome));
 }
 
 /** The notice that the issue for `edition` is ready: it opens that day's paper. */
@@ -220,8 +231,8 @@ export async function deliverWebhooks(
   now: () => Date = () => new Date(),
 ): Promise<number> {
   const hooks = await new OutboundRepository(db).webhooksFor(userId, event);
-  let delivered = 0;
-  for (const hook of hooks) {
+  return hooks.reduce<Promise<number>>(async (previous, hook) => {
+    const delivered = await previous;
     const at = now();
     const body = JSON.stringify({
       event,
@@ -242,12 +253,12 @@ export async function deliverWebhooks(
         body,
         fetcher,
       );
-      if (answer.ok) delivered += 1;
+      return answer.ok ? delivered + 1 : delivered;
     } catch (error) {
       logError({ event: 'webhook.failed', error: errorMessage(error) });
+      return delivered;
     }
-  }
-  return delivered;
+  }, Promise.resolve(0));
 }
 
 /** Deliver a webhook event after the response has gone, from a request. */
@@ -293,7 +304,9 @@ export function stillActive(
   lastSeen: string | undefined,
   edition: string,
 ): boolean {
-  if (!lastSeen) return true;
+  if (!lastSeen) {
+    return true;
+  }
   const away = (Date.parse(edition) - Date.parse(lastSeen)) / 86_400_000;
   return away <= INACTIVE_DAYS || Number.isNaN(away);
 }
@@ -307,12 +320,6 @@ interface Delivery {
   readonly notifications: NotificationRepository;
   readonly outbound: OutboundRepository;
   readonly fetcher: SafeFetcher | undefined;
-  readonly totals: {
-    stories: number;
-    pushed: number;
-    emailed: number;
-    hooked: number;
-  };
 }
 
 /**
@@ -325,26 +332,28 @@ async function deliverStory(
   feed: { readonly feed_id: number; readonly feed_title: string },
   channels: readonly NotificationChannel[],
   story: NotifiableStory,
-): Promise<void> {
-  if (!(await d.notifications.claimDelivery(d.userId, story.id))) return;
-  d.totals.stories += 1;
-  const title = story.title || story.url;
-  if (channels.includes('web')) {
-    const pushed = await pushToBrowsers(
-      d.env,
-      d.outbound,
-      d.userId,
-      {
-        title: feed.feed_title,
-        body: title,
-        tag: `story-${story.id}`,
-        url: `${BRAND_URL}/article/${story.id}`,
-      },
-      d.fetcher,
-    );
-    d.totals.pushed += pushed.sent;
+  totals: StoryNotifications,
+): Promise<StoryNotifications> {
+  if (!(await d.notifications.claimDelivery(d.userId, story.id))) {
+    return totals;
   }
-  if (
+  const title = story.title || story.url;
+  const pushedTo = channels.includes('web')
+    ? await pushToBrowsers(
+        d.env,
+        d.outbound,
+        d.userId,
+        {
+          title: feed.feed_title,
+          body: title,
+          tag: `story-${story.id}`,
+          url: `${BRAND_URL}/article/${story.id}`,
+        },
+        d.fetcher,
+      )
+    : undefined;
+  const pushed = pushedTo?.sent ?? 0;
+  const emailed =
     channels.includes('email') &&
     d.user &&
     (await emailNotification(
@@ -354,25 +363,30 @@ async function deliverStory(
       feed.feed_title,
       story,
     ))
-  ) {
-    d.totals.emailed += 1;
-  }
-  if (channels.includes('webhook')) {
-    d.totals.hooked += await deliverWebhooks(
-      d.db,
-      d.userId,
-      'story',
-      {
-        article_id: String(story.id),
-        feed_id: String(feed.feed_id),
-        feed_title: feed.feed_title,
-        title,
-        url: story.url,
-        ...(story.summary ? { summary: story.summary } : {}),
-      },
-      d.fetcher,
-    );
-  }
+      ? 1
+      : 0;
+  const hooked = channels.includes('webhook')
+    ? await deliverWebhooks(
+        d.db,
+        d.userId,
+        'story',
+        {
+          article_id: String(story.id),
+          feed_id: String(feed.feed_id),
+          feed_title: feed.feed_title,
+          title,
+          url: story.url,
+          ...(story.summary ? { summary: story.summary } : {}),
+        },
+        d.fetcher,
+      )
+    : 0;
+  return {
+    stories: totals.stories + 1,
+    pushed: totals.pushed + pushed,
+    emailed: totals.emailed + emailed,
+    hooked: totals.hooked + hooked,
+  };
 }
 
 /**
@@ -395,15 +409,23 @@ export async function notifyNewStories(
   edition: string,
   fetcher?: SafeFetcher,
 ): Promise<StoryNotifications> {
-  const totals = { stories: 0, pushed: 0, emailed: 0, hooked: 0 };
+  const totals: StoryNotifications = {
+    stories: 0,
+    pushed: 0,
+    emailed: 0,
+    hooked: 0,
+  };
   const notifications = new NotificationRepository(db);
   const [settings, rules] = await Promise.all([
     notifications.feedNotifications(userId),
     notifications.rules(userId),
   ]);
-  if (settings.length === 0 && rules.length === 0) return totals;
-  if (!stillActive(await notifications.lastSeen(userId), edition))
+  if (settings.length === 0 && rules.length === 0) {
     return totals;
+  }
+  if (!stillActive(await notifications.lastSeen(userId), edition)) {
+    return totals;
+  }
   const repo = new Repository(db);
   const [training, user] = await Promise.all([
     repo.listClassifiers(userId),
@@ -417,37 +439,55 @@ export async function notifyNewStories(
     notifications,
     outbound: new OutboundRepository(db),
     fetcher,
-    totals,
   };
-  for (const setting of settings) {
-    const unsent = await notifications.undeliveredStories(
-      userId,
-      setting.source_id,
-      edition,
-    );
-    const fresh = unsent.filter((story) =>
-      notifies(setting.filter, verdict(story, training)),
-    );
-    for (const story of fresh.slice(0, STORIES_PER_FEED)) {
-      await deliverStory(delivery, setting, setting.channels, story);
-    }
+  const afterFeeds = await settings.reduce<Promise<StoryNotifications>>(
+    async (previous, setting) => {
+      const current = await previous;
+      const unsent = await notifications.undeliveredStories(
+        userId,
+        setting.source_id,
+        edition,
+      );
+      const fresh = unsent.filter((story) =>
+        notifies(setting.filter, verdict(story, training)),
+      );
+      return fresh
+        .slice(0, STORIES_PER_FEED)
+        .reduce<Promise<StoryNotifications>>(
+          async (running, story) =>
+            deliverStory(
+              delivery,
+              setting,
+              setting.channels,
+              story,
+              await running,
+            ),
+          Promise.resolve(current),
+        );
+    },
+    Promise.resolve(totals),
+  );
+  if (rules.length === 0) {
+    return afterFeeds;
   }
-  if (rules.length > 0) {
-    const followed = await notifications.undeliveredFollowedStories(
-      userId,
-      edition,
-    );
-    for (const rule of rules) {
-      const matched =
-        rule.kind === 'prompt'
-          ? await promptMatches(env, repo, userId, rule, followed)
-          : followed.filter((story) => matchesRule(rule, story));
-      for (const story of matched.slice(0, STORIES_PER_FEED)) {
-        await deliverStory(delivery, story, rule.channels, story);
-      }
-    }
-  }
-  return delivery.totals;
+  const followed = await notifications.undeliveredFollowedStories(
+    userId,
+    edition,
+  );
+  return rules.reduce<Promise<StoryNotifications>>(async (previous, rule) => {
+    const current = await previous;
+    const matched =
+      rule.kind === 'prompt'
+        ? await promptMatches(env, repo, userId, rule, followed)
+        : followed.filter((story) => matchesRule(rule, story));
+    return matched
+      .slice(0, STORIES_PER_FEED)
+      .reduce<Promise<StoryNotifications>>(
+        async (running, story) =>
+          deliverStory(delivery, story, rule.channels, story, await running),
+        Promise.resolve(current),
+      );
+  }, Promise.resolve(afterFeeds));
 }
 
 /**
@@ -464,26 +504,48 @@ export async function promptMatches(
   rule: NotificationRule,
   followed: readonly FollowedStory[],
 ): Promise<FollowedStory[]> {
-  if (!env.AI) return [];
+  const ai = env.AI;
+  if (!ai) {
+    return [];
+  }
   const candidates = followed
     .filter((story) => inScope(rule, story))
     .slice(0, PROMPT_BATCH);
   const quota = await budget(repo, userId, 'classifier');
-  let left = quota.remaining;
-  const matched: FollowedStory[] = [];
-  for (const story of candidates) {
-    if (matched.length >= STORIES_PER_FEED || left <= 0) break;
-    left -= 1;
-    try {
-      if (await askPrompt(env.AI, rule.value, story)) matched.push(story);
-      await repo.recordUsage(userId, 'classifier');
-    } catch (error) {
-      logError({
-        event: 'notification.prompt.failed',
-        error: errorMessage(error),
-      });
-    }
-  }
+  const { matched } = await candidates.reduce<
+    Promise<{ matched: FollowedStory[]; left: number }>
+  >(
+    async (previous, story) => {
+      const state = await previous;
+      if (state.matched.length >= STORIES_PER_FEED || state.left <= 0) {
+        return state;
+      }
+      const left = state.left - 1;
+      try {
+        const hit = await askPrompt(ai, rule.value, story);
+        const next = {
+          matched: hit ? [...state.matched, story] : state.matched,
+          left,
+        };
+        try {
+          await repo.recordUsage(userId, 'classifier');
+        } catch (error) {
+          logError({
+            event: 'notification.prompt.failed',
+            error: errorMessage(error),
+          });
+        }
+        return next;
+      } catch (error) {
+        logError({
+          event: 'notification.prompt.failed',
+          error: errorMessage(error),
+        });
+        return { matched: state.matched, left };
+      }
+    },
+    Promise.resolve({ matched: [] as FollowedStory[], left: quota.remaining }),
+  );
   return matched;
 }
 
@@ -499,7 +561,9 @@ async function emailNotification(
   story: NotifiableStory,
 ): Promise<boolean> {
   const { EMAIL: mail, EMAIL_FROM: from } = env;
-  if (!mail || !from) return false;
+  if (!mail || !from) {
+    return false;
+  }
   if ((await notifications.emailsToday(user.id)) >= DAILY_NOTIFICATION_EMAILS) {
     return false;
   }

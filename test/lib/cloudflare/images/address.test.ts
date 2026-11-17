@@ -125,6 +125,7 @@ describe('isProxyableUrl', () => {
   it.each([
     'file:///etc/passwd',
     insecure.ftpImage,
+    // eslint-disable-next-line no-script-url -- the value is the hostile address the test proves is refused
     'javascript:alert(1)',
     'https://localhost/x.jpg',
     'http://127.0.0.1/x.jpg',

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
-import { createDatabase, type Database } from '@/domain/db/client';
+import { createDatabase } from '@/domain/db/client';
 import {
   briefingFor,
   composeLayout,
@@ -15,14 +15,12 @@ import {
   storedIssue,
 } from '@/domain/issues';
 import { storyIds } from '@/domain/render/layout';
-import {
-  DEFAULT_PREFERENCES,
-  Repository,
-  type CustomEdition,
-} from '@/domain/repository';
-import type { ScrapedItem } from '@/lib/scraping';
+import { DEFAULT_PREFERENCES, Repository } from '@/domain/repository';
 import { APP_MIGRATIONS } from '../lib/core/db/migrations';
 import { sqliteD1 } from '../lib/core/db/sqlite-d1';
+import type { CustomEdition } from '@/domain/repository';
+import type { Database } from '@/domain/db/client';
+import type { ScrapedItem } from '@/lib/scraping';
 
 const DAY = '2026-11-01';
 
@@ -41,7 +39,9 @@ const item = (n: number, over: Partial<ScrapedItem> = {}): ScrapedItem => ({
 /** An env whose model answers with `response`, or throws when it is an Error. */
 const modelRun = (response: unknown) =>
   jest.fn(async () => {
-    if (response instanceof Error) throw response;
+    if (response instanceof Error) {
+      throw response;
+    }
     return { response };
   });
 
@@ -237,6 +237,7 @@ describe('publishIssue', () => {
     const env = envWith('Note.', run);
     await publishIssue(db, env, uid, DAY);
     expect(run).not.toHaveBeenCalled();
+    expect(await storedIssue(repo, uid, DAY)).toMatchObject({ briefing: null });
   });
 
   it('covers the reader’s chosen number of stories', async () => {

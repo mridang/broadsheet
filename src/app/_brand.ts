@@ -10,8 +10,6 @@
  * names in every app, and holds values only: no components, no side effects.
  */
 
-import type { MetadataRoute } from 'next';
-
 import {
   PRIVACY_LAST_UPDATED,
   SITE_DESCRIPTION,
@@ -19,6 +17,7 @@ import {
   SITE_URL,
   TERMS_LAST_UPDATED,
 } from '@/utils/site';
+import type { MetadataRoute } from 'next';
 
 /** The name of the app, as the wordmark, the tab title suffix and the home-screen label. */
 export const BRAND_NAME = SITE_TITLE;
@@ -114,4 +113,6 @@ export const NOT_FOUND_LINK: Readonly<{ href: string; label: string }> | null =
 export const ERROR_REASSURANCE =
   'Try again in a moment, and your feeds and past editions will be here either way.';
 
-export { SITE_TITLE as BRAND_TITLE, SITE_URL as BRAND_URL } from '@/utils/site';
+export const BRAND_TITLE: string = SITE_TITLE;
+
+export const BRAND_URL: string = SITE_URL;

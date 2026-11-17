@@ -12,13 +12,14 @@
  * it. They are pure so the rules can be tested without a page.
  */
 
-import { redirectKind, type RedirectKind } from '@/lib/oauth/redirect-uri';
-import type { OAuthClient } from '@/lib/oauth/client';
+import { redirectKind } from '@/lib/oauth/redirect-uri';
 import { SCOPE_TEXT } from '@/domain/mcp/app';
 import { parseUrl } from '@/utils/url';
+import type { RedirectKind } from '@/lib/oauth/redirect-uri';
+import type { OAuthClient } from '@/lib/oauth/client';
 
 const SANITISE_DISPLAY_NAME_PATTERN = /\s+/gu;
-const ASCII_ONLY_PATTERN = /^[\u0021-\u007E]$/;
+const ASCII_ONLY_PATTERN = /^[\u0021-\u007E]$/u;
 
 const segmenter = new Intl.Segmenter();
 
@@ -182,5 +183,9 @@ export function describeRedirect(
 
 /** The plain-words description of each requested scope; an unknown scope is shown as it is. */
 export function describeScopes(scopes: readonly string[]): readonly string[] {
-  return scopes.map((scope) => SCOPE_TEXT[scope] ?? scope);
+  return scopes.map((scope) =>
+    Object.hasOwn(SCOPE_TEXT, scope)
+      ? SCOPE_TEXT[scope as keyof typeof SCOPE_TEXT]
+      : scope,
+  );
 }

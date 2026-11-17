@@ -17,7 +17,9 @@ export function ReadTracker(): null {
       const link = (event.target as Element | null)?.closest?.(STORY);
       const card = link?.parentElement;
       const id = Number(card?.dataset['articleId']);
-      if (!card || !id) return;
+      if (!card || !id) {
+        return;
+      }
       card.toggleAttribute('data-read', true);
       markRead(id);
     }

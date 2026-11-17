@@ -10,13 +10,14 @@
 
 import { parseUrl } from '@/utils/url';
 
-const IPV4_OCTETS_PATTERN = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
-const MAPPED_IPV4_PATTERN = /^\[::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})\]$/;
-const IS_PRIVATE_HOST_PATTERN = /^\[(f[cd][0-9a-f]{2}|fe[89ab][0-9a-f]):/;
-const IS_ACCEPTABLE_REDIRECT_URI_PATTERN = /^[\u0021-\u007E]+$/;
+const IPV4_OCTETS_PATTERN = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/u;
+const MAPPED_IPV4_PATTERN = /^\[::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})\]$/u;
+const IS_PRIVATE_HOST_PATTERN = /^\[(f[cd][0-9a-f]{2}|fe[89ab][0-9a-f]):/u;
+const IS_ACCEPTABLE_REDIRECT_URI_PATTERN = /^[\u0021-\u007E]+$/u;
 
 /** Schemes that can run script or read files; never a valid redirect target, dotted or not. */
 const FORBIDDEN_SCHEMES: ReadonlySet<string> = new Set([
+  // eslint-disable-next-line no-script-url -- the scheme is listed so that it is refused
   'javascript:',
   'data:',
   'file:',
@@ -81,7 +82,12 @@ function mappedIpv4(host: string): string | undefined {
     return undefined;
   }
   const [high = 0, low = 0] = match.slice(1).map((g) => Number.parseInt(g, 16));
-  return [high >> 8, high & 255, low >> 8, low & 255].join('.');
+  return [
+    Math.floor(high / 256),
+    high % 256,
+    Math.floor(low / 256),
+    low % 256,
+  ].join('.');
 }
 
 /**

@@ -10,9 +10,9 @@
 import {
   parseRegistrationText,
   registrationResponse,
-  type OAuthClient,
 } from '@/lib/oauth/client';
 import { OAUTH_LIMITS, retryAfterIfLimited } from '@/lib/oauth/limits';
+import type { OAuthClient } from '@/lib/oauth/client';
 import type { TextBody } from '@/lib/core/api';
 import type { RateLimitStore } from '@/lib/rate-limit';
 

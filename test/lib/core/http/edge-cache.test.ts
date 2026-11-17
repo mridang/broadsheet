@@ -10,8 +10,8 @@ import {
   EDGE_CACHED_PAGES,
   EDGE_TTL_SECONDS,
 } from '@/lib/core/http';
-import ips from '../../../fixtures/ips.json';
 import { SITE_NAME } from '@/utils/site';
+import ips from '../../../fixtures/ips.json';
 
 /** The pages these tests let the edge keep a copy of. */
 const pages: ReadonlySet<string> = new Set(['/', '/privacy']);
@@ -185,6 +185,7 @@ describe('edgeCacheKey', () => {
     expect(edgeCacheKey(get('/'), 'v1').url).toMatch(
       new RegExp(
         String.raw`^https://edge\.${SITE_NAME.toLowerCase()}\.invalid/`,
+        'u',
       ),
     );
   });
@@ -277,7 +278,7 @@ describe('storableCopy', () => {
 });
 
 describe('edgeCache', () => {
-  const original = Reflect.get(globalThis, 'caches');
+  const original = 'caches' in globalThis ? globalThis.caches : undefined;
   afterEach(() => {
     Reflect.set(globalThis, 'caches', original);
   });

@@ -3,12 +3,12 @@ import path from 'node:path';
 
 import { describe, expect, it } from '@jest/globals';
 
-const CURSOR_PATTERN = /(button:not\(:disabled\),[^{]*)\{\s*cursor: pointer;/;
-const IS_LEFT_ALONE_FOR_PATTERN = /(^|,)\s*button,/;
+const CURSOR_PATTERN = /(button:not\(:disabled\),[^{]*)\{\s*cursor: pointer;/u;
+const IS_LEFT_ALONE_FOR_PATTERN = /(^|,)\s*button,/u;
 const DRAWS_ITS_OWN_CHEVRON_PATTERN =
-  /select:not\(\[multiple\]\):not\(\[size\]\) \{\s*appearance: none;\s*padding-right: 2\.25rem;\s*background-image: url\("data:image\/svg\+xml/;
+  /select:not\(\[multiple\]\):not\(\[size\]\) \{\s*appearance: none;\s*padding-right: 2\.25rem;\s*background-image: url\("data:image\/svg\+xml/u;
 const GIVES_TEXT_BOXES_SELECTS_PATTERN =
-  /select,\s*textarea \{\s*min-height: 2\.5rem;\s*border: 1px solid var\(--color-field\)/;
+  /select,\s*textarea \{\s*min-height: 2\.5rem;\s*border: 1px solid var\(--color-field\)/u;
 
 const css = await readFile(
   path.join(process.cwd(), 'src', 'app', 'globals.css'),
@@ -24,8 +24,9 @@ describe('globals.css', () => {
         'button:not(:disabled)',
         'summary',
         'select:not(:disabled)',
-      ])
+      ]) {
         expect(rule).toContain(selector);
+      }
       expect(rule).toContain("[role='button']");
     });
 
@@ -71,8 +72,9 @@ describe('globals.css print', () => {
   const print = css.slice(css.lastIndexOf('@media print'));
 
   it('leaves every control and dialog off the printout', () => {
-    for (const selector of ['button', 'dialog'])
+    for (const selector of ['button', 'dialog']) {
       expect(print).toContain(selector);
+    }
     expect(print).toContain('display: none');
   });
 });

@@ -8,8 +8,8 @@
 
 import { eq, sql } from 'drizzle-orm';
 
-import type { Database } from '@/domain/db/client';
 import { players } from '@/domain/db/schema';
+import type { Database } from '@/domain/db/client';
 
 /** Where a person is in their listening. */
 export interface PlayerState {
@@ -61,7 +61,9 @@ export class PlayerRepository {
       .from(players)
       .where(eq(players.user_id, userId))
       .limit(1);
-    if (!row) return EMPTY_PLAYER;
+    if (!row) {
+      return EMPTY_PLAYER;
+    }
     return {
       rate: row.rate,
       current:

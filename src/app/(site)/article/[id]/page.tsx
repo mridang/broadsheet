@@ -1,6 +1,4 @@
-import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import type { ReactElement } from 'react';
 
 import { AskBox } from '@/app/(site)/article/[id]/_components/ask-box';
 import { ReadTimer } from '@/app/(site)/article/[id]/_components/read-timer';
@@ -21,6 +19,8 @@ import { TextLink } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icons';
 import { SectionHeader } from '@/components/ui/page-header';
 import { formatDay } from '@/lib/intl';
+import type { ReactElement } from 'react';
+import type { Metadata } from 'next';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,13 +51,17 @@ export default async function ArticlePage({
 }>): Promise<ReactElement> {
   const route = await params;
   const id = parseFeedId(route.id);
-  if (id === undefined) notFound();
+  if (id === undefined) {
+    notFound();
+  }
   const user = await getCurrentUser();
   const ownerId = user ? user.id : await ensurePublicUser();
   const db = getDatabase();
   const repo = new Repository(db);
   const stored = await repo.getArticle(ownerId, id);
-  if (!stored) notFound();
+  if (!stored) {
+    notFound();
+  }
   const article = await withText(db, stored);
   const similar = (await repo.discoverArticles(ownerId, article.id)) ?? [];
   const paragraphs = (article.body_text ?? '').split('\n\n').filter(Boolean);

@@ -3,12 +3,12 @@ import { describe, expect, it } from '@jest/globals';
 import PrivacyPage, { metadata } from '@/app/(site)/privacy/page';
 import { html } from '../../../components/render';
 
-const HAS_ONE_HEADING_THE_PATTERN = /<h1/g;
-const HAS_ONE_HEADING_THE_PATTERN_2 = /<h1[^>]*>Privacy Policy<\/h1>/;
+const HAS_ONE_HEADING_THE_PATTERN = /<h1/gu;
+const HAS_ONE_HEADING_THE_PATTERN_2 = /<h1[^>]*>Privacy Policy<\/h1>/u;
 const SAYS_HOW_TO_DELETE_PATTERN =
-  /<a [^>]*href="https:\/\/myaccount\.google\.com\/permissions"[^>]*target="_blank"/;
+  /<a [^>]*href="https:\/\/myaccount\.google\.com\/permissions"[^>]*target="_blank"/u;
 const LINKS_BACK_HOME_PATTERN =
-  /<a [^>]*href="\/"[^>]*>.*Back to Broadsheet<\/a>/;
+  /<a [^>]*href="\/"[^>]*>.*Back to Broadsheet<\/a>/u;
 
 describe('PrivacyPage', () => {
   const out = html(<PrivacyPage />);
@@ -33,7 +33,7 @@ describe('PrivacyPage', () => {
       'Deleting your data',
       'Contact',
     ]) {
-      expect(out).toMatch(new RegExp(`<h2[^>]*>${heading}</h2>`));
+      expect(out).toMatch(new RegExp(`<h2[^>]*>${heading}</h2>`, 'u'));
     }
   });
 

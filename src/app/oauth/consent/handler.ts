@@ -8,10 +8,7 @@
 
 import { NextResponse } from 'next/server';
 
-import {
-  requestCookieResolver,
-  type CurrentUserResolver,
-} from '@/domain/api/auth';
+import { requestCookieResolver } from '@/domain/api/auth';
 import { D1OAuthStore, resolveClient } from '@/domain/db/oauth';
 import { readFormBody } from '@/lib/core/api';
 import {
@@ -27,6 +24,7 @@ import {
 import { isSameOriginPost } from '@/lib/web-security';
 import { getDatabase } from '@/domain/db/client';
 import { appOrigin } from '@/lib/core/origin';
+import type { CurrentUserResolver } from '@/domain/api/auth';
 
 /** A plain-text error page response, with a `Retry-After` when the caller should wait. */
 const refuse = (

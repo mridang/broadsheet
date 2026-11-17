@@ -7,10 +7,10 @@
  * `./operator-rule`; this wraps it with the problem response and logging.
  */
 
-import { isOperator } from './operator-rule';
 import { setErrorContext } from '@/lib/core/observability/context';
-import { problem } from './problem';
 import { logError } from '@/utils/logging';
+import { isOperator } from './operator-rule';
+import { problem } from './problem';
 
 /** The refusal to send when the caller is not the operator, or undefined when they are. */
 export function operatorRefusal(

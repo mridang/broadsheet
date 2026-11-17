@@ -1,5 +1,3 @@
-import type { MetadataRoute } from 'next';
-
 import {
   BACKGROUND_COLOR,
   BRAND_SHORT_NAME,
@@ -9,6 +7,7 @@ import {
   MANIFEST_NAME,
   THEME_COLOR,
 } from '@/app/_brand';
+import type { MetadataRoute } from 'next';
 
 /**
  * The web app manifest: what makes the app installable from Chrome and Safari

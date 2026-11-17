@@ -1,6 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
 
-import type { Article, Feed } from '@/domain/repository';
 import {
   collapseClusters,
   DESK_STORIES,
@@ -9,6 +8,7 @@ import {
   storyIds,
   topStories,
 } from '@/domain/render/layout';
+import type { Article, Feed } from '@/domain/repository';
 
 function article(over: Partial<Article>): Article {
   return {

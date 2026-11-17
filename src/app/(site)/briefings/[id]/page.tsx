@@ -1,6 +1,5 @@
-import type { Metadata } from 'next';
-import { TextLink } from '@/components/ui/button';
 import { notFound, redirect } from 'next/navigation';
+import { TextLink } from '@/components/ui/button';
 
 import { getCurrentUser } from '@/lib/core/auth';
 import { getDatabase } from '@/domain/db/client';
@@ -17,8 +16,9 @@ import { StoryRow } from '@/components/stories/story-row';
 import { CARD } from '@/components/ui/field';
 import { ErrorText } from '@/components/ui/notice';
 import { PageHeader, PageSection } from '@/components/ui/page-header';
+import type { Metadata } from 'next';
 
-const BRIEFING_PAGE_PATTERN = /^[1-9]\d{0,14}$/;
+const BRIEFING_PAGE_PATTERN = /^[1-9]\d{0,14}$/u;
 
 export const dynamic = 'force-dynamic';
 
@@ -36,12 +36,18 @@ export default async function BriefingPage({
   params: Promise<{ id: string }>;
 }>) {
   const user = await getCurrentUser();
-  if (!user) redirect('/login');
+  if (!user) {
+    redirect('/login');
+  }
   const { id } = await params;
-  if (!BRIEFING_PAGE_PATTERN.test(id)) notFound();
+  if (!BRIEFING_PAGE_PATTERN.test(id)) {
+    notFound();
+  }
   const repo = new Repository(getDatabase());
   const stored = await repo.getBriefing(user.id, Number(id));
-  if (!stored) notFound();
+  if (!stored) {
+    notFound();
+  }
   const [rows, reads] = await Promise.all([
     repo.articlesByIds(parseBriefedStories(stored.stories).map((s) => s.id)),
     repo.readState(user.id),

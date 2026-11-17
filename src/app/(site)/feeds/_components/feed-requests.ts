@@ -129,7 +129,9 @@ export async function importOpml(
   file: Blob,
   onProgress: (progress: ImportProgress) => void = () => undefined,
   wait: (ms: number) => Promise<void> = async (ms) =>
-    new Promise((resolve) => setTimeout(resolve, ms)),
+    new Promise((resolve) => {
+      setTimeout(resolve, ms);
+    }),
 ): Promise<ImportResult> {
   const res = await fetch('/api/feeds/imports', {
     method: 'POST',
@@ -137,10 +139,14 @@ export async function importOpml(
     body: file,
   });
   await ensureOk(res);
-  if (res.status !== 202) return res.json<ImportResult>();
+  if (res.status !== 202) {
+    return res.json<ImportResult>();
+  }
   const location = res.headers.get('location') ?? '';
+  // eslint-disable-next-line functional/no-let -- the latest look at the import, replaced on every poll
   let progress = await res.json<ImportProgress>();
   onProgress(progress);
+  // eslint-disable-next-line functional/no-loop-statements -- each poll waits for the one before it
   while (progress.status === 'running') {
     await wait(POLL_MS);
     const look = await fetch(location, { cache: 'no-store' });

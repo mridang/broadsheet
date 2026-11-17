@@ -4,7 +4,7 @@ import { SignOutButton } from '@/components/site/sign-out-button';
 import { html } from '../render';
 
 const IS_A_PLAIN_BUTTON_PATTERN =
-  /^<button type="button" class="[^"]*">Sign out<\/button>$/;
+  /^<button type="button" class="[^"]*">Sign out<\/button>$/u;
 
 describe('SignOutButton', () => {
   it('is a plain button, not a link', () => {
@@ -30,7 +30,9 @@ describe('signing out', () => {
     jest.spyOn(globalThis, 'fetch').mockImplementation(fetchSpy);
     const { props } = SignOutButton();
     await (props as { onClick: () => Promise<void> | void }).onClick();
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => {
+      setTimeout(resolve, 0);
+    });
     return fetchSpy;
   }
 

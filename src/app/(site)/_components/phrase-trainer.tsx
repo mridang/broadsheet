@@ -1,15 +1,16 @@
 'use client';
 
-import { useState, type ReactElement } from 'react';
+import { useState } from 'react';
 
 import { useApiAction } from '@/components/api/use-api-action';
 import { CHIP } from '@/components/ui/badge';
-import {
-  train,
-  type TrainKind,
-  type TrainScore,
-} from '@/app/(site)/_components/story-requests';
+import { train } from '@/app/(site)/_components/story-requests';
 import { CHECK_LABEL, SMALL_FIELD } from '@/components/ui/field';
+import type {
+  TrainKind,
+  TrainScore,
+} from '@/app/(site)/_components/story-requests';
+import type { ReactElement } from 'react';
 
 /** A small field, sized to sit beside the trainer's pills. */
 
@@ -78,6 +79,7 @@ export function PhraseTrainer({
       {REGEX.has(kind) ? (
         <label className={CHECK_LABEL}>
           <input
+            aria-label="Regex"
             type="checkbox"
             checked={regex}
             onChange={(event) => setRegex(event.target.checked)}
@@ -91,12 +93,12 @@ export function PhraseTrainer({
           type="button"
           className={CHIP}
           disabled={action.busy || !value.trim()}
-          onClick={() =>
+          onClick={() => {
             void action.run(
               async () => train(kind, value, score, regex && REGEX.has(kind)),
               'Could not train.',
-            )
-          }
+            );
+          }}
         >
           {label}
         </button>

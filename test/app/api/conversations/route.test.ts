@@ -8,12 +8,16 @@ import {
 } from '../../../lib/core/db/sqlite-d1';
 import { SESSION_SECRET, tokenFor } from '../../../domain/auth/auth-test-kit';
 
-const PAGES_WITH_A_CURSOR_PATTERN = /cursor=/;
+const PAGES_WITH_A_CURSOR_PATTERN = /cursor=/u;
 
 const { GET, POST } = await import('@/app/api/conversations/route');
 
 let restore: () => void;
-let auth: Record<string, string>;
+/** The Cookie header of the signed-in caller; empty for a signed-out one. */
+interface CallerCookie {
+  [name: string]: string;
+}
+let auth: CallerCookie;
 
 beforeEach(async () => {
   const made = sqliteD1(...APP_MIGRATIONS);
@@ -49,7 +53,7 @@ describe('POST /api/conversations', () => {
     const res = await start();
     const { id } = await res.json<{ id: string }>();
     expect(res.headers.get('location')).toMatch(
-      new RegExp(`/api/conversations/${id}$`),
+      new RegExp(`/api/conversations/${id}$`, 'u'),
     );
   });
 

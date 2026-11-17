@@ -1,16 +1,12 @@
 'use client';
 
-import {
-  useRef,
-  useState,
-  useSyncExternalStore,
-  type ReactElement,
-} from 'react';
+import { useRef, useState, useSyncExternalStore } from 'react';
 
 import { transcribeAudio } from '@/app/(site)/article/[id]/_components/answer-requests';
 import { useApiAction } from '@/components/api/use-api-action';
 import { buttonClass } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/notice';
+import type { ReactElement } from 'react';
 
 /** Whether a browser can record never changes, so nothing is subscribed. */
 function noChanges(): () => void {
@@ -38,21 +34,30 @@ export function VoiceButton({
     () => 'MediaRecorder' in globalThis,
     () => false,
   );
-  if (!supported) return null;
+  if (!supported) {
+    return null;
+  }
   const start = async (): Promise<void> => {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     const chunks: Blob[] = [];
     const rec = new MediaRecorder(stream);
-    rec.ondataavailable = (event) => chunks.push(event.data);
-    rec.onstop = () => {
-      for (const track of stream.getTracks()) track.stop();
+    rec.addEventListener('dataavailable', (event) => {
+      // eslint-disable-next-line functional/immutable-data -- collects the recording's chunks as they arrive
+      chunks.push(event.data);
+    });
+    rec.addEventListener('stop', () => {
+      // eslint-disable-next-line functional/no-loop-statements -- stops each of the stream's tracks
+      for (const track of stream.getTracks()) {
+        track.stop();
+      }
       const audio = new Blob(chunks, { type: rec.mimeType || 'audio/webm' });
       void run(
         async () => onText(await transcribeAudio(audio)),
         'Could not hear that.',
       );
-    };
+    });
     rec.start();
+    // eslint-disable-next-line functional/immutable-data -- the ref holds the recorder in use
     recorder.current = rec;
     setRecording(true);
   };
@@ -65,8 +70,12 @@ export function VoiceButton({
     }
   };
   const label = (): string => {
-    if (recording) return 'Stop';
-    if (busy) return 'Listening…';
+    if (recording) {
+      return 'Stop';
+    }
+    if (busy) {
+      return 'Listening…';
+    }
     return 'Speak';
   };
   return (

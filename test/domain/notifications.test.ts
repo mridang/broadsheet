@@ -1,14 +1,15 @@
 import { beforeEach, describe, expect, it } from '@jest/globals';
 
-import { createDatabase, type Database } from '@/domain/db/client';
+import { createDatabase } from '@/domain/db/client';
 import { NotificationRepository } from '@/domain/notifications';
 import { Repository } from '@/domain/repository';
-import type { ScrapedItem } from '@/lib/scraping';
 import { APP_MIGRATIONS } from '../lib/core/db/migrations';
 import { expectIndexed, recordedDatabase } from '../lib/core/db/plan';
 import { sqliteD1 } from '../lib/core/db/sqlite-d1';
+import type { Database } from '@/domain/db/client';
+import type { ScrapedItem } from '@/lib/scraping';
 
-const THE_PLANS_OF_THE_PATTERN = /LIST SUBQUERY/;
+const THE_PLANS_OF_THE_PATTERN = /LIST SUBQUERY/u;
 
 let db: Database;
 let raw: ReturnType<typeof sqliteD1>['raw'];
@@ -108,8 +109,10 @@ describe('setFeedNotification and feedNotifications', () => {
       filter: 'unread',
       channels: ['web'],
     });
-    expect(await repo.removeFeedNotification(1, feed.id)).toBe(true);
-    expect(await repo.removeFeedNotification(1, feed.id)).toBe(false);
+    expect([
+      await repo.removeFeedNotification(1, feed.id),
+      await repo.removeFeedNotification(1, feed.id),
+    ]).toEqual([true, false]);
   });
 });
 
@@ -126,8 +129,10 @@ describe('undeliveredStories and claimDelivery', () => {
       feed.source_id,
       '2026-10-02',
     );
-    expect(await repo.claimDelivery(1, first!.id)).toBe(true);
-    expect(await repo.claimDelivery(1, first!.id)).toBe(false);
+    expect([
+      await repo.claimDelivery(1, first!.id),
+      await repo.claimDelivery(1, first!.id),
+    ]).toEqual([true, false]);
     const undelivered = await repo.undeliveredStories(
       1,
       feed.source_id,

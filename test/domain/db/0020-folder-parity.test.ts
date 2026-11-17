@@ -2,12 +2,12 @@ import path from 'node:path';
 import { readFile } from 'node:fs/promises';
 import { beforeEach, describe, expect, it } from '@jest/globals';
 
-import type { DatabaseSync } from 'node:sqlite';
-
+import { compareText } from '@/lib/intl';
 import { APP_MIGRATIONS } from '../../lib/core/db/migrations';
 import { sqliteD1 } from '../../lib/core/db/sqlite-d1';
+import type { DatabaseSync } from 'node:sqlite';
 
-const FILES_A_FEED_IN_PATTERN = /UNIQUE|PRIMARY/;
+const FILES_A_FEED_IN_PATTERN = /UNIQUE|PRIMARY/u;
 
 let raw: DatabaseSync;
 
@@ -15,7 +15,7 @@ let raw: DatabaseSync;
 beforeEach(async () => {
   raw = sqliteD1(
     ...APP_MIGRATIONS.filter(
-      (file) => file.localeCompare('0020_folder_parity.sql') < 0,
+      (file) => compareText(file, '0020_folder_parity.sql') < 0,
     ),
   ).raw;
   raw.exec(

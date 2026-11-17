@@ -7,7 +7,7 @@ import {
   jest,
 } from '@jest/globals';
 
-import { createDatabase, type Database } from '@/domain/db/client';
+import { createDatabase } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
 import { SESSION_COOKIE } from '@/domain/auth/app';
 import { APP_MIGRATIONS } from '../../../../../lib/core/db/migrations';
@@ -19,6 +19,7 @@ import {
   SESSION_SECRET,
   tokenFor,
 } from '../../../../../domain/auth/auth-test-kit';
+import type { Database } from '@/domain/db/client';
 
 const { POST } = await import('@/app/events/articles/[id]/answers/route');
 
@@ -26,7 +27,9 @@ let restore: () => void;
 let story: number;
 let db: Database;
 let auth: Record<string, string>;
-let run: jest.Mock<(...args: unknown[]) => Promise<unknown>>;
+let run: jest.Mock<
+  (...args: unknown[]) => Promise<{ response: string } | ReadableStream>
+>;
 
 async function cookieFor(uid: number): Promise<Record<string, string>> {
   return {

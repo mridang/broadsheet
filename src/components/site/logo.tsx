@@ -1,6 +1,5 @@
-import type { ReactElement } from 'react';
-
 import { cn } from '@/components/ui/cn';
+import type { ReactElement } from 'react';
 
 /**
  * The app's mark: a broadsheet page with its corner folded, a masthead across

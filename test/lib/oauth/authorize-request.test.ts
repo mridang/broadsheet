@@ -6,17 +6,16 @@ import {
   authorizeParamsFrom,
   grantedScope,
   redirectWith,
-  type AuthorizeParams,
-  type OAuthClient,
   validateAuthorizeRequest,
 } from '@/lib/oauth';
 
-import { quietSecurityLogs } from './quiet-logs';
 import { SCOPE_READ, SCOPE_WRITE } from '@/domain/mcp/app';
 import urls from '../../fixtures/insecure-urls.json' with { type: 'json' };
+import { quietSecurityLogs } from './quiet-logs';
+import type { AuthorizeParams, OAuthClient } from '@/lib/oauth';
 
 const ERROR_DESCRIPTION_IS_PRINTABLE_ASCII_PATTERN =
-  /^[\u0020\u0021\u0023-\u005B\u005D-\u007E]+$/;
+  /^[\u0020\u0021\u0023-\u005B\u005D-\u007E]+$/u;
 
 const ORIGIN = 'https://site.example';
 const CHALLENGE = 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM';
@@ -41,7 +40,8 @@ const good: AuthorizeParams = {
 };
 
 // An absent parameter: a key set to this overrides the valid default with undefined.
-let unset: string | undefined;
+// eslint-disable-next-line sonarjs/no-undefined-assignment -- a key set to undefined is what these tests send
+const unset = undefined;
 
 const check = async (overrides: AuthorizeParams = {}) =>
   validateAuthorizeRequest({ ...good, ...overrides }, ORIGIN, resolve);

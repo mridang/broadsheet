@@ -8,10 +8,10 @@ import {
 import { html } from '../../../../components/render';
 
 const IS_A_PLAIN_BUTTON_PATTERN =
-  /<button type="button"[^>]*>Write a briefing now<\/button>/;
-const IS_A_PLAIN_BUTTON_PATTERN_2 = /role="status" aria-live="polite"/;
-const SAYS_TOO_FEW_STORIES_PATTERN = /Too few new stories/;
-const ASKS_TO_WAIT_FOR_PATTERN = /Try again in a minute/;
+  /<button type="button"[^>]*>Write a briefing now<\/button>/u;
+const IS_A_PLAIN_BUTTON_PATTERN_2 = /<output aria-live="polite"/u;
+const SAYS_TOO_FEW_STORIES_PATTERN = /Too few new stories/u;
+const ASKS_TO_WAIT_FOR_PATTERN = /Try again in a minute/u;
 
 describe('WriteBriefing', () => {
   const out = html(<WriteBriefing />);

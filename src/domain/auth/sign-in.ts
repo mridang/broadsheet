@@ -7,15 +7,14 @@
  * rather than half working.
  */
 
-import type { NextRequest, NextResponse } from 'next/server';
-
 import { LANDING_PATH } from '@/domain/auth/app';
 import { finishFlow, setSessionCookie } from '@/lib/core/auth';
 import { setErrorContext } from '@/lib/core/observability/context';
-import type { GoogleUserResponse, TokenResponse } from '@/lib/google/auth';
 import { afterSignIn } from '@/domain/auth/hooks';
 import { requireSessionSecret } from '@/lib/session/index';
 import { upsertGoogleUser } from '@/domain/auth/store';
+import type { GoogleUserResponse, TokenResponse } from '@/lib/google/auth';
+import type { NextRequest, NextResponse } from 'next/server';
 
 /** Where a round trip stands: who is asking, and where it came from. */
 export interface FlowContext {
@@ -50,7 +49,7 @@ export function missingSignInSettings(env: CloudflareEnv): string[] {
     ['GOOGLE_OAUTH_CLIENT_SECRET', env.GOOGLE_OAUTH_CLIENT_SECRET],
     ['SESSION_SECRET', env.SESSION_SECRET],
   ];
-  return required.filter(([, value]) => !value).map(([name]) => name);
+  return required.flatMap(([name, value]) => (value ? [] : [name]));
 }
 
 /** Finish a sign-in: record the person, issue their session and send them on. */

@@ -1,12 +1,8 @@
-import {
-  useId,
-  type ComponentProps,
-  type ReactElement,
-  type ReactNode,
-} from 'react';
+import { useId } from 'react';
 
 import { cn } from '@/components/ui/cn';
 import { HINT, LABEL } from '@/components/ui/field';
+import type { ComponentProps, ReactElement, ReactNode } from 'react';
 
 /**
  * A field with its label above and a line of help beneath. `children` is a

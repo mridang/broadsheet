@@ -1,10 +1,9 @@
-import type { ReactElement } from 'react';
-
 import { SidebarLink } from '@/components/site/sidebar-link';
 import { pictureSrc } from '@/domain/render/pictures';
 import { hostOf } from '@/domain/render/tiers';
-import { imageSigner } from '@/lib/cloudflare/images/server';
+import { imageSigner } from '@/lib/cloudflare/images/runtime';
 import { cn } from '@/components/ui/cn';
+import type { ReactElement } from 'react';
 
 /** One feed as the rail lists it. */
 export interface RailFeed {

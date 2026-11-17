@@ -6,15 +6,15 @@
  * paragraphs, and the line about how it was written.
  */
 
-import type { Category } from '@/domain/briefing';
 import { countOf } from '@/lib/intl';
+import type { Category } from '@/domain/briefing';
 
-const SECTION_HEADING_PATTERN = /^custom_(\d+)$/;
-const PARAGRAPHS_PATTERN = /\n\s*\n/;
-const WRITTEN_WITH_PATTERN = /^@cf\//;
+const SECTION_HEADING_PATTERN = /^custom_(\d+)$/u;
+const PARAGRAPHS_PATTERN = /\n\s*\n/u;
+const WRITTEN_WITH_PATTERN = /^@cf\//u;
 
 /** The heading of each fixed section, as the briefing prints it. */
-const HEADINGS: Readonly<Record<string, string>> = {
+const HEADINGS = {
   widely_covered: 'Widely covered',
   infrequent: 'From quieter sources',
   follow_up: 'Follow-ups',
@@ -25,13 +25,17 @@ const HEADINGS: Readonly<Record<string, string>> = {
   long_reads: 'Long reads everyone is reading',
   good_reads: 'Good reads',
   global_shared: 'Most shared',
-};
+} as const satisfies Readonly<Record<string, string>>;
 
 /** A section's heading; a custom one is "Your topic" and its number. */
 export function sectionHeading(category: Category): string {
   const custom = SECTION_HEADING_PATTERN.exec(category);
-  if (custom) return `Your topic ${custom[1]}`;
-  return HEADINGS[category] ?? category.replaceAll('_', ' ');
+  if (custom) {
+    return `Your topic ${custom[1]}`;
+  }
+  return Object.hasOwn(HEADINGS, category)
+    ? HEADINGS[category as keyof typeof HEADINGS]
+    : category.replaceAll('_', ' ');
 }
 
 /**
@@ -53,7 +57,9 @@ export function groupBySection<T extends { readonly category: Category }>(
 /** The summary as paragraphs, split on blank lines (or lines, when it has none). */
 export function paragraphs(summary: string | null | undefined): string[] {
   const text = (summary ?? '').trim();
-  if (!text) return [];
+  if (!text) {
+    return [];
+  }
   const blocks = text.split(PARAGRAPHS_PATTERN);
   return (blocks.length > 1 ? blocks : text.split('\n'))
     .map((p) => p.trim())
@@ -72,8 +78,10 @@ export function writtenWith({
 }): string {
   return [
     model ? `Written by ${model.replace(WRITTEN_WITH_PATTERN, '')}` : null,
-    tokens == null ? null : countOf(tokens, 'token'),
-    seconds == null ? null : `${Math.round(seconds * 10) / 10}s`,
+    tokens === undefined || tokens === null ? null : countOf(tokens, 'token'),
+    seconds === undefined || seconds === null
+      ? null
+      : `${Math.round(seconds * 10) / 10}s`,
   ]
     .filter(Boolean)
     .join(' · ');

@@ -7,11 +7,11 @@ const { nonceOf, genericLimits, serve, serverTiming } =
   await import('@/lib/core/http');
 import type { ServeApp } from '@/lib/core/http';
 
-const MAKES_ONE_UP_WHEN_PATTERN = /^[0-9a-f-]{36}$/;
+const MAKES_ONE_UP_WHEN_PATTERN = /^[0-9a-f-]{36}$/u;
 const REPORTS_THE_TOTAL_A_PATTERN =
-  /^total;dur=\d+(\.\d)?, edge;desc="skip", app;dur=\d+(\.\d)?$/;
-const IS_ON_A_REFUSAL_PATTERN = /^total;dur=/;
-const KEEPS_TIMING_THE_APP_PATTERN = /^db;dur=3, total;/;
+  /^total;dur=\d+(\.\d)?, edge;desc="skip", app;dur=\d+(\.\d)?$/u;
+const IS_ON_A_REFUSAL_PATTERN = /^total;dur=/u;
+const KEEPS_TIMING_THE_APP_PATTERN = /^db;dur=3, total;/u;
 
 /** What is rate limited in these tests: the classes every app has, with sessions in `app_session`. */
 const limits = genericLimits('app_session');
@@ -19,11 +19,13 @@ const limits = genericLimits('app_session');
 const pages: ReadonlySet<string> = new Set(['/']);
 /** The query names these tests let a kept page carry. */
 const queryParams: ReadonlySet<string> = new Set(['alpha', 'beta']);
-/** A rate limit binding that refuses everyone, and counts how often it was asked. */
-function refusing(): {
+interface RefusingBinding {
   limit: () => Promise<{ success: boolean }>;
   asked: number;
-} {
+}
+
+/** A rate limit binding that refuses everyone, and counts how often it was asked. */
+function refusing(): RefusingBinding {
   const binding = {
     asked: 0,
     limit: async () => {
@@ -160,10 +162,9 @@ describe('serve', () => {
       app: json,
       limits,
     });
-    expect(b.headers.get('content-security-policy')).toContain(
-      'frame-ancestors',
-    );
-    expect(b.headers.get('content-security-policy')).not.toContain('nonce-');
+    const policy = b.headers.get('content-security-policy');
+    expect(policy).toContain('frame-ancestors');
+    expect(policy).not.toContain('nonce-');
   });
 
   it('gives the approval screen the policy that forbids framing and omits form-action', async () => {
@@ -483,10 +484,12 @@ describe('serve — Server-Timing', () => {
     const miss = await serve(get('/'), {}, context, deps);
     await Promise.all(pending);
     const hit = await serve(get('/'), {}, context, deps);
-    expect(miss.headers.get('server-timing')).toContain('edge;desc="miss"');
-    expect(miss.headers.get('server-timing')).toContain('app;dur=');
-    expect(hit.headers.get('server-timing')).toContain('edge;desc="hit"');
-    expect(hit.headers.get('server-timing')).not.toContain('app;dur=');
+    const missTiming = miss.headers.get('server-timing');
+    const hitTiming = hit.headers.get('server-timing');
+    expect(missTiming).toContain('edge;desc="miss"');
+    expect(missTiming).toContain('app;dur=');
+    expect(hitTiming).toContain('edge;desc="hit"');
+    expect(hitTiming).not.toContain('app;dur=');
   });
 
   it('is on a refusal, which never reaches the app', async () => {
@@ -497,10 +500,9 @@ describe('serve — Server-Timing', () => {
       ctx().context,
       { app: appAnswering(html), limits },
     );
-    expect(response.headers.get('server-timing')).toMatch(
-      IS_ON_A_REFUSAL_PATTERN,
-    );
-    expect(response.headers.get('server-timing')).not.toContain('app;dur=');
+    const timing = response.headers.get('server-timing');
+    expect(timing).toMatch(IS_ON_A_REFUSAL_PATTERN);
+    expect(timing).not.toContain('app;dur=');
   });
 
   it('keeps timing the app already sent', async () => {

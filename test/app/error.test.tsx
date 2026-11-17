@@ -5,11 +5,11 @@ import ErrorPage from '@/app/error';
 import { html } from '../components/render';
 
 const SAYS_SOMETHING_WENT_WRONG_PATTERN =
-  /<h1[^>]*>That didn&#x27;t work<\/h1>/;
+  /<h1[^>]*>That didn&#x27;t work<\/h1>/u;
 const OFFERS_TO_TRY_AGAIN_PATTERN =
-  /<button[^>]*type="button"[^>]*>Try again<\/button>/;
+  /<button[^>]*type="button"[^>]*>Try again<\/button>/u;
 const OFFERS_TO_TRY_AGAIN_PATTERN_2 =
-  /<a [^>]*href="\/"[^>]*>Back to the home page<\/a>/;
+  /<a [^>]*href="\/"[^>]*>Back to the home page<\/a>/u;
 
 describe('ErrorPage', () => {
   const retry = () => undefined;

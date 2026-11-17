@@ -9,20 +9,21 @@
  */
 
 import { BRAND_NAME } from '@/app/_brand';
-import { atomXml, type AtomEntry } from '@/domain/atom';
+import { atomXml } from '@/domain/atom';
 import { rfc3339 } from '@/domain/api/feed-resource';
-import type { Database } from '@/domain/db/client';
-import {
-  OutboundRepository,
-  type FeedFilter,
-  type FeedToken,
-} from '@/domain/outbound';
-import { verdict, type Verdict } from '@/domain/render/tiers';
-import { Repository, type ArticleSummary } from '@/domain/repository';
+import { OutboundRepository } from '@/domain/outbound';
+import { verdict } from '@/domain/render/tiers';
+import { Repository } from '@/domain/repository';
+import { compareText } from '@/lib/intl';
 import { sha256Hex } from '@/lib/outbound/tokens';
+import type { FeedFilter, FeedToken } from '@/domain/outbound';
+import type { Verdict } from '@/domain/render/tiers';
+import type { ArticleSummary } from '@/domain/repository';
+import type { AtomEntry } from '@/domain/atom';
+import type { Database } from '@/domain/db/client';
 
-const WHEN_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-const WHEN_PATTERN_2 = /\.\d{3}Z$/;
+const WHEN_PATTERN = /^\d{4}-\d{2}-\d{2}$/u;
+const WHEN_PATTERN_2 = /\.\d{3}Z$/u;
 
 /** A plain-text refusal. */
 function refuse(status: number, text: string): Response {
@@ -37,8 +38,12 @@ function refuse(status: number, text: string): Response {
 
 /** A stored time as RFC 3339, or `fallback`. */
 function when(stored: string | null | undefined, fallback: string): string {
-  if (!stored) return fallback;
-  if (WHEN_PATTERN.test(stored)) return `${stored}T00:00:00Z`;
+  if (!stored) {
+    return fallback;
+  }
+  if (WHEN_PATTERN.test(stored)) {
+    return `${stored}T00:00:00Z`;
+  }
   const parsed = rfc3339(stored) ?? new Date(stored).toISOString();
   return Number.isNaN(Date.parse(parsed))
     ? fallback
@@ -78,8 +83,12 @@ export function highlightsText(
 
 /** Whether a story with this verdict belongs in a feed with this filter. */
 export function keeps(filter: FeedFilter, score: Verdict): boolean {
-  if (filter === 'focus') return score > 0;
-  if (filter === 'unread') return score >= 0;
+  if (filter === 'focus') {
+    return score > 0;
+  }
+  if (filter === 'unread') {
+    return score >= 0;
+  }
   return true;
 }
 
@@ -128,7 +137,9 @@ async function contentOf(
       token.search_id === null
         ? undefined
         : await repo.getSearch(token.user_id, token.search_id);
-    if (!search) return undefined;
+    if (!search) {
+      return undefined;
+    }
     const found = await repo.searchArticles(token.user_id, {
       q: search.query,
       ...(search.feed_id === null ? {} : { feed: search.feed_id }),
@@ -141,15 +152,14 @@ async function contentOf(
         .map((a) => entryOf(a, origin, when(a.published_at || a.edition, now))),
     };
   }
-  let title = 'Today’s edition';
-  if (token.scope === 'section') {
-    const section =
-      token.section_id === null
-        ? undefined
-        : await repo.getSection(token.user_id, token.section_id);
-    if (!section) return undefined;
-    title = section.name;
+  const section =
+    token.scope === 'section' && token.section_id !== null
+      ? await repo.getSection(token.user_id, token.section_id)
+      : undefined;
+  if (token.scope === 'section' && !section) {
+    return undefined;
   }
+  const title = section?.name ?? 'Today’s edition';
   const training =
     token.filter === 'all' ? [] : await repo.listClassifiers(token.user_id);
   const edition = await outbound.editionStories(
@@ -181,16 +191,20 @@ export async function serveFeed(
   now: Date = new Date(),
 ): Promise<Response> {
   const token = new URL(request.url).searchParams.get('token');
-  if (!token) return refuse(400, 'Add ?token= with a feed token.');
+  if (!token) {
+    return refuse(400, 'Add ?token= with a feed token.');
+  }
   const row = await new OutboundRepository(db).feedTokenByHash(
     await sha256Hex(token),
   );
   const stamp = now.toISOString().replace(WHEN_PATTERN_2, 'Z');
   const content = row ? await contentOf(db, row, origin, stamp) : undefined;
-  if (!row || !content) return refuse(404, 'No such feed.');
+  if (!row || !content) {
+    return refuse(404, 'No such feed.');
+  }
   const updated = content.entries.reduce(
     (latest, event) =>
-      event.updated.localeCompare(latest) > 0 ? event.updated : latest,
+      compareText(event.updated, latest) > 0 ? event.updated : latest,
     content.entries[0]?.updated ?? stamp,
   );
   return new Response(

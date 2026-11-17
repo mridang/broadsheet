@@ -182,8 +182,12 @@ function parsePayload(body: string): SessionPayload | null {
 
 /** Whether a parsed value carries the claims every session token we issue has. */
 function isSessionPayload(value: unknown): value is SessionPayload {
-  if (typeof value !== 'object' || value === null) return false;
-  if (!('exp' in value) || typeof value.exp !== 'number') return false;
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  if (!('exp' in value) || typeof value.exp !== 'number') {
+    return false;
+  }
   // Optional, but a wrong type means the token is not one of ours.
   return !('ep' in value) || typeof value.ep === 'number';
 }

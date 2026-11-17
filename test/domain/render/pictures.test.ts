@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { ImageSigner } from '@/lib/cloudflare/images/server';
+import { ImageSigner } from '@/lib/cloudflare/images/signer';
 import { pictureSrc } from '@/domain/render/pictures';
 
 const signer = new ImageSigner('test-secret');
@@ -15,8 +15,9 @@ describe('pictureSrc', () => {
     const params = new URL(src ?? '', 'https://app.test').searchParams;
     expect(params.get('url')).toBe(ARTICLE);
     expect(params.get('w')).toBe('480');
-    expect(params.get('sig')).toBeTruthy();
-    expect(params.get('sig')).toBe(await signer.sign(ARTICLE));
+    const signature = params.get('sig');
+    expect(signature).toBeTruthy();
+    expect(signature).toBe(await signer.sign(ARTICLE));
   });
 
   it('carries no signature when there is no signer', async () => {
@@ -46,6 +47,7 @@ describe('pictureSrc', () => {
     '/relative.jpg',
     '//cdn.example.org/a.jpg',
     'http://127.0.0.1/a.jpg',
+    // eslint-disable-next-line no-script-url -- a script URL is the input being refused
     'javascript:alert(1)',
     'not a url',
   ])('shows no picture for %p', async (src) => {

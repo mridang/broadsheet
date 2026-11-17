@@ -130,9 +130,9 @@ describe('readJsonBody', () => {
   });
 
   it('passes a too-large body through', async () => {
-    expect(
-      await readJsonBody(chunked(['"' + 'a'.repeat(50) + '"']), 10),
-    ).toEqual({ kind: 'too-large' });
+    expect(await readJsonBody(chunked([`"${'a'.repeat(50)}"`]), 10)).toEqual({
+      kind: 'too-large',
+    });
   });
 });
 
@@ -150,7 +150,7 @@ describe('readFormBody', () => {
   });
 
   it('refuses a form over the limit', async () => {
-    expect(await readFormBody(chunked(['a=' + 'b'.repeat(50)]), 10)).toEqual({
+    expect(await readFormBody(chunked([`a=${'b'.repeat(50)}`]), 10)).toEqual({
       kind: 'too-large',
     });
   });

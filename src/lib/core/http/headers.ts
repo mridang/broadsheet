@@ -17,7 +17,7 @@ import {
 } from './site';
 
 /** Security headers for every response. */
-export const SECURITY_HEADERS: Readonly<Record<string, string>> = {
+export const SECURITY_HEADERS = {
   // Never let a browser guess a different content type for a response.
   'X-Content-Type-Options': 'nosniff',
   // Send other sites only our origin, and nothing at all on a downgrade.
@@ -43,7 +43,7 @@ export const SECURITY_HEADERS: Readonly<Record<string, string>> = {
   'Origin-Agent-Cluster': '?1',
   // Keep other windows from reaching into this one.
   'Cross-Origin-Opener-Policy': 'same-origin',
-};
+} satisfies Readonly<Record<string, string>>;
 
 /** The `Cross-Origin-Resource-Policy` for a path. */
 export function resourcePolicyFor(pathname: string): string {

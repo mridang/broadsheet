@@ -1,9 +1,8 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import type { ReactElement, ReactNode } from 'react';
-
 import { cn } from '@/components/ui/cn';
+import type { ReactElement, ReactNode } from 'react';
 
 /**
  * A link down the side of the app: a row that is tinted while hovered and

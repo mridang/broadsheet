@@ -2,7 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 
 import { GET } from '@/app/.well-known/security.txt/route';
 
-const STARTS_WITH_THE_CONTACT_PATTERN = /^Expires: (.+)$/m;
+const STARTS_WITH_THE_CONTACT_PATTERN = /^Expires: (.+)$/mu;
 
 describe('GET /.well-known/security.txt', () => {
   const res = GET();

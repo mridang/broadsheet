@@ -1,5 +1,5 @@
-import type { Article } from '@/domain/repository';
 import { hostOf } from '@/domain/render/tiers';
+import type { Article } from '@/domain/repository';
 
 /** The low-weight tail of a desk, as a compact "In brief" list. */
 export function BriefBlock({ items }: Readonly<{ items: Article[] }>) {

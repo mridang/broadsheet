@@ -1,18 +1,16 @@
 'use client';
 
-import { useState, type ReactElement } from 'react';
+import { useState } from 'react';
 
 import { useApiAction } from '@/components/api/use-api-action';
-import {
-  setSaved,
-  train as trainOn,
-  type TrainKind,
-} from '@/app/(site)/_components/story-requests';
+import { setSaved, train } from '@/app/(site)/_components/story-requests';
 import { PhraseTrainer } from '@/app/(site)/_components/phrase-trainer';
 import { CHIP } from '@/components/ui/badge';
 import { IconButton } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icons';
 import { MENU_ITEM } from '@/components/ui/menu';
+import type { TrainKind } from '@/app/(site)/_components/story-requests';
+import type { ReactElement } from 'react';
 
 /** Something about a story the reader can like or dislike. */
 interface Target {
@@ -21,7 +19,7 @@ interface Target {
   readonly label: string;
 }
 
-export { CHIP } from '@/components/ui/badge';
+const NO_TAGS: readonly string[] = [];
 
 /**
  * Thumbs up and down on a story's source, and a trainer for its feed, author,
@@ -33,7 +31,7 @@ export function StoryActions({
   source,
   feedId,
   author,
-  tags = [],
+  tags = NO_TAGS,
   title = '',
 }: Readonly<{
   source: string;
@@ -42,8 +40,8 @@ export function StoryActions({
   tags?: readonly string[];
   title?: string;
 }>): ReactElement {
-  const train = useApiAction(() => globalThis.location.reload());
-  const error = train.error;
+  const trainer = useApiAction(() => globalThis.location.reload());
+  const error = trainer.error;
   const targets: Target[] = [
     ...(feedId === undefined
       ? []
@@ -65,14 +63,14 @@ export function StoryActions({
         key={score}
         type="button"
         className={CHIP}
-        disabled={train.busy}
+        disabled={trainer.busy}
         aria-label={`${words[score]} like ${target.label}`}
-        onClick={() =>
-          void train.run(
-            async () => trainOn(target.kind, target.value, score),
+        onClick={() => {
+          void trainer.run(
+            async () => train(target.kind, target.value, score),
             'Could not train.',
-          )
-        }
+          );
+        }}
       >
         {icons[score]}
       </button>
@@ -84,28 +82,28 @@ export function StoryActions({
       <button
         type="button"
         className={CHIP}
-        disabled={train.busy}
+        disabled={trainer.busy}
         aria-label={`More from ${source}`}
-        onClick={() =>
-          void train.run(
-            async () => trainOn('source', source, 'like'),
+        onClick={() => {
+          void trainer.run(
+            async () => train('source', source, 'like'),
             'Could not train.',
-          )
-        }
+          );
+        }}
       >
         👍
       </button>
       <button
         type="button"
         className={CHIP}
-        disabled={train.busy}
+        disabled={trainer.busy}
         aria-label={`Less from ${source}`}
-        onClick={() =>
-          void train.run(
-            async () => trainOn('source', source, 'dislike'),
+        onClick={() => {
+          void trainer.run(
+            async () => train('source', source, 'dislike'),
             'Could not train.',
-          )
-        }
+          );
+        }}
       >
         👎
       </button>
@@ -158,12 +156,12 @@ export function SaveButton({
         data-action="save"
         disabled={save.busy}
         aria-pressed={isSaved}
-        onClick={() =>
+        onClick={() => {
           void save.run(async () => {
             await setSaved(articleId, !isSaved);
             setIsSaved(!isSaved);
-          }, 'Could not save.')
-        }
+          }, 'Could not save.');
+        }}
       >
         <Icon
           name="bookmark"

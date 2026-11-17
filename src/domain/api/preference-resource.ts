@@ -10,14 +10,14 @@ import {
   CATEGORIES,
   MAX_PROMPTS,
   MAX_PROMPT_LENGTH,
-  type Category,
 } from '@/domain/briefing';
 import { clockMinutes, isTimeZone } from '@/domain/briefings';
-import type { Preferences } from '@/domain/repository';
 import { INTELLIGENCE } from '@/domain/render/tiers';
+import type { Category } from '@/domain/briefing';
+import type { Preferences } from '@/domain/repository';
 
-const BRIEFING_CHANGES_PATTERN = /^(all|section:[1-9]\d{0,14})$/;
-const SOURCE_SECTION_PATTERN = /^section:([1-9]\d*)$/;
+const BRIEFING_CHANGES_PATTERN = /^(all|section:[1-9]\d{0,14})$/u;
+const SOURCE_SECTION_PATTERN = /^section:([1-9]\d*)$/u;
 
 /** The most days a story may wait before it counts as read anyway. */
 const MAX_AUTO_READ_DAYS = 365;
@@ -154,138 +154,162 @@ const oneOf = <T extends string>(
 /** A mutable change being built. */
 type Changes = { -readonly [K in keyof Preferences]?: Preferences[K] };
 
-/** Check the members of the `briefing` object, adding to `changes`. */
-function briefingChanges(
-  brief: Readonly<Record<string, unknown>>,
-  changes: Changes,
-  errors: string[],
-): void {
-  for (const key of Object.keys(brief)) {
-    if (!BRIEFING.has(key)) {
-      errors.push(`briefing.${key}: not a briefing preference.`);
+/** What one checked member adds: the changes it makes and its errors. */
+interface Part {
+  readonly changes: Changes;
+  readonly errors: readonly string[];
+}
+
+/** A member that was not sent: no change and no error. */
+const NOT_SENT: Part = { changes: {}, errors: [] };
+
+/** Combine checked members into one set of changes and errors. */
+const combine = (parts: readonly Part[]): Part =>
+  parts.reduce<Part>(
+    (all, part) => ({
+      changes: { ...all.changes, ...part.changes },
+      errors: [...all.errors, ...part.errors],
+    }),
+    NOT_SENT,
+  );
+
+/** Check the members of the `briefing` object, as the changes they make. */
+function briefingChanges(brief: Readonly<Record<string, unknown>>): Part {
+  const flag = (key: string, change: (v: boolean) => Changes): Part => {
+    if (!(key in brief)) {
+      return NOT_SENT;
     }
-  }
-  const flag = (key: string, set: (v: boolean) => void) => {
-    if (!(key in brief)) return;
     const v = brief[key];
-    if (typeof v === 'boolean') set(v);
-    else errors.push(`briefing.${key}: must be true or false.`);
+    return typeof v === 'boolean'
+      ? { changes: change(v), errors: [] }
+      : { changes: {}, errors: [`briefing.${key}: must be true or false.`] };
   };
   const pick = <T extends string>(
     key: string,
     allowed: readonly T[],
-    set: (v: T) => void,
-  ) => {
-    if (!(key in brief)) return;
+    change: (v: T) => Changes,
+  ): Part => {
+    if (!(key in brief)) {
+      return NOT_SENT;
+    }
     const v = oneOf(brief[key], allowed);
-    if (v) set(v);
-    else errors.push(`briefing.${key}: must be one of ${allowed.join(', ')}.`);
+    return v
+      ? { changes: change(v), errors: [] }
+      : {
+          changes: {},
+          errors: [`briefing.${key}: must be one of ${allowed.join(', ')}.`],
+        };
   };
-  flag('enabled', (v) => (changes.briefing_enabled = v));
-  flag('include_read', (v) => (changes.briefing_include_read = v));
-  if ('story_count' in brief) {
+  const bad = (error: string): Part => ({ changes: {}, errors: [error] });
+  const storyCount = (): Part => {
     const n = brief['story_count'];
-    if (typeof n === 'number' && STORY_COUNTS.includes(n)) {
-      changes.briefing_story_count = n;
-    } else {
-      errors.push(
-        `briefing.story_count: must be one of ${STORY_COUNTS.join(', ')}.`,
-      );
-    }
-  }
-  pick(
-    'length',
-    ['short', 'medium', 'detailed'] as const,
-    (v) => (changes.briefing_length = v),
-  );
-  pick(
-    'style',
-    ['editorial', 'bullets', 'headlines'] as const,
-    (v) => (changes.briefing_style = v),
-  );
-  pick(
-    'read_filter',
-    ['unread', 'focus'] as const,
-    (v) => (changes.briefing_read_filter = v),
-  );
-  pick(
-    'frequency',
-    ['daily', 'twice_daily', 'thrice_daily', 'weekly'] as const,
-    (v) => (changes.briefing_frequency = v),
-  );
-  pick('day', WEEKDAYS, (v) => (changes.briefing_day = v));
-  if ('time' in brief) {
+    return typeof n === 'number' && STORY_COUNTS.includes(n)
+      ? { changes: { briefing_story_count: n }, errors: [] }
+      : bad(`briefing.story_count: must be one of ${STORY_COUNTS.join(', ')}.`);
+  };
+  const time = (): Part => {
     const t = brief['time'];
-    if (
-      typeof t === 'string' &&
-      (TIMES.has(t) || clockMinutes(t) !== undefined)
-    ) {
-      changes.briefing_time = t;
-    } else {
-      errors.push(
-        'briefing.time: must be auto, morning, afternoon, evening or HH:MM.',
-      );
-    }
-  }
-  if ('sources' in brief) {
+    const ok =
+      typeof t === 'string' && (TIMES.has(t) || clockMinutes(t) !== undefined);
+    return ok
+      ? { changes: { briefing_time: t }, errors: [] }
+      : bad(
+          'briefing.time: must be auto, morning, afternoon, evening or HH:MM.',
+        );
+  };
+  const sources = (): Part => {
     const v = brief['sources'];
-    if (typeof v === 'string' && BRIEFING_CHANGES_PATTERN.test(v)) {
-      changes.briefing_sources = v;
-    } else errors.push('briefing.sources: must be all or section:{id}.');
-  }
-  if ('model' in brief) {
+    return typeof v === 'string' && BRIEFING_CHANGES_PATTERN.test(v)
+      ? { changes: { briefing_sources: v }, errors: [] }
+      : bad('briefing.sources: must be all or section:{id}.');
+  };
+  const model = (): Part => {
     const v = brief['model'];
-    if (v === null) changes.briefing_model = null;
-    else if (typeof v === 'string' && BRIEFING_MODELS.includes(v)) {
-      changes.briefing_model = v;
-    } else {
-      errors.push(
-        `briefing.model: must be null or one of ${BRIEFING_MODELS.join(', ')}.`,
-      );
+    if (v === null) {
+      return { changes: { briefing_model: null }, errors: [] };
     }
-  }
-  if ('sections' in brief) {
+    return typeof v === 'string' && BRIEFING_MODELS.includes(v)
+      ? { changes: { briefing_model: v }, errors: [] }
+      : bad(
+          `briefing.model: must be null or one of ${BRIEFING_MODELS.join(', ')}.`,
+        );
+  };
+  const sections = (): Part => {
     const v = brief['sections'];
-    if (
-      typeof v === 'object' &&
-      v !== null &&
-      !Array.isArray(v) &&
+    const isMap = typeof v === 'object' && v !== null && !Array.isArray(v);
+    const ok =
+      isMap &&
       Object.entries(v).every(
         ([k, on]) =>
           CATEGORIES.includes(k as Category) && typeof on === 'boolean',
-      )
-    ) {
-      changes.briefing_sections = v as Record<string, boolean>;
-    } else {
-      errors.push('briefing.sections: must map section keys to true or false.');
-    }
-  }
-  if ('section_order' in brief) {
+      );
+    return ok
+      ? {
+          changes: { briefing_sections: v as Record<string, boolean> },
+          errors: [],
+        }
+      : bad('briefing.sections: must map section keys to true or false.');
+  };
+  const sectionOrder = (): Part => {
     const v = brief['section_order'];
-    if (
+    const ok =
       Array.isArray(v) &&
       v.every((k) => CATEGORIES.includes(k as Category)) &&
-      new Set(v).size === v.length
-    ) {
-      changes.briefing_section_order = v as Category[];
-    } else {
-      errors.push('briefing.section_order: must list section keys, each once.');
-    }
-  }
-  if ('prompts' in brief) {
+      new Set(v).size === v.length;
+    return ok
+      ? { changes: { briefing_section_order: v as Category[] }, errors: [] }
+      : bad('briefing.section_order: must list section keys, each once.');
+  };
+  const prompts = (): Part => {
     const v = brief['prompts'];
-    if (
+    const ok =
       Array.isArray(v) &&
       v.length <= MAX_PROMPTS &&
-      v.every((p) => typeof p === 'string' && p.length <= MAX_PROMPT_LENGTH)
-    ) {
-      changes.briefing_prompts = (v as string[]).map((p) => p.trim());
-    } else {
-      errors.push(
-        `briefing.prompts: must be at most ${MAX_PROMPTS} texts of at most ${MAX_PROMPT_LENGTH} characters.`,
-      );
-    }
-  }
+      v.every((p) => typeof p === 'string' && p.length <= MAX_PROMPT_LENGTH);
+    return ok
+      ? {
+          changes: { briefing_prompts: (v as string[]).map((p) => p.trim()) },
+          errors: [],
+        }
+      : bad(
+          `briefing.prompts: must be at most ${MAX_PROMPTS} texts of at most ${MAX_PROMPT_LENGTH} characters.`,
+        );
+  };
+  const later: readonly (readonly [string, () => Part])[] = [
+    ['time', time],
+    ['sources', sources],
+    ['model', model],
+    ['sections', sections],
+    ['section_order', sectionOrder],
+    ['prompts', prompts],
+  ];
+  return combine([
+    {
+      changes: {},
+      errors: Object.keys(brief)
+        .filter((key) => !BRIEFING.has(key))
+        .map((key) => `briefing.${key}: not a briefing preference.`),
+    },
+    flag('enabled', (v) => ({ briefing_enabled: v })),
+    flag('include_read', (v) => ({ briefing_include_read: v })),
+    'story_count' in brief ? storyCount() : NOT_SENT,
+    pick('length', ['short', 'medium', 'detailed'] as const, (v) => ({
+      briefing_length: v,
+    })),
+    pick('style', ['editorial', 'bullets', 'headlines'] as const, (v) => ({
+      briefing_style: v,
+    })),
+    pick('read_filter', ['unread', 'focus'] as const, (v) => ({
+      briefing_read_filter: v,
+    })),
+    pick(
+      'frequency',
+      ['daily', 'twice_daily', 'thrice_daily', 'weekly'] as const,
+      (v) => ({ briefing_frequency: v }),
+    ),
+    pick('day', WEEKDAYS, (v) => ({ briefing_day: v })),
+    ...later.map(([key, part]) => (key in brief ? part() : NOT_SENT)),
+  ]);
 }
 
 /**
@@ -298,70 +322,87 @@ function briefingChanges(
 export function parsePreferenceChanges(
   body: Readonly<Record<string, unknown>>,
 ): PreferenceChangesInput {
-  const errors: string[] = [];
-  const changes: Changes = {};
-  for (const key of Object.keys(body)) {
-    if (!TOP.has(key)) errors.push(`${key}: not a preference.`);
-  }
-  for (const key of [
-    'story_clustering',
-    'cluster_mark_read',
-    'mark_read_on_open',
-    'mark_read_on_scroll',
-  ] as const) {
-    if (!(key in body)) continue;
+  const flags = (
+    [
+      'story_clustering',
+      'cluster_mark_read',
+      'mark_read_on_open',
+      'mark_read_on_scroll',
+    ] as const
+  ).map((key): Part => {
+    if (!(key in body)) {
+      return NOT_SENT;
+    }
     const value = body[key];
-    if (typeof value === 'boolean') changes[key] = value;
-    else errors.push(`${key}: must be true or false.`);
-  }
-  if ('intelligence' in body) {
+    return typeof value === 'boolean'
+      ? { changes: { [key]: value }, errors: [] }
+      : { changes: {}, errors: [`${key}: must be true or false.`] };
+  });
+  const bad = (error: string): Part => ({ changes: {}, errors: [error] });
+  const intelligence = (): Part => {
     const level = oneOf(body['intelligence'], INTELLIGENCE);
-    if (level) changes.intelligence = level;
-    else
-      errors.push(`intelligence: must be one of ${INTELLIGENCE.join(', ')}.`);
-  }
-  if ('auto_mark_read_days' in body) {
+    return level
+      ? { changes: { intelligence: level }, errors: [] }
+      : bad(`intelligence: must be one of ${INTELLIGENCE.join(', ')}.`);
+  };
+  const autoRead = (): Part => {
     const days = body['auto_mark_read_days'];
-    if (
+    const ok =
       typeof days === 'number' &&
       Number.isInteger(days) &&
       days >= 0 &&
-      days <= MAX_AUTO_READ_DAYS
-    ) {
-      changes.auto_mark_read_days = days;
-    } else
-      errors.push(
-        `auto_mark_read_days: must be a whole number from 0 to ${MAX_AUTO_READ_DAYS}.`,
-      );
-  }
-  if ('cluster_mode' in body) {
+      days <= MAX_AUTO_READ_DAYS;
+    return ok
+      ? { changes: { auto_mark_read_days: days }, errors: [] }
+      : bad(
+          `auto_mark_read_days: must be a whole number from 0 to ${MAX_AUTO_READ_DAYS}.`,
+        );
+  };
+  const clusterMode = (): Part => {
     const mode = oneOf(body['cluster_mode'], ['title', 'related'] as const);
-    if (mode) changes.cluster_mode = mode;
-    else errors.push('cluster_mode: must be title or related.');
-  }
-  if ('cluster_preview_style' in body) {
+    return mode
+      ? { changes: { cluster_mode: mode }, errors: [] }
+      : bad('cluster_mode: must be title or related.');
+  };
+  const previewStyle = (): Part => {
     const style = oneOf(body['cluster_preview_style'], [
       'single_line',
       'expanded',
     ] as const);
-    if (style) changes.cluster_preview_style = style;
-    else {
-      errors.push('cluster_preview_style: must be single_line or expanded.');
-    }
-  }
-  if ('timezone' in body) {
+    return style
+      ? { changes: { cluster_preview_style: style }, errors: [] }
+      : bad('cluster_preview_style: must be single_line or expanded.');
+  };
+  const timezone = (): Part => {
     const zone = body['timezone'];
-    if (typeof zone === 'string' && isTimeZone(zone)) changes.timezone = zone;
-    else errors.push('timezone: must be an IANA time zone.');
-  }
-  if ('briefing' in body) {
+    return typeof zone === 'string' && isTimeZone(zone)
+      ? { changes: { timezone: zone }, errors: [] }
+      : bad('timezone: must be an IANA time zone.');
+  };
+  const briefing = (): Part => {
     const b = body['briefing'];
-    if (typeof b !== 'object' || b === null || Array.isArray(b)) {
-      errors.push('briefing: must be an object.');
-    } else {
-      briefingChanges(b as Record<string, unknown>, changes, errors);
-    }
-  }
+    return typeof b !== 'object' || b === null || Array.isArray(b)
+      ? bad('briefing: must be an object.')
+      : briefingChanges(b as Record<string, unknown>);
+  };
+  const members: readonly (readonly [string, () => Part])[] = [
+    ['intelligence', intelligence],
+    ['auto_mark_read_days', autoRead],
+    ['cluster_mode', clusterMode],
+    ['cluster_preview_style', previewStyle],
+    ['timezone', timezone],
+    ['briefing', briefing],
+  ];
+  const { changes, errors } = combine([
+    {
+      changes: {},
+      errors: Object.keys(body)
+        .filter((key) => !TOP.has(key))
+        .map((key) => `${key}: not a preference.`),
+    },
+    ...flags,
+    ...members.map(([key, part]) => (key in body ? part() : NOT_SENT)),
+  ]);
   return errors.length > 0 ? { ok: false, errors } : { ok: true, changes };
 }
 

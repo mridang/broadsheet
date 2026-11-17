@@ -8,24 +8,22 @@
  * problem is reported to the client by redirecting back with an `error`.
  */
 
-import type { FormFields } from '@/lib/oauth/http';
-import {
-  MAX_CLIENT_ID_LENGTH,
-  isClientBusy,
-  type ClientBusy,
-  type OAuthClient,
-} from '@/lib/oauth/client';
+import { MAX_CLIENT_ID_LENGTH, isClientBusy } from '@/lib/oauth/client';
 import { isWellFormedChallenge } from '@/lib/oauth/pkce';
 import { isOurResource, resourceUri } from '@/lib/oauth/metadata';
 import {
   isAcceptableRedirectUri,
   redirectUriMatches,
 } from '@/lib/oauth/redirect-uri';
-import { SCOPE_READ, normaliseScope, type Scope } from '@/lib/oauth/scopes';
+import { SCOPE_READ } from '@/domain/mcp/app';
+import { normaliseScope } from '@/lib/oauth/scopes';
 import { logSecurityEvent } from '@/lib/oauth/security-log';
 import { SITE_NAME } from '@/utils/site';
 import { withQueryParams } from '@/utils/query';
 import { countOf } from '@/lib/intl';
+import type { Scope } from '@/lib/oauth/scopes';
+import type { ClientBusy, OAuthClient } from '@/lib/oauth/client';
+import type { FormFields } from '@/lib/oauth/http';
 
 /** A validated authorization request. */
 export interface AuthorizeRequest {

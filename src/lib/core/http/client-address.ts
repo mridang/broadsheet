@@ -1,4 +1,4 @@
-const IPV6_GROUPS_PATTERN = /^[0-9a-f]{1,4}$/;
+const IPV6_GROUPS_PATTERN = /^[0-9a-f]{1,4}$/u;
 /**
  * @packageDocumentation
  *
@@ -42,8 +42,8 @@ function ipv6Groups(address: string): readonly number[] | undefined {
     const [a = 0, b = 0, c = 0, d = 0] = octets;
     return [
       ...pieces.slice(0, -1),
-      ((a << 8) | b).toString(16),
-      ((c << 8) | d).toString(16),
+      (a * 256 + b).toString(16),
+      (c * 256 + d).toString(16),
     ];
   };
   const before = words(head);

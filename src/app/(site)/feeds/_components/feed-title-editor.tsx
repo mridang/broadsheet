@@ -1,20 +1,14 @@
 'use client';
 
-import {
-  useEffect,
-  useRef,
-  useState,
-  type KeyboardEvent,
-  type ReactElement,
-  type SubmitEvent,
-} from 'react';
+import { useEffect, useRef, useState } from 'react';
 
+import { z } from 'zod';
 import { editFeed } from '@/app/(site)/feeds/_components/feed-requests';
 import { useFeedAction } from '@/app/(site)/feeds/_components/use-feed-action';
 import { buttonClass, IconButton, TextLink } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icons';
 import { ErrorText } from '@/components/ui/notice';
-import { z } from 'zod';
+import type { KeyboardEvent, ReactElement, SubmitEvent } from 'react';
 
 /** The one field the rename form posts. */
 const renameForm = z.object({ title: z.string().default('') });
@@ -47,7 +41,9 @@ export function FeedTitleEditor({
   const { busy, error, run } = useFeedAction();
   const field = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    if (editing) field.current?.select();
+    if (editing) {
+      field.current?.select();
+    }
   }, [editing]);
   if (!editing) {
     return (
@@ -72,7 +68,9 @@ export function FeedTitleEditor({
     );
   };
   const handleEscape = (event: KeyboardEvent<HTMLInputElement>): void => {
-    if (event.key === 'Escape') setEditing(false);
+    if (event.key === 'Escape') {
+      setEditing(false);
+    }
   };
   return (
     <form className="p-0.5" onSubmit={submit}>

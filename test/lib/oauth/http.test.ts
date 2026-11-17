@@ -35,7 +35,9 @@ describe('bearerToken', () => {
 
 describe('CORS_HEADERS', () => {
   const list = (name: string) =>
-    (CORS_HEADERS[name] ?? '').split(',').map((v) => v.trim());
+    (new Map(Object.entries(CORS_HEADERS)).get(name) ?? '')
+      .split(',')
+      .map((v) => v.trim());
 
   it('allows the methods the endpoints answer, including DELETE so a session-ending client gets our 405', () => {
     expect(list('Access-Control-Allow-Methods')).toEqual([

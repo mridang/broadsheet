@@ -1,6 +1,6 @@
-import type { NextConfig } from 'next';
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants';
 import { initOpenNextCloudflareForDev } from '@opennextjs/cloudflare';
+import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   // (The stylesheet is deliberately NOT inlined into the page. An inline

@@ -5,8 +5,12 @@ import { ruleRequest } from '@/app/(site)/settings/_components/add-rule-form';
 /** A filled-in rule form. */
 function form(fields: Record<string, string>, channels: readonly string[]) {
   const data = new FormData();
-  for (const [name, value] of Object.entries(fields)) data.set(name, value);
-  for (const channel of channels) data.append('channels', channel);
+  for (const [name, value] of Object.entries(fields)) {
+    data.set(name, value);
+  }
+  for (const channel of channels) {
+    data.append('channels', channel);
+  }
   return data;
 }
 

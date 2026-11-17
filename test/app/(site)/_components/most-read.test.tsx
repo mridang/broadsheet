@@ -1,10 +1,10 @@
 import { describe, expect, it } from '@jest/globals';
 
 import { MostRead } from '@/app/(site)/_components/most-read';
-import type { ArticleSummary } from '@/domain/repository';
 import { html } from '../../../components/render';
+import type { ArticleSummary } from '@/domain/repository';
 
-const LISTS_THE_STORIES_WITH_PATTERN = /<a[^>]*href="\/article\/1">Big<\/a>/;
+const LISTS_THE_STORIES_WITH_PATTERN = /<a[^>]*href="\/article\/1">Big<\/a>/u;
 
 const article = (id: number, title: string | null) =>
   ({ id, url: `https://x/${id}`, title }) as ArticleSummary;

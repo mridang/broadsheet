@@ -1,13 +1,12 @@
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it, jest } from '@jest/globals';
 
-import {
-  fetchCapped,
-  isPublicWebUrl,
-  type CappedFetchOptions,
-  type SafeFetcher,
-  type SafeRequestInit,
-} from '@/lib/safe-fetch';
+import { fetchCapped, isPublicWebUrl } from '@/lib/safe-fetch';
 import insecure from '../fixtures/insecure-urls.json';
+import type {
+  CappedFetchOptions,
+  SafeFetcher,
+  SafeRequestInit,
+} from '@/lib/safe-fetch';
 
 describe('isPublicWebUrl', () => {
   it.each([
@@ -23,6 +22,7 @@ describe('isPublicWebUrl', () => {
   it.each([
     'file:///etc/passwd',
     insecure.ftpImage,
+    // eslint-disable-next-line no-script-url -- the address is the input the fetcher must refuse
     'javascript:alert(1)',
     'data:text/html,<p>x</p>',
     'https://localhost/x.jpg',
@@ -72,15 +72,16 @@ const OPTIONS: CappedFetchOptions = {
 function streaming(
   pieces: readonly (string | Uint8Array)[],
   headers: Record<string, string> = {},
-): { readonly response: Response; readonly state: { cancelled: boolean } } {
+) {
   const encoder = new TextEncoder();
   const state = { cancelled: false };
   const body = new ReadableStream<Uint8Array>({
     start(controller) {
-      for (const piece of pieces)
+      for (const piece of pieces) {
         controller.enqueue(
           typeof piece === 'string' ? encoder.encode(piece) : piece,
         );
+      }
       controller.close();
     },
     cancel() {
@@ -91,10 +92,7 @@ function streaming(
 }
 
 /** A fetcher that serves the given responses in turn and remembers each call. */
-function serving(...responses: readonly Response[]): {
-  readonly fetcher: SafeFetcher;
-  readonly calls: { readonly url: string; readonly init: SafeRequestInit }[];
-} {
+function serving(...responses: readonly Response[]) {
   const calls: { url: string; init: SafeRequestInit }[] = [];
   const fetcher: SafeFetcher = async (url, init) => {
     calls.push({ url, init });
@@ -216,18 +214,19 @@ describe('fetchCapped', () => {
   });
 
   it('uses the real fetch when no fetcher is given', async () => {
-    const real = globalThis.fetch;
     const calls: string[] = [];
-    globalThis.fetch = async (input: RequestInfo | URL) => {
-      calls.push(input instanceof Request ? input.url : String(input));
-      return new Response('real');
-    };
+    const spy = jest
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async (input: RequestInfo | URL) => {
+        calls.push(input instanceof Request ? input.url : String(input));
+        return new Response('real');
+      });
     try {
       const result = await fetchCapped('https://a.com/real', OPTIONS);
       expect(result.ok && new TextDecoder().decode(result.bytes)).toBe('real');
       expect(calls).toEqual(['https://a.com/real']);
     } finally {
-      globalThis.fetch = real;
+      spy.mockRestore();
     }
   });
 });
@@ -436,11 +435,11 @@ describe('fetchCapped failure', () => {
 
   it('says timeout when the site is too slow to answer', async () => {
     const fetcher: SafeFetcher = async (_url, init) =>
-      new Promise((_resolve, reject) =>
-        init.signal?.addEventListener('abort', () =>
-          reject(init.signal?.reason),
-        ),
-      );
+      new Promise((_resolve, reject) => {
+        init.signal?.addEventListener('abort', () => {
+          reject(init.signal?.reason);
+        });
+      });
     expect(
       await fetchCapped('https://a.com/x', {
         ...OPTIONS,

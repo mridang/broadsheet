@@ -7,7 +7,7 @@ import {
 import { html } from '../../../../components/render';
 
 const LINKS_EACH_SEARCH_WITH_PATTERN =
-  /<a [^>]*href="\/search\?q=rust">rust<\/a>/;
+  /<a [^>]*href="\/search\?q=rust">rust<\/a>/u;
 
 describe('searchHref', () => {
   it('runs the search over its feed when it has one', () => {

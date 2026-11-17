@@ -16,9 +16,9 @@
 
 import type { FollowedStory, NotificationRule } from '@/domain/notifications';
 
-const REGEX_PROBLEM_PATTERN = /\\[1-9]|\\k</;
-const REPEATS_AGROUP_PATTERN = /[+*}]/;
-const REPEATS_AGROUP_PATTERN_2 = /^\s*[+*{?]/;
+const REGEX_PROBLEM_PATTERN = /\\[1-9]|\\k</u;
+const REPEATS_AGROUP_PATTERN = /[+*}]/u;
+const REPEATS_AGROUP_PATTERN_2 = /^\s*[+*{?]/u;
 
 /** Longest pattern or phrase a rule may hold. */
 export const MAX_RULE_LENGTH = 200;
@@ -31,14 +31,23 @@ const MAX_MATCHED_TEXT = 20_000;
  * and it must not nest quantifiers or refer back to a group.
  */
 export function regexProblem(pattern: string): string | undefined {
-  if (pattern.length > MAX_RULE_LENGTH) return 'too long';
-  try {
-    new RegExp(pattern, 'i');
-  } catch {
+  if (pattern.length > MAX_RULE_LENGTH) {
+    return 'too long';
+  }
+  const compiled = (() => {
+    try {
+      // eslint-disable-next-line require-unicode-regexp -- people's own patterns keep their non-unicode meaning
+      return new RegExp(pattern, 'i');
+    } catch {
+      return null;
+    }
+  })();
+  if (!compiled) {
     return 'not a valid regular expression';
   }
-  if (REGEX_PROBLEM_PATTERN.test(pattern))
+  if (REGEX_PROBLEM_PATTERN.test(pattern)) {
     return 'back-references are not allowed';
+  }
   if (repeatsAGroup(pattern)) {
     return 'a repeated group may not itself repeat';
   }
@@ -56,18 +65,27 @@ export type RuledStory = Pick<
 
 /** Whether the story is in the rule's feed, section or anywhere. */
 export function inScope(rule: NotificationRule, story: RuledStory): boolean {
-  if (rule.scope === 'feed') return story.feed_id === rule.feed_id;
-  if (rule.scope === 'section')
+  if (rule.scope === 'feed') {
+    return story.feed_id === rule.feed_id;
+  }
+  if (rule.scope === 'section') {
     return story.section_id !== null && story.section_id === rule.section_id;
+  }
   return true;
 }
 
 /** Whether `text` matches the rule's value, as a phrase or a pattern. */
 function found(rule: NotificationRule, text: string): boolean {
-  if (!text) return false;
-  if (!rule.is_regex)
+  if (!text) {
+    return false;
+  }
+  if (!rule.is_regex) {
     return text.toLowerCase().includes(rule.value.toLowerCase());
-  if (regexProblem(rule.value)) return false;
+  }
+  if (regexProblem(rule.value)) {
+    return false;
+  }
+  // eslint-disable-next-line require-unicode-regexp -- people's own patterns keep their non-unicode meaning
   return new RegExp(rule.value, 'i').test(text.slice(0, MAX_MATCHED_TEXT));
 }
 
@@ -76,7 +94,9 @@ export function matchesRule(
   rule: NotificationRule,
   story: RuledStory,
 ): boolean {
-  if (!inScope(rule, story)) return false;
+  if (!inScope(rule, story)) {
+    return false;
+  }
   switch (rule.kind) {
     case 'title': {
       return found(rule, story.title ?? '');
@@ -101,22 +121,22 @@ export function matchesRule(
     case 'prompt': {
       return false;
     }
+    default: {
+      return false;
+    }
   }
 }
 
 /** Whether a `(...)` group holding a `+`, `*` or `}` is itself followed by a repeat. */
-function repeatsAGroup(pattern: string): boolean {
-  let open = pattern.indexOf('(');
-  while (open !== -1) {
-    const close = pattern.indexOf(')', open + 1);
-    if (close === -1) return false;
-    if (
-      REPEATS_AGROUP_PATTERN.test(pattern.slice(open + 1, close)) &&
-      REPEATS_AGROUP_PATTERN_2.test(pattern.slice(close + 1))
-    ) {
-      return true;
-    }
-    open = pattern.indexOf('(', open + 1);
+function repeatsAGroup(pattern: string, from = 0): boolean {
+  const open = pattern.indexOf('(', from);
+  const close = pattern.indexOf(')', open + 1);
+  if (open === -1 || close === -1) {
+    return false;
   }
-  return false;
+  return (
+    (REPEATS_AGROUP_PATTERN.test(pattern.slice(open + 1, close)) &&
+      REPEATS_AGROUP_PATTERN_2.test(pattern.slice(close + 1))) ||
+    repeatsAGroup(pattern, open + 1)
+  );
 }

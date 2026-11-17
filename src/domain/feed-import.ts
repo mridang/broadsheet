@@ -10,7 +10,7 @@ import { parseFeedInput, MAX_NAME_LENGTH } from '@/domain/api/feed-resource';
 import type { OpmlFeed } from '@/domain/api/opml';
 import type { Feed, Repository } from '@/domain/repository';
 
-const COMPARABLE_PATTERN = /^www\./;
+const COMPARABLE_PATTERN = /^www\./u;
 
 /** Most feeds one import may carry. */
 export const MAX_IMPORT_FEEDS = 500;
@@ -37,7 +37,9 @@ export interface ImportSummary {
  * a leading `www.`, the fragment and a trailing slash do not tell feeds apart.
  */
 export function comparable(address?: string | null): string {
-  if (!address) return '';
+  if (!address) {
+    return '';
+  }
   try {
     const url = new URL(address.trim());
     const path = trimTrailingSlashes(url.pathname);
@@ -66,78 +68,116 @@ export async function importFeeds(
   const titles = new Set(
     followed.flatMap((f) => (f.title ? [f.title.trim().toLowerCase()] : [])),
   );
-  const rejected: { url: string; reason: string }[] = [];
-  const feeds: Feed[] = [];
-  /** The feeds this import followed, by comparable address. */
-  const added = new Map<string, Feed>();
-  let skipped = 0;
-  let sectionsAdded = 0;
-  const sectionFor = async (
-    path: readonly string[],
-  ): Promise<number | null> => {
-    let parent: number | null = null;
-    for (const raw of path) {
-      const name = raw.trim().slice(0, MAX_NAME_LENGTH);
-      if (!name) continue;
-      const key = `${parent ?? ''}/${name.toLowerCase()}`;
-      let id = sectionIds.get(key);
-      if (id === undefined) {
-        const section = await repo.addSection(uid, name, undefined, parent);
-        id = section.id;
-        sectionIds.set(key, id);
-        sectionsAdded += 1;
-      }
-      parent = id;
-    }
-    return parent;
+  const start: Progress = {
+    sectionIds,
+    addresses,
+    sites,
+    titles,
+    // The feeds this import followed, by comparable address.
+    added: new Map<string, Feed>(),
+    feeds: [],
+    rejected: [],
+    skipped: 0,
+    sectionsAdded: 0,
   };
-  const importEntry = async (entry: OpmlFeed): Promise<void> => {
+  const sectionFor = async (
+    progress: Progress,
+    path: readonly string[],
+  ): Promise<readonly [number | null, Progress]> =>
+    path.reduce<Promise<readonly [number | null, Progress]>>(
+      async (previous, raw) => {
+        const [parent, current] = await previous;
+        const name = raw.trim().slice(0, MAX_NAME_LENGTH);
+        if (!name) {
+          return [parent, current];
+        }
+        const key = `${parent ?? ''}/${name.toLowerCase()}`;
+        const known = current.sectionIds.get(key);
+        if (known !== undefined) {
+          return [known, current];
+        }
+        const section = await repo.addSection(uid, name, undefined, parent);
+        return [
+          section.id,
+          {
+            ...current,
+            sectionIds: new Map([...current.sectionIds, [key, section.id]]),
+            sectionsAdded: current.sectionsAdded + 1,
+          },
+        ];
+      },
+      Promise.resolve([null, progress] as const),
+    );
+  const importEntry = async (
+    progress: Progress,
+    entry: OpmlFeed,
+  ): Promise<Progress> => {
     const checked = parseFeedInput({ url: entry.url });
     if (!checked.ok) {
-      rejected.push({
-        url: entry.url.slice(0, 200),
-        reason: checked.errors[0] ?? 'not valid.',
-      });
-      return;
+      return {
+        ...progress,
+        rejected: [
+          ...progress.rejected,
+          {
+            url: entry.url.slice(0, 200),
+            reason: checked.errors[0] ?? 'not valid.',
+          },
+        ],
+      };
     }
     const address = comparable(checked.url);
     const site = comparable(entry.site_url);
     // The same feed again in this file, under another folder, is filed in
     // that section too, as a NewsBlur feed can sit in several folders.
-    const again = added.get(address);
+    const again = progress.added.get(address);
     if (again) {
-      const sectionId = await sectionFor(entry.sections ?? []);
+      const [sectionId, after] = await sectionFor(
+        progress,
+        entry.sections ?? [],
+      );
       if (sectionId !== null && !again.section_ids.includes(sectionId)) {
         const filed =
           (await repo.updateFeed(uid, again.id, {
             section_ids: [...again.section_ids, sectionId],
           })) ?? again;
-        added.set(address, filed);
-        feeds[feeds.indexOf(again)] = filed;
+        return {
+          ...after,
+          added: new Map([...after.added, [address, filed]]),
+          feeds: after.feeds.map((f) => (f === again ? filed : f)),
+        };
       }
-      return;
+      return after;
     }
     const name = entry.title?.trim().toLowerCase() ?? '';
     const knownFeed =
-      addresses.has(address) || (site !== '' && sites.has(site));
+      progress.addresses.has(address) ||
+      (site !== '' && progress.sites.has(site));
     if (
       knownFeed ||
-      (name !== '' && titles.has(name)) ||
+      (name !== '' && progress.titles.has(name)) ||
       (await repo.getFeedByUrl(uid, checked.url))
     ) {
-      skipped += 1;
-      return;
+      return { ...progress, skipped: progress.skipped + 1 };
     }
     const title = entry.title?.slice(0, MAX_NAME_LENGTH);
     const feed = await repo.addFeed(uid, checked.url, title);
     if (!feed) {
-      rejected.push({ url: checked.url, reason: 'could not be added.' });
-      return;
+      return {
+        ...progress,
+        rejected: [
+          ...progress.rejected,
+          { url: checked.url, reason: 'could not be added.' },
+        ],
+      };
     }
-    addresses.add(address);
-    if (name !== '') titles.add(name);
-    if (site !== '') sites.add(site);
-    const sectionId = await sectionFor(entry.sections ?? []);
+    const followed: Progress = {
+      ...progress,
+      addresses: new Set([...progress.addresses, address]),
+      titles:
+        name === '' ? progress.titles : new Set([...progress.titles, name]),
+      sites: site === '' ? progress.sites : new Set([...progress.sites, site]),
+    };
+    const [sectionId, after] = await sectionFor(followed, entry.sections ?? []);
     const changes = {
       ...(sectionId === null ? {} : { section_id: sectionId }),
       // The person's own name for a feed the source already names otherwise.
@@ -147,24 +187,45 @@ export async function importFeeds(
       Object.keys(changes).length > 0
         ? ((await repo.updateFeed(uid, feed.id, changes)) ?? feed)
         : feed;
-    feeds.push(filed);
-    added.set(address, filed);
+    return {
+      ...after,
+      feeds: [...after.feeds, filed],
+      added: new Map([...after.added, [address, filed]]),
+    };
   };
-  for (const entry of entries) {
-    await importEntry(entry);
-  }
+  const done = await entries.reduce<Promise<Progress>>(
+    async (previous, entry) => importEntry(await previous, entry),
+    Promise.resolve(start),
+  );
   return {
-    added: feeds.length,
-    skipped,
-    sections_added: sectionsAdded,
-    rejected,
-    feeds,
+    added: done.feeds.length,
+    skipped: done.skipped,
+    sections_added: done.sectionsAdded,
+    rejected: done.rejected,
+    feeds: done.feeds,
   };
+}
+
+/** Where an import has got to, one entry at a time. */
+interface Progress {
+  readonly sectionIds: ReadonlyMap<string, number>;
+  readonly addresses: ReadonlySet<string>;
+  readonly sites: ReadonlySet<string>;
+  readonly titles: ReadonlySet<string>;
+  readonly added: ReadonlyMap<string, Feed>;
+  readonly feeds: readonly Feed[];
+  readonly rejected: readonly {
+    readonly url: string;
+    readonly reason: string;
+  }[];
+  readonly skipped: number;
+  readonly sectionsAdded: number;
 }
 
 /** Drops the trailing slashes; same as `.replace(/\/+$/, '')`, in linear time. */
 function trimTrailingSlashes(text: string): string {
-  let end = text.length;
-  while (end > 0 && text.codePointAt(end - 1) === 47) end -= 1;
-  return text.slice(0, end);
+  const parts = text.split('/');
+  return parts
+    .slice(0, parts.findLastIndex((part) => part !== '') + 1)
+    .join('/');
 }

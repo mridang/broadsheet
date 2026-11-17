@@ -16,7 +16,11 @@ import {
 const { GET } = await import('@/app/api/editions/self/briefings/[id]/route');
 
 let restore: () => void;
-let auth: Record<string, string>;
+/** The Cookie header of the signed-in caller; empty for a signed-out one. */
+interface CallerCookie {
+  [name: string]: string;
+}
+let auth: CallerCookie;
 let mine: number;
 let theirs: number;
 

@@ -1,8 +1,8 @@
 import { describe, expect, it } from '@jest/globals';
 
 import { AppSidebar } from '@/components/site/app-sidebar';
-import type { User } from '@/domain/repository';
 import { htmlAt } from '../render';
+import type { User } from '@/domain/repository';
 
 const user: User = {
   id: 1,
@@ -38,8 +38,9 @@ describe('AppSidebar', () => {
       '/editions',
       '/feeds',
       '/settings',
-    ])
+    ]) {
       expect(out).toContain(`href="${href}"`);
+    }
     expect(out).toContain('aria-current="page" href="/saved"');
   });
 });

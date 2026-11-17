@@ -1,16 +1,14 @@
 'use client';
 
-import type { ReactElement, SubmitEvent } from 'react';
-
+import { z } from 'zod';
 import { useApiAction } from '@/components/api/use-api-action';
+
 import { buttonClass } from '@/components/ui/button';
 import { CHECK_LABEL } from '@/components/ui/field';
 import { ErrorText } from '@/components/ui/notice';
-import {
-  addRule,
-  type RuleRequest,
-} from '@/app/(site)/settings/_components/settings-requests';
-import { z } from 'zod';
+import { addRule } from '@/app/(site)/settings/_components/settings-requests';
+import type { ReactElement, SubmitEvent } from 'react';
+import type { RuleRequest } from '@/app/(site)/settings/_components/settings-requests';
 
 /** The fields the rule form posts. */
 const ruleForm = z.object({
@@ -102,11 +100,17 @@ export function AddRuleForm({
         </div>
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
           <label className={CHECK_LABEL}>
-            <input name="is_regex" type="checkbox" /> Regular expression
+            <input
+              aria-label="Regular expression"
+              name="is_regex"
+              type="checkbox"
+            />{' '}
+            Regular expression
           </label>
           {(['web', 'email', 'webhook'] as const).map((channel) => (
             <label key={channel} className={CHECK_LABEL}>
               <input
+                aria-label={CHANNEL_LABELS[channel]}
                 name="channels"
                 type="checkbox"
                 value={channel}

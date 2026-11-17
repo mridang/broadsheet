@@ -1,15 +1,9 @@
-import type { Metadata } from 'next';
 import Link from 'next/link';
-import type { ReactElement } from 'react';
 
-import {
-  DiscoverList,
-  type DiscoveredFeed,
-} from '@/app/(site)/discover/_components/discover-list';
+import { DiscoverList } from '@/app/(site)/discover/_components/discover-list';
 import {
   DiscoverTabs,
   tabOf,
-  type Tab,
 } from '@/app/(site)/discover/_components/discover-tabs';
 import { SearchForm } from '@/app/(site)/discover/_components/search-form';
 import { fetchJson } from '@/domain/api/discover';
@@ -19,15 +13,20 @@ import {
   googleNewsFeed,
   podcastsFrom,
 } from '@/domain/discover';
-import { Repository, type TrendingKind } from '@/domain/repository';
+import { Repository } from '@/domain/repository';
 import { pictureSrc } from '@/domain/render/pictures';
 import { getCurrentUser } from '@/lib/core/auth';
-import { imageSigner } from '@/lib/cloudflare/images/server';
+import { imageSigner } from '@/lib/cloudflare/images/runtime';
 import { ButtonLink } from '@/components/ui/button';
 import { CHIP } from '@/components/ui/badge';
 import { EmptyState, ErrorText } from '@/components/ui/notice';
 import { PageHeader, PageSection } from '@/components/ui/page-header';
 import { countOf } from '@/lib/intl';
+import type { TrendingKind } from '@/domain/repository';
+import type { Tab } from '@/app/(site)/discover/_components/discover-tabs';
+import type { DiscoveredFeed } from '@/app/(site)/discover/_components/discover-list';
+import type { ReactElement } from 'react';
+import type { Metadata } from 'next';
 
 export const dynamic = 'force-dynamic';
 
@@ -212,24 +211,13 @@ export default async function DiscoverPage({
 
   const feeds = await new Repository(getDatabase()).listFeeds(user.id);
   const followed = new Set(feeds.map((f) => f.url));
-  let found: Found;
-  switch (tab) {
-    case 'sites': {
-      found = await trendingSites(user.id, kind);
-      break;
-    }
-    case 'picks': {
-      found = await recommended(followed);
-      break;
-    }
-    case 'podcasts': {
-      found = q ? await podcasts(q, followed) : { feeds: [] };
-      break;
-    }
-    default: {
-      found = news(q, followed);
-    }
-  }
+  const found: Found = await {
+    sites: async () => trendingSites(user.id, kind),
+    picks: async () => recommended(followed),
+    podcasts: async (): Promise<Found> =>
+      q ? podcasts(q, followed) : { feeds: [] },
+    news: async () => news(q, followed),
+  }[tab]();
 
   return (
     <div className="max-w-3xl">

@@ -8,9 +8,9 @@ import {
   scorePrompts,
 } from '@/domain/prompts';
 import { Repository } from '@/domain/repository';
-import type { ScrapedItem } from '@/lib/scraping';
 import { APP_MIGRATIONS } from '../lib/core/db/migrations';
 import { sqliteD1 } from '../lib/core/db/sqlite-d1';
+import type { ScrapedItem } from '@/lib/scraping';
 
 const DAY = '2026-11-01';
 
@@ -26,11 +26,13 @@ const item = (n: number): ScrapedItem => ({
 });
 
 /** An env whose model says yes when the question mentions Rust. */
-const ai = (answer?: (q: string) => unknown) => {
+const ai = (answer?: (q: string) => { response: string }) => {
   const run = jest.fn(async (_model: string, input: unknown) => {
     const q = (input as { messages: { content: string }[] }).messages[1]!
       .content;
-    if (answer) return answer(q);
+    if (answer) {
+      return answer(q);
+    }
     return { response: q.includes('Rust') ? 'Yes.' : 'No' };
   });
   return { env: { AI: { run } } as unknown as CloudflareEnv, run };
@@ -134,8 +136,9 @@ describe('scorePrompts', () => {
   });
 
   it('stops at the daily budget', async () => {
-    for (let index = 0; index < 499; index++)
+    for (let index = 0; index < 499; index++) {
       await repo.recordUsage(uid, 'classifier');
+    }
     await repo.addClassifier(uid, { kind: 'prompt', value: 'p', score: 1 });
     expect(await scorePrompts(ai().env, repo, uid, DAY)).toBe(1);
   });

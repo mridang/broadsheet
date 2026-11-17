@@ -41,8 +41,8 @@ describe('atomXml', () => {
       '<link rel="alternate" href="https://x/1?a=1&amp;b=2"/>',
     );
     expect(xml).toContain('<author><name>X</name></author>');
-    expect(xml.match(/<entry>/g)).toHaveLength(2);
-    expect(xml.match(/<summary>/g)).toHaveLength(1);
+    expect(xml.match(/<entry>/gu)).toHaveLength(2);
+    expect(xml.match(/<summary>/gu)).toHaveLength(1);
   });
 });
 
@@ -71,10 +71,8 @@ describe('atomXml content and categories', () => {
 });
 
 describe('escapeXml control characters', () => {
-  const FORBIDDEN = new RegExp(
-    String.raw`[\u0000-\u0008\u000B\u000C\u000E-\u001F]`,
-    'g',
-  );
+  // eslint-disable-next-line no-control-regex -- the test looks for control characters
+  const FORBIDDEN = /[\u0000-\u0008\u000B\u000C\u000E-\u001F]/gu;
 
   it('drops exactly the control characters XML 1.0 cannot carry', () => {
     for (let code = 0; code < 0x80; code += 1) {

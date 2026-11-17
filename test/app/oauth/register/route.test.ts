@@ -1,7 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from '@jest/globals';
 
-import type { DatabaseSync } from 'node:sqlite';
-
 import { OPTIONS, POST } from '@/app/oauth/register/route';
 import {
   installCloudflareContext,
@@ -10,8 +8,9 @@ import {
 import { quietSecurityLogs } from '../../../lib/oauth/quiet-logs';
 import { APP_MIGRATIONS } from '../../../lib/core/db/migrations';
 import urls from '../../../fixtures/insecure-urls.json' with { type: 'json' };
+import type { DatabaseSync } from 'node:sqlite';
 
-const ANSWERS_429_WITH_RETRY_AFTER_PATTERN = /^\d+$/;
+const ANSWERS_429_WITH_RETRY_AFTER_PATTERN = /^\d+$/u;
 
 const body = JSON.stringify({
   client_name: 'Assistant',
@@ -41,8 +40,8 @@ beforeEach(() => {
 afterEach(() => restore());
 
 /** How many clients are in the registry. */
-const registered = (): unknown =>
-  raw.prepare('SELECT COUNT(*) AS n FROM oauth_clients').get()?.['n'];
+const registered = (): number =>
+  Number(raw.prepare('SELECT COUNT(*) AS n FROM oauth_clients').get()?.['n']);
 
 describe('POST /oauth/register', () => {
   it('registers a client and answers 201 with its details, uncached', async () => {

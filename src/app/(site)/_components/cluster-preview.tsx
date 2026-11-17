@@ -1,10 +1,10 @@
 import { Badge } from '@/components/ui/badge';
-import type { Sibling } from '@/domain/render/layout';
 import { ago, hostOf } from '@/domain/render/tiers';
 import { pictureSrc } from '@/domain/render/pictures';
-import { imageSigner } from '@/lib/cloudflare/images/server';
+import { imageSigner } from '@/lib/cloudflare/images/runtime';
 import { cn } from '@/components/ui/cn';
 import { countOf } from '@/lib/intl';
+import type { Sibling } from '@/domain/render/layout';
 
 /** The width an expanded preview's picture is asked for, in pixels. */
 const PREVIEW_WIDTH = 160;
@@ -45,6 +45,9 @@ export async function clusterPictures(
   );
 }
 
+const NO_PICTURES: readonly (string | null)[] = [];
+const NOTHING_READ: ReadonlySet<number> = new Set<number>();
+
 /**
  * The other sources' copies of a clustered story, as NewsBlur lists them under
  * it: each copy's source, headline and age on one line, its picture and
@@ -55,8 +58,8 @@ export async function clusterPictures(
 export function ClusterPreview({
   siblings,
   expanded = false,
-  pictures = [],
-  read = new Set<number>(),
+  pictures = NO_PICTURES,
+  read = NOTHING_READ,
 }: Readonly<{
   siblings: readonly Sibling[];
   expanded?: boolean;

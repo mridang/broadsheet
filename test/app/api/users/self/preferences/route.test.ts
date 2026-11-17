@@ -11,12 +11,16 @@ import {
   tokenFor,
 } from '../../../../../domain/auth/auth-test-kit';
 
-const ANSWERS_200_WITH_THE_PATTERN = /^"[0-9a-f]{16}"$/;
+const ANSWERS_200_WITH_THE_PATTERN = /^"[0-9a-f]{16}"$/u;
 
 const { GET, PATCH } = await import('@/app/api/users/self/preferences/route');
 
 let restore: () => void;
-let auth: Record<string, string>;
+/** The Cookie header of the signed-in caller; empty for a signed-out one. */
+interface CallerCookie {
+  [name: string]: string;
+}
+let auth: CallerCookie;
 
 beforeEach(async () => {
   const made = sqliteD1(...APP_MIGRATIONS);

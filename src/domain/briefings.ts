@@ -10,7 +10,6 @@
  * {@link composeBriefing} say. One briefing is kept per slot and local date;
  * asking for one again replaces it.
  */
-import type { Database } from '@/domain/db/client';
 import {
   GLOBAL_SECTIONS,
   LONG_READ,
@@ -22,29 +21,22 @@ import {
   sectionsOf,
   selectStories,
   wordCount,
-  type Candidate,
-  type Choice,
-  type CustomSection,
-  type GlobalSection,
 } from '@/domain/briefing';
-import {
-  Repository,
-  sectionAndDescendants,
-  type Article,
-  type Preferences,
-  type StoredBriefing,
-} from '@/domain/repository';
-import {
-  formatEdition,
-  hostOf,
-  matches,
-  verdict,
-  type Training,
-} from '@/domain/render/tiers';
+import { Repository, sectionAndDescendants } from '@/domain/repository';
+import { formatEdition, hostOf, matches, verdict } from '@/domain/render/tiers';
+import type {
+  Candidate,
+  Choice,
+  CustomSection,
+  GlobalSection,
+} from '@/domain/briefing';
+import type { Article, Preferences, StoredBriefing } from '@/domain/repository';
+import type { Training } from '@/domain/render/tiers';
+import type { Database } from '@/domain/db/client';
 
-const CLOCK_MINUTES_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;
-const SOURCES_FOR_PATTERN = /^section:([1-9]\d*)$/;
-const EXTRA_SECTIONS_PATTERN = /\s+/;
+const CLOCK_MINUTES_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/u;
+const SOURCES_FOR_PATTERN = /^section:([1-9]\d*)$/u;
+const EXTRA_SECTIONS_PATTERN = /\s+/u;
 
 /** The fixed slots of a reader's day, as minutes after midnight. */
 export const SLOTS = {
@@ -82,8 +74,10 @@ export interface LocalTime {
 /** Whether `zone` is an IANA time zone this runtime knows. */
 export function isTimeZone(zone: string): boolean {
   try {
-    new Intl.DateTimeFormat('en-US', { timeZone: zone });
-    return true;
+    return (
+      new Intl.DateTimeFormat('en-US', { timeZone: zone }) instanceof
+      Intl.DateTimeFormat
+    );
   } catch {
     return false;
   }
@@ -116,13 +110,18 @@ export function clockMinutes(time: string): number | undefined {
   return m ? Number(m[1]) * 60 + Number(m[2]) : undefined;
 }
 
-/** The slot and time the reader prefers (`auto` is the morning). */
-export function preferredSlot(time: string): {
+/** A slot and the minute of the day it is delivered. */
+interface PreferredSlot {
   readonly slot: Slot;
   readonly at: number;
-} {
+}
+
+/** The slot and time the reader prefers (`auto` is the morning). */
+export function preferredSlot(time: string): PreferredSlot {
   const custom = clockMinutes(time);
-  if (custom !== undefined) return { slot: 'custom', at: custom };
+  if (custom !== undefined) {
+    return { slot: 'custom', at: custom };
+  }
   const fixed: FixedSlot =
     time === 'afternoon' || time === 'evening' ? time : 'morning';
   return { slot: fixed, at: SLOTS[fixed] };
@@ -182,7 +181,9 @@ export function dueSlots(
   >,
   now: Date,
 ): { readonly slot: Slot; readonly date: string }[] {
-  if (!prefs.briefing_enabled) return [];
+  if (!prefs.briefing_enabled) {
+    return [];
+  }
   const local = localTime(now, prefs.timezone);
   return slotsFor(prefs, local.weekday)
     .filter(
@@ -196,8 +197,12 @@ export function dueSlots(
 /** The slot a reader is in at `now`, for a briefing they ask for. */
 export function currentSlot(now: Date, zone: string): FixedSlot {
   const { minutes } = localTime(now, zone);
-  if (minutes >= SLOTS.evening) return 'evening';
-  if (minutes >= SLOTS.afternoon) return 'afternoon';
+  if (minutes >= SLOTS.evening) {
+    return 'evening';
+  }
+  if (minutes >= SLOTS.afternoon) {
+    return 'afternoon';
+  }
   return 'morning';
 }
 
@@ -208,12 +213,11 @@ export function briefingTitle(
   frequency: Preferences['briefing_frequency'],
   localDate: string,
 ): string {
-  let part: string = slot;
-  if (slot === 'custom') {
-    if (at >= SLOTS.evening) part = 'evening';
-    else if (at >= SLOTS.afternoon) part = 'afternoon';
-    else part = 'morning';
-  }
+  const part: string =
+    slot === 'custom'
+      ? ((['evening', 'afternoon'] as const).find((s) => at >= SLOTS[s]) ??
+        'morning')
+      : slot;
   const kind = frequency === 'weekly' ? 'Weekly' : 'Daily';
   return `${part[0]?.toUpperCase()}${part.slice(1)} ${kind} Briefing — ${formatEdition(localDate)}`;
 }
@@ -226,8 +230,10 @@ export function sqliteTime(at: Date): string {
 /** The classifiers that like a story, as `kind: value`. */
 function likedBy(a: Article, training: readonly Training[]): string[] {
   return training
+    .values()
     .filter((c) => c.score > 0 && matches(a, c))
-    .map((c) => `${c.kind}: ${c.value}`);
+    .map((c) => `${c.kind}: ${c.value}`)
+    .toArray();
 }
 
 /** Whether a classifier likes the story's source. */
@@ -291,11 +297,10 @@ export async function toCandidates(
  * sources in the same set that carried the story.
  */
 export function clusterEntries(list: readonly Article[]): Entry[] {
-  const byCluster = new Map<number, Article[]>();
-  for (const a of list) {
-    if (a.cluster_id === null) continue;
-    byCluster.set(a.cluster_id, [...(byCluster.get(a.cluster_id) ?? []), a]);
-  }
+  const byCluster = Map.groupBy(
+    list.filter((a) => a.cluster_id !== null),
+    (a) => a.cluster_id,
+  );
   return list.map((article) => {
     const group =
       article.cluster_id === null
@@ -322,7 +327,9 @@ export async function coveredUrls(
   const ids = stored.flatMap((s) =>
     parseBriefedStories(s ?? null).map((b) => b.id),
   );
-  if (ids.length === 0) return new Set();
+  if (ids.length === 0) {
+    return new Set();
+  }
   const articles = await repo.articlesByIds(ids);
   return new Set(articles.map((a) => a.url));
 }
@@ -334,7 +341,9 @@ async function sourcesFor(
   sources: string,
 ): Promise<number[] | undefined> {
   const m = SOURCES_FOR_PATTERN.exec(sources);
-  if (!m) return undefined;
+  if (!m) {
+    return undefined;
+  }
   const sections = await repo.listSections(userId);
   const ids = sectionAndDescendants(sections, Number(m[1]));
   const feeds = await repo.listFeeds(userId);
@@ -350,22 +359,30 @@ async function extraSections(
   prefs: Preferences,
   since: string,
 ): Promise<Map<CustomSection | GlobalSection, Article[]>> {
-  const extra = new Map<CustomSection | GlobalSection, Article[]>();
-  for (const [index, prompt] of prefs.briefing_prompts.entries()) {
-    const key = customSection(index);
-    if (!sectionOn(key, prefs) || !prompt.trim()) continue;
-    // A phrase search first, then every word of three letters or more.
-    let found = await repo.searchSince(userId, prompt, since);
-    if (found.length === 0) {
-      const words = prompt
-        .split(EXTRA_SECTIONS_PATTERN)
-        .filter((w) => w.length >= 3);
-      if (words.length > 0) {
-        found = await repo.searchSince(userId, words.join(' '), since);
-      }
-    }
-    extra.set(key, found);
-  }
+  const custom = await Promise.all(
+    Array.from(
+      prefs.briefing_prompts.entries(),
+      async ([index, prompt]): Promise<[CustomSection, Article[]][]> => {
+        const key = customSection(index);
+        if (!sectionOn(key, prefs) || !prompt.trim()) {
+          return [];
+        }
+        // A phrase search first, then every word of three letters or more.
+        const phrase = await repo.searchSince(userId, prompt, since);
+        const words = prompt
+          .split(EXTRA_SECTIONS_PATTERN)
+          .filter((w) => w.length >= 3);
+        return [
+          [
+            key,
+            phrase.length === 0 && words.length > 0
+              ? await repo.searchSince(userId, words.join(' '), since)
+              : phrase,
+          ],
+        ];
+      },
+    ),
+  );
   const want = (key: GlobalSection) => sectionOn(key, prefs);
   const any = GLOBAL_SECTIONS.some((key) => want(key));
   const [read, saved, shared] = await Promise.all([
@@ -374,30 +391,20 @@ async function extraSections(
     want('global_shared') ? repo.popularArticles('shares', since, 12) : [],
   ]);
   const savedIds = new Set(saved.map((s) => s.article.id));
-  if (want('widely_read'))
-    extra.set(
-      'widely_read',
-      read.map((r) => r.article),
-    );
-  if (want('long_reads')) {
-    extra.set(
+  const global: [GlobalSection, Article[]][] = [
+    ['widely_read', read.map((r) => r.article)],
+    [
       'long_reads',
       read.map((r) => r.article).filter((a) => wordCount(a) >= LONG_READ),
-    );
-  }
-  if (want('good_reads')) {
-    extra.set(
+    ],
+    [
       'good_reads',
       read.map((r) => r.article).filter((a) => savedIds.has(a.id)),
-    );
-  }
-  if (want('global_shared')) {
-    extra.set(
-      'global_shared',
-      shared.map((s) => s.article),
-    );
-  }
-  return extra;
+    ],
+    ['global_shared', shared.map((s) => s.article)],
+  ];
+  const entries: [CustomSection | GlobalSection, Article[]][] = custom.flat();
+  return new Map([entries, global.filter(([key]) => want(key))].flat());
 }
 
 /** What writing a briefing did. */
@@ -445,19 +452,25 @@ export async function writeScheduledBriefing(
     covered,
   );
   const extraArticles = await extraSections(repo, userId, prefs, since);
-  const extra = new Map<CustomSection | GlobalSection, Candidate[]>();
-  for (const [key, list] of extraArticles) {
-    extra.set(
-      key,
-      await toCandidates(
-        repo,
-        userId,
-        clusterEntries(list),
-        monthStart,
-        covered,
+  const extra = new Map<CustomSection | GlobalSection, Candidate[]>(
+    await Promise.all(
+      Array.from(
+        extraArticles,
+        async ([key, list]): Promise<
+          [CustomSection | GlobalSection, Candidate[]]
+        > => [
+          key,
+          await toCandidates(
+            repo,
+            userId,
+            clusterEntries(list),
+            monthStart,
+            covered,
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
   const minimum =
     prefs.briefing_frequency === 'twice_daily' ||
     prefs.briefing_frequency === 'thrice_daily'

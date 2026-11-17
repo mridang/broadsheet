@@ -15,21 +15,24 @@ export interface Call {
  * check what a repository asks the database for, and what it does with the
  * answer, without a database.
  */
-function builder(statement: string, result: unknown, calls: Call[]): object {
-  const self: object = new Proxy(
-    {},
-    {
-      get(_target, property) {
-        if (property === 'then') {
-          return (resolve: (value: unknown) => unknown) => resolve(result);
-        }
-        return (...args: unknown[]) => {
-          calls.push({ statement, method: String(property), args });
-          return self;
+function builder<Result>(
+  statement: string,
+  result: Result,
+  calls: Call[],
+): PromiseLike<Result> {
+  const self = new Proxy<PromiseLike<Result>>({} as PromiseLike<Result>, {
+    get(_target, property) {
+      if (property === 'then') {
+        return (resolve: (value: Result) => void): void => {
+          resolve(result);
         };
-      },
+      }
+      return (...args: unknown[]) => {
+        calls.push({ statement, method: String(property), args });
+        return self;
+      };
     },
-  );
+  });
   return self;
 }
 
@@ -49,18 +52,21 @@ export interface FakeResults {
 }
 
 /** The answer for the n-th statement of a kind: the n-th result, else the last. */
-function nth(results: readonly unknown[] | undefined, n: number): unknown {
+function nth<T>(results: readonly T[] | undefined, n: number): T | undefined {
   return results?.[Math.min(n, results.length - 1)];
 }
 
 type StatementKind = 'select' | 'insert' | 'update' | 'delete';
 
-/** A fake database that records every statement and answers from `results`. */
-export function fakeDb(results: FakeResults = {}): {
+/** A fake database with the statements it was asked to run. */
+export interface FakeDatabase {
   readonly db: Database;
   readonly calls: Call[];
   readonly batches: unknown[][];
-} {
+}
+
+/** A fake database that records every statement and answers from `results`. */
+export function fakeDb(results: FakeResults = {}): FakeDatabase {
   const calls: Call[] = [];
   const batches: unknown[][] = [];
   const counts: Record<string, number> = {};

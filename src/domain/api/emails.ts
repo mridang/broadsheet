@@ -9,30 +9,26 @@
  * `mailto:` link instead.
  */
 
-import {
-  requestCookieResolver,
-  sessionUser,
-  type CurrentUserResolver,
-} from '@/domain/api/auth';
+import { requestCookieResolver, sessionUser } from '@/domain/api/auth';
 import { parseFeedId } from '@/domain/api/feed-resource';
-import {
-  parseEmailInput,
-  type EmailInput,
-} from '@/domain/api/outbound-resource';
+import { parseEmailInput } from '@/domain/api/outbound-resource';
 import { escapeXml } from '@/domain/atom';
 import { getDatabase } from '@/domain/db/client';
 import { NotificationRepository } from '@/domain/notifications';
-import { Repository, type Article, type User } from '@/domain/repository';
+import { Repository } from '@/domain/repository';
 import { BRAND_NAME } from '@/app/_brand';
 import {
   ApiController,
   problem,
   problems,
   readJsonObject,
-  type ApiResponse,
 } from '@/lib/core/api';
 import { getEnv } from '@/lib/core/runtime';
 import { errorMessage, logError } from '@/utils/logging';
+import type { ApiResponse } from '@/lib/core/api';
+import type { Article, User } from '@/domain/repository';
+import type { EmailInput } from '@/domain/api/outbound-resource';
+import type { CurrentUserResolver } from '@/domain/api/auth';
 
 /** The binding and sender address an email needs. */
 export type EmailEnvironment = Partial<
@@ -77,11 +73,7 @@ export interface StoryEmailOptions {
 export function storyEmail(
   article: EmailedStory,
   options: StoryEmailOptions = {},
-): {
-  readonly subject: string;
-  readonly text: string;
-  readonly html: string;
-} {
+) {
   const title = article.title || article.url;
   const body = (article.body_text ?? '').slice(0, MAX_BODY);
   const paragraphs = [
@@ -112,7 +104,7 @@ export function storyEmail(
     '</body></html>',
   ].join('\n');
   return {
-    subject: title.replaceAll(/\s+/g, ' '),
+    subject: title.replaceAll(/\s+/gu, ' '),
     text: paragraphs.join('\n\n'),
     html,
   };
@@ -156,10 +148,13 @@ export function createArticleEmails(
         request,
         'The email must be a JSON object.',
       );
-      if (!body.ok) throw body.response;
+      if (!body.ok) {
+        throw body.response;
+      }
       const input = parseEmailInput(body.value);
-      if (!input.ok)
+      if (!input.ok) {
         throw problems.badRequest('The email is not valid.', input.errors);
+      }
       return input.value;
     },
     handle: async (input, { request, user }) => {
@@ -169,9 +164,13 @@ export function createArticleEmails(
         id === undefined
           ? undefined
           : await new Repository(db).getArticle(user.id, id);
-      if (!article) return 'missing';
+      if (!article) {
+        return 'missing';
+      }
       const { EMAIL: mail, EMAIL_FROM: from } = environment();
-      if (!mail || !from) return 'unavailable';
+      if (!mail || !from) {
+        return 'unavailable';
+      }
       const counts = new NotificationRepository(db);
       if ((await counts.storyEmailsToday(user.id)) >= DAILY_STORY_EMAILS) {
         return 'quota';
@@ -224,6 +223,10 @@ export function createArticleEmails(
             'Bad gateway',
             'The mail service did not take the email.',
           );
+        }
+        default: {
+          const unreachable: never = outcome;
+          return unreachable;
         }
       }
     },

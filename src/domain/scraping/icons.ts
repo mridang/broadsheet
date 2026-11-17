@@ -1,9 +1,9 @@
-const LARGEST_PATTERN = /\bany\b/i;
-const PAGE_ICONS_PATTERN = /<link\b[^>]*>/gi;
-const PAGE_ICONS_PATTERN_2 = /\s+/;
-const MANIFEST_URL_PATTERN = /\bmanifest\b/i;
-const FIRST_WORKING_ICON_PATTERN = /\.ico(\?|$)/i;
-const SIZE_PAIRS_PATTERN = /\d+|x/gi;
+const LARGEST_PATTERN = /\bany\b/iu;
+const PAGE_ICONS_PATTERN = /<link\b[^>]*>/giu;
+const PAGE_ICONS_PATTERN_2 = /\s+/u;
+const MANIFEST_URL_PATTERN = /\bmanifest\b/iu;
+const FIRST_WORKING_ICON_PATTERN = /\.ico(\?|$)/iu;
+const SIZE_PAIRS_PATTERN = /\d+|x/giu;
 /**
  * @packageDocumentation
  *
@@ -23,7 +23,9 @@ interface Declared {
 
 /** The longest side a `sizes` value names (`32x32 192x192` → 192; `any` → 512). */
 function largest(sizes: string): number {
-  if (LARGEST_PATTERN.test(sizes)) return 512;
+  if (LARGEST_PATTERN.test(sizes)) {
+    return 512;
+  }
   return Math.max(0, ...sizePairs(sizes).map(([w, h]) => Math.max(w, h)));
 }
 
@@ -41,49 +43,57 @@ function absolute(href: string, base: string): string | undefined {
 
 /** One attribute of a tag, or blank. */
 function attribute(tag: string, name: string): string {
-  const pattern = new RegExp(String.raw`\b${name}\s*=\s*["']([^"']*)["']`, 'i');
+  const pattern = new RegExp(
+    String.raw`\b${name}\s*=\s*["']([^"']*)["']`,
+    'iu',
+  );
   return pattern.exec(tag)?.[1] ?? '';
 }
 
 /** The icons a page's `<link>` tags declare, largest first. */
 export function pageIcons(html: string, base: string): string[] {
-  const found: Declared[] = [];
-  for (const [tag] of html.matchAll(PAGE_ICONS_PATTERN)) {
-    const relation = attribute(tag, 'rel')
-      .toLowerCase()
-      .split(PAGE_ICONS_PATTERN_2);
-    const isIcon = relation.some(
-      (r) => r === 'icon' || r.startsWith('apple-touch-icon'),
-    );
-    const href = isIcon ? absolute(attribute(tag, 'href'), base) : undefined;
-    if (!isIcon || !href) continue;
-    // An apple-touch-icon with no sizes is the 180px one by convention.
-    const size =
-      largest(attribute(tag, 'sizes')) ||
-      (relation.some((r) => r.startsWith('apple-touch-icon')) ? 180 : 16);
-    found.push({ href, size });
-  }
+  const found = [...html.matchAll(PAGE_ICONS_PATTERN)].flatMap(
+    ([tag]): Declared[] => {
+      const relation = attribute(tag, 'rel')
+        .toLowerCase()
+        .split(PAGE_ICONS_PATTERN_2);
+      const isIcon = relation.some(
+        (r) => r === 'icon' || r.startsWith('apple-touch-icon'),
+      );
+      const href = isIcon ? absolute(attribute(tag, 'href'), base) : undefined;
+      if (!isIcon || !href) {
+        return [];
+      }
+      // An apple-touch-icon with no sizes is the 180px one by convention.
+      const size =
+        largest(attribute(tag, 'sizes')) ||
+        (relation.some((r) => r.startsWith('apple-touch-icon')) ? 180 : 16);
+      return [{ href, size }];
+    },
+  );
   return found.toSorted((a, b) => b.size - a.size).map((d) => d.href);
 }
 
 /** The address of a page's web app manifest, if it links one. */
 export function manifestUrl(html: string, base: string): string | undefined {
-  for (const [tag] of html.matchAll(PAGE_ICONS_PATTERN)) {
-    if (MANIFEST_URL_PATTERN.test(attribute(tag, 'rel'))) {
-      return absolute(attribute(tag, 'href'), base);
-    }
-  }
-  return undefined;
+  const declared = [...html.matchAll(PAGE_ICONS_PATTERN)].find(([tag]) =>
+    MANIFEST_URL_PATTERN.test(attribute(tag, 'rel')),
+  );
+  return declared ? absolute(attribute(declared[0], 'href'), base) : undefined;
 }
 
 /** The icons a web app manifest lists, largest first. */
 export function manifestIcons(json: string, base: string): string[] {
   try {
     const parsed = JSON.parse(json) as { icons?: unknown };
-    if (!Array.isArray(parsed.icons)) return [];
+    if (!Array.isArray(parsed.icons)) {
+      return [];
+    }
     return parsed.icons
       .flatMap((icon: unknown): Declared[] => {
-        if (typeof icon !== 'object' || icon === null) return [];
+        if (typeof icon !== 'object' || icon === null) {
+          return [];
+        }
         const { src, sizes } = icon as { src?: unknown; sizes?: unknown };
         const href = typeof src === 'string' ? absolute(src, base) : undefined;
         return href
@@ -125,6 +135,7 @@ export async function firstWorkingIcon(
   candidates: readonly string[],
   fetcher: IconFetcher,
 ): Promise<string> {
+  // eslint-disable-next-line functional/no-loop-statements -- the candidates are tried one at a time, in order, and the first that works ends the search
   for (const url of candidates.slice(0, MAX_TRIES)) {
     try {
       const response = await fetcher(url);
@@ -146,16 +157,19 @@ export async function firstWorkingIcon(
 
 /** The `WxH` pairs of a sizes attribute, left to right, none sharing a digit run. */
 function sizePairs(sizes: string): [number, number][] {
-  const out: [number, number][] = [];
   const parts = [...sizes.matchAll(SIZE_PAIRS_PATTERN)];
-  for (let index = 0; index + 2 < parts.length; index += 1) {
-    const [a, x, b] = [parts[index]!, parts[index + 1]!, parts[index + 2]!];
-    const isX = (m: RegExpExecArray | RegExpMatchArray) =>
-      m[0].toLowerCase() === 'x';
-    if (!isX(a) && isX(x) && !isX(b) && b.index === a.index + a[0].length + 1) {
-      out.push([Number(a[0]), Number(b[0])]);
-      index += 2;
+  const isX = (m: RegExpExecArray | RegExpMatchArray) =>
+    m[0].toLowerCase() === 'x';
+  const from = (index: number): [number, number][] => {
+    const [a, x, b] = [parts[index], parts[index + 1], parts[index + 2]];
+    if (!a || !x || !b) {
+      return [];
     }
-  }
-  return out;
+    const adjacent = b.index === a.index + a[0].length + 1;
+    const isPair = !isX(a) && isX(x) && !isX(b) && adjacent;
+    return isPair
+      ? [[Number(a[0]), Number(b[0])], ...from(index + 3)]
+      : from(index + 1);
+  };
+  return from(0);
 }

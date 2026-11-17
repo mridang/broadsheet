@@ -3,10 +3,10 @@ import { describe, expect, it } from '@jest/globals';
 import { StoryChanges } from '@/app/(site)/_components/story-changes';
 import { html } from '../../../components/render';
 
-const IS_A_CLOSED_DISCLOSURE_PATTERN = /^<details class="[^"]*print:hidden/;
-const IS_A_CLOSED_DISCLOSURE_PATTERN_2 = /<details[^>]*\sopen/;
-const STRIKES_WHAT_WAS_TAKEN_PATTERN = /<del[^>]*>Ten <\/del>/;
-const STRIKES_WHAT_WAS_TAKEN_PATTERN_2 = /<ins[^>]*>Twelve <\/ins>/;
+const IS_A_CLOSED_DISCLOSURE_PATTERN = /^<details class="[^"]*print:hidden/u;
+const IS_A_CLOSED_DISCLOSURE_PATTERN_2 = /<details[^>]*\sopen/u;
+const STRIKES_WHAT_WAS_TAKEN_PATTERN = /<del[^>]*>Ten <\/del>/u;
+const STRIKES_WHAT_WAS_TAKEN_PATTERN_2 = /<ins[^>]*>Twelve <\/ins>/u;
 
 describe('StoryChanges', () => {
   const out = html(

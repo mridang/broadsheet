@@ -20,9 +20,8 @@ import {
   userPrompt,
   wordCount,
   writeBriefing,
-  type Candidate,
-  type Choice,
 } from '@/domain/briefing';
+import type { Candidate, Choice } from '@/domain/briefing';
 import type { Article } from '@/domain/repository';
 
 function article(over: Partial<Article>): Article {
@@ -289,11 +288,14 @@ describe('maxTokens', () => {
 });
 
 /** An env whose model answers with each of `answers` in turn. */
-const envWith = (...answers: unknown[]) => {
+const envWith = (...answers: (string | Error)[]) => {
+  // eslint-disable-next-line tslop/no-unknown-returns -- a stand-in model answers with whatever the test hands it
   const run = jest.fn<(model: string, input: unknown) => Promise<unknown>>(
     async () => {
       const next = answers.shift();
-      if (next instanceof Error) throw next;
+      if (next instanceof Error) {
+        throw next;
+      }
       return { response: next };
     },
   );
@@ -565,7 +567,7 @@ describe('selectStories with the reader’s settings', () => {
   });
 
   it('takes a lower minimum when given one', () => {
-    expect(selectStories(many.slice(0, 1), prefs, new Map(), 1)).toHaveLength(
+    expect(selectStories(many.slice(0, 1), prefs, undefined, 1)).toHaveLength(
       1,
     );
   });

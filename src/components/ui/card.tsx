@@ -1,6 +1,5 @@
-import type { ElementType, ReactElement, ReactNode } from 'react';
-
 import { cn } from '@/components/ui/cn';
+import type { ElementType, ReactElement, ReactNode } from 'react';
 
 /** The inner padding of each card size. */
 const PADDING = {

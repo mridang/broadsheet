@@ -1,21 +1,17 @@
 'use client';
 
+import { useRef, useState } from 'react';
+import { z } from 'zod';
 import { Chip } from '@/components/ui/badge';
 import { SectionHeader } from '@/components/ui/page-header';
-import { useRef, useState, type SubmitEvent, type ReactElement } from 'react';
 
-import {
-  askArticle,
-  type AskInput,
-  type AskTurn,
-} from '@/app/(site)/article/[id]/_components/answer-requests';
+import { askArticle } from '@/app/(site)/article/[id]/_components/answer-requests';
 import { useApiAction } from '@/components/api/use-api-action';
 import { VoiceButton } from '@/app/(site)/article/[id]/_components/voice-button';
 import { Markdown } from '@/components/site/markdown';
 import {
   ANSWER_MODELS,
   HISTORY_TURNS,
-  type AnswerModelName,
   MAX_QUESTION_LENGTH,
   PRESET_QUESTIONS,
 } from '@/domain/assistant';
@@ -23,7 +19,12 @@ import { Button } from '@/components/ui/button';
 import { CARD, CHECK_LABEL, SMALL_FIELD } from '@/components/ui/field';
 import { ErrorText } from '@/components/ui/notice';
 import { countOf } from '@/lib/intl';
-import { z } from 'zod';
+import type { AnswerModelName } from '@/domain/assistant';
+import type {
+  AskInput,
+  AskTurn,
+} from '@/app/(site)/article/[id]/_components/answer-requests';
+import type { SubmitEvent, ReactElement } from 'react';
 
 /** The one field the question form posts. */
 const questionForm = z.object({ question: z.string().default('') });
@@ -99,6 +100,7 @@ export function AskBox({ id }: Readonly<{ id: number }>): ReactElement {
       ))}
       <form className="mt-4 flex flex-col gap-2 sm:flex-row" onSubmit={submit}>
         <input
+          aria-label="Ask a question"
           name="question"
           type="text"
           placeholder={
@@ -114,7 +116,10 @@ export function AskBox({ id }: Readonly<{ id: number }>): ReactElement {
         <VoiceButton
           disabled={busy}
           onText={(text) => {
-            if (field.current) field.current.value = text;
+            if (field.current) {
+              // eslint-disable-next-line functional/immutable-data -- the uncontrolled question box is filled from the dictation
+              field.current.value = text;
+            }
           }}
         />
         <Button type="submit" disabled={busy}>
@@ -140,6 +145,7 @@ export function AskBox({ id }: Readonly<{ id: number }>): ReactElement {
         </label>
         <label className={CHECK_LABEL}>
           <input
+            aria-label="Think it through"
             type="checkbox"
             checked={thinking}
             onChange={(event) => setThinking(event.currentTarget.checked)}

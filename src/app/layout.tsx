@@ -1,11 +1,10 @@
-import type { Metadata, Viewport } from 'next';
-import type { ReactElement, ReactNode } from 'react';
-
 import { ServiceWorker } from '@/components/site/service-worker';
 import { ThemeScript } from '@/components/site/theme-script';
 
 import { BODY_CLASS, HTML_ATTRIBUTES, HTML_CLASS } from '@/app/_fonts';
 import { siteMetadata, siteViewport } from '@/app/_metadata';
+import type { ReactElement, ReactNode } from 'react';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 /** What every page says about itself unless it says otherwise (see `_metadata.ts`). */

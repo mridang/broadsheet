@@ -1,10 +1,9 @@
 'use client';
 
-import type { ReactElement } from 'react';
-
 import { buttonClass } from '@/components/ui/button';
 import { InstallIosHint } from '@/components/site/install-ios-hint';
 import { useInstallPrompt } from '@/components/site/use-install-prompt';
+import type { ReactElement } from 'react';
 
 /**
  * "Install app" in the sidebar: shown only where the browser can install the
@@ -25,7 +24,9 @@ export function InstallButton(): ReactElement {
             // eslint-disable-next-line unicorn/no-keyword-prefix -- className is the React DOM prop name, fixed by the JSX API
             className: 'w-full border-line',
           })}
-          onClick={() => void install()}
+          onClick={() => {
+            void install();
+          }}
         >
           Install app
         </button>

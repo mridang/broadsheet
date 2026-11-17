@@ -5,17 +5,18 @@
  * it, the arguments it accepts, and what it does when called.
  */
 
+import { z } from 'zod';
 import {
   parseSectionInput,
   sectionResource,
 } from '@/domain/api/section-resource';
 import { ToolFailureError } from '@/domain/mcp/tool-failure';
-import type { ToolContext } from '@/domain/mcp/tool-context';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { checked, dropUndefined, id } from '@/domain/mcp/tools/support';
 import { Repository } from '@/domain/repository';
-import { type ToolAnnotations, writes } from '@/lib/mcp';
-import { z } from 'zod';
+import { writes } from '@/lib/mcp';
+import type { ToolAnnotations } from '@/lib/mcp';
+import type { ToolContext } from '@/domain/mcp/tool-context';
 
 /** What `add_section` accepts. */
 const SCHEMA = z.object({

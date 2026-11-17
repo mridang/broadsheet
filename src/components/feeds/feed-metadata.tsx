@@ -1,12 +1,12 @@
-import type { ReactElement } from 'react';
-
 import { elementLabel } from '@/domain/render/feed-details';
+import type { ReactElement, ReactNode } from 'react';
+
 import type { FeedElement } from '@/lib/scraping';
 
-const VALUE_PATTERN = /^https?:\/\//i;
+const VALUE_PATTERN = /^https?:\/\//iu;
 
 /** A value that is an address, shown as a link to it. */
-function Value({ text }: { readonly text: string }): ReactElement {
+function Value({ text }: { readonly text: string }): ReactNode {
   return VALUE_PATTERN.test(text) ? (
     <a
       href={text}
@@ -17,7 +17,7 @@ function Value({ text }: { readonly text: string }): ReactElement {
       {text}
     </a>
   ) : (
-    <>{text}</>
+    text
   );
 }
 

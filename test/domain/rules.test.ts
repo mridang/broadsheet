@@ -1,7 +1,8 @@
 import { describe, expect, it } from '@jest/globals';
 
+import { matchesRule, regexProblem } from '@/domain/rules';
+import type { RuledStory } from '@/domain/rules';
 import type { NotificationRule } from '@/domain/notifications';
-import { matchesRule, regexProblem, type RuledStory } from '@/domain/rules';
 
 const story: RuledStory = {
   feed_id: 1,
@@ -90,6 +91,7 @@ describe('matchesRule', () => {
 describe('regexProblem repeated groups', () => {
   const REPEATED = new RegExp(
     [String.raw`\([^)]`, '*[+*}][^)]', String.raw`*\)\s`, '*[+*{?]'].join(''),
+    'u',
   );
 
   it.each([

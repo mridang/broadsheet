@@ -1,12 +1,13 @@
 import { beforeEach, describe, expect, it } from '@jest/globals';
 
-import { createDatabase, type Database } from '@/domain/db/client';
+import { createDatabase } from '@/domain/db/client';
 import { RESOURCES } from '@/domain/mcp/resources';
-import type { ToolContext } from '@/domain/mcp/tool-context';
-import type { User } from '@/domain/db/users';
 import { Repository } from '@/domain/repository';
 import { APP_MIGRATIONS } from '../../lib/core/db/migrations';
 import { sqliteD1 } from '../../lib/core/db/sqlite-d1';
+import type { User } from '@/domain/db/users';
+import type { Database } from '@/domain/db/client';
+import type { ToolContext } from '@/domain/mcp/tool-context';
 
 let db: Database;
 let ctx: ToolContext;
@@ -26,7 +27,9 @@ beforeEach(async () => {
 async function read(uri: string) {
   for (const r of RESOURCES) {
     const params = r.uri === uri ? {} : r.match?.(uri);
-    if (params) return r.read(params, ctx);
+    if (params) {
+      return r.read(params, ctx);
+    }
   }
   throw new Error(`no resource at ${uri}`);
 }

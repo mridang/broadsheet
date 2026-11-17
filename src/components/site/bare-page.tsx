@@ -1,10 +1,10 @@
 import Link from 'next/link';
-import type { ReactElement, ReactNode } from 'react';
 
 import { BRAND_NAME } from '@/app/_brand';
 import { BrandMark } from '@/components/site/logo';
 import { SkipLink } from '@/components/site/skip-link';
 import { Container, Eyebrow, Heading } from '@/components/ui/layout';
+import type { ReactElement, ReactNode } from 'react';
 
 /**
  * A page outside the site frame: the thin brand strip, the wordmark and a

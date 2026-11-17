@@ -13,7 +13,7 @@ import {
   THINKING_MODEL,
   presetQuestion,
 } from '@/domain/assistant';
-import { createDatabase, type Database } from '@/domain/db/client';
+import { createDatabase } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
 import { SESSION_COOKIE } from '@/domain/auth/app';
 import { APP_MIGRATIONS } from '../../../../../lib/core/db/migrations';
@@ -25,16 +25,21 @@ import {
   SESSION_SECRET,
   tokenFor,
 } from '../../../../../domain/auth/auth-test-kit';
+import type { Database } from '@/domain/db/client';
 
-const ANSWERS_429_WITH_RETRY_AFTER_PATTERN = /^\d+$/;
+const ANSWERS_429_WITH_RETRY_AFTER_PATTERN = /^\d+$/u;
 
 const { POST } = await import('@/app/api/articles/[id]/answers/route');
 
 let restore: () => void;
 let story: number;
 let db: Database;
-let auth: Record<string, string>;
-let run: jest.Mock<(...args: unknown[]) => Promise<unknown>>;
+/** The Cookie header of the signed-in caller; empty for a signed-out one. */
+interface CallerCookie {
+  [name: string]: string;
+}
+let auth: CallerCookie;
+let run: jest.Mock<(...args: unknown[]) => Promise<object>>;
 
 async function cookieFor(uid: number): Promise<Record<string, string>> {
   return {
@@ -147,8 +152,9 @@ describe('POST /api/articles/:id/answers', () => {
   });
 
   it('does not cache the reader’s own questions', async () => {
-    await ask(story, '{"question":"Why?"}');
-    await ask(story, '{"question":"Why?"}');
+    const first = await ask(story, '{"question":"Why?"}');
+    const second = await ask(story, '{"question":"Why?"}');
+    expect([first.status, second.status]).toEqual([200, 200]);
     expect(run).toHaveBeenCalledTimes(2);
   });
 

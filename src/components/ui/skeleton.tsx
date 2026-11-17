@@ -1,6 +1,5 @@
-import type { ReactElement } from 'react';
-
 import { cn } from '@/components/ui/cn';
+import type { ReactElement } from 'react';
 
 /**
  * A grey block that stands in for content while it loads. Give it a size;
@@ -24,7 +23,7 @@ export function SkeletonRows({
   rows = 4,
 }: Readonly<{ rows?: number }>): ReactElement {
   return (
-    <div role="status" aria-label="Loading" className="space-y-6">
+    <output aria-label="Loading" className="block space-y-6">
       {Array.from({ length: rows }, (_, index) => (
         <div key={index} className="flex gap-4">
           <div className="flex-1 space-y-2.5">
@@ -35,6 +34,6 @@ export function SkeletonRows({
           <Skeleton className="hidden h-20 w-28 rounded-card sm:block" />
         </div>
       ))}
-    </div>
+    </output>
   );
 }

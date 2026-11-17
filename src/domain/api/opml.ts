@@ -1,10 +1,10 @@
-const UNESCAPE_XML_PATTERN = /&(#x[0-9a-f]+|#\d+|[a-z]+);/gi;
+const UNESCAPE_XML_PATTERN = /&(#x[0-9a-f]+|#\d+|[a-z]+);/giu;
 const ATTRIBUTES_PATTERN =
-  /(?<![\w:.-])([\w:.-]+)\s*=\s*("([^"]*)"|'([^']*)')/g;
-const PARSE_OPML_PATTERN = /<!(DOCTYPE|ENTITY)/i;
-const PARSE_OPML_PATTERN_2 = /<opml[\s>]/i;
-const PARSE_OPML_PATTERN_3 = /^<\/outline\s*>/i;
-const PARSE_OPML_PATTERN_4 = /^<outline[\s/>]/i;
+  /(?<![\w:.-])([\w:.-]+)\s*=\s*("([^"]*)"|'([^']*)')/gu;
+const PARSE_OPML_PATTERN = /<!(DOCTYPE|ENTITY)/iu;
+const PARSE_OPML_PATTERN_2 = /<opml[\s>]/iu;
+const PARSE_OPML_PATTERN_3 = /^<\/outline\s*>/iu;
+const PARSE_OPML_PATTERN_4 = /^<outline[\s/>]/iu;
 /**
  * @packageDocumentation
  *
@@ -34,13 +34,13 @@ export type OpmlParse =
   | { readonly ok: true; readonly feeds: readonly OpmlFeed[] }
   | { readonly ok: false; readonly errors: readonly string[] };
 
-const ENTITIES: Readonly<Record<string, string>> = {
-  amp: '&',
-  lt: '<',
-  gt: '>',
-  quot: '"',
-  apos: "'",
-};
+const ENTITIES = new Map([
+  ['amp', '&'],
+  ['lt', '<'],
+  ['gt', '>'],
+  ['quot', '"'],
+  ['apos', "'"],
+]);
 
 /** Escape text for an XML attribute value. */
 export function escapeXml(text: string): string {
@@ -63,25 +63,32 @@ function unescapeXml(text: string): string {
         ? String.fromCodePoint(code)
         : whole;
     }
-    return ENTITIES[name.toLowerCase()] ?? whole;
+    return ENTITIES.get(name.toLowerCase()) ?? whole;
   });
 }
 
 function attributes(text: string): Map<string, string> {
-  const found = new Map<string, string>();
-  for (const m of text.matchAll(ATTRIBUTES_PATTERN)) {
-    found.set((m[1] ?? '').toLowerCase(), unescapeXml(m[3] ?? m[4] ?? ''));
-  }
-  return found;
+  return new Map(
+    text
+      .matchAll(ATTRIBUTES_PATTERN)
+      .map((m): [string, string] => [
+        (m[1] ?? '').toLowerCase(),
+        unescapeXml(m[3] ?? m[4] ?? ''),
+      ]),
+  );
 }
 
 /** The index just past the `>` that ends the tag at `from`, or -1. */
 function tagEnd(text: string, from: number): number {
+  // eslint-disable-next-line functional/no-let -- the scan keeps the quote it is inside as it moves along the tag
   let quote = '';
+  // eslint-disable-next-line functional/no-loop-statements, functional/no-let -- one pass over the characters, each step depends on the quote state before it
   for (let index = from; index < text.length; index += 1) {
     const c = text[index];
     if (quote) {
-      if (c === quote) quote = '';
+      if (c === quote) {
+        quote = '';
+      }
     } else if (c === '"' || c === "'") {
       quote = c;
     } else if (c === '>') {
@@ -95,17 +102,19 @@ function tagEnd(text: string, from: number): number {
 
 /** Where a comment, CDATA section or processing instruction at `at` ends. */
 function skipMarkup(text: string, at: number): number | undefined {
-  for (const [open, close] of [
-    ['<!--', '-->'],
-    ['<![CDATA[', ']]>'],
-    ['<?', '?>'],
-  ] as const) {
-    if (text.startsWith(open, at)) {
-      const end = text.indexOf(close, at + open.length);
-      return end === -1 ? -1 : end + close.length;
-    }
+  const marker = (
+    [
+      ['<!--', '-->'],
+      ['<![CDATA[', ']]>'],
+      ['<?', '?>'],
+    ] as const
+  ).find(([open]) => text.startsWith(open, at));
+  if (!marker) {
+    return undefined;
   }
-  return undefined;
+  const [open, close] = marker;
+  const end = text.indexOf(close, at + open.length);
+  return end === -1 ? -1 : end + close.length;
 }
 
 /**
@@ -124,7 +133,9 @@ export function parseOpml(text: string): OpmlParse {
   const folders: string[] = [];
   // Whether each open outline pushed a folder name, so a close can pop it.
   const open: boolean[] = [];
+  // eslint-disable-next-line functional/no-let -- the scanner's position moves forward through the text
   let at = text.indexOf('<');
+  // eslint-disable-next-line functional/no-loop-statements -- one pass over the text; a recursive scan would overflow the stack on a large file
   while (at >= 0) {
     const skipped = skipMarkup(text, at);
     if (skipped === -1) {
@@ -135,7 +146,11 @@ export function parseOpml(text: string): OpmlParse {
       continue;
     }
     if (PARSE_OPML_PATTERN_3.test(text.slice(at, at + 16))) {
-      if (open.pop()) folders.pop();
+      // eslint-disable-next-line functional/immutable-data -- the folder stack of the single pass
+      if (open.pop()) {
+        // eslint-disable-next-line functional/immutable-data -- the folder stack of the single pass
+        folders.pop();
+      }
     } else if (PARSE_OPML_PATTERN_4.test(text.slice(at, at + 9))) {
       const end = tagEnd(text, at + 8);
       if (end < 0) {
@@ -151,6 +166,7 @@ export function parseOpml(text: string): OpmlParse {
       ).trim();
       if (url) {
         const site = attributeList.get('htmlurl')?.trim();
+        // eslint-disable-next-line functional/immutable-data -- the feeds found so far in the single pass
         feeds.push({
           url,
           ...(label ? { title: label } : {}),
@@ -162,8 +178,14 @@ export function parseOpml(text: string): OpmlParse {
       }
       const selfClosing = tag.trimEnd().endsWith('/');
       const isFolder = !selfClosing && !url && label !== '';
-      if (!selfClosing) open.push(isFolder);
-      if (isFolder) folders.push(label);
+      if (!selfClosing) {
+        // eslint-disable-next-line functional/immutable-data -- the folder stack of the single pass
+        open.push(isFolder);
+      }
+      if (isFolder) {
+        // eslint-disable-next-line functional/immutable-data -- the folder stack of the single pass
+        folders.push(label);
+      }
       at = end - 1;
     } else {
       // Other markup, such as text or a closing tag of another kind, is skipped.
@@ -209,7 +231,9 @@ export function buildOpml(
   const inside = (id: number | null): OpmlEntry[] =>
     entries.filter((event3) =>
       id === null
-        ? event3.section_id == null || !known.has(event3.section_id)
+        ? event3.section_id === null ||
+          event3.section_id === undefined ||
+          !known.has(event3.section_id)
         : event3.section_id === id,
     );
   const folder = (
@@ -217,7 +241,9 @@ export function buildOpml(
     depth: number,
     seen: Set<number>,
   ): string[] => {
-    if (seen.has(section.id)) return [];
+    if (seen.has(section.id)) {
+      return [];
+    }
     const path = new Set(seen).add(section.id);
     const indent = '  '.repeat(depth);
     const body = [

@@ -14,7 +14,7 @@ import {
 } from '../../lib/core/db/sqlite-d1';
 import insecure from '../../fixtures/insecure-urls.json';
 
-const PARSE_CONVERSION_PATTERN = /^google_news:/;
+const PARSE_CONVERSION_PATTERN = /^google_news:/u;
 
 let restore: (() => void) | undefined;
 afterEach(() => restore?.());

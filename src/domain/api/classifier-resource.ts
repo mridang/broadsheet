@@ -10,8 +10,8 @@ import {
   parseFeedId,
   rfc3339,
 } from '@/domain/api/feed-resource';
-import type { Classifier, ClassifierInput } from '@/domain/repository';
 import { regexProblem } from '@/domain/rules';
+import type { Classifier, ClassifierInput } from '@/domain/repository';
 
 /**
  * What a classifier can match on, as NewsBlur's: a phrase in the title, the
@@ -63,10 +63,10 @@ export function classifierResource(
   const created = classifier.created_at
     ? rfc3339(classifier.created_at)
     : undefined;
-  let score: ClassifierResource['score'];
-  if (classifier.score > 0) score = 'like';
-  else if (classifier.score <= -2) score = 'super_dislike';
-  else score = 'dislike';
+  const mild: ClassifierResource['score'] =
+    classifier.score > 0 ? 'like' : 'dislike';
+  const score: ClassifierResource['score'] =
+    classifier.score <= -2 ? 'super_dislike' : mild;
   return {
     id: String(classifier.id),
     kind: classifier.kind,
@@ -99,62 +99,68 @@ export type ClassifierBody =
 export function parseClassifierInput(
   body: Readonly<Record<string, unknown>>,
 ): ClassifierBody {
-  const errors: string[] = [];
-  for (const key of Object.keys(body)) {
-    if (
-      !['kind', 'value', 'score', 'feed_id', 'section_id', 'is_regex'].includes(
-        key,
-      )
-    ) {
-      errors.push(`${key}: not a member of a classifier.`);
-    }
-  }
   const { kind, value, score } = body;
-  if (typeof kind !== 'string' || !(KINDS as readonly string[]).includes(kind))
-    errors.push(`kind: must be one of ${KINDS.join(', ')}.`);
-  if (typeof value !== 'string' || !value.trim())
-    errors.push('value: must be a non-blank string.');
-  else if (
-    value.trim().length >
-    (kind === 'prompt' ? MAX_PROMPT_LENGTH : MAX_NAME_LENGTH)
-  )
-    errors.push('value: too long.');
-  else if (kind === 'feed' && parseFeedId(value.trim()) === undefined)
-    errors.push('value: a feed classifier names a feed id.');
-  else {
-    // A value that is fine for this kind: nothing to report.
-  }
-  if (typeof score !== 'string' || !Object.hasOwn(SCORES, score))
-    errors.push('score: must be like, dislike or super_dislike.');
-  else if (kind === 'prompt' && score === 'super_dislike')
-    errors.push(
-      'score: a prompt classifier is like (focus) or dislike (hidden).',
-    );
-  else {
-    // A score that is fine for this kind: nothing to report.
-  }
+  const text = typeof value === 'string' ? value.trim() : '';
+  const blank = text === '';
+  const tooLong =
+    !blank &&
+    text.length > (kind === 'prompt' ? MAX_PROMPT_LENGTH : MAX_NAME_LENGTH);
+  const valueFine = !blank && !tooLong;
+  const badScore = typeof score !== 'string' || !Object.hasOwn(SCORES, score);
   const regex = body['is_regex'];
-  if (regex !== undefined && typeof regex !== 'boolean')
-    errors.push('is_regex: must be true or false.');
-  else if (regex && !REGEX_KINDS.includes(kind as string))
-    errors.push(`is_regex: only for ${REGEX_KINDS.join(', ')}.`);
-  else if (regex && typeof value === 'string') {
-    const problem = regexProblem(value.trim());
-    if (problem) errors.push(`value: ${problem}.`);
-  } else {
-    // Not a regex, or nothing to check: nothing to report.
-  }
+  const badRegex = regex !== undefined && typeof regex !== 'boolean';
+  const badRegexKind =
+    !badRegex && Boolean(regex) && !REGEX_KINDS.includes(kind as string);
+  const regexFine = !badRegex && !badRegexKind;
+  const problem =
+    regexFine && regex && typeof value === 'string'
+      ? regexProblem(text)
+      : undefined;
   const scope = (key: 'feed_id' | 'section_id'): number | undefined => {
     const raw = body[key];
-    if (raw === undefined) return undefined;
-    const id = typeof raw === 'string' ? parseFeedId(raw) : undefined;
-    if (id === undefined) errors.push(`${key}: not an id.`);
-    return id;
+    return typeof raw === 'string' ? parseFeedId(raw) : undefined;
   };
   const feedId = scope('feed_id');
   const sectionId = scope('section_id');
-  if (feedId !== undefined && sectionId !== undefined)
-    errors.push('section_id: a classifier is scoped to a feed or a section.');
+  const errors: string[] = [
+    ...Object.keys(body)
+      .filter(
+        (key) =>
+          ![
+            'kind',
+            'value',
+            'score',
+            'feed_id',
+            'section_id',
+            'is_regex',
+          ].includes(key),
+      )
+      .map((key) => `${key}: not a member of a classifier.`),
+    ...(typeof kind !== 'string' || !(KINDS as readonly string[]).includes(kind)
+      ? [`kind: must be one of ${KINDS.join(', ')}.`]
+      : []),
+    ...(blank ? ['value: must be a non-blank string.'] : []),
+    ...(tooLong ? ['value: too long.'] : []),
+    ...(valueFine && kind === 'feed' && parseFeedId(text) === undefined
+      ? ['value: a feed classifier names a feed id.']
+      : []),
+    ...(badScore ? ['score: must be like, dislike or super_dislike.'] : []),
+    ...(!badScore && kind === 'prompt' && score === 'super_dislike'
+      ? ['score: a prompt classifier is like (focus) or dislike (hidden).']
+      : []),
+    ...(badRegex ? ['is_regex: must be true or false.'] : []),
+    ...(badRegexKind ? [`is_regex: only for ${REGEX_KINDS.join(', ')}.`] : []),
+    ...(problem ? [`value: ${problem}.`] : []),
+    ...(body['feed_id'] !== undefined && feedId === undefined
+      ? ['feed_id: not an id.']
+      : []),
+    ...(body['section_id'] !== undefined && sectionId === undefined
+      ? ['section_id: not an id.']
+      : []),
+    ...(feedId !== undefined && sectionId !== undefined
+      ? ['section_id: a classifier is scoped to a feed or a section.']
+      : []),
+  ];
   return errors.length > 0
     ? { ok: false, errors }
     : {

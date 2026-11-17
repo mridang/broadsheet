@@ -2,10 +2,10 @@ import path from 'node:path';
 import { readFile } from 'node:fs/promises';
 import { beforeEach, describe, expect, it } from '@jest/globals';
 
-import type { DatabaseSync } from 'node:sqlite';
-
+import { compareText } from '@/lib/intl';
 import { APP_MIGRATIONS } from '../../lib/core/db/migrations';
 import { sqliteD1 } from '../../lib/core/db/sqlite-d1';
+import type { DatabaseSync } from 'node:sqlite';
 
 const FILE = '0035_counters_and_indexes.sql';
 
@@ -29,7 +29,7 @@ function counters(raw: DatabaseSync, id: number) {
 describe('0035_counters_and_indexes.sql backfill', () => {
   it('fills the counters of the sources that already have rows', async () => {
     const raw = sqliteD1(
-      ...APP_MIGRATIONS.filter((f) => f.localeCompare(FILE) < 0),
+      ...APP_MIGRATIONS.filter((f) => compareText(f, FILE) < 0),
     ).raw;
     raw.exec(
       `INSERT INTO sources (id, url) VALUES (1, 'a'), (2, 'b');

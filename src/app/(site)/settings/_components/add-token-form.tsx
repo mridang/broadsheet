@@ -1,15 +1,14 @@
 'use client';
 
-import { useState, type ReactElement, type SubmitEvent } from 'react';
+import { useState } from 'react';
 
+import { z } from 'zod';
 import { useApiAction } from '@/components/api/use-api-action';
-import {
-  addToken,
-  type TokenRequest,
-} from '@/app/(site)/settings/_components/settings-requests';
+import { addToken } from '@/app/(site)/settings/_components/settings-requests';
 import { buttonClass } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/notice';
-import { z } from 'zod';
+import type { TokenRequest } from '@/app/(site)/settings/_components/settings-requests';
+import type { ReactElement, SubmitEvent } from 'react';
 
 /** The fields the token form posts. */
 const tokenForm = z.object({
@@ -31,8 +30,12 @@ export function tokenRequest(form: FormData): TokenRequest {
       ...filtered,
     };
   }
-  if (choice === 'edition') return { scope: 'edition', ...filtered };
-  if (choice === 'highlights') return { scope: 'highlights' };
+  if (choice === 'edition') {
+    return { scope: 'edition', ...filtered };
+  }
+  if (choice === 'highlights') {
+    return { scope: 'highlights' };
+  }
   const tag = fields.tag.trim();
   return tag ? { scope: 'saves', tag } : { scope: 'saves' };
 }
@@ -104,6 +107,7 @@ export function AddTokenForm({
           <option value="focus">Only liked stories</option>
         </select>
         <input
+          aria-label="Only this tag"
           name="tag"
           type="text"
           placeholder="Only this tag (saved stories)"

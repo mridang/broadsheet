@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
 
 /** What the mocked Cloudflare context holds; null means there is no context at all. */
-const context: { current: { env: object; ctx: object } | null } = {
-  current: null,
+const context = {
+  current: null as { env: object; ctx: object } | null,
 };
 
+// eslint-disable-next-line tslop/no-module-mocking -- the module reads the runtime (cookies or the Cloudflare context), which a test cannot supply, so the test replaces it before importing the code under test
 jest.unstable_mockModule('@opennextjs/cloudflare', () => ({
   getCloudflareContext: () => {
     if (context.current === null) {
@@ -15,9 +16,9 @@ jest.unstable_mockModule('@opennextjs/cloudflare', () => ({
 }));
 
 const { imageCache, imagesBinding, runInBackground } =
-  await import('@/lib/cloudflare/images/server');
+  await import('@/lib/cloudflare/images/runtime');
 
-const realCaches = Reflect.get(globalThis, 'caches');
+const realCaches = (globalThis as { caches?: unknown }).caches;
 
 afterEach(() => {
   context.current = null;
@@ -87,7 +88,9 @@ describe('runInBackground', () => {
   it('logs work that fails rather than letting it escape', async () => {
     const log = jest.spyOn(console, 'error').mockImplementation(() => {});
     runInBackground(Promise.reject(new Error('boom')));
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => {
+      setTimeout(resolve, 0);
+    });
     expect(log).toHaveBeenCalledWith(
       'image background task failed',
       expect.any(Error),

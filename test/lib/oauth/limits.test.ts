@@ -7,8 +7,8 @@ import {
   retryAfterIfLimited,
   tooManyRequests,
 } from '@/lib/oauth';
-import type { RateLimit, RateLimitStore } from '@/lib/rate-limit';
 import ips from '../../fixtures/ips.json' with { type: 'json' };
+import type { RateLimit, RateLimitStore } from '@/lib/rate-limit';
 
 /** A store that counts hits per key in memory, in one never-ending window that opens at the first hit. */
 function countingStore(): RateLimitStore & { readonly keys: string[] } {
@@ -82,9 +82,10 @@ describe('clientAddress', () => {
 describe('retryAfterIfLimited', () => {
   it('lets requests through up to the limit, then says how long to wait', async () => {
     const store = countingStore();
-    expect(await retryAfterIfLimited(store, TWO, 'a', 100)).toBeUndefined();
-    expect(await retryAfterIfLimited(store, TWO, 'a', 100)).toBeUndefined();
-    expect(await retryAfterIfLimited(store, TWO, 'a', 110)).toBe(50);
+    const first = await retryAfterIfLimited(store, TWO, 'a', 100);
+    const second = await retryAfterIfLimited(store, TWO, 'a', 100);
+    const third = await retryAfterIfLimited(store, TWO, 'a', 110);
+    expect([first, second, third]).toEqual([undefined, undefined, 50]);
   });
 
   it('counts each subject separately', async () => {

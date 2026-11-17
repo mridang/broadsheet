@@ -104,12 +104,10 @@ export function relativeTime(
 ): string {
   const seconds = (new Date(when).getTime() - now.getTime()) / 1000;
   const magnitude = Math.abs(seconds);
-  for (const [unit, size] of UNITS) {
-    if (magnitude >= size) {
-      return relative.format(Math.round(seconds / size), unit);
-    }
-  }
-  return relative.format(0, 'second');
+  const found = UNITS.find(([, size]) => magnitude >= size);
+  return found
+    ? relative.format(Math.round(seconds / found[1]), found[0])
+    : relative.format(0, 'second');
 }
 
 /** Joins items with "and". */
@@ -283,14 +281,14 @@ export function truncate(text: string, limit: number): string {
   if (characterCount(text) <= limit) {
     return text;
   }
-  let kept = '';
-  let used = 0;
-  for (const { segment } of words.segment(text)) {
-    used += characterCount(segment);
-    if (used > limit) {
-      break;
-    }
-    kept += segment;
-  }
+  const prefix = [...graphemes.segment(text)]
+    .slice(0, limit)
+    .map(({ segment }) => segment)
+    .join('');
+  const kept = [...words.segment(text)]
+    .flatMap(({ index, segment }) =>
+      index + segment.length <= prefix.length ? [segment] : [],
+    )
+    .join('');
   return `${kept.trimEnd()}…`;
 }

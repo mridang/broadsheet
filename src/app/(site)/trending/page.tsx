@@ -1,10 +1,7 @@
-import type { Metadata } from 'next';
-import type { ReactElement } from 'react';
-
 import { ensurePublicUser } from '@/domain/account';
 import { parseArticleQuery } from '@/domain/api/article-resource';
 import { getDatabase } from '@/domain/db/client';
-import { Repository, type TrendingOrder } from '@/domain/repository';
+import { Repository } from '@/domain/repository';
 import { getCurrentUser } from '@/lib/core/auth';
 import { encodeCursor } from '@/lib/core/api';
 import { hostOf } from '@/domain/render/tiers';
@@ -13,6 +10,9 @@ import { buttonClass } from '@/components/ui/button';
 import { CHECK_LABEL } from '@/components/ui/field';
 import { EmptyState } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
+import type { TrendingOrder } from '@/domain/repository';
+import type { ReactElement } from 'react';
+import type { Metadata } from 'next';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,11 +44,15 @@ export default async function TrendingPage({
   searchParams: Promise<Record<string, string | undefined>>;
 }>): Promise<ReactElement> {
   const given = await searchParams;
-  const params = new URLSearchParams({ order: given['order'] ?? 'reads' });
-  for (const key of ['window', 'read', 'sort', 'cursor'] as const) {
-    const value = given[key];
-    if (value) params.set(key, value);
-  }
+  const params = new URLSearchParams({
+    order: given['order'] ?? 'reads',
+    ...Object.fromEntries(
+      (['window', 'read', 'sort', 'cursor'] as const).flatMap((key) => {
+        const value = given[key];
+        return value ? [[key, value]] : [];
+      }),
+    ),
+  });
   const input = parseArticleQuery(params);
   const trending = input.ok ? input.trending : undefined;
   const user = await getCurrentUser();
@@ -112,6 +116,7 @@ export default async function TrendingPage({
         {user ? (
           <label className={CHECK_LABEL}>
             <input
+              aria-label="Unread only"
               type="checkbox"
               name="read"
               value="false"

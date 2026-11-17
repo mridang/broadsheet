@@ -11,18 +11,20 @@ import {
   assertionSubject,
   fetchJwks,
   verifyClientAssertion,
-  type AssertionDeps,
 } from '@/lib/oauth/client-auth';
-import type { FormFields } from '@/lib/oauth/http';
 import { isOurResource } from '@/lib/oauth/metadata';
 import {
   exchangeAuthorizationCode,
   exchangeRefreshToken,
-  type OAuthFailure,
-  type OAuthStore,
-  type TokenResponse,
 } from '@/lib/oauth/token-endpoint';
 import { SITE_NAME } from '@/utils/site';
+import type {
+  OAuthFailure,
+  OAuthStore,
+  TokenResponse,
+} from '@/lib/oauth/token-endpoint';
+import type { AssertionDeps } from '@/lib/oauth/client-auth';
+import type { FormFields } from '@/lib/oauth/http';
 
 /** What the endpoint answers with, ready to turn into a response. */
 export type TokenRequestResult =

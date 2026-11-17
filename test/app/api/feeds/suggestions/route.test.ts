@@ -13,12 +13,16 @@ import {
   tokenFor,
 } from '../../../../domain/auth/auth-test-kit';
 
-const ANSWERS_200_WITH_A_PATTERN = /\/api\/feeds\/suggestions$/;
+const ANSWERS_200_WITH_A_PATTERN = /\/api\/feeds\/suggestions$/u;
 
 const { GET } = await import('@/app/api/feeds/suggestions/route');
 
 let restore: () => void;
-let auth: Record<string, string>;
+/** The Cookie header of the signed-in caller; empty for a signed-out one. */
+interface CallerCookie {
+  [name: string]: string;
+}
+let auth: CallerCookie;
 
 /** Persons 7 and 8 share a source; 8 also follows another. */
 beforeEach(async () => {

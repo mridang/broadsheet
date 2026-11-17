@@ -11,7 +11,7 @@ import {
   EXTRA_IMG_SOURCES,
 } from '@/lib/core/http';
 
-const IS_BASE64_OF_16_PATTERN = /^[A-Za-z0-9+/]+=*$/;
+const IS_BASE64_OF_16_PATTERN = /^[A-Za-z0-9+/]+=*$/u;
 
 describe('newNonce', () => {
   it('is base64 of 16 bytes, and different every time', () => {
@@ -55,7 +55,7 @@ describe('buildCsp', () => {
     'manifest-src',
     'worker-src',
   ])('names %s itself, since nothing falls back to the default', (name) => {
-    expect(directive(name)).toMatch(new RegExp(`^${name} 'self'`));
+    expect(directive(name)).toMatch(new RegExp(`^${name} 'self'`, 'u'));
   });
 
   it('allows pictures from this site and the places site.ts names, nothing else', () => {

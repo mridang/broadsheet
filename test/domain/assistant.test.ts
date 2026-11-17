@@ -29,14 +29,14 @@ import {
   storyBlock,
   toolCallsOf,
   usageDay,
-  type AnswerModel,
 } from '@/domain/assistant';
+import type { AnswerModel } from '@/domain/assistant';
 import type { Message, Passage } from '@/domain/repository';
 
-const PARSE_ANSWER_REQUEST_PATTERN = /^question_id: one of/;
-const PARSE_ANSWER_REQUEST_PATTERN_2 = /^model: one of/;
-const PARSE_ANSWER_REQUEST_PATTERN_3 = /^history\[0\]/;
-const SENDS_ONLY_THE_LAST_PATTERN = /Question: Q$/;
+const PARSE_ANSWER_REQUEST_PATTERN = /^question_id: one of/u;
+const PARSE_ANSWER_REQUEST_PATTERN_2 = /^model: one of/u;
+const PARSE_ANSWER_REQUEST_PATTERN_3 = /^history\[0\]/u;
+const SENDS_ONLY_THE_LAST_PATTERN = /Question: Q$/u;
 
 const passage = (id: number, title = `T${id}`): Passage => ({
   id,
@@ -474,7 +474,9 @@ function eventStream(text: string): ReadableStream<Uint8Array> {
 /** Every piece a generator yields. */
 async function collect(pieces: AsyncIterable<string>): Promise<string[]> {
   const out: string[] = [];
-  for await (const piece of pieces) out.push(piece);
+  for await (const piece of pieces) {
+    out.push(piece);
+  }
   return out;
 }
 

@@ -8,18 +8,21 @@
 
 import type { ScrapedItem } from './types';
 
-const BIGRAMS_PATTERN = /\s+/g;
-const MAX_AGE_MINUTES_PATTERN = /(?:^|,)\s*max-age\s*=\s*(\d+)/i;
+const BIGRAMS_PATTERN = /\s+/gu;
+const MAX_AGE_MINUTES_PATTERN = /(?:^|,)\s*max-age\s*=\s*(\d+)/iu;
 
 /** The pairs of adjacent characters in a text, for {@link similarity}. */
 function bigrams(text: string): Map<string, number> {
-  const pairs = new Map<string, number>();
   const s = text.toLowerCase().replaceAll(BIGRAMS_PATTERN, ' ').trim();
-  for (let index = 0; index < s.length - 1; index++) {
-    const pair = s.slice(index, index + 2);
-    pairs.set(pair, (pairs.get(pair) ?? 0) + 1);
-  }
-  return pairs;
+  const pairs = Array.from({ length: Math.max(0, s.length - 1) }, (_, index) =>
+    s.slice(index, index + 2),
+  );
+  return new Map(
+    Array.from(
+      Map.groupBy(pairs, (pair) => pair),
+      ([pair, same]): [string, number] => [pair, same.length],
+    ),
+  );
 }
 
 /**
@@ -28,13 +31,19 @@ function bigrams(text: string): Map<string, number> {
  * empty texts are alike.
  */
 export function similarity(a: string, b: string): number {
-  if (a === b) return 1;
+  if (a === b) {
+    return 1;
+  }
   const x = bigrams(a);
   const y = bigrams(b);
   const total = [...x.values(), ...y.values()].reduce((n, c) => n + c, 0);
-  if (!total) return a.trim() === b.trim() ? 1 : 0;
-  let shared = 0;
-  for (const [pair, count] of x) shared += Math.min(count, y.get(pair) ?? 0);
+  if (!total) {
+    return a.trim() === b.trim() ? 1 : 0;
+  }
+  const shared = [...x].reduce(
+    (sum, [pair, count]) => sum + Math.min(count, y.get(pair) ?? 0),
+    0,
+  );
   return (2 * shared) / total;
 }
 
@@ -49,7 +58,9 @@ const SAME_CONTENT = 0.98;
  * alike (NewsBlur's `_exists_story`).
  */
 export function sameStory(a: ScrapedItem, b: ScrapedItem): boolean {
-  if (a.guid && a.guid === b.guid) return true;
+  if (a.guid && a.guid === b.guid) {
+    return true;
+  }
   return (
     similarity(a.title, b.title) >= SAME_TITLE &&
     similarity(a.summary, b.summary) > SAME_CONTENT
@@ -63,22 +74,32 @@ export function sameStory(a: ScrapedItem, b: ScrapedItem): boolean {
  * the first of each set of {@link sameStory} items.
  */
 export function distinctStories(items: readonly ScrapedItem[]): ScrapedItem[] {
-  let repaired = [...items];
-  const ids = new Set(repaired.map((it) => it.guid ?? ''));
-  if (repaired.length > 1 && ids.size === 1) {
-    const links = new Set(repaired.map((it) => it.url));
-    repaired = repaired.map((it) => ({
-      ...it,
-      guid: links.size === repaired.length ? it.url : it.published_at || it.url,
-    }));
-  }
-  const kept: ScrapedItem[] = [];
-  for (const item of repaired) {
-    if (!kept.some((k) => k.url === item.url || sameStory(k, item))) {
-      kept.push(item);
+  const ids = new Set(items.map((it) => it.guid ?? ''));
+  const links = new Set(items.map((it) => it.url));
+  const repaired =
+    items.length > 1 && ids.size === 1
+      ? items.map((it) => ({
+          ...it,
+          guid:
+            links.size === items.length ? it.url : it.published_at || it.url,
+        }))
+      : [...items];
+  const keep = (
+    rest: readonly ScrapedItem[],
+    kept: readonly ScrapedItem[],
+  ): ScrapedItem[] => {
+    const [item, ...later] = rest;
+    if (!item) {
+      return [...kept];
     }
-  }
-  return kept;
+    return keep(
+      later,
+      kept.some((k) => k.url === item.url || sameStory(k, item))
+        ? kept
+        : [...kept, item],
+    );
+  };
+  return keep(repaired, []);
 }
 
 /** How busy a feed is, for {@link fetchIntervalMinutes}. */
@@ -111,22 +132,25 @@ export function fetchIntervalMinutes({
   notified = false,
 }: FeedActivity): number {
   const perDay = storiesLastMonth / 30;
-  let minutes: number;
-  if (perDay >= 1) {
-    if (subscribers >= 10) minutes = 6;
-    else if (subscribers > 1) minutes = 15;
-    else minutes = 45;
-  } else if (perDay > 0) {
-    minutes = subscribers > 1 ? 60 - perDay * 60 : 360 - perDay * 360;
-  } else {
-    let baseMinutes: number;
-    if (subscribers > 1) baseMinutes = 360;
-    else if (subscribers === 1) baseMinutes = 720;
-    else baseMinutes = 1440;
-    minutes = baseMinutes * Math.max(1, monthsSinceLastStory);
-  }
-  minutes = Math.min(minutes, subscribers >= 1 ? 240 : 2880);
-  if (notified) minutes = Math.min(minutes, NOTIFIED_INTERVAL_MINUTES);
+  const base = (() => {
+    if (perDay >= 1) {
+      if (subscribers >= 10) {
+        return 6;
+      }
+      return subscribers > 1 ? 15 : 45;
+    }
+    if (perDay > 0) {
+      return subscribers > 1 ? 60 - perDay * 60 : 360 - perDay * 360;
+    }
+    if (subscribers > 1) {
+      return 360 * Math.max(1, monthsSinceLastStory);
+    }
+    return (subscribers === 1 ? 720 : 1440) * Math.max(1, monthsSinceLastStory);
+  })();
+  const capped = Math.min(base, subscribers >= 1 ? 240 : 2880);
+  const minutes = notified
+    ? Math.min(capped, NOTIFIED_INTERVAL_MINUTES)
+    : capped;
   return Math.max(1, Math.round(minutes));
 }
 

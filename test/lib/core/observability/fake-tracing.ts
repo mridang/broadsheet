@@ -38,6 +38,7 @@ export function installFakeTracing(): FakeTracing {
       fake.exceptions.push(exception);
     },
   };
+  // eslint-disable-next-line tslop/no-module-mocking -- cloudflare:workers is imported directly by the code under test, which has no injection point; ESM needs the module replaced before the import
   jest.unstable_mockModule(
     'cloudflare:workers',
     () => ({

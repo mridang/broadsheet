@@ -1,4 +1,4 @@
-const WITH_QUERY_PARAMS_PATTERN = /^([^?#]*)(\?[^#]*)?(#.*)?$/;
+const WITH_QUERY_PARAMS_PATTERN = /^([^?#]*)(\?[^#]*)?(#.*)?$/u;
 /**
  * @packageDocumentation
  *

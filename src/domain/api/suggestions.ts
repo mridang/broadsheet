@@ -10,21 +10,16 @@
  * `GET /api/articles/{id}/similar?scope=all` (see `api/articles`).
  */
 
-import {
-  liveUid,
-  requestCookieResolver,
-  type CurrentUserResolver,
-} from '@/domain/api/auth';
+import { liveUid, requestCookieResolver } from '@/domain/api/auth';
 import { parentIdOf } from '@/domain/api/answers';
 import { parseFeedId } from '@/domain/api/feed-resource';
 import { ApiController, page, problems } from '@/lib/core/api';
-import { pageRequest, type PageRequest } from '@/domain/api/paging';
+import { pageRequest } from '@/domain/api/paging';
 import { getDatabase } from '@/domain/db/client';
-import {
-  Repository,
-  type SimilarSource,
-  type SourceSuggestion,
-} from '@/domain/repository';
+import { Repository } from '@/domain/repository';
+import type { PageRequest } from '@/domain/api/paging';
+import type { CurrentUserResolver } from '@/domain/api/auth';
+import type { SimilarSource, SourceSuggestion } from '@/domain/repository';
 
 /** How many suggestions a list holds at most. */
 export const MAX_SUGGESTIONS = 10;
@@ -139,13 +134,17 @@ export function createSimilarFeeds(
       { request, uid },
     ): Promise<{ items: SimilarSource[]; next?: number } | undefined> => {
       const id = parseFeedId(parentIdOf(request));
-      if (id === undefined) return undefined;
+      if (id === undefined) {
+        return undefined;
+      }
       const all = await new Repository(getDatabase()).similarSources(
         uid,
         id,
         MAX_SIMILAR_SOURCES,
       );
-      if (!all) return undefined;
+      if (!all) {
+        return undefined;
+      }
       const start = after ? Number(after.key) : 0;
       const items = all.slice(start, start + limit);
       return start + limit < all.length
@@ -153,7 +152,9 @@ export function createSimilarFeeds(
         : { items };
     },
     encode: (found) => {
-      if (!found) return problems.notFound('feed');
+      if (!found) {
+        return problems.notFound('feed');
+      }
       const next =
         found.next === undefined
           ? undefined

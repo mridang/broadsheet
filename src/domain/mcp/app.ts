@@ -17,11 +17,11 @@ export const SCOPE_READ = 'read';
 export const SCOPE_WRITE = 'write';
 
 /** What each scope lets the app do, in plain words, for the approval screen. */
-export const SCOPE_TEXT: Readonly<Record<string, string>> = {
+export const SCOPE_TEXT = {
   [SCOPE_READ]: 'See your feeds, your paper and your archive',
   [SCOPE_WRITE]:
     'Follow and unfollow feeds, save and read stories, and train what you are shown',
-};
+} satisfies Readonly<Record<string, string>>;
 
 /**
  * What a read-only connection may still do, in a few words, for the approval
@@ -42,5 +42,3 @@ export const SUPPORTED_SCOPES = [SCOPE_READ, SCOPE_WRITE] as const;
 export function explainFailure(_error: unknown): string | undefined {
   return undefined;
 }
-
-export { BRAND_NAME as RESOURCE_NAME } from '@/app/_brand';

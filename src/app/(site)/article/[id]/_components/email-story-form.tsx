@@ -1,14 +1,15 @@
 'use client';
 
+import { useState } from 'react';
+import { z } from 'zod';
 import { ROW_LINK } from '@/components/stories/story-row';
-import { useState, type SubmitEvent, type ReactElement } from 'react';
 
 import { problemError } from '@/components/api/problem-message';
 import { useApiAction } from '@/components/api/use-api-action';
 import { Button, TextLink } from '@/components/ui/button';
 import { CARD, CHECK_LABEL } from '@/components/ui/field';
 import { ErrorText } from '@/components/ui/notice';
-import { z } from 'zod';
+import type { SubmitEvent, ReactElement } from 'react';
 
 /** The fields the email form posts. */
 const emailForm = z.object({
@@ -18,12 +19,7 @@ const emailForm = z.object({
 });
 
 /** The body a filled-in email form posts. */
-export function emailRequest(form: FormData): {
-  readonly to: string;
-  readonly comment?: string;
-  readonly copy_me: boolean;
-  readonly from_name?: string;
-} {
+export function emailRequest(form: FormData) {
   const fields = emailForm.parse(Object.fromEntries(form));
   const comment = fields.comment.trim();
   const name = fields.from_name.trim();
@@ -56,10 +52,12 @@ export function EmailStoryForm({
         body: JSON.stringify(body),
       });
       if (res.status === 503) {
-        globalThis.location.href = mailto;
+        globalThis.location.assign(mailto);
         return;
       }
-      if (!res.ok) throw await problemError(res);
+      if (!res.ok) {
+        throw await problemError(res);
+      }
     }, 'Could not send that email.');
   };
   return (
@@ -97,8 +95,13 @@ export function EmailStoryForm({
             className="h-20"
           />
           <label className={CHECK_LABEL}>
-            <input name="copy_me" type="checkbox" defaultChecked /> Send me a
-            copy
+            <input
+              aria-label="Send me a copy"
+              name="copy_me"
+              type="checkbox"
+              defaultChecked
+            />{' '}
+            Send me a copy
           </label>
           <Button
             size="sm"

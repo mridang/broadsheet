@@ -11,13 +11,8 @@ import {
   parsePreferenceChanges,
   preferencesResource,
   sourceSection,
-  type PreferencesResource,
 } from '@/domain/api/preference-resource';
-import {
-  liveUid,
-  requestCookieResolver,
-  type CurrentUserResolver,
-} from '@/domain/api/auth';
+import { liveUid, requestCookieResolver } from '@/domain/api/auth';
 import {
   ApiController,
   entityTag,
@@ -26,8 +21,11 @@ import {
   problems,
   readJsonObject,
 } from '@/lib/core/api';
-import { Repository, type Preferences } from '@/domain/repository';
+import { Repository } from '@/domain/repository';
 import { getDatabase } from '@/domain/db/client';
+import type { Preferences } from '@/domain/repository';
+import type { CurrentUserResolver } from '@/domain/api/auth';
+import type { PreferencesResource } from '@/domain/api/preference-resource';
 
 /** The signed-in caller's id and the request. */
 interface UidContext {
@@ -83,7 +81,9 @@ export function createPreferencesItem(
           request,
           'The change must be a JSON object.',
         );
-        if (!body.ok) throw body.response;
+        if (!body.ok) {
+          throw body.response;
+        }
         const input = parsePreferenceChanges(body.value);
         if (!input.ok) {
           throw problems.badRequest('The change is not valid.', input.errors);

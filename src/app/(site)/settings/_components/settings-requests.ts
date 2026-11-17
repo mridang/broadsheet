@@ -86,7 +86,9 @@ export async function setNotification(
         })
       : await fetch(path, { method: 'DELETE' });
   // Stopping a feed that did not notify is already done.
-  if (res.status !== 404 || request.channels.length > 0) await ensureOk(res);
+  if (res.status !== 404 || request.channels.length > 0) {
+    await ensureOk(res);
+  }
 }
 
 /** A new notification rule, as the form fills it in. */

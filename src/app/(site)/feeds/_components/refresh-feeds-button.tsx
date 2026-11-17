@@ -1,10 +1,9 @@
 'use client';
 
-import type { ReactElement } from 'react';
-
 import { refreshFeeds } from '@/app/(site)/feeds/_components/feed-requests';
 import { useFeedAction } from '@/app/(site)/feeds/_components/use-feed-action';
 import { buttonClass } from '@/components/ui/button';
+import type { ReactElement } from 'react';
 
 /** "Refresh now": fetch every followed feed again. */
 export function RefreshFeedsButton(): ReactElement {
@@ -15,7 +14,9 @@ export function RefreshFeedsButton(): ReactElement {
         type="button"
         className={buttonClass({ variant: 'outline', size: 'sm' })}
         disabled={busy}
-        onClick={() => void run(refreshFeeds, 'Could not refresh the feeds.')}
+        onClick={() => {
+          void run(refreshFeeds, 'Could not refresh the feeds.');
+        }}
       >
         Refresh now
       </button>

@@ -10,12 +10,12 @@
  * date means from one tool should not meet a different rule in the next.
  */
 
+import { z } from 'zod';
 import { articleResource } from '@/domain/api/article-resource';
 import { ToolFailureError } from '@/domain/mcp/tool-failure';
 import { isIssueDate } from '@/domain/issues';
 import type { Repository, Section } from '@/domain/repository';
 import type { SharedStory } from '@/domain/shares';
-import { z } from 'zod';
 
 /** A positive whole-number id. */
 export const id = (what: string) =>
@@ -27,7 +27,9 @@ export function checked<T>(
     | ({ readonly ok: true } & T)
     | { readonly ok: false; readonly errors: readonly string[] },
 ): T {
-  if (!result.ok) throw new ToolFailureError(result.errors.join(' '));
+  if (!result.ok) {
+    throw new ToolFailureError(result.errors.join(' '));
+  }
   return result;
 }
 
@@ -37,7 +39,7 @@ export const MAX_SEARCH = 50;
 /** A calendar day written YYYY-MM-DD. */
 export const isoDate = z
   .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .regex(/^\d{4}-\d{2}-\d{2}$/u)
   .refine(isIssueDate, 'not a calendar date');
 
 /** How many rows one search fetches while filtering. */
@@ -58,19 +60,27 @@ export async function collect<T extends { readonly id: number }>(
   start?: number,
 ): Promise<{ readonly items: T[]; readonly next?: number }> {
   const items: T[] = [];
+  // eslint-disable-next-line functional/no-let -- where the next batch starts, moved on as rows are read
   let before = start;
+  // eslint-disable-next-line functional/no-let, functional/no-loop-statements -- batches are fetched one after another
   for (let batch = 0; batch < MAX_BATCHES; batch++) {
     const rows = await fetch(before, BATCH);
     const page = rows.slice(0, BATCH);
+    // eslint-disable-next-line functional/no-loop-statements -- reads the rows in order and stops at the limit
     for (const row of page) {
-      if (keep(row)) items.push(row);
+      if (keep(row)) {
+        // eslint-disable-next-line functional/immutable-data -- collects the rows that pass
+        items.push(row);
+      }
       before = row.id;
       if (items.length === limit) {
         const more = row !== page.at(-1) || rows.length > BATCH;
         return more ? { items, next: row.id } : { items };
       }
     }
-    if (rows.length <= BATCH) return { items };
+    if (rows.length <= BATCH) {
+      return { items };
+    }
   }
   return before === undefined ? { items } : { items, next: before };
 }
@@ -81,10 +91,13 @@ export function sectionTree(
   root: number,
 ): Set<number> {
   const tree = new Set([root]);
+  // eslint-disable-next-line functional/no-let, functional/no-loop-statements -- repeats until no section is added to the tree
   for (let grew = true; grew;) {
     grew = false;
+    // eslint-disable-next-line functional/no-loop-statements -- visits each section once per pass
     for (const s of sections) {
       if (s.parent_id !== null && tree.has(s.parent_id) && !tree.has(s.id)) {
+        // eslint-disable-next-line functional/immutable-data -- grows the tree being built
         tree.add(s.id);
         grew = true;
       }
@@ -126,24 +139,24 @@ export async function feedScope(
   if (named.some((f) => !mine.has(f))) {
     throw new ToolFailureError('There is no such feed.');
   }
-  let ids = named.length > 0 ? named : [...mine];
-  if (scope.section_id !== undefined) {
-    if (!sections.some((s) => s.id === scope.section_id)) {
-      throw new ToolFailureError('There is no such section.');
-    }
-    const tree = sectionTree(sections, scope.section_id);
-    const inTree = new Set(
-      feeds
-        .filter((f) => f.section_id !== null && tree.has(f.section_id))
-        .map((f) => f.id),
-    );
-    ids = ids.filter((f) => inTree.has(f));
+  const ids = named.length > 0 ? named : [...mine];
+  if (scope.section_id === undefined) {
+    return ids;
   }
-  return ids;
+  if (!sections.some((s) => s.id === scope.section_id)) {
+    throw new ToolFailureError('There is no such section.');
+  }
+  const tree = sectionTree(sections, scope.section_id);
+  const inTree = new Set(
+    feeds
+      .filter((f) => f.section_id !== null && tree.has(f.section_id))
+      .map((f) => f.id),
+  );
+  return ids.filter((f) => inTree.has(f));
 }
 
 /** A shared story as the tools show it: never the sharer's email. */
-export function shareResource(share: SharedStory): Record<string, unknown> {
+export function shareResource(share: SharedStory) {
   return {
     share_id: String(share.id),
     article: articleResource(share.article),

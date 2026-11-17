@@ -1,7 +1,6 @@
-import type { ReactElement, ReactNode } from 'react';
-
 import { cn } from '@/components/ui/cn';
 import { PageHeader } from '@/components/ui/page-header';
+import type { ReactElement, ReactNode } from 'react';
 
 /**
  * The frame of a day's paper: its title and the date controls, the row of
@@ -28,7 +27,9 @@ export function FrontPage({
   return (
     <div
       className={cn(
-        side != null && 'xl:grid xl:grid-cols-[minmax(0,1fr)_18rem] xl:gap-10',
+        side !== undefined &&
+          side !== null &&
+          'xl:grid xl:grid-cols-[minmax(0,1fr)_18rem] xl:gap-10',
       )}
     >
       <div className="min-w-0">

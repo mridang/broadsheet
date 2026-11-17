@@ -5,20 +5,15 @@
  * is keyed by the article it keeps. Each runs as the signed-in person.
  */
 
-import {
-  liveUid,
-  requestCookieResolver,
-  type CurrentUserResolver,
-} from '@/domain/api/auth';
+import { liveUid, requestCookieResolver } from '@/domain/api/auth';
 import { parseFeedId } from '@/domain/api/feed-resource';
 import { idOf } from '@/domain/api/feeds';
 import { MAX_QUERY_LENGTH } from '@/domain/api/article-resource';
-import { newestPage, pageRequest, type PageRequest } from '@/domain/api/paging';
+import { newestPage, pageRequest } from '@/domain/api/paging';
 import {
   parseSaveInput,
   parseSaveTagInput,
   saveResource,
-  type SaveBody,
 } from '@/domain/api/save-resource';
 import {
   readJsonObject,
@@ -28,11 +23,15 @@ import {
   created,
   noContent,
   page,
-  type Slice,
 } from '@/lib/core/api';
-import { Repository, type SavedStory } from '@/domain/repository';
+import { Repository } from '@/domain/repository';
 import { getDatabase } from '@/domain/db/client';
 import { fireWebhooks } from '@/domain/notify';
+import type { SavedStory } from '@/domain/repository';
+import type { Slice } from '@/lib/core/api';
+import type { SaveBody } from '@/domain/api/save-resource';
+import type { PageRequest } from '@/domain/api/paging';
+import type { CurrentUserResolver } from '@/domain/api/auth';
 
 /** The signed-in caller's id and the request, for a save endpoint. */
 interface UidContext {
@@ -58,7 +57,9 @@ async function feedSource(
   raw: string | null,
   uid: number,
 ): Promise<number | undefined> {
-  if (raw === null) return undefined;
+  if (raw === null) {
+    return undefined;
+  }
   const id = parseFeedId(raw);
   const feed =
     id === undefined
@@ -79,10 +80,13 @@ async function feedSource(
 async function optionalObject(
   request: Request,
 ): Promise<Readonly<Record<string, unknown>>> {
-  if (!request.headers.has('content-type') && !(await request.clone().text()))
+  if (!request.headers.has('content-type') && !(await request.clone().text())) {
     return {};
+  }
   const body = await readJsonObject(request, 'The save must be a JSON object.');
-  if (!body.ok) throw body.response;
+  if (!body.ok) {
+    throw body.response;
+  }
   return body.value;
 }
 
@@ -185,11 +189,15 @@ export function createSaveItem(
           ...saved,
           story: annotated ?? saved.story,
         };
-        if (result) fireWebhooks(uid, 'save', saveResource(result.story));
+        if (result) {
+          fireWebhooks(uid, 'save', saveResource(result.story));
+        }
         return result;
       },
       encode: (result) => {
-        if (!result) return problems.notFound('article');
+        if (!result) {
+          return problems.notFound('article');
+        }
         const body = saveResource(result.story);
         const at = `/api/users/self/saves/${body.article_id}`;
         return result.created ? created(body, at) : ok(body, { location: at });
@@ -281,7 +289,9 @@ export function createSaveTagItem(
           request,
           'The tag must be a JSON object.',
         );
-        if (!body.ok) throw body.response;
+        if (!body.ok) {
+          throw body.response;
+        }
         const input = parseSaveTagInput(body.value);
         if (!input.ok) {
           throw problems.badRequest('The tag is not valid.', input.errors);

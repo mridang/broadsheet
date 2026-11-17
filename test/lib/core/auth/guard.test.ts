@@ -8,7 +8,6 @@ import {
 } from '@jest/globals';
 
 import { SESSION_COOKIE } from '@/domain/auth/app';
-import type { User } from '@/domain/auth/store';
 import {
   appRequest,
   fakeCookies,
@@ -16,7 +15,9 @@ import {
   jar,
   tokenFor,
 } from '../../../domain/auth/auth-test-kit';
+import type { User } from '@/domain/repository';
 
+// eslint-disable-next-line tslop/no-module-mocking -- next/headers is imported directly by the code under test, which has no injection point; ESM needs the module replaced before the import
 jest.unstable_mockModule('next/headers', () => ({ cookies: fakeCookies }));
 
 const getUserById = jest.fn(async (id: number) =>
@@ -25,6 +26,7 @@ const getUserById = jest.fn(async (id: number) =>
     : undefined,
 );
 
+// eslint-disable-next-line tslop/no-module-mocking -- @/domain/auth/store is imported directly by the code under test, which has no injection point; ESM needs the module replaced before the import
 jest.unstable_mockModule('@/domain/auth/store', () => ({
   getUserById,
   getSessionEpoch: async () => 0,

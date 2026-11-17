@@ -19,7 +19,7 @@ import {
  * What is particular to the app (its schema.org category, what a visitor must
  * have, and its feature list) comes from `@/utils/site`.
  */
-export function landingJsonLd(): Readonly<Record<string, unknown>> {
+export function landingJsonLd() {
   return {
     '@context': 'https://schema.org',
     '@graph': [

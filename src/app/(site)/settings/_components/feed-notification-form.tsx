@@ -1,16 +1,14 @@
 'use client';
 
-import type { ReactElement, SubmitEvent } from 'react';
-
+import { z } from 'zod';
 import { useApiAction } from '@/components/api/use-api-action';
-import {
-  setNotification,
-  type NotificationRequest,
-} from '@/app/(site)/settings/_components/settings-requests';
+
+import { setNotification } from '@/app/(site)/settings/_components/settings-requests';
 import { buttonClass } from '@/components/ui/button';
 import { CHECK_LABEL, SMALL_FIELD } from '@/components/ui/field';
 import { ErrorText } from '@/components/ui/notice';
-import { z } from 'zod';
+import type { NotificationRequest } from '@/app/(site)/settings/_components/settings-requests';
+import type { ReactElement, SubmitEvent } from 'react';
 
 /** The one text field the notification form posts. */
 const notificationForm = z.object({ filter: z.string().default('unread') });
@@ -71,6 +69,7 @@ export function FeedNotificationForm({
       {(['web', 'email', 'webhook'] as const).map((channel) => (
         <label key={channel} className={CHECK_LABEL}>
           <input
+            aria-label={CHANNEL_LABELS[channel]}
             name="channels"
             type="checkbox"
             value={channel}

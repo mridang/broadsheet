@@ -34,7 +34,9 @@ describe('without a Cloudflare context (tests, scripts)', () => {
   it('logs background work that fails rather than letting it escape', async () => {
     const log = jest.spyOn(console, 'error').mockImplementation(() => {});
     runInBackground(Promise.reject(new Error('boom')));
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => {
+      setTimeout(resolve, 0);
+    });
     expect(log).toHaveBeenCalledWith(
       'background task failed',
       expect.any(Error),

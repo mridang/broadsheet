@@ -3,8 +3,8 @@ import { describe, expect, it } from '@jest/globals';
 import { BRAND_URL, CRAWLABLE_PATHS, PRIVATE_PATHS } from '@/app/_brand';
 import robots from '@/app/robots';
 
-const MATCHES_PATTERN = /[.+?^{}()|[\]\\]/g;
-const LETS_CRAWLERS_READ_EACH_PATTERN = /\$$/;
+const MATCHES_PATTERN = /[.+?^{}()|[\]\\]/gu;
+const LETS_CRAWLERS_READ_EACH_PATTERN = /\$$/u;
 
 type Group = { userAgent: string; allow: string[]; disallow: string[] };
 
@@ -20,10 +20,10 @@ describe('robots.txt', () => {
   const allowed = (target: string): boolean => {
     const matches = (pattern: string): boolean => {
       const escaped = pattern.replaceAll(MATCHES_PATTERN, String.raw`\$&`);
-      return new RegExp(`^${escaped.replaceAll('*', '.*')}`).test(target);
+      return new RegExp(`^${escaped.replaceAll('*', '.*')}`, 'u').test(target);
     };
     const hit = (patterns: string[]): number =>
-      Math.max(-1, ...patterns.filter((p) => matches(p)).map((p) => p.length));
+      Math.max(-1, ...patterns.flatMap((p) => (matches(p) ? [p.length] : [])));
     return hit(rule.allow) >= hit(rule.disallow);
   };
 

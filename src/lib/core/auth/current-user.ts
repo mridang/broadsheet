@@ -10,14 +10,12 @@
 import { cookies } from 'next/headers';
 
 import { SESSION_COOKIE } from '@/domain/auth/app';
-import {
-  SessionTokens,
-  sessionIsCurrent,
-  type SessionPayload,
-} from '@/lib/session';
-import { getSessionEpoch, getUserById, type User } from '@/domain/auth/store';
+import { SessionTokens, sessionIsCurrent } from '@/lib/session';
+import { getSessionEpoch, getUserById } from '@/domain/auth/store';
 import { setErrorContext } from '@/lib/core/observability/context';
 import { getEnv } from '@/lib/core/runtime';
+import type { User } from '@/domain/repository';
+import type { SessionPayload } from '@/lib/session';
 
 /**
  * The user for the current request, or null when not signed in, the session is

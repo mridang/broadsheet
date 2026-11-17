@@ -17,11 +17,7 @@ import {
   UnknownToolError,
   isPlainObject,
   negotiateLegacyVersion,
-  type JsonRpcResponse,
-  type ToolArgs,
 } from '@/lib/mcp';
-
-export type { JsonRpcResponse } from '@/lib/mcp';
 import {
   INSTRUCTIONS,
   SERVER_INFO,
@@ -32,10 +28,12 @@ import { RESOURCES } from '@/domain/mcp/resources';
 import { callToolOrExplain } from '@/domain/mcp/tool-calls';
 import { TOOLS } from '@/domain/mcp/tool-definitions';
 import { ToolFailureError } from '@/domain/mcp/tool-failure';
-import { toolContext, type ToolContext } from '@/domain/mcp/tool-context';
+import { toolContext } from '@/domain/mcp/tool-context';
+import { TOOL_REGISTRY } from '@/domain/mcp/tools';
+import type { JsonRpcResponse, ToolArgs } from '@/lib/mcp';
+import type { ToolContext } from '@/domain/mcp/tool-context';
 import type { ToolServices } from '@/domain/mcp/tool-services';
 import type { User } from '@/domain/db/users';
-import { TOOL_REGISTRY } from '@/domain/mcp/tools';
 
 /** What runs a `tools/call`; a test passes its own. */
 export type ToolRunner = typeof callToolOrExplain;
@@ -55,7 +53,7 @@ export function isAdvertisedTool(name: unknown): name is string {
 }
 
 /** The `initialize` reply: what this server is and what it can do. */
-function initializeResult(params: ToolArgs | undefined): object {
+function initializeResult(params: ToolArgs | undefined) {
   return {
     protocolVersion: negotiateLegacyVersion(params?.['protocolVersion']),
     capabilities: {
@@ -69,7 +67,7 @@ function initializeResult(params: ToolArgs | undefined): object {
 }
 
 /** The answer to `resources/list`: every resource with a fixed address. */
-function resourceListResult(): object {
+function resourceListResult() {
   return {
     resources: RESOURCES.filter((resource) => resource.uri).map(
       ({ uri, name, description }) => ({
@@ -83,7 +81,7 @@ function resourceListResult(): object {
 }
 
 /** The answer to `resources/templates/list`: the addresses with parameters. */
-function resourceTemplateListResult(): object {
+function resourceTemplateListResult() {
   return {
     resourceTemplates: RESOURCES.filter((resource) => resource.uriTemplate).map(
       ({ uriTemplate, name, description }) => ({
@@ -131,7 +129,7 @@ async function readResource(
 }
 
 /** The answer to `prompts/list`. */
-function promptListResult(): object {
+function promptListResult() {
   return {
     prompts: PROMPTS.map(({ name, title, description, arguments: args }) => ({
       name,
@@ -146,7 +144,7 @@ function promptListResult(): object {
  * The answer to `prompts/get`: the request, rendered from its arguments.
  * @throws {RpcError} If no such prompt exists, or a required argument is absent.
  */
-function promptResult(params: ToolArgs | undefined): object {
+function promptResult(params: ToolArgs | undefined) {
   const prompt = PROMPTS.find(
     (candidate) => candidate.name === String(params?.['name']),
   );

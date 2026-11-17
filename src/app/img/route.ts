@@ -11,14 +11,14 @@
  * a month.
  */
 
+import { ImageService } from '@/lib/cloudflare/images/server';
 import {
-  ImageService,
   imageCache,
   imageSigner,
   imagesBinding,
   runInBackground,
-  type ImageAccess,
-} from '@/lib/cloudflare/images/server';
+} from '@/lib/cloudflare/images/runtime';
+import type { ImageAccess } from '@/lib/cloudflare/images/service';
 
 /**
  * `GET /img?url=…&w=…`: the picture at `url`, scaled to the nearest

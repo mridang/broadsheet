@@ -7,11 +7,9 @@
  * sign-in code never touches the database itself.
  */
 
-import { Repository, type Profile, type User } from '@/domain/repository';
+import { Repository } from '@/domain/repository';
 import { getDatabase } from '@/domain/db/client';
-
-/** What Google tells us about a person who has just signed in. */
-export type GoogleProfile = Profile;
+import type { Profile, User } from '@/domain/repository';
 
 /** The repository bound to the current request's database. */
 function repo(): Repository {
@@ -20,7 +18,7 @@ function repo(): Repository {
 
 /** Find the person by their Google account, creating them on first sign-in and refreshing their profile on return. */
 export async function upsertGoogleUser(
-  profile: Readonly<GoogleProfile>,
+  profile: Readonly<Profile>,
 ): Promise<User> {
   return repo().upsertUser(profile);
 }
@@ -39,5 +37,3 @@ export async function getSessionEpoch(id: number): Promise<number | undefined> {
 export async function bumpSessionEpoch(id: number): Promise<void> {
   return repo().bumpSessionEpoch(id);
 }
-
-export { type User } from '@/domain/repository';

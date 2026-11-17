@@ -7,8 +7,7 @@
  * replace that feed's stored articles. Optionally upgrades source names via
  * names via Workers AI (the `AI` binding).
  */
-import type { Database } from '@/domain/db/client';
-import { Repository, type Source } from '@/domain/repository';
+import { Repository } from '@/domain/repository';
 import { errorMessage, logInfo, logWarn } from '@/utils/logging';
 import {
   articleText,
@@ -31,16 +30,18 @@ import {
   parseFeed,
   siteName,
 } from '@/lib/scraping';
-import type { FeedDetails, ScrapedItem, WebSubLinks } from '@/lib/scraping';
 import {
   firstWorkingIcon,
   iconCandidates,
   manifestIcons,
   manifestUrl,
   pageIcons,
-  type IconFetcher,
 } from '@/domain/scraping/icons';
 import { needsSubscription, subscribeToHub } from '@/domain/websub';
+import type { IconFetcher } from '@/domain/scraping/icons';
+import type { Source } from '@/domain/repository';
+import type { FeedDetails, ScrapedItem, WebSubLinks } from '@/lib/scraping';
+import type { Database } from '@/domain/db/client';
 
 export type { ScrapedItem } from '@/lib/scraping';
 
@@ -91,7 +92,7 @@ async function siteIcon(
   details: FeedDetails,
   feedUrl: string,
 ): Promise<string> {
-  const site = details.site_url || new URL(feedUrl).origin + '/';
+  const site = details.site_url || `${new URL(feedUrl).origin}/`;
   const page = await get(site, 10_000);
   const manifest = manifestUrl(page, site);
   const candidates = iconCandidates({
@@ -108,17 +109,18 @@ async function siteIcon(
 /** Optional: LLM-resolve canonical source names in one batched call. */
 async function resolveNames(
   env: CloudflareEnv,
-  items: ScrapedItem[],
-): Promise<void> {
-  if (!env.AI || items.length === 0) return;
+  items: readonly ScrapedItem[],
+): Promise<ScrapedItem[]> {
+  if (!env.AI || items.length === 0) {
+    return [...items];
+  }
   const list = items
     .map((it, index) => `${index}\t${hostOf(it.url)}\t${it.title}`)
     .join('\n');
   const prompt =
-    'For each line `index<TAB>domain<TAB>title`, return the canonical publisher or ' +
-    'author name (e.g. cs.cornell.edu -> Cornell University, mnot.net -> Mark Nottingham). ' +
-    'Reply ONLY with JSON: {"names":{"<index>":"<name>"}}.\n\n' +
-    list;
+    `For each line \`index<TAB>domain<TAB>title\`, return the canonical publisher or ` +
+    `author name (e.g. cs.cornell.edu -> Cornell University, mnot.net -> Mark Nottingham). ` +
+    `Reply ONLY with JSON: {"names":{"<index>":"<name>"}}.\n\n${list}`;
   try {
     const out = await env.AI.run('@cf/meta/llama-3.1-8b-instruct-fast', {
       messages: [{ role: 'user', content: prompt }],
@@ -126,59 +128,58 @@ async function resolveNames(
     // Workers AI returns `response` as a string, or (for JSON output) an
     // already-parsed object.
     const resp = (out as { response?: unknown }).response;
-    let parsed: { names?: Record<string, string> } | null = null;
-    if (resp && typeof resp === 'object') {
-      parsed = resp;
-    } else if (typeof resp === 'string') {
-      // The first '{' through the last '}', as the pattern `\{[\s\S]*\}` matched.
-      const start = resp.indexOf('{');
-      const end = resp.lastIndexOf('}');
-      if (start !== -1 && end > start)
-        parsed = JSON.parse(resp.slice(start, end + 1)) as {
-          names?: Record<string, string>;
-        };
-    } else {
-      // Neither an object nor text: there are no names to read.
-    }
+    // The first '{' through the last '}', as the pattern `\{[\s\S]*\}` matched.
+    const text = typeof resp === 'string' ? resp : '';
+    const start = text.indexOf('{');
+    const end = text.lastIndexOf('}');
+    const block = start !== -1 && end > start ? text.slice(start, end + 1) : '';
+    const fromText = block
+      ? (JSON.parse(block) as { names?: Record<string, string> })
+      : null;
+    const parsed: { names?: Record<string, string> } | null =
+      resp && typeof resp === 'object' ? resp : fromText;
     const names = parsed?.names ?? {};
-    let applied = 0;
-    for (const [index, it] of items.entries()) {
-      const n = names[String(index)];
-      if (n?.trim()) {
-        it.source = n.trim().slice(0, 60);
-        applied++;
-      }
-    }
+    const named = items.map((it, index) => {
+      const n = names[String(index)]?.trim();
+      return n ? { ...it, source: n.slice(0, 60) } : it;
+    });
+    const applied = named.filter((it, index) => it !== items[index]).length;
     logInfo({ event: 'ai.applied', applied, total: items.length });
+    return named;
   } catch (error) {
     logWarn({
       event: 'ai.failed',
       error: error instanceof Error ? error.message : String(error),
     });
+    return [...items];
   }
 }
 
 /**
- * Enrich the newest items in place: og:image, fallback summary, site name and
+ * Enrich the newest items: og:image, fallback summary, site name and
  * the article's readable text.
  */
-async function enrich(items: ScrapedItem[]): Promise<void> {
-  await Promise.all(
+async function enrich(items: readonly ScrapedItem[]): Promise<ScrapedItem[]> {
+  const head = await Promise.all(
     items.slice(0, ENRICH).map(async (it) => {
       const page = await get(it.url, 12_000);
-      if (!page) return;
-      const img = ogImage(page, it.url);
-      if (img && !it.image) it.image = img;
-      if (!it.summary) {
-        const desc = pageDescription(page);
-        if (desc) it.summary = desc;
+      if (!page) {
+        return it;
       }
+      const img = ogImage(page, it.url);
+      const desc = it.summary ? '' : pageDescription(page);
       const name = siteName(page);
-      if (name) it.source = name;
       const text = articleText(page);
-      if (text.length >= MIN_TEXT) it.body_text = text;
+      return {
+        ...it,
+        ...(img && !it.image ? { image: img } : {}),
+        ...(desc ? { summary: desc } : {}),
+        ...(name ? { source: name } : {}),
+        ...(text.length >= MIN_TEXT ? { body_text: text } : {}),
+      };
     }),
   );
+  return [...head, ...items.slice(ENRICH)];
 }
 
 /** The current edition date (YYYY-MM-DD, UTC). */
@@ -234,17 +235,23 @@ async function fetchOnce(
   validators: { etag?: string | null; lastModified?: string | null },
   agent: string,
 ): Promise<FeedAnswer> {
-  const headers: Record<string, string> = {
+  const headers = {
     'user-agent': agent,
     accept:
       'application/rss+xml, application/atom+xml, application/feed+json, application/xml;q=0.9, */*;q=0.8',
+    ...(validators.etag ? { 'if-none-match': validators.etag } : {}),
+    ...(validators.lastModified
+      ? { 'if-modified-since': validators.lastModified }
+      : {}),
   };
-  if (validators.etag) headers['if-none-match'] = validators.etag;
-  if (validators.lastModified)
-    headers['if-modified-since'] = validators.lastModified;
-  let at = url;
-  let permanent = true;
-  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+  const follow = async (
+    at: string,
+    permanent: boolean,
+    hop: number,
+  ): Promise<FeedAnswer> => {
+    if (hop > MAX_REDIRECTS) {
+      throw new Error('The feed redirects too many times.');
+    }
     const r = await fetch(at, {
       headers,
       redirect: 'manual',
@@ -252,9 +259,11 @@ async function fetchOnce(
     });
     const location = r.headers.get('location');
     if (r.status >= 300 && r.status < 400 && r.status !== 304 && location) {
-      permanent &&= r.status === 301 || r.status === 308;
-      at = new URL(location, at).href;
-      continue;
+      return follow(
+        new URL(location, at).href,
+        permanent && (r.status === 301 || r.status === 308),
+        hop + 1,
+      );
     }
     return {
       status: r.status,
@@ -272,8 +281,8 @@ async function fetchOnce(
           : undefined,
       link: r.headers.get('link'),
     };
-  }
-  throw new Error('The feed redirects too many times.');
+  };
+  return follow(url, true, 0);
 }
 
 /** How one source's fetch went. */
@@ -307,17 +316,14 @@ export async function scrapeSource(
   const conditional =
     source.last_fetched_at?.slice(0, 10) === edition &&
     random() >= UNCONDITIONAL_SHARE;
-  let answer: FeedAnswer;
-  try {
-    answer = await fetchFeed(
-      source.url,
-      conditional
-        ? { etag: source.etag, lastModified: source.last_modified }
-        : {},
-    );
-  } catch {
+  const answer = await fetchFeed(
+    source.url,
+    conditional
+      ? { etag: source.etag, lastModified: source.last_modified }
+      : {},
+  ).catch(() => {
     throw new Error(FETCH_FAILED);
-  }
+  });
   const id = answer.movedTo
     ? await repo.moveSource(source.id, answer.movedTo)
     : source.id;
@@ -404,15 +410,14 @@ async function ingest(
   prune = true,
 ): Promise<number> {
   const repo = new Repository(db);
-  const items = distinctStories(parseFeed(xml, url).items);
+  const parsed = distinctStories(parseFeed(xml, url).items);
   const details = feedDetails(xml, url);
   await repo.recordDetails(
     id,
     { ...details, icon: await siteIcon(details, url) },
     feedHeader(xml),
   );
-  await enrich(items);
-  await resolveNames(env, items);
+  const items = await resolveNames(env, await enrich(parsed));
   await repo.writeEdition(id, edition, items, prune);
   return items.length;
 }
@@ -428,8 +433,12 @@ async function keepPushing(
   links: WebSubLinks,
 ): Promise<void> {
   const source = await new Repository(db).sourceById(id);
-  if (!source || !links.hub || !links.self) return;
-  if (!needsSubscription(source, links)) return;
+  if (!source || !links.hub || !links.self) {
+    return;
+  }
+  if (!needsSubscription(source, links)) {
+    return;
+  }
   try {
     const accepted = await subscribeToHub(db, id, {
       hub: links.hub,
@@ -467,13 +476,17 @@ export async function acceptPush(
 ): Promise<PushResult> {
   const repo = new Repository(db);
   const source = await repo.sourceById(sourceId);
-  if (!source?.websub_secret) return 'unknown';
+  if (!source?.websub_secret) {
+    return 'unknown';
+  }
   if (!(await signatureMatches(source.websub_secret, body, signature))) {
     return 'unsigned';
   }
   const started = Date.now();
   const xml = new TextDecoder().decode(body);
-  if (!isFeed(xml)) return 'accepted';
+  if (!isFeed(xml)) {
+    return 'accepted';
+  }
   await ingest(db, env, sourceId, source.url, xml, edition, false);
   await repo.recordFetch(sourceId, {
     durationMs: Date.now() - started,
@@ -517,15 +530,18 @@ export async function discoverFeed(
   url: string,
   keepUnreachable = true,
 ): Promise<string | undefined> {
-  let page: FeedAnswer;
-  try {
-    page = await fetchFeed(url);
-  } catch {
+  const page = await fetchFeed(url).catch(() => undefined);
+  if (!page) {
     return keepUnreachable ? url : undefined;
   }
   const here = page.movedTo ?? url;
-  if (page.status === 200 && isFeed(page.body)) return here;
-  if (page.status !== 200) return keepUnreachable ? here : undefined;
+  if (page.status === 200 && isFeed(page.body)) {
+    return here;
+  }
+  if (page.status !== 200) {
+    return keepUnreachable ? here : undefined;
+  }
+  // eslint-disable-next-line functional/no-loop-statements -- candidates are probed one at a time, best first, and the first feed found ends the search
   for (const candidate of feedCandidates(page.body, here).slice(
     0,
     DISCOVERY_PROBES,
@@ -557,7 +573,9 @@ export async function withText<
     image: string | null;
   },
 >(db: Database, article: T, force = false): Promise<T> {
-  if (article.body_text !== null && !force) return article;
+  if (article.body_text !== null && !force) {
+    return article;
+  }
   const page = await get(article.url, 12_000);
   const text = articleText(page);
   const bodyText = text.length >= MIN_TEXT ? text : '';
@@ -585,19 +603,24 @@ interface AlgoliaHit {
 /** Top HN stories for a single day (UTC), ranked by popularity, via Algolia. */
 async function hnTopForDate(date: string): Promise<ScrapedItem[]> {
   const start = Math.floor(Date.parse(`${date}T00:00:00Z`) / 1000);
-  if (Number.isNaN(start)) return [];
+  if (Number.isNaN(start)) {
+    return [];
+  }
   const end = start + 86_400;
   const url =
     `https://hn.algolia.com/api/v1/search?tags=story&hitsPerPage=25` +
     `&numericFilters=created_at_i>=${start},created_at_i<${end}`;
   const txt = await get(url, 15_000);
-  if (!txt) return [];
-  let hits: AlgoliaHit[] = [];
-  try {
-    hits = (JSON.parse(txt) as { hits?: AlgoliaHit[] }).hits ?? [];
-  } catch {
+  if (!txt) {
     return [];
   }
+  const parsed = await Promise.resolve(txt)
+    .then((text) => JSON.parse(text) as { hits?: AlgoliaHit[] } | null)
+    .catch(() => null);
+  if (!parsed) {
+    return [];
+  }
+  const hits = parsed.hits ?? [];
   return hits
     .filter((h) => h.title)
     .map((h) => {
@@ -629,27 +652,34 @@ export async function backfillRecent(
   const repo = new Repository(db);
   const allSources = await repo.allSources();
   const sources = allSources.filter((s) => isHnFeed(s.url));
-  let filled = 0;
-  for (const source of sources) {
-    const have = new Set(await repo.editionsForSource(source.id));
-    for (let index = 1; index <= days; index++) {
-      const date = new Date(Date.now() - index * 86_400_000)
-        .toISOString()
-        .slice(0, 10);
-      const items = have.has(date) ? [] : await hnTopForDate(date);
-      if (items.length === 0) continue;
-      await enrich(items);
-      await resolveNames(env, items);
-      await repo.writeEdition(source.id, date, items);
-      filled++;
-      logInfo({
-        event: 'backfill.day',
-        source: source.id,
-        date,
-        n: items.length,
-      });
-    }
-  }
+  const filled = await sources.reduce<Promise<number>>(
+    async (previousSources, source) => {
+      const before = await previousSources;
+      const have = new Set(await repo.editionsForSource(source.id));
+      return Array.from({ length: days }, (_, index) => index + 1).reduce<
+        Promise<number>
+      >(async (previousDays, index) => {
+        const count = await previousDays;
+        const date = new Date(Date.now() - index * 86_400_000)
+          .toISOString()
+          .slice(0, 10);
+        const found = have.has(date) ? [] : await hnTopForDate(date);
+        if (found.length === 0) {
+          return count;
+        }
+        const items = await resolveNames(env, await enrich(found));
+        await repo.writeEdition(source.id, date, items);
+        logInfo({
+          event: 'backfill.day',
+          source: source.id,
+          date,
+          n: items.length,
+        });
+        return count + 1;
+      }, Promise.resolve(before));
+    },
+    Promise.resolve(0),
+  );
   logInfo({ event: 'backfill.completed', filled });
   return { filled };
 }

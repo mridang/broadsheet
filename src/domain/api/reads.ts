@@ -6,11 +6,7 @@
  * again; and marking a whole feed, section, edition or paper read at once.
  */
 
-import {
-  liveUid,
-  requestCookieResolver,
-  type CurrentUserResolver,
-} from '@/domain/api/auth';
+import { liveUid, requestCookieResolver } from '@/domain/api/auth';
 import { parseFeedId } from '@/domain/api/feed-resource';
 import { idOf } from '@/domain/api/feeds';
 import {
@@ -24,10 +20,11 @@ import {
 import { Repository } from '@/domain/repository';
 import { getDatabase } from '@/domain/db/client';
 import { MAX_READ_SECONDS } from '@/domain/trending';
+import type { CurrentUserResolver } from '@/domain/api/auth';
 
 const TIME_PATTERN =
-  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/i;
-const PARSE_READ_SCOPE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/iu;
+const PARSE_READ_SCOPE_PATTERN = /^\d{4}-\d{2}-\d{2}$/u;
 
 /** The signed-in caller's id and the request, for a read endpoint. */
 interface UidContext {
@@ -45,8 +42,12 @@ export async function readCopies(
   ids: readonly number[],
 ): Promise<void> {
   const prefs = await repo.getPreferences(uid);
-  if (!prefs.cluster_mark_read) return;
+  if (!prefs.cluster_mark_read) {
+    return;
+  }
+  // eslint-disable-next-line functional/no-loop-statements -- each story's copies are read in order, one await after another
   for (const id of ids) {
+    // eslint-disable-next-line functional/no-loop-statements -- each copy is marked read in order, one await after another
     for (const sibling of await repo.clusterSiblingIds(uid, id)) {
       await repo.markRead(uid, sibling);
     }
@@ -72,17 +73,15 @@ export type ReadTimeInput =
 export function parseReadTime(
   body: Readonly<Record<string, unknown>>,
 ): ReadTimeInput {
-  const errors = Object.keys(body)
-    .filter((key) => key !== 'seconds')
-    .map((key) => `${key}: not a member of a read.`);
   const { seconds } = body;
-  if (
-    typeof seconds !== 'number' ||
-    !Number.isInteger(seconds) ||
-    seconds < 0
-  ) {
-    errors.push('seconds: must be a whole number from 0.');
-  }
+  const errors = [
+    ...Object.keys(body)
+      .filter((key) => key !== 'seconds')
+      .map((key) => `${key}: not a member of a read.`),
+    ...(typeof seconds !== 'number' || !Number.isInteger(seconds) || seconds < 0
+      ? ['seconds: must be a whole number from 0.']
+      : []),
+  ];
   return errors.length > 0
     ? { ok: false, errors }
     : { ok: true, seconds: Math.min(seconds as number, MAX_READ_SECONDS) };
@@ -121,10 +120,14 @@ export function createReadItem(
         { request, uid },
       ): Promise<{ id: number; first: boolean | undefined } | undefined> => {
         const id = parseFeedId(idOf(request));
-        if (id === undefined) return undefined;
+        if (id === undefined) {
+          return undefined;
+        }
         const repo = new Repository(getDatabase());
         const first = await repo.markRead(uid, id);
-        if (first !== undefined) await readCopies(repo, uid, [id]);
+        if (first !== undefined) {
+          await readCopies(repo, uid, [id]);
+        }
         return { id, first };
       },
       encode: (result) => {
@@ -143,7 +146,9 @@ export function createReadItem(
           request,
           'The read must be a JSON object.',
         );
-        if (!body.ok) throw body.response;
+        if (!body.ok) {
+          throw body.response;
+        }
         const input = parseReadTime(body.value);
         if (!input.ok) {
           throw problems.badRequest('The read is not valid.', input.errors);
@@ -155,7 +160,9 @@ export function createReadItem(
         { request, uid },
       ): Promise<ReadResource | undefined> => {
         const id = parseFeedId(idOf(request));
-        if (id === undefined) return undefined;
+        if (id === undefined) {
+          return undefined;
+        }
         const stored = await new Repository(getDatabase()).recordReadTime(
           uid,
           id,
@@ -233,9 +240,6 @@ function time(raw: unknown): Date | undefined {
 export function parseReadScope(
   body: Readonly<Record<string, unknown>>,
 ): ReadScopeBody {
-  const errors: string[] = [];
-  const scope: { -readonly [K in keyof ReadScopeInput]: ReadScopeInput[K] } =
-    {};
   const known = [
     'article_ids',
     'feed_ids',
@@ -244,44 +248,63 @@ export function parseReadScope(
     'before',
     'after',
   ];
-  for (const key of Object.keys(body)) {
-    if (!known.includes(key)) {
-      errors.push(`${key}: not a member of a read scope.`);
-    }
-  }
-  for (const key of ['article_ids', 'feed_ids'] as const) {
-    if (body[key] === undefined) continue;
-    const list = ids(body[key]);
-    if (list) scope[key] = list;
-    else errors.push(`${key}: must be a list of 1 to ${MAX_BULK_READS} ids.`);
-  }
-  if (body['section_id'] !== undefined) {
-    const raw = body['section_id'];
-    const id = typeof raw === 'string' ? parseFeedId(raw) : undefined;
-    if (id === undefined) errors.push('section_id: not a section id.');
-    else scope.section_id = id;
-  }
+  const lists = (['article_ids', 'feed_ids'] as const).map((key) => ({
+    key,
+    sent: body[key] !== undefined,
+    list: ids(body[key]),
+  }));
+  const rawSection = body['section_id'];
+  const sectionId =
+    typeof rawSection === 'string' ? parseFeedId(rawSection) : undefined;
   const edition = body['edition'];
-  if (edition !== undefined) {
-    if (
-      typeof edition === 'string' &&
-      PARSE_READ_SCOPE_PATTERN.test(edition) &&
-      !Number.isNaN(Date.parse(edition))
-    ) {
-      scope.edition = edition;
-    } else errors.push('edition: must be a YYYY-MM-DD date.');
-  }
-  for (const key of ['before', 'after'] as const) {
-    if (body[key] === undefined) continue;
-    const at = time(body[key]);
-    if (at) scope[key] = at;
-    else errors.push(`${key}: must be an RFC 3339 time.`);
-  }
-  if (errors.length === 0 && Object.keys(scope).length === 0) {
-    errors.push(
-      `A read scope names at least one of ${known.join(', ')}; send before as now to mark everything read.`,
-    );
-  }
+  const editionOk =
+    typeof edition === 'string' &&
+    PARSE_READ_SCOPE_PATTERN.test(edition) &&
+    !Number.isNaN(Date.parse(edition));
+  const times = (['before', 'after'] as const).map((key) => ({
+    key,
+    sent: body[key] !== undefined,
+    at: time(body[key]),
+  }));
+  const scope: ReadScopeInput = {
+    ...Object.fromEntries(
+      lists.flatMap(({ key, sent, list }) =>
+        sent && list ? [[key, list]] : [],
+      ),
+    ),
+    ...(body['section_id'] !== undefined && sectionId !== undefined
+      ? { section_id: sectionId }
+      : {}),
+    ...(edition !== undefined && editionOk ? { edition } : {}),
+    ...Object.fromEntries(
+      times.flatMap(({ key, sent, at }) => (sent && at ? [[key, at]] : [])),
+    ),
+  };
+  const found = [
+    ...Object.keys(body)
+      .filter((key) => !known.includes(key))
+      .map((key) => `${key}: not a member of a read scope.`),
+    ...lists.flatMap(({ key, sent, list }) =>
+      sent && !list
+        ? [`${key}: must be a list of 1 to ${MAX_BULK_READS} ids.`]
+        : [],
+    ),
+    ...(body['section_id'] !== undefined && sectionId === undefined
+      ? ['section_id: not a section id.']
+      : []),
+    ...(edition !== undefined && !editionOk
+      ? ['edition: must be a YYYY-MM-DD date.']
+      : []),
+    ...times.flatMap(({ key, sent, at }) =>
+      sent && !at ? [`${key}: must be an RFC 3339 time.`] : [],
+    ),
+  ];
+  const errors =
+    found.length === 0 && Object.keys(scope).length === 0
+      ? [
+          `A read scope names at least one of ${known.join(', ')}; send before as now to mark everything read.`,
+        ]
+      : found;
   return errors.length > 0 ? { ok: false, errors } : { ok: true, scope };
 }
 
@@ -310,7 +333,9 @@ export function createReadsCollection(
         request,
         'The read scope must be a JSON object.',
       );
-      if (!body.ok) throw body.response;
+      if (!body.ok) {
+        throw body.response;
+      }
       const input = parseReadScope(body.value);
       if (!input.ok) {
         throw problems.badRequest('The read scope is not valid.', input.errors);
@@ -320,15 +345,14 @@ export function createReadsCollection(
     handle: async (scope, { uid }) => {
       const repo = new Repository(getDatabase());
       const feeds = await repo.listFeeds(uid);
-      const errors: string[] = [];
       const named = scope.feed_ids?.map((id) => feeds.find((f) => f.id === id));
-      if (named?.some((f) => !f)) errors.push('feed_ids: no such feed.');
-      if (
-        scope.section_id !== undefined &&
+      const errors = [
+        ...(named?.some((f) => !f) ? ['feed_ids: no such feed.'] : []),
+        ...(scope.section_id !== undefined &&
         !(await repo.getSection(uid, scope.section_id))
-      ) {
-        errors.push('section_id: no such section.');
-      }
+          ? ['section_id: no such section.']
+          : []),
+      ];
       if (errors.length > 0) {
         throw problems.badRequest('The read scope is not valid.', errors);
       }

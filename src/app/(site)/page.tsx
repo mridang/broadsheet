@@ -1,5 +1,3 @@
-import type { Metadata } from 'next';
-
 import { ensurePublicUser } from '@/domain/account';
 import { getCurrentUser } from '@/lib/core/auth';
 import { jsonLdText, landingJsonLd } from '@/lib/core/seo';
@@ -31,6 +29,7 @@ import { TOPICS } from '@/domain/topics';
 import { buttonClass } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
+import type { Metadata } from 'next';
 
 export const dynamic = 'force-dynamic';
 
@@ -122,6 +121,7 @@ export default async function Home({
     <>
       <script
         type="application/ld+json"
+        // eslint-disable-next-line react/no-danger -- JSON-LD must be emitted as raw JSON; escaped child text would break it
         dangerouslySetInnerHTML={{ __html: jsonLdText(landingJsonLd()) }}
       />
       <FrontPage

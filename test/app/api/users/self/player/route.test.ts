@@ -14,7 +14,11 @@ import {
 const { GET, PUT, DELETE } = await import('@/app/api/users/self/player/route');
 
 let restore: () => void;
-let auth: Record<string, string>;
+/** The Cookie header of the signed-in caller; empty for a signed-out one. */
+interface CallerCookie {
+  [name: string]: string;
+}
+let auth: CallerCookie;
 
 beforeEach(async () => {
   const made = sqliteD1(...APP_MIGRATIONS);

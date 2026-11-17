@@ -6,15 +6,12 @@
  * person has read them, and checking the list's query.
  */
 
-import {
-  CATEGORIES,
-  parseBriefedStories,
-  type Category,
-} from '@/domain/briefing';
-import type { Article, StoredBriefing } from '@/domain/repository';
+import { CATEGORIES, parseBriefedStories } from '@/domain/briefing';
 import { hostOf } from '@/domain/render/tiers';
 import { DEFAULT_LIMIT, MAX_LIMIT, decodeCursor } from '@/lib/core/api';
 import { parseFeedId } from '@/domain/api/feed-resource';
+import type { Category } from '@/domain/briefing';
+import type { Article, StoredBriefing } from '@/domain/repository';
 
 /** A story a briefing covers. */
 export interface BriefingStoryResource {
@@ -47,7 +44,9 @@ export interface BriefingResource {
 
 /** A stored SQLite time as RFC 3339, or undefined when it does not parse. */
 function timestamp(stored: string | null): string | undefined {
-  if (!stored) return undefined;
+  if (!stored) {
+    return undefined;
+  }
   const ms = Date.parse(`${stored.replace(' ', 'T')}Z`);
   return Number.isNaN(ms) ? undefined : new Date(ms).toISOString();
 }
@@ -122,26 +121,24 @@ export type BriefingQueryInput =
 export function parseBriefingQuery(
   params: URLSearchParams,
 ): BriefingQueryInput {
-  const errors: string[] = [];
-  for (const key of new Set(params.keys())) {
-    if (key !== 'cursor' && key !== 'limit') {
-      errors.push(`${key}: not a parameter of this list.`);
-    }
-  }
-  let before: number | undefined;
   const cursor = params.get('cursor');
-  if (cursor !== null) {
-    before = parseFeedId(decodeCursor(cursor)?.id ?? '');
-    if (before === undefined) errors.push('cursor: not a cursor of this list.');
-  }
-  let limit = DEFAULT_LIMIT;
+  const before =
+    cursor === null ? undefined : parseFeedId(decodeCursor(cursor)?.id ?? '');
   const rawLimit = params.get('limit');
-  if (rawLimit !== null) {
-    limit = Number(rawLimit);
-    if (!Number.isInteger(limit) || limit < 1 || limit > MAX_LIMIT) {
-      errors.push(`limit: must be a whole number from 1 to ${MAX_LIMIT}.`);
-    }
-  }
+  const limit = rawLimit === null ? DEFAULT_LIMIT : Number(rawLimit);
+  const limitOk = Number.isInteger(limit) && limit >= 1 && limit <= MAX_LIMIT;
+  const errors: string[] = [
+    ...new Set(params.keys())
+      .values()
+      .filter((key) => key !== 'cursor' && key !== 'limit')
+      .map((key) => `${key}: not a parameter of this list.`),
+    ...(cursor !== null && before === undefined
+      ? ['cursor: not a cursor of this list.']
+      : []),
+    ...(rawLimit !== null && !limitOk
+      ? [`limit: must be a whole number from 1 to ${MAX_LIMIT}.`]
+      : []),
+  ];
   return errors.length > 0
     ? { ok: false, errors }
     : { ok: true, query: { before, limit } };

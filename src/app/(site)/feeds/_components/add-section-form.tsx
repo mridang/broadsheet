@@ -1,13 +1,13 @@
 'use client';
 
-import type { SubmitEvent, ReactElement } from 'react';
-
+import { z } from 'zod';
 import { addSection } from '@/app/(site)/feeds/_components/feed-requests';
-import type { SectionOption } from '@/app/(site)/feeds/_components/feed-settings-form';
+
 import { useFeedAction } from '@/app/(site)/feeds/_components/use-feed-action';
 import { buttonClass } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/notice';
-import { z } from 'zod';
+import type { SectionOption } from '@/app/(site)/feeds/_components/feed-settings-form';
+import type { SubmitEvent, ReactElement } from 'react';
 
 /** The fields the add-section form posts. */
 const addSectionForm = z.object({
@@ -41,6 +41,7 @@ export function AddSectionForm({
         onSubmit={submit}
       >
         <input
+          aria-label="New section"
           name="name"
           type="text"
           placeholder="New section"

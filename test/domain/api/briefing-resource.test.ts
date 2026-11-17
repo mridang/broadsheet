@@ -4,8 +4,8 @@ import {
   briefingResource,
   parseBriefingQuery,
 } from '@/domain/api/briefing-resource';
-import type { Article, StoredBriefing } from '@/domain/repository';
 import { encodeCursor } from '@/lib/core/api';
+import type { Article, StoredBriefing } from '@/domain/repository';
 
 const stored: StoredBriefing = {
   id: 4,

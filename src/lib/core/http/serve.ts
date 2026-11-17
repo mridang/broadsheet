@@ -18,6 +18,7 @@
  * limits is in its own `extras.ts`, which has the same exports everywhere.
  */
 
+import { setErrorContext } from '../observability/context';
 // eslint-disable-next-line unicorn/no-keyword-prefix -- newNonce is an exported name of the module's public surface, so it is not renamed
 import { buildCsp, cspSurfaceFor, forwardedHeaders, newNonce } from './csp';
 import {
@@ -27,15 +28,11 @@ import {
   storableCopy,
   withFreshNonce,
 } from './edge-cache';
-import {
-  edgeLimitRefusal,
-  type EdgeLimitEnv,
-  type EdgeLimits,
-} from './edge-limits';
-import { setErrorContext } from '../observability/context';
+import { edgeLimitRefusal } from './edge-limits';
 import { EDGE_LIMITS } from './extras';
 import { applyResponseHeaders, replacingHeaders } from './headers';
 import { CACHED_QUERY_PARAMS, EDGE_CACHED_PAGES } from './site';
+import type { EdgeLimitEnv, EdgeLimits } from './edge-limits';
 
 /** What the Worker is given besides the request. */
 export type ServeEnv = EdgeLimitEnv & {
@@ -76,9 +73,9 @@ function withHeader(response: Response, name: string, value: string): Response {
 /** What happened to a request, for the `Server-Timing` header. */
 interface Timing {
   /** What the edge cache did: kept page served, looked and missed, or not consulted. */
-  edge: 'hit' | 'miss' | 'skip';
+  readonly edge: 'hit' | 'miss' | 'skip';
   /** Milliseconds the app took, when it was asked. */
-  appMs?: number;
+  readonly appMs?: number;
 }
 
 /** Milliseconds as `Server-Timing` wants them: a number with at most one decimal. */
@@ -96,7 +93,7 @@ export function serverTiming(totalMs: number, timing: Timing): string {
 }
 
 /** Longest `X-Flow-ID` accepted from a caller, and the characters it may use. */
-const FLOW_ID = /^[A-Za-z0-9._:~-]{1,128}$/;
+const FLOW_ID = /^[A-Za-z0-9._:~-]{1,128}$/u;
 
 /**
  * Answer one request. Every answer carries an `X-Flow-ID`: the caller's own
@@ -118,8 +115,7 @@ export async function serve(
     headers: replacingHeaders(request.headers, { 'X-Flow-ID': flowId }),
   });
   const started = performance.now();
-  const timing: Timing = { edge: 'skip' };
-  const response = await answer(tagged, env, ctx, deps, timing);
+  const { response, timing } = await answer(tagged, env, ctx, deps);
   if (response.status === 101 || response.webSocket) {
     return response;
   }
@@ -146,11 +142,13 @@ async function answer(
     pages = EDGE_CACHED_PAGES,
     queryParams = CACHED_QUERY_PARAMS,
   }: ServeDeps,
-  timing: Timing,
-): Promise<Response> {
+): Promise<{ response: Response; timing: Timing }> {
   const refused = await edgeLimitRefusal(request, env, limits);
   if (refused) {
-    return applyResponseHeaders(request, refused);
+    return {
+      response: applyResponseHeaders(request, refused),
+      timing: { edge: 'skip' },
+    };
   }
   // Each page gets its own Content Security Policy, with a one-time number the
   // app puts on its scripts. The approval screen may not be framed by anyone,
@@ -164,12 +162,14 @@ async function answer(
       : undefined;
   if (cache && key) {
     const hit = await cache.match(key);
-    timing.edge = hit ? 'hit' : 'miss';
     if (hit) {
-      return applyResponseHeaders(
-        request,
-        await withFreshNonce(hit, nonce, csp),
-      );
+      return {
+        response: applyResponseHeaders(
+          request,
+          await withFreshNonce(hit, nonce, csp),
+        ),
+        timing: { edge: 'hit' },
+      };
     }
   }
   const forwarded = new Request(request, {
@@ -177,7 +177,7 @@ async function answer(
   });
   const appStarted = performance.now();
   const fetched = await app.fetch(forwarded, env as never, ctx);
-  timing.appMs = performance.now() - appStarted;
+  const appMs = performance.now() - appStarted;
   const isHtml = (fetched.headers.get('content-type') ?? '').startsWith(
     'text/html',
   );
@@ -191,5 +191,8 @@ async function answer(
       ctx.waitUntil(cache.put(key, copy));
     }
   }
-  return applyResponseHeaders(request, response);
+  return {
+    response: applyResponseHeaders(request, response),
+    timing: { edge: cache && key ? 'miss' : 'skip', appMs },
+  };
 }

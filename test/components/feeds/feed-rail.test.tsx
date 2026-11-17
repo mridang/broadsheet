@@ -1,12 +1,13 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { FeedRail, type RailFeed } from '@/components/feeds/feed-rail';
+import { FeedRail } from '@/components/feeds/feed-rail';
 import { html } from '../render';
+import type { RailFeed } from '@/components/feeds/feed-rail';
 
 const SHOWS_A_FEED_ICON_PATTERN =
-  /<img src="\/img\?url=https%3A%2F%2Fexample\.com%2Fi\.png/;
-const SHOWS_HOW_MANY_STORIES_PATTERN = />12<\/span>/;
-const SHOWS_HOW_MANY_STORIES_PATTERN_2 = />0<\/span>/;
+  /<img src="\/img\?url=https%3A%2F%2Fexample\.com%2Fi\.png/u;
+const SHOWS_HOW_MANY_STORIES_PATTERN = />12<\/span>/u;
+const SHOWS_HOW_MANY_STORIES_PATTERN_2 = />0<\/span>/u;
 
 const feed = (over: Partial<RailFeed>): RailFeed => ({
   id: 1,

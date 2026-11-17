@@ -1,9 +1,8 @@
+import { ButtonLink } from '@/components/ui/button';
+import { Eyebrow, Heading } from '@/components/ui/layout';
 import type { Metadata } from 'next';
 
 import type { ReactElement } from 'react';
-
-import { ButtonLink } from '@/components/ui/button';
-import { Eyebrow, Heading } from '@/components/ui/layout';
 
 /** The tab title for the not-found page, kept out of search results. */
 export const metadata: Metadata = {

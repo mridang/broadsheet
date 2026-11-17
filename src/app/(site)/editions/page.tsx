@@ -1,4 +1,3 @@
-import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 
 import { getCurrentUser } from '@/lib/core/auth';
@@ -12,6 +11,7 @@ import { RemoveEditionButton } from '@/app/(site)/editions/_components/remove-ed
 import { PageHeader, PageSection } from '@/components/ui/page-header';
 import { CARD } from '@/components/ui/field';
 import { EmptyState } from '@/components/ui/notice';
+import type { Metadata } from 'next';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,7 +24,9 @@ export const metadata: Metadata = { title: 'Your editions' };
  */
 export default async function EditionsPage() {
   const user = await getCurrentUser();
-  if (!user) redirect('/login');
+  if (!user) {
+    redirect('/login');
+  }
   const repo = new Repository(getDatabase());
   const [editions, sections] = await Promise.all([
     repo.listCustomEditions(user.id),

@@ -14,7 +14,7 @@ import { acceptPush } from '@/domain/scraping/index';
 import { verifyIntent } from '@/domain/websub';
 import { getEnv } from '@/lib/core/runtime';
 
-const SOURCE_ID_PATTERN = /^[1-9]\d{0,15}$/;
+const SOURCE_ID_PATTERN = /^[1-9]\d{0,15}$/u;
 
 export const dynamic = 'force-dynamic';
 
@@ -54,9 +54,13 @@ export async function GET(request: Request, context: Context) {
 
 export async function POST(request: Request, context: Context) {
   const id = await sourceId(context);
-  if (id === undefined) return text('Not found.', 404);
+  if (id === undefined) {
+    return text('Not found.', 404);
+  }
   const body = new Uint8Array(await request.arrayBuffer());
-  if (body.byteLength > MAX_PUSH_BYTES) return text('Too large.', 413);
+  if (body.byteLength > MAX_PUSH_BYTES) {
+    return text('Too large.', 413);
+  }
   const result = await acceptPush(
     getDatabase(),
     getEnv(),

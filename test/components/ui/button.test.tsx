@@ -25,9 +25,10 @@ describe('buttonClass', () => {
   });
 
   it('has a wide size that is the middle size with roomier sides', () => {
-    expect(buttonClass({ size: 'wide' })).toContain('h-10');
-    expect(buttonClass({ size: 'wide' })).toContain('px-5');
-    expect(buttonClass({ size: 'wide' })).not.toContain('px-4');
+    const wide = buttonClass({ size: 'wide' });
+    expect(wide).toContain('h-10');
+    expect(wide).toContain('px-5');
+    expect(wide).not.toContain('px-4');
   });
 
   it('adds the caller’s own layout classes', () => {

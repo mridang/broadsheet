@@ -1,7 +1,5 @@
-import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
-import type { ReactElement } from 'react';
 
 import { D1OAuthStore } from '@/domain/db/oauth';
 import { getDatabase } from '@/domain/db/client';
@@ -11,11 +9,13 @@ import {
   AUTHORIZE_FIELDS,
   SCOPE_WRITE,
   validateAuthorizeRequest,
-  type AuthorizeParams,
 } from '@/lib/oauth';
 import { BrandMark } from '@/components/site/logo';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import type { AuthorizeParams } from '@/lib/oauth';
+import type { ReactElement } from 'react';
+import type { Metadata } from 'next';
 
 export const dynamic = 'force-dynamic';
 

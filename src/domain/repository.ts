@@ -25,10 +25,8 @@ import {
   notInArray,
   or,
   sql,
-  type SQL,
 } from 'drizzle-orm';
-
-import type { Database } from '@/domain/db/client';
+import { alias } from 'drizzle-orm/sqlite-core';
 import {
   aiUsage,
   answers,
@@ -56,7 +54,6 @@ import {
   users,
   feedNotifications,
 } from '@/domain/db/schema';
-import { alias } from 'drizzle-orm/sqlite-core';
 import {
   byRank,
   decayWeight,
@@ -72,6 +69,10 @@ import {
   titleKey,
   topicOf,
 } from '@/domain/trending';
+import { characterCount, compareText } from '@/lib/intl';
+import type { SQL } from 'drizzle-orm';
+
+import type { Database } from '@/domain/db/client';
 import type {
   FeedActivity,
   FeedDetails,
@@ -79,14 +80,13 @@ import type {
   ScrapedItem,
 } from '@/lib/scraping';
 import type { Intelligence } from '@/domain/render/tiers';
-import { compareText } from '@/lib/intl';
 
 const collator = new Intl.Collator();
 
-const SEARCH_TERMS_PATTERN = /(author|tags?):(?:"([^"]*)"|(\S+))|\S+/gi;
+const SEARCH_TERMS_PATTERN = /(author|tags?):(?:"([^"]*)"|(\S+))|\S+/giu;
 const ANY_WORD_QUERY_PATTERN = /[^\p{L}\p{N}]+/u;
-const CONVERSATION_TITLE_PATTERN = /\s+/g;
-const SEARCH_SOURCES_PATTERN = /[%_\\]/g;
+const CONVERSATION_TITLE_PATTERN = /\s+/gu;
+const SEARCH_SOURCES_PATTERN = /[%_\\]/gu;
 
 /** A signed-in person. */
 export type User = typeof users.$inferSelect;
@@ -263,19 +263,25 @@ export interface SearchTerms {
 
 /** Read `author:` and `tag:` terms out of a person's search. */
 export function searchTerms(q: string): SearchTerms {
-  const words: string[] = [];
-  const authors: string[] = [];
-  const tags: string[] = [];
-  for (const [token, field, quoted, bare] of q.matchAll(SEARCH_TERMS_PATTERN)) {
-    const value = (quoted ?? bare ?? '').trim();
-    if (!field) words.push(token);
-    else if (value) {
-      (field.toLowerCase() === 'author' ? authors : tags).push(value);
-    } else {
-      // A field with no value is not a term, so it is left out.
-    }
-  }
-  return { words, authors, tags };
+  const terms = Array.from(
+    q.matchAll(SEARCH_TERMS_PATTERN),
+    ([token, field, quoted, bare]) => ({
+      token,
+      field,
+      value: (quoted ?? bare ?? '').trim(),
+    }),
+  );
+  // A field with no value is not a term, so it is left out.
+  const valued = terms.filter((term) => term.field && term.value);
+  return {
+    words: terms.filter((term) => !term.field).map((term) => term.token),
+    authors: valued
+      .filter((term) => term.field?.toLowerCase() === 'author')
+      .map((term) => term.value),
+    tags: valued
+      .filter((term) => term.field?.toLowerCase() !== 'author')
+      .map((term) => term.value),
+  };
 }
 
 /** A value as an FTS5 phrase, its quotes doubled so nothing in it is run. */
@@ -378,7 +384,9 @@ export interface ReadScope {
 export function storyTime(
   a: Pick<Article, 'published_at' | 'fetched_at'>,
 ): number {
-  if (a.published_at) return Date.parse(a.published_at);
+  if (a.published_at) {
+    return Date.parse(a.published_at);
+  }
   return a.fetched_at
     ? Date.parse(`${a.fetched_at.replace(' ', 'T')}Z`)
     : Number.NaN;
@@ -477,7 +485,9 @@ function storedJson<T>(
   fallback: T,
   valid: (v: unknown) => boolean,
 ): T {
-  if (!stored) return fallback;
+  if (!stored) {
+    return fallback;
+  }
   try {
     const parsed: unknown = JSON.parse(stored);
     return valid(parsed) ? (parsed as T) : fallback;
@@ -640,11 +650,9 @@ const IN_CHUNK = 90;
 
 /** `list` cut into runs of at most `size`. */
 function chunks<T>(list: readonly T[], size: number): T[][] {
-  const out: T[][] = [];
-  for (let index = 0; index < list.length; index += size) {
-    out.push(list.slice(index, index + size));
-  }
-  return out;
+  return Array.from({ length: Math.ceil(list.length / size) }, (_, index) =>
+    list.slice(index * size, (index + 1) * size),
+  );
 }
 
 /** A stored string list (tags, highlights), or none when it is not a JSON array of strings. */
@@ -788,13 +796,20 @@ function savedAnnotation(
   return parts.length > 0 ? { annotation: parts.join('\n') } : {};
 }
 
+/** Splits text into the characters a person sees, so a cut never lands inside one. */
+const GRAPHEMES = new Intl.Segmenter();
+
 /** Longest conversation title, in characters. */
 const TITLE_LENGTH = 50;
 
 /** A conversation's title from its first question: cut at {@link TITLE_LENGTH} with an ellipsis. */
 export function conversationTitle(question: string): string {
   const text = question.trim().replaceAll(CONVERSATION_TITLE_PATTERN, ' ');
-  return text.length > TITLE_LENGTH ? `${text.slice(0, TITLE_LENGTH)}…` : text;
+  return characterCount(text) > TITLE_LENGTH
+    ? `${Array.from(GRAPHEMES.segment(text), (part) => part.segment)
+        .slice(0, TITLE_LENGTH)
+        .join('')}…`
+    : text;
 }
 
 /** A stored citation list, or none when it is not a JSON array of numbers. */
@@ -940,7 +955,9 @@ export class Repository {
     const source = await this.#db.query.sources.findFirst({
       where: eq(sources.url, url),
     });
-    if (!source) return undefined;
+    if (!source) {
+      return undefined;
+    }
     await this.#db
       .insert(subscriptions)
       .values({ user_id: userId, source_id: source.id })
@@ -968,34 +985,42 @@ export class Repository {
     id: number,
     changes: FeedChanges,
   ): Promise<Feed | undefined> {
-    const set: Partial<typeof subscriptions.$inferInsert> = {};
-    if (changes.title !== undefined) set.title_override = changes.title || null;
-    if (changes.muted !== undefined) set.muted = changes.muted ? 1 : 0;
-    if (changes.muted_until !== undefined) {
-      set.muted_until = changes.muted_until;
-    }
-    if (changes.muted === false) set.muted_until = null;
-    if (changes.section_id !== undefined) set.section_id = changes.section_id;
-    if (changes.section_ids !== undefined) {
-      set.section_id = changes.section_ids[0] ?? null;
-    }
-    if (changes.position !== undefined) set.position = changes.position;
     if (changes.url !== undefined) {
       await this.#db
         .insert(sources)
         .values({ url: changes.url })
         .onConflictDoNothing({ target: sources.url });
-      const target = await this.#db.query.sources.findFirst({
-        where: eq(sources.url, changes.url),
-      });
-      if (target) set.source_id = target.id;
     }
-    if (changes.custom_icon !== undefined) {
-      set.custom_icon = changes.custom_icon;
-    }
-    if (changes.auto_mark_read_days !== undefined) {
-      set.auto_mark_read_days = changes.auto_mark_read_days;
-    }
+    const target =
+      changes.url === undefined
+        ? undefined
+        : await this.#db.query.sources.findFirst({
+            where: eq(sources.url, changes.url),
+          });
+    const set: Partial<typeof subscriptions.$inferInsert> = {
+      ...(changes.title === undefined
+        ? {}
+        : { title_override: changes.title || null }),
+      ...(changes.muted === undefined ? {} : { muted: changes.muted ? 1 : 0 }),
+      ...(changes.muted_until === undefined
+        ? {}
+        : { muted_until: changes.muted_until }),
+      ...(changes.muted === false ? { muted_until: null } : {}),
+      ...(changes.section_id === undefined
+        ? {}
+        : { section_id: changes.section_id }),
+      ...(changes.section_ids === undefined
+        ? {}
+        : { section_id: changes.section_ids[0] ?? null }),
+      ...(changes.position === undefined ? {} : { position: changes.position }),
+      ...(target ? { source_id: target.id } : {}),
+      ...(changes.custom_icon === undefined
+        ? {}
+        : { custom_icon: changes.custom_icon }),
+      ...(changes.auto_mark_read_days === undefined
+        ? {}
+        : { auto_mark_read_days: changes.auto_mark_read_days }),
+    };
     if (
       (changes.section_ids !== undefined || changes.section_id !== undefined) &&
       (await this.getFeed(userId, id))
@@ -1010,10 +1035,16 @@ export class Repository {
       await this.#db
         .delete(subscriptionSections)
         .where(eq(subscriptionSections.subscription_id, id));
-      for (const sectionId of new Set(extra)) {
+      const sectionIds = [...new Set(extra)];
+      if (sectionIds.length > 0) {
         await this.#db
           .insert(subscriptionSections)
-          .values({ subscription_id: id, section_id: sectionId })
+          .values(
+            sectionIds.map((sectionId) => ({
+              subscription_id: id,
+              section_id: sectionId,
+            })),
+          )
           .onConflictDoNothing();
       }
     }
@@ -1053,7 +1084,9 @@ export class Repository {
     ids: readonly number[],
     sectionId: number | null,
   ): Promise<number> {
+    // eslint-disable-next-line functional/no-let -- counts as each feed is moved in turn
     let moved = 0;
+    // eslint-disable-next-line functional/no-loop-statements -- each feed is looked up and then moved before the next, so the awaits must run in order
     for (const id of new Set(ids)) {
       if (await this.getFeed(userId, id)) {
         await this.updateFeed(userId, id, { section_id: sectionId });
@@ -1068,9 +1101,13 @@ export class Repository {
    * there were to remove.
    */
   async removeFeeds(userId: number, ids: readonly number[]): Promise<number> {
+    // eslint-disable-next-line functional/no-let -- counts as each feed is removed in turn
     let removed = 0;
+    // eslint-disable-next-line functional/no-loop-statements -- feeds are removed one after another, so the awaits must run in order
     for (const id of new Set(ids)) {
-      if (await this.removeFeed(userId, id)) removed++;
+      if (await this.removeFeed(userId, id)) {
+        removed++;
+      }
     }
     return removed;
   }
@@ -1300,7 +1337,10 @@ export class Repository {
       )
       .where(eq(subscriptions.source_id, sourceId))
       .limit(1);
-    const days = latest?.newest == null ? Infinity : latest.now - latest.newest;
+    const days =
+      latest?.newest === undefined || latest.newest === null
+        ? Infinity
+        : latest.now - latest.newest;
     return {
       storiesLastMonth: recent?.n ?? 0,
       subscribers: source?.followers ?? 0,
@@ -1339,13 +1379,13 @@ export class Repository {
     position?: number,
     parentId: number | null = null,
   ): Promise<Section> {
-    let at = position;
-    if (at === undefined) {
-      const existing = await this.listSections(userId);
-      at = existing
+    const existing =
+      position === undefined ? await this.listSections(userId) : [];
+    const at =
+      position ??
+      existing
         .filter((s) => s.parent_id === parentId)
         .reduce((last, s) => Math.max(last, s.position + 1), 0);
-    }
     const rows = await this.#db
       .insert(sections)
       .values({ user_id: userId, name, position: at, parent_id: parentId })
@@ -1384,12 +1424,14 @@ export class Repository {
   ): Promise<boolean> {
     const all = await this.listSections(userId);
     const parents = new Map(all.map((s) => [s.id, s.parent_id]));
-    if (!parents.has(parentId)) return false;
-    for (let at: number | null | undefined = parentId; at != null;) {
-      if (at === id) return false;
-      at = parents.get(at);
+    if (!parents.has(parentId)) {
+      return false;
     }
-    return true;
+    const reaches = (at: number | null | undefined): boolean =>
+      at === null || at === undefined
+        ? false
+        : at === id || reaches(parents.get(at));
+    return !reaches(parentId);
   }
 
   /**
@@ -1405,12 +1447,15 @@ export class Repository {
     unfollowFeeds = false,
   ): Promise<boolean> {
     const all = await this.listSections(userId);
-    if (!all.some((s) => s.id === id)) return false;
+    if (!all.some((s) => s.id === id)) {
+      return false;
+    }
     if (!unfollowFeeds) {
       await this.#dropSection(userId, id);
       return true;
     }
     const doomed = sectionAndDescendants(all, id);
+    // eslint-disable-next-line functional/no-loop-statements -- feeds are removed one after another, so the awaits must run in order
     for (const feed of await this.listFeeds(userId)) {
       if (
         feed.section_ids.length > 0 &&
@@ -1420,6 +1465,7 @@ export class Repository {
       }
     }
     // Deepest first, so no section is lifted into one about to go.
+    // eslint-disable-next-line functional/no-loop-statements -- the order is the point: each section is dropped before the one above it
     for (const section of all.filter((s) => doomed.has(s.id)).toReversed()) {
       await this.#dropSection(userId, section.id);
     }
@@ -1436,11 +1482,14 @@ export class Repository {
       .delete(sections)
       .where(and(eq(sections.id, id), eq(sections.user_id, userId)))
       .returning({ parent_id: sections.parent_id });
-    if (removed.length === 0) return;
+    if (removed.length === 0) {
+      return;
+    }
     await this.#db
       .update(sections)
       .set({ parent_id: removed[0]!.parent_id })
       .where(and(eq(sections.user_id, userId), eq(sections.parent_id, id)));
+    // eslint-disable-next-line functional/no-loop-statements -- each feed is updated in turn, so the awaits must run in order
     for (const feed of await this.listFeeds(userId)) {
       if (feed.section_ids.includes(id)) {
         await this.updateFeed(userId, feed.id, {
@@ -1448,6 +1497,7 @@ export class Repository {
         });
       }
     }
+    // eslint-disable-next-line functional/no-loop-statements -- each edition is updated in turn, so the awaits must run in order
     for (const edition of await this.listCustomEditions(userId)) {
       if (edition.section_ids.includes(id)) {
         await this.updateCustomEdition(userId, edition.id, {
@@ -1545,9 +1595,11 @@ export class Repository {
     );
     const writes = [...renames, ...upserts];
     const [first, ...rest] = writes;
-    if (prune) await this.#db.batch([stale, ...writes]);
-    else if (first) await this.#db.batch([first, ...rest]);
-    else {
+    if (prune) {
+      await this.#db.batch([stale, ...writes]);
+    } else if (first) {
+      await this.#db.batch([first, ...rest]);
+    } else {
       // Nothing to write: no renames and no new rows.
     }
   }
@@ -1563,39 +1615,49 @@ export class Repository {
     items: readonly ScrapedItem[],
   ): Promise<ScrapedItem[]> {
     const listed = items.filter((a) => a.guid);
-    if (listed.length === 0) return [];
+    if (listed.length === 0) {
+      return [];
+    }
     const stored = await this.#db
       .select({ url: articles.url, guid: articles.guid })
       .from(articles)
       .where(
         and(eq(articles.source_id, sourceId), eq(articles.edition, edition)),
       );
-    const addresses = new Set(stored.map((r) => r.url));
-    const byGuid = new Map<string, Set<string>>();
-    for (const r of stored) {
-      if (r.guid)
-        byGuid.set(r.guid, (byGuid.get(r.guid) ?? new Set()).add(r.url));
-    }
-    const renamed: ScrapedItem[] = [];
-    for (const a of listed) {
-      const held = byGuid.get(a.guid!);
+    const initial = {
+      addresses: new Set(stored.map((r) => r.url)) as ReadonlySet<string>,
+      byGuid: new Map(
+        Array.from(
+          Map.groupBy(
+            stored.filter((r) => r.guid),
+            (r) => r.guid!,
+          ),
+          ([guid, rows]): [string, ReadonlySet<string>] => [
+            guid,
+            new Set(rows.map((r) => r.url)),
+          ],
+        ),
+      ) as ReadonlyMap<string, ReadonlySet<string>>,
+      renamed: [] as ScrapedItem[],
+    };
+    return listed.reduce((state, a) => {
+      const held = state.byGuid.get(a.guid!);
       if (
         !held ||
-        addresses.has(a.url) ||
+        state.addresses.has(a.url) ||
         ![...held].some((u) => u !== a.url)
       ) {
-        continue;
+        return state;
       }
-      renamed.push(a);
-      for (const old of held) {
-        if (old === a.url) continue;
-        addresses.delete(old);
-        held.delete(old);
-      }
-      addresses.add(a.url);
-      held.add(a.url);
-    }
-    return renamed;
+      return {
+        addresses: new Set([
+          ...[...state.addresses].filter((u) => !held.has(u) || u === a.url),
+          a.url,
+        ]),
+        byGuid: new Map(state.byGuid).set(a.guid!, new Set([a.url])),
+        renamed: [...state.renamed, a],
+      };
+    }, initial).renamed;
   }
 
   sourceArticles(sourceId: number, edition: string) {
@@ -1673,16 +1735,17 @@ export class Repository {
     const published = sql`julianday(coalesce(nullif(${articles.published_at}, ''), ${articles.fetched_at}))`;
     const direction = oldest ? asc : desc;
     const cursorOp = oldest ? sql`>` : sql`<`;
-    let cursor: SQL | undefined;
-    if (before === undefined) {
-      // No cursor: the first page.
-    } else if (byDate) {
-      cursor = sql`(${published}, ${articles.id}) ${cursorOp} (select julianday(coalesce(nullif(c.published_at, ''), c.fetched_at)), c.id from articles as c where c.id = ${before})`;
-    } else if (oldest) {
-      cursor = gt(articles.id, before);
-    } else {
-      cursor = lt(articles.id, before);
-    }
+    // No cursor is the first page.
+    const dateCursor: SQL | undefined =
+      before !== undefined && byDate
+        ? sql`(${published}, ${articles.id}) ${cursorOp} (select julianday(coalesce(nullif(c.published_at, ''), c.fetched_at)), c.id from articles as c where c.id = ${before})`
+        : undefined;
+    const compare = oldest ? gt : lt;
+    const idCursor: SQL | undefined =
+      before !== undefined && !byDate
+        ? compare(articles.id, before)
+        : undefined;
+    const cursor = dateCursor ?? idCursor;
     const newest = this.#db
       .select({ id: sql<number>`max(${articles.id})` })
       .from(articles)
@@ -1767,7 +1830,9 @@ export class Repository {
     limit: number,
   ): Promise<ArticleSummary[]> {
     const match = anyWordQuery(article.title ?? '');
-    if (!match) return [];
+    if (!match) {
+      return [];
+    }
     return this.#db
       .select(summaryColumns)
       .from(articles)
@@ -1822,7 +1887,9 @@ export class Repository {
     const existing = await this.#db.query.savedSearches.findFirst({
       where: same,
     });
-    if (existing) return { search: existing, created: false };
+    if (existing) {
+      return { search: existing, created: false };
+    }
     const [search] = await this.#db
       .insert(savedSearches)
       .values({ user_id: userId, query, feed_id: feedId })
@@ -1924,7 +1991,9 @@ export class Repository {
   ): Promise<
     { readonly story: SavedStory; readonly created: boolean } | undefined
   > {
-    if (!(await this.getArticle(userId, articleId))) return undefined;
+    if (!(await this.getArticle(userId, articleId))) {
+      return undefined;
+    }
     const before = await this.getSave(userId, articleId);
     const set = { tags: JSON.stringify(tags) };
     await this.#db
@@ -2034,11 +2103,12 @@ export class Repository {
       readonly highlights?: readonly string[];
     },
   ): Promise<SavedStory | undefined> {
-    const set: Partial<typeof saves.$inferInsert> = {};
-    if (notes.notes !== undefined) set.notes = notes.notes;
-    if (notes.highlights !== undefined) {
-      set.highlights = JSON.stringify(notes.highlights);
-    }
+    const set: Partial<typeof saves.$inferInsert> = {
+      ...(notes.notes === undefined ? {} : { notes: notes.notes }),
+      ...(notes.highlights === undefined
+        ? {}
+        : { highlights: JSON.stringify(notes.highlights) }),
+    };
     if (Object.keys(set).length > 0) {
       await this.#db
         .update(saves)
@@ -2056,7 +2126,9 @@ export class Repository {
     userId: number,
     articleId: number,
   ): Promise<boolean | undefined> {
-    if (!(await this.getArticle(userId, articleId))) return undefined;
+    if (!(await this.getArticle(userId, articleId))) {
+      return undefined;
+    }
     const added = await this.#db
       .insert(reads)
       .values({ user_id: userId, article_id: articleId })
@@ -2152,8 +2224,9 @@ export class Repository {
       .where(and(eq(articles.source_id, sourceId), this.#notRead(userId)))
       .orderBy(desc(articles.id))
       .limit(limit);
-    const seen = new Set<string>();
-    return rows.filter((r) => !seen.has(r.url) && !!seen.add(r.url));
+    return rows.filter(
+      (r, index) => rows.findIndex((other) => other.url === r.url) === index,
+    );
   }
 
   /** How much of the person's archive there is, overall and per feed. */
@@ -2180,15 +2253,19 @@ export class Repository {
         .from(reads)
         .where(eq(reads.user_id, userId)),
     ]);
-    const counts = new Map<number, number>();
-    const editions = new Set<string>();
-    let total = 0;
-    for (const day of days) {
-      const n = day.count;
-      total += n;
-      counts.set(day.source_id, (counts.get(day.source_id) ?? 0) + n);
-      if (day.edition !== null) editions.add(day.edition);
-    }
+    const counts = new Map(
+      Array.from(
+        Map.groupBy(days, (day) => day.source_id),
+        ([sourceId, group]): [number, number] => [
+          sourceId,
+          group.reduce((n, day) => n + day.count, 0),
+        ],
+      ),
+    );
+    const editions = new Set(
+      days.flatMap((day) => (day.edition === null ? [] : [day.edition])),
+    );
+    const total = days.reduce((n, day) => n + day.count, 0);
     const ordered = [...editions].toSorted((a, b) => collator.compare(a, b));
     return {
       articles: total,
@@ -2217,11 +2294,15 @@ export class Repository {
     days = 14,
   ): Promise<FeedStatistics | undefined> {
     const feed = await this.getFeed(userId, id);
-    if (!feed) return undefined;
+    if (!feed) {
+      return undefined;
+    }
     const source = await this.#db.query.sources.findFirst({
       where: eq(sources.id, feed.source_id),
     });
-    if (!source) return undefined;
+    if (!source) {
+      return undefined;
+    }
     // Two passes over the source's articles do what six did. The first, over
     // the index entries (source, edition), gives the stories of every edition
     // and the days, months, weekdays and totals are summed from them; the
@@ -2241,21 +2322,30 @@ export class Repository {
       )
       .toSorted((a, b) => (a.date < b.date ? 1 : -Number(a.date > b.date)));
     const rows = dated.slice(0, days);
-    const byMonth = new Map<string, number>();
-    const weekdays = new Map<string, number>();
-    for (const { date, count } of dated) {
-      const month = date.slice(0, 7);
-      byMonth.set(month, (byMonth.get(month) ?? 0) + count);
-      const weekday = new Date(`${date}T00:00:00Z`).getUTCDay();
-      if (!Number.isNaN(weekday)) {
-        const key = String(weekday);
-        weekdays.set(key, (weekdays.get(key) ?? 0) + count);
-      }
-    }
-    const months = Array.from(byMonth, ([month, count]) => ({
-      month,
-      count,
-    })).slice(0, 12);
+    const months = Array.from(
+      Map.groupBy(dated, (day) => day.date.slice(0, 7)),
+      ([month, group]) => ({
+        month,
+        count: group.reduce((n, day) => n + day.count, 0),
+      }),
+    ).slice(0, 12);
+    const weekdays = new Map(
+      Array.from(
+        Map.groupBy(
+          dated.flatMap(({ date, count }) => {
+            const weekday = new Date(`${date}T00:00:00Z`).getUTCDay();
+            return Number.isNaN(weekday)
+              ? []
+              : [{ key: String(weekday), count }];
+          }),
+          (day) => day.key,
+        ),
+        ([key, group]): [string, number] => [
+          key,
+          group.reduce((n, day) => n + day.count, 0),
+        ],
+      ),
+    );
     const byHour = await this.#db
       .select({
         key: sql<string | null>`strftime('%H', ${articles.published_at})`,
@@ -2397,12 +2487,16 @@ export class Repository {
         .delete(clusters)
         .where(and(gte(clusters.edition, from), lte(clusters.edition, to))),
     ]);
+    // eslint-disable-next-line functional/no-loop-statements -- each cluster is inserted and then its members are pointed at it, one cluster after another
     for (const group of groups) {
       const [cluster] = await this.#db
         .insert(clusters)
         .values({ edition: to })
         .returning({ id: clusters.id });
-      if (!cluster) continue;
+      if (!cluster) {
+        continue;
+      }
+      // eslint-disable-next-line functional/no-loop-statements -- the members are updated chunk by chunk, so the awaits must run in order
       for (const ids of chunks(group, IN_CHUNK)) {
         await this.#db
           .update(articles)
@@ -2440,10 +2534,9 @@ export class Repository {
     userId: number,
     clusterIds: readonly number[],
   ): Promise<Article[]> {
-    const rows: Article[] = [];
-    for (const part of chunks([...new Set(clusterIds)], IN_CHUNK)) {
-      rows.push(
-        ...(await this.#db
+    const rows = await Promise.all(
+      chunks([...new Set(clusterIds)], IN_CHUNK).map(async (part) =>
+        this.#db
           .select()
           .from(articles)
           .where(
@@ -2451,24 +2544,20 @@ export class Repository {
               inArray(articles.cluster_id, part),
               inArray(articles.source_id, this.#followed(userId)),
             ),
-          )),
-      );
-    }
-    return rows;
+          ),
+      ),
+    );
+    return rows.flat();
   }
 
   /** The articles with these ids, in no particular order. */
   async articlesByIds(ids: readonly number[]): Promise<Article[]> {
-    const rows: Article[] = [];
-    for (const part of chunks([...new Set(ids)], IN_CHUNK)) {
-      rows.push(
-        ...(await this.#db
-          .select()
-          .from(articles)
-          .where(inArray(articles.id, part))),
-      );
-    }
-    return rows;
+    const rows = await Promise.all(
+      chunks([...new Set(ids)], IN_CHUNK).map(async (part) =>
+        this.#db.select().from(articles).where(inArray(articles.id, part)),
+      ),
+    );
+    return rows.flat();
   }
 
   /** The ids of everyone who follows at least one feed. */
@@ -2594,7 +2683,9 @@ export class Repository {
       .delete(editions)
       .where(and(eq(editions.id, id), eq(editions.user_id, userId)))
       .returning({ id: editions.id });
-    if (removed.length === 0) return false;
+    if (removed.length === 0) {
+      return false;
+    }
     await this.#db
       .delete(editionIssues)
       .where(eq(editionIssues.edition_id, id));
@@ -2645,7 +2736,9 @@ export class Repository {
   /** The ids of the articles of `edition` whose text holds every word of `q`. */
   async matchingArticleIds(edition: string, q: string): Promise<Set<number>> {
     const match = ftsQuery(q);
-    if (!match) return new Set();
+    if (!match) {
+      return new Set();
+    }
     const rows = await this.#db
       .select({ id: articles.id })
       .from(articles)
@@ -2747,16 +2840,14 @@ export class Repository {
         followers: r.followers,
       };
     });
-    const served = diversify(
+    const diversified = diversify(
       candidates,
       order === 'good_reads' ? SMALL_FEED_SLOTS : 0,
     );
-    if (sort === 'oldest') served.reverse();
-    let start = 0;
-    if (after) {
-      const at = served.findIndex((c) => c.id === after.id);
-      start = (at === -1 ? after.position : at) + 1;
-    }
+    const served = sort === 'oldest' ? diversified.toReversed() : diversified;
+    const found = after ? served.findIndex((c) => c.id === after.id) : -1;
+    const resume = found === -1 ? after?.position : found;
+    const start = resume === undefined ? 0 : resume + 1;
     return served.slice(start, start + limit + 1).map((c, index) => ({
       article: byId.get(c.id)!.article,
       count: c.count,
@@ -2792,54 +2883,81 @@ export class Repository {
       site_url: sources.site_url,
       followers,
     };
-    const scored: { source: Omit<TrendingSource, 'count'>; count: number }[] =
-      [];
-    if (order === 'follows') {
-      const rows = await this.#db
-        .select({ ...details, at: subscriptions.created_at })
-        .from(subscriptions)
-        .innerJoin(sources, eq(sources.id, subscriptions.source_id))
-        .where(and(sql`${subscriptions.created_at} >= ${since}`, fresh));
-      const nowMs = Date.parse(`${now.replace(' ', 'T')}Z`);
-      const bySource = new Map<number, (typeof scored)[number]>();
-      for (const { at, ...source } of rows) {
-        const ago = Math.floor(
-          (nowMs - Date.parse(`${(at ?? now).replace(' ', 'T')}Z`)) /
-            86_400_000,
-        );
-        const entry = bySource.get(source.id) ?? { source, count: 0 };
-        entry.count += decayWeight(days, Math.max(0, ago));
-        bySource.set(source.id, entry);
-      }
-      for (const entry of bySource.values()) {
-        const count = Math.round(entry.count * 100) / 100;
-        if (count >= MIN_FOLLOW_SCORE) scored.push({ ...entry, count });
-      }
-    } else {
-      const timed = sql`${reads.seconds} >= ${MIN_READ_SECONDS}`;
-      const rows = await this.#db
-        .select({
-          ...details,
-          people:
-            order === 'read_time'
-              ? sql<number>`count(distinct case when ${timed} then ${reads.user_id} end)`
-              : sql<number>`count(distinct ${reads.user_id})`,
-          score:
-            order === 'read_time'
-              ? sql<number>`sum(case when ${timed} then min(${reads.seconds}, ${MAX_READ_SECONDS}) else 0 end)`
-              : sql<number>`count(distinct ${reads.user_id})`,
-        })
-        .from(reads)
-        .innerJoin(articles, eq(articles.id, reads.article_id))
-        .innerJoin(sources, eq(sources.id, articles.source_id))
-        .where(and(sql`${reads.created_at} >= ${since}`, fresh))
-        .groupBy(sources.id);
-      for (const { people, score, ...source } of rows) {
-        if (people >= MIN_PEOPLE) {
-          scored.push({ source, count: score });
-        }
-      }
-    }
+    const followRows =
+      order === 'follows'
+        ? await this.#db
+            .select({ ...details, at: subscriptions.created_at })
+            .from(subscriptions)
+            .innerJoin(sources, eq(sources.id, subscriptions.source_id))
+            .where(and(sql`${subscriptions.created_at} >= ${since}`, fresh))
+        : [];
+    const nowMs = Date.parse(`${now.replace(' ', 'T')}Z`);
+    const followScored = [...Map.groupBy(followRows, (row) => row.id)].flatMap(
+      ([, group]) => {
+        const first = group[0]!;
+        const count =
+          Math.round(
+            group.reduce(
+              (sum, row) =>
+                sum +
+                decayWeight(
+                  days,
+                  Math.max(
+                    0,
+                    Math.floor(
+                      (nowMs -
+                        Date.parse(`${(row.at ?? now).replace(' ', 'T')}Z`)) /
+                        86_400_000,
+                    ),
+                  ),
+                ),
+              0,
+            ) * 100,
+          ) / 100;
+        return count >= MIN_FOLLOW_SCORE
+          ? [
+              {
+                source: {
+                  id: first.id,
+                  url: first.url,
+                  title: first.title,
+                  site_url: first.site_url,
+                  followers: first.followers,
+                },
+                count,
+              },
+            ]
+          : [];
+      },
+    );
+    const timed = sql`${reads.seconds} >= ${MIN_READ_SECONDS}`;
+    const readRows =
+      order === 'follows'
+        ? []
+        : await this.#db
+            .select({
+              ...details,
+              people:
+                order === 'read_time'
+                  ? sql<number>`count(distinct case when ${timed} then ${reads.user_id} end)`
+                  : sql<number>`count(distinct ${reads.user_id})`,
+              score:
+                order === 'read_time'
+                  ? sql<number>`sum(case when ${timed} then min(${reads.seconds}, ${MAX_READ_SECONDS}) else 0 end)`
+                  : sql<number>`count(distinct ${reads.user_id})`,
+            })
+            .from(reads)
+            .innerJoin(articles, eq(articles.id, reads.article_id))
+            .innerJoin(sources, eq(sources.id, articles.source_id))
+            .where(and(sql`${reads.created_at} >= ${since}`, fresh))
+            .groupBy(sources.id);
+    const readScored = readRows.flatMap(({ people, score, ...source }) =>
+      people >= MIN_PEOPLE ? [{ source, count: score }] : [],
+    );
+    const scored: { source: Omit<TrendingSource, 'count'>; count: number }[] = [
+      ...followScored,
+      ...readScored,
+    ];
     return scored
       .filter(({ source }) => source.followers >= MIN_PEOPLE)
       .filter(
@@ -2881,7 +2999,9 @@ export class Repository {
   async articleTitles(
     ids: readonly number[],
   ): Promise<Map<number, string | null>> {
-    if (ids.length === 0) return new Map();
+    if (ids.length === 0) {
+      return new Map<number, string | null>();
+    }
     const rows = await this.#db
       .select({ id: articles.id, title: articles.title })
       .from(articles)
@@ -2996,18 +3116,21 @@ export class Repository {
     sourceIds: readonly number[],
     since: string,
   ): Promise<Map<number, number>> {
-    const counts = new Map<number, number>();
-    for (const part of chunks([...new Set(sourceIds)], IN_CHUNK)) {
-      const rows = await this.#db
-        .select({ id: articles.source_id, n: sql<number>`count(*)` })
-        .from(articles)
-        .where(
-          and(inArray(articles.source_id, part), gte(articles.edition, since)),
-        )
-        .groupBy(articles.source_id);
-      for (const r of rows) counts.set(r.id, r.n);
-    }
-    return counts;
+    const chunked = await Promise.all(
+      chunks([...new Set(sourceIds)], IN_CHUNK).map(async (part) =>
+        this.#db
+          .select({ id: articles.source_id, n: sql<number>`count(*)` })
+          .from(articles)
+          .where(
+            and(
+              inArray(articles.source_id, part),
+              gte(articles.edition, since),
+            ),
+          )
+          .groupBy(articles.source_id),
+      ),
+    );
+    return new Map(chunked.flat().map((r) => [r.id, r.n]));
   }
 
   /** The sources of the stories a person has read. */
@@ -3036,24 +3159,21 @@ export class Repository {
         !f.muted &&
         (sourceIds === undefined || sourceIds.includes(f.source_id)),
     );
-    const rows: Article[] = [];
-    for (const part of chunks(
-      [...new Set(feeds.map((f) => f.source_id))],
-      IN_CHUNK,
-    )) {
-      rows.push(
-        ...(await this.#db
-          .select()
-          .from(articles)
-          .where(
-            and(
-              inArray(articles.source_id, part),
-              gte(articles.fetched_at, since),
+    const rows = await Promise.all(
+      chunks([...new Set(feeds.map((f) => f.source_id))], IN_CHUNK).map(
+        async (part) =>
+          this.#db
+            .select()
+            .from(articles)
+            .where(
+              and(
+                inArray(articles.source_id, part),
+                gte(articles.fetched_at, since),
+              ),
             ),
-          )),
-      );
-    }
-    return rows.toSorted((a, b) => b.id - a.id);
+      ),
+    );
+    return rows.flat().toSorted((a, b) => b.id - a.id);
   }
 
   /**
@@ -3067,7 +3187,9 @@ export class Repository {
     limit = 10,
   ): Promise<Article[]> {
     const match = ftsQuery(q);
-    if (!match) return [];
+    if (!match) {
+      return [];
+    }
     return this.#db
       .select()
       .from(articles)
@@ -3116,7 +3238,9 @@ export class Repository {
         set: { ...rest, created_at: sql`(datetime('now'))` },
       })
       .returning();
-    if (!row) throw new Error(`briefing ${user_id}/${slot}/${local_date}`);
+    if (!row) {
+      throw new Error(`briefing ${user_id}/${slot}/${local_date}`);
+    }
     return row;
   }
 
@@ -3195,7 +3319,9 @@ export class Repository {
     const row = await this.#db.query.preferences.findFirst({
       where: eq(preferences.user_id, userId),
     });
-    if (!row) return DEFAULT_PREFERENCES;
+    if (!row) {
+      return DEFAULT_PREFERENCES;
+    }
     const d = DEFAULT_PREFERENCES;
     return {
       story_clustering: row.story_clustering === 1,
@@ -3306,9 +3432,14 @@ export class Repository {
     const rows = await this.#db
       .select({ id: preferences.user_id })
       .from(preferences);
-    const out = new Map<number, Preferences>();
-    for (const { id } of rows) out.set(id, await this.getPreferences(id));
-    return out;
+    return new Map(
+      await Promise.all(
+        rows.map(async ({ id }): Promise<[number, Preferences]> => [
+          id,
+          await this.getPreferences(id),
+        ]),
+      ),
+    );
   }
 
   /**
@@ -3321,7 +3452,9 @@ export class Repository {
   ): Promise<number[]> {
     const article = await this.getArticle(userId, articleId);
     const clusterId = article?.cluster_id;
-    if (clusterId === undefined || clusterId === null) return [];
+    if (clusterId === undefined || clusterId === null) {
+      return [];
+    }
     const rows = await this.#db
       .selectDistinct({ id: articles.id })
       .from(articles)
@@ -3404,7 +3537,9 @@ export class Repository {
     { since, until, source, limit = 6 }: PassageQuery = {},
   ): Promise<Passage[]> {
     const match = anyWordQuery(question);
-    if (!match) return [];
+    if (!match) {
+      return [];
+    }
     const sourcePattern = `%${source}%`;
     return this.#db
       .select(this.#passageColumns())
@@ -3755,7 +3890,9 @@ export class Repository {
       .delete(conversations)
       .where(and(eq(conversations.id, id), eq(conversations.user_id, userId)))
       .returning({ id: conversations.id });
-    if (removed.length === 0) return false;
+    if (removed.length === 0) {
+      return false;
+    }
     await this.#db.delete(messages).where(eq(messages.conversation_id, id));
     return true;
   }
@@ -3771,7 +3908,9 @@ export class Repository {
     limit = 5,
   ): Promise<SimilarSource[] | undefined> {
     const feed = await this.getFeed(userId, feedId);
-    if (!feed) return undefined;
+    if (!feed) {
+      return undefined;
+    }
     const peer = alias(subscriptions, 'peer');
     const rows = await this.#db
       .select({
@@ -3822,9 +3961,13 @@ export class Repository {
     limit = 5,
   ): Promise<DiscoveredArticle[] | undefined> {
     const article = await this.reachableArticle(userId, articleId);
-    if (!article) return undefined;
+    if (!article) {
+      return undefined;
+    }
     const match = anyWordQuery(article.title ?? '');
-    if (!match) return [];
+    if (!match) {
+      return [];
+    }
     const followedRows = await this.#followed(userId);
     const followed = new Set(followedRows.map((r) => r.id));
     const rows = await this.#db
@@ -3837,9 +3980,12 @@ export class Repository {
       )
       .orderBy(sql`f.rank`, desc(articles.id))
       .limit(limit * 3);
-    const seen = new Set<string>();
     return rows
-      .filter((r) => !seen.has(r.article.url) && seen.add(r.article.url))
+      .filter(
+        (r, index) =>
+          rows.findIndex((other) => other.article.url === r.article.url) ===
+          index,
+      )
       .slice(0, limit)
       .map((r) => ({ ...r, followed: followed.has(r.article.source_id) }));
   }
@@ -3850,15 +3996,14 @@ export class Repository {
       .select({ tags: saves.tags })
       .from(saves)
       .where(eq(saves.user_id, userId));
-    const counts = new Map<string, number>();
-    for (const row of rows) {
-      for (const tag of tagsOf(row.tags)) {
-        counts.set(tag, (counts.get(tag) ?? 0) + 1);
-      }
-    }
-    return Array.from(counts, ([tag, count]) => ({ tag, count })).toSorted(
-      (a, b) => compareText(a.tag, b.tag),
+    const counts = Map.groupBy(
+      rows.flatMap((row) => tagsOf(row.tags)),
+      (tag) => tag,
     );
+    return Array.from(counts, ([tag, group]) => ({
+      tag,
+      count: group.length,
+    })).toSorted((a, b) => compareText(a.tag, b.tag));
   }
 
   /**
@@ -3894,7 +4039,9 @@ export class Repository {
       );
     const updates = rows.map((row) => {
       const tags = tagsOf(row.tags).flatMap((t) => {
-        if (t !== from) return [t];
+        if (t !== from) {
+          return [t];
+        }
         return to === undefined ? [] : [to];
       });
       return this.#db
@@ -3905,7 +4052,9 @@ export class Repository {
         );
     });
     const [first, ...rest] = updates;
-    if (first) await this.#db.batch([first, ...rest]);
+    if (first) {
+      await this.#db.batch([first, ...rest]);
+    }
     return rows.length;
   }
 
@@ -3941,9 +4090,13 @@ export class Repository {
       )
       .orderBy(asc(articles.id));
     const inScope = rows.filter((a) => {
-      if (!scope.before && !scope.after) return true;
+      if (!scope.before && !scope.after) {
+        return true;
+      }
       const at = storyTime(a);
-      if (Number.isNaN(at)) return false;
+      if (Number.isNaN(at)) {
+        return false;
+      }
       return (
         (!scope.before || at < scope.before.getTime()) &&
         (!scope.after || at > scope.after.getTime())
@@ -3951,21 +4104,16 @@ export class Repository {
     });
     const unread = inScope.filter((a) => !a.read);
     // Thirty rows per INSERT keeps under D1's limit on bound variables.
-    const inserts = [];
-    for (let index = 0; index < unread.length; index += 30) {
-      inserts.push(
-        this.#db
-          .insert(reads)
-          .values(
-            unread
-              .slice(index, index + 30)
-              .map((a) => ({ user_id: userId, article_id: a.id })),
-          )
-          .onConflictDoNothing(),
-      );
-    }
+    const inserts = chunks(unread, 30).map((part) =>
+      this.#db
+        .insert(reads)
+        .values(part.map((a) => ({ user_id: userId, article_id: a.id })))
+        .onConflictDoNothing(),
+    );
     const [first, ...rest] = inserts;
-    if (first) await this.#db.batch([first, ...rest]);
+    if (first) {
+      await this.#db.batch([first, ...rest]);
+    }
     return (scope.articleIds ? inScope : unread).map((a) => a.id);
   }
 
@@ -4025,7 +4173,9 @@ export class Repository {
         .onConflictDoNothing(),
     );
     const [first, ...rest] = inserts;
-    if (first) await this.#db.batch([first, ...rest]);
+    if (first) {
+      await this.#db.batch([first, ...rest]);
+    }
   }
 
   /** The person's prompt classifiers each story matched, by article id. */
@@ -4039,14 +4189,15 @@ export class Repository {
       .where(
         and(eq(promptScores.user_id, userId), eq(promptScores.matched, 1)),
       );
-    const out = new Map<number, Set<number>>();
-    for (const r of rows) {
-      out.set(
-        r.article_id,
-        (out.get(r.article_id) ?? new Set()).add(r.classifier_id),
-      );
-    }
-    return out;
+    return new Map(
+      Array.from(
+        Map.groupBy(rows, (r) => r.article_id),
+        ([articleId, group]): [number, Set<number>] => [
+          articleId,
+          new Set(group.map((r) => r.classifier_id)),
+        ],
+      ),
+    );
   }
 
   /**
@@ -4145,7 +4296,7 @@ export class Repository {
           },
         );
       }
-      case 'new': {
+      default: {
         return this.#ranked(
           userId,
           null,
@@ -4237,23 +4388,22 @@ export class Repository {
  */
 export function treeOrder(rows: readonly Section[]): Section[] {
   const ids = new Set(rows.map((s) => s.id));
-  const children = new Map<number | null, Section[]>();
-  for (const s of rows) {
-    const parent =
-      s.parent_id !== null && ids.has(s.parent_id) ? s.parent_id : null;
-    children.set(parent, [...(children.get(parent) ?? []), s]);
-  }
-  const out: Section[] = [];
-  const seen = new Set<number>();
-  const visit = (parent: number | null): void => {
-    for (const s of children.get(parent) ?? []) {
-      if (seen.has(s.id)) continue;
-      seen.add(s.id);
-      out.push(s);
-      visit(s.id);
-    }
-  };
-  visit(null);
+  const children = Map.groupBy(rows, (s) =>
+    s.parent_id !== null && ids.has(s.parent_id) ? s.parent_id : null,
+  );
+  type Walk = { readonly out: Section[]; readonly seen: ReadonlySet<number> };
+  const visit = (parent: number | null, seen: ReadonlySet<number>): Walk =>
+    (children.get(parent) ?? []).reduce<Walk>(
+      (walk, s) => {
+        if (walk.seen.has(s.id)) {
+          return walk;
+        }
+        const below = visit(s.id, new Set(walk.seen).add(s.id));
+        return { out: [...walk.out, s, ...below.out], seen: below.seen };
+      },
+      { out: [], seen },
+    );
+  const { out, seen } = visit(null, new Set());
   // A cycle has no way in from the top; print what it holds at the end.
   return [...out, ...rows.filter((s) => !seen.has(s.id))];
 }
@@ -4263,17 +4413,17 @@ export function sectionAndDescendants(
   all: readonly Section[],
   id: number,
 ): Set<number> {
-  const found = new Set([id]);
-  for (let grew = true; grew;) {
-    grew = false;
-    for (const s of all) {
-      if (s.parent_id !== null && found.has(s.parent_id) && !found.has(s.id)) {
-        found.add(s.id);
-        grew = true;
-      }
-    }
-  }
-  return found;
+  const grow = (found: ReadonlySet<number>): ReadonlySet<number> => {
+    const next = found.union(
+      new Set(
+        all.flatMap((s) =>
+          s.parent_id !== null && found.has(s.parent_id) ? [s.id] : [],
+        ),
+      ),
+    );
+    return next.size === found.size ? found : grow(next);
+  };
+  return new Set(grow(new Set([id])));
 }
 
 /**
@@ -4282,14 +4432,20 @@ export function sectionAndDescendants(
  */
 export function sectionNames(all: readonly Section[], id: number): string[] {
   const byId = new Map(all.map((s) => [s.id, s]));
-  const names: string[] = [];
-  const seen = new Set<number>();
-  for (let at = byId.get(id); at && !seen.has(at.id);) {
-    seen.add(at.id);
-    names.unshift(at.name);
-    at = at.parent_id === null ? undefined : byId.get(at.parent_id);
-  }
-  return names;
+  const walk = (
+    at: Section | undefined,
+    seen: ReadonlySet<number>,
+  ): string[] =>
+    !at || seen.has(at.id)
+      ? []
+      : [
+          ...walk(
+            at.parent_id === null ? undefined : byId.get(at.parent_id),
+            new Set(seen).add(at.id),
+          ),
+          at.name,
+        ];
+  return walk(byId.get(id), new Set());
 }
 
 /** A section's heading: its name after the names of the sections it is in. */
@@ -4342,25 +4498,37 @@ export function autoMarkReadDays(
     return feed.auto_mark_read_days || undefined;
   }
   const byId = new Map(all.map((s) => [s.id, s]));
-  const seen = new Set<number>();
-  for (
-    let at = feed.section_id === null ? undefined : byId.get(feed.section_id);
-    at && !seen.has(at.id);
-    at = at.parent_id === null ? undefined : byId.get(at.parent_id)
-  ) {
-    seen.add(at.id);
-    if (at.auto_mark_read_days !== null)
+  const find = (
+    at: Section | undefined,
+    seen: ReadonlySet<number>,
+  ): number | undefined => {
+    if (!at || seen.has(at.id)) {
+      return person || undefined;
+    }
+    if (at.auto_mark_read_days !== null) {
       return at.auto_mark_read_days || undefined;
-  }
-  return person || undefined;
+    }
+    return find(
+      at.parent_id === null ? undefined : byId.get(at.parent_id),
+      new Set(seen).add(at.id),
+    );
+  };
+  return find(
+    feed.section_id === null ? undefined : byId.get(feed.section_id),
+    new Set(),
+  );
 }
 
 /** Drops leading and trailing dots; same as `.replaceAll(/^\.+|\.+$/g, '')`, in linear time. */
 function trimDots(text: string | undefined): string | undefined {
-  if (text === undefined) return undefined;
-  let start = 0;
-  let end = text.length;
-  while (start < end && text.codePointAt(start) === 46) start += 1;
-  while (end > start && text.codePointAt(end - 1) === 46) end -= 1;
-  return text.slice(start, end);
+  if (text === undefined) {
+    return undefined;
+  }
+  const characters = Array.from(text, (character) => character);
+  const start = characters.findIndex((character) => character !== '.');
+  if (start === -1) {
+    return '';
+  }
+  const last = characters.findLastIndex((character) => character !== '.');
+  return text.slice(start, last + 1);
 }

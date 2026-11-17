@@ -7,12 +7,12 @@
  * prompt; the paper then reads the kept answers (see `verdict`).
  */
 
-import type { Feed, Repository } from '@/domain/repository';
 import { budget } from '@/domain/api/usage';
 import { logWarn } from '@/utils/logging';
+import type { Feed, Repository } from '@/domain/repository';
 
-const READ_ANSWER_PATTERN = /^\W*yes\b/i;
-const READ_ANSWER_PATTERN_2 = /^\W*no\b/i;
+const READ_ANSWER_PATTERN = /^\W*yes\b/iu;
+const READ_ANSWER_PATTERN_2 = /^\W*no\b/iu;
 
 /** The model that judges stories against a prompt. */
 export const PROMPT_MODEL = '@cf/meta/llama-3.1-8b-instruct-fast';
@@ -40,9 +40,15 @@ export function promptQuestion(
 /** The model's answer read as a match, or undefined when it gave none. */
 export function readAnswer(out: unknown): boolean | undefined {
   const text = (out as { response?: unknown } | null)?.response;
-  if (typeof text !== 'string') return undefined;
-  if (READ_ANSWER_PATTERN.test(text)) return true;
-  if (READ_ANSWER_PATTERN_2.test(text)) return false;
+  if (typeof text !== 'string') {
+    return undefined;
+  }
+  if (READ_ANSWER_PATTERN.test(text)) {
+    return true;
+  }
+  if (READ_ANSWER_PATTERN_2.test(text)) {
+    return false;
+  }
   return undefined;
 }
 
@@ -73,8 +79,12 @@ function reaches(
   },
   feed: Feed | undefined,
 ): boolean {
-  if (!feed) return false;
-  if (c.scope_feed_id !== null) return feed.id === c.scope_feed_id;
+  if (!feed) {
+    return false;
+  }
+  if (c.scope_feed_id !== null) {
+    return feed.id === c.scope_feed_id;
+  }
   if (c.scope_section_id !== null) {
     return feed.section_ids.includes(c.scope_section_id);
   }
@@ -95,18 +105,25 @@ export async function scorePrompts(
   edition: string,
 ): Promise<number> {
   const pending = await repo.unscoredPrompts(userId, edition, PROMPT_BATCH);
-  if (pending.length === 0) return 0;
+  if (pending.length === 0) {
+    return 0;
+  }
   // NewsBlur stops classifying at the person's spending limit; so do we.
   const quota = await budget(repo, userId, 'classifier');
+  // eslint-disable-next-line functional/no-let -- the spending allowance left, counted down as stories are asked
   let left = quota.remaining;
   const feeds = await repo.listFeeds(userId);
   const bySource = new Map(feeds.map((f) => [f.source_id, f]));
+  // eslint-disable-next-line functional/no-let -- counts the stories asked
   let asked = 0;
+  // eslint-disable-next-line functional/no-loop-statements -- each classifier is scored in turn, awaiting the model
   for (const { classifier, stories } of pending) {
     const answers = new Map<number, boolean>();
+    // eslint-disable-next-line functional/no-loop-statements -- stories are asked one at a time until the allowance runs out
     for (const story of stories) {
       if (!reaches(classifier, bySource.get(story.source_id))) {
         // Out of the prompt's scope never matches; kept so it is not asked.
+        // eslint-disable-next-line functional/immutable-data -- collects the answers for this classifier
         answers.set(story.id, false);
       } else if (left <= 0) {
         break;
@@ -132,7 +149,10 @@ async function askAndRecord(
 ): Promise<void> {
   try {
     const matched = await askPrompt(env.AI, question, story);
-    if (matched !== undefined) answers.set(story.id, matched);
+    if (matched !== undefined) {
+      // eslint-disable-next-line functional/immutable-data -- collects the answers for this classifier
+      answers.set(story.id, matched);
+    }
     await repo.recordUsage(userId, 'classifier');
   } catch (error) {
     logWarn({

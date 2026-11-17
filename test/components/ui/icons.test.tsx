@@ -3,7 +3,7 @@ import { describe, expect, it } from '@jest/globals';
 import { Icon } from '@/components/ui/icons';
 import { cssClassesOf, html } from '../render';
 
-const ICON_PATTERN = /<path d="M[^"]+"/;
+const ICON_PATTERN = /<path d="M[^"]+"/u;
 
 describe('Icon', () => {
   it.each(['pencil', 'atom', 'rdf', 'rss'] as const)(

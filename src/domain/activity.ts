@@ -7,9 +7,10 @@
  * each Worker isolate, so reading the paper does not cost a write a request.
  */
 
-import { getDatabase, type Database } from '@/domain/db/client';
+import { getDatabase } from '@/domain/db/client';
 import { NotificationRepository } from '@/domain/notifications';
 import { runInBackground } from '@/lib/core/runtime';
+import type { Database } from '@/domain/db/client';
 
 /** The day each person was last noted in this isolate. */
 const noted = new Map<number, string>();
@@ -27,7 +28,10 @@ export async function noteActivity(
   now: Date = new Date(),
 ): Promise<boolean> {
   const day = today(now);
-  if (noted.get(userId) === day) return false;
+  if (noted.get(userId) === day) {
+    return false;
+  }
+  // eslint-disable-next-line functional/immutable-data -- the per-isolate memo of who was noted today is the point of this module
   noted.set(userId, day);
   await new NotificationRepository(db).noteSeen(userId, day);
   return true;

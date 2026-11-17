@@ -1,6 +1,5 @@
-import type { ReactElement } from 'react';
-
 import { Tabs } from '@/components/ui/tabs';
+import type { ReactElement } from 'react';
 
 /** The places to discover feeds, in the order the tabs show them. */
 export const TABS = [

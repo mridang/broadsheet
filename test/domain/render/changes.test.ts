@@ -55,7 +55,7 @@ describe('storyChanges', () => {
 });
 
 describe('plainText tag stripping', () => {
-  const TAG = new RegExp(['<[^>]', '*>'].join(''), 'g');
+  const TAG = new RegExp(['<[^>]', '*>'].join(''), 'gu');
 
   it.each([
     'a <> b',
@@ -67,7 +67,7 @@ describe('plainText tag stripping', () => {
     '<>',
     '',
   ])('strips tags in %j as the original pattern did', (text) => {
-    const expected = text.replaceAll(TAG, '').replaceAll(/\s+/g, ' ').trim();
+    const expected = text.replaceAll(TAG, '').replaceAll(/\s+/gu, ' ').trim();
     expect(plainText(text)).toBe(expected);
   });
 

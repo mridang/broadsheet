@@ -8,30 +8,22 @@
  * on tool invocations).
  */
 
-import type { User } from '@/domain/db/users';
-import {
-  readJsonBody as readJsonBodyUpTo,
-  type JsonBody,
-} from '@/lib/core/api';
+import { readJsonBody as readJsonBodyUpTo } from '@/lib/core/api';
 import { runInBackground } from '@/lib/core/runtime';
 import { getDatabase } from '@/domain/db/client';
 import { errorMessage, logError } from '@/utils/logging';
-import {
-  D1RateLimitStore,
-  purgeRateLimits,
-  rateLimit,
-  type RateLimit,
-  type RateLimitStore,
-} from '@/lib/rate-limit';
+import { countOf } from '@/lib/intl';
+import { D1RateLimitStore, purgeRateLimits, rateLimit } from '@/lib/rate-limit';
 import {
   ERROR_INTERNAL,
   isNotification,
   protocolRefusal,
   replyIdOf,
-  type ProtocolMessage,
-  type ReplyId,
-  type ProtocolRefusal,
 } from '@/lib/mcp';
+import type { RateLimit, RateLimitStore } from '@/lib/rate-limit';
+import type { JsonBody } from '@/lib/core/api';
+import type { ProtocolMessage, ReplyId, ProtocolRefusal } from '@/lib/mcp';
+import type { User } from '@/domain/db/users';
 
 /** The largest request body, in bytes. An import page is the biggest legitimate message and fits easily. */
 export const MAX_BODY_BYTES = 1_048_576;
@@ -57,9 +49,6 @@ export const PURGE_PROBABILITY = 0.01;
 /** How long, in seconds, a counter must have been idle before a sweep removes it. */
 export const PURGE_IDLE_SECONDS = 3600;
 
-/** What reading a request body came to: its JSON, or why it could not be had. */
-export type BodyResult = JsonBody;
-
 /**
  * Read the request body as JSON, refusing anything over {@link MAX_BODY_BYTES}.
  * A declared `Content-Length` over the limit is refused without reading a byte;
@@ -67,7 +56,7 @@ export type BodyResult = JsonBody;
  * as soon as it grows past the limit, so a big upload is never held in memory.
  * Text that is not valid UTF-8 or not valid JSON is `unparseable`.
  */
-export async function readJsonBody(request: Request): Promise<BodyResult> {
+export async function readJsonBody(request: Request): Promise<JsonBody> {
   return readJsonBodyUpTo(request, MAX_BODY_BYTES);
 }
 
@@ -111,7 +100,7 @@ function tooManyRequests(
     id,
     // The protocol defines no code for "slow down"; this is the closest standard one.
     code: ERROR_INTERNAL,
-    message: `Rate limit reached: at most ${limit.limit} requests of this kind every ${limit.windowSeconds} seconds. Try again in ${retryAfterSeconds} seconds.`,
+    message: `Rate limit reached: at most ${limit.limit} requests of this kind every ${countOf(limit.windowSeconds, 'second')}. Try again in ${countOf(retryAfterSeconds, 'second')}.`,
     data: {
       retryAfterSeconds,
       limit: limit.limit,

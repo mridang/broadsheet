@@ -4,7 +4,7 @@ import { ExportFeedsButton } from '@/app/(site)/feeds/_components/export-feeds-b
 import { html } from '../../../../components/render';
 
 const EXPORTS_WITH_A_PLAIN_PATTERN =
-  /^<button type="button" class="[^"]*">Export OPML<\/button>$/;
+  /^<button type="button" class="[^"]*">Export OPML<\/button>$/u;
 
 describe('ExportFeedsButton', () => {
   it('exports with a plain button, not a link', () => {

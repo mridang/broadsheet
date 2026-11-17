@@ -1,17 +1,17 @@
 'use client';
 
-import type { SubmitEvent, ReactElement } from 'react';
-
+import { z } from 'zod';
 import { useApiAction } from '@/components/api/use-api-action';
+
 import {
   addEdition,
   editEdition,
-  type EditionEdit,
 } from '@/app/(site)/editions/_components/edition-requests';
 import { buttonClass } from '@/components/ui/button';
 import { CHECK_LABEL } from '@/components/ui/field';
 import { ErrorText } from '@/components/ui/notice';
-import { z } from 'zod';
+import type { EditionEdit } from '@/app/(site)/editions/_components/edition-requests';
+import type { SubmitEvent, ReactElement } from 'react';
 
 /** The text fields the edition form posts. */
 const editionForm = z.object({
@@ -97,6 +97,7 @@ export function EditionForm({
           {sections.map((s) => (
             <label key={s.id} className={CHECK_LABEL}>
               <input
+                aria-label={s.name}
                 type="checkbox"
                 name="section"
                 value={s.id}

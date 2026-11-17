@@ -1,14 +1,12 @@
 'use client';
 
-import { useApiAction, type ApiAction } from '@/components/api/use-api-action';
-
-/** What a feed control shows while its request runs and after it fails. */
-export type FeedAction = ApiAction;
+import { useApiAction } from '@/components/api/use-api-action';
+import type { ApiAction } from '@/components/api/use-api-action';
 
 /**
  * Shared behaviour of the controls on the feed manager: the generic
  * {@link useApiAction}, reloading the page on success so the change shows.
  */
-export function useFeedAction(): FeedAction {
+export function useFeedAction(): ApiAction {
   return useApiAction(() => globalThis.location.reload());
 }

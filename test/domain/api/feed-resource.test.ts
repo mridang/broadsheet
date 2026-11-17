@@ -9,8 +9,8 @@ import {
   parseFeedInput,
   rfc3339,
 } from '@/domain/api/feed-resource';
-import type { Feed } from '@/domain/repository';
 import insecure from '../../fixtures/insecure-urls.json';
+import type { Feed } from '@/domain/repository';
 
 const stored = (over: Partial<Feed> = {}): Feed => ({
   id: 4,

@@ -6,11 +6,7 @@
  * runs as the signed-in person, as the feed controllers do.
  */
 
-import {
-  liveUid,
-  requestCookieResolver,
-  type CurrentUserResolver,
-} from '@/domain/api/auth';
+import { liveUid, requestCookieResolver } from '@/domain/api/auth';
 import { parseFeedId } from '@/domain/api/feed-resource';
 import { idOf } from '@/domain/api/feeds';
 import {
@@ -25,12 +21,10 @@ import {
   created,
   noContent,
 } from '@/lib/core/api';
-import {
-  Repository,
-  type Section,
-  type SectionChanges,
-} from '@/domain/repository';
+import { Repository } from '@/domain/repository';
 import { getDatabase } from '@/domain/db/client';
+import type { Section, SectionChanges } from '@/domain/repository';
+import type { CurrentUserResolver } from '@/domain/api/auth';
 
 /** The signed-in caller's id and the request, for a section endpoint. */
 interface UidContext {
@@ -64,8 +58,12 @@ async function decodeSection(
  */
 function unfollowsFeeds(request: Request): boolean {
   const feeds = new URL(request.url).searchParams.get('feeds');
-  if (feeds === null || feeds === 'keep') return false;
-  if (feeds === 'unfollow') return true;
+  if (feeds === null || feeds === 'keep') {
+    return false;
+  }
+  if (feeds === 'unfollow') {
+    return true;
+  }
   throw problems.badRequest('The removal is not valid.', [
     'feeds: must be keep or unfollow.',
   ]);
@@ -101,7 +99,8 @@ export function createSectionsCollection(
     ) => {
       const repo = new Repository(getDatabase());
       if (
-        parent != null &&
+        parent !== null &&
+        parent !== undefined &&
         !(await repo.canNestUnder(uid, undefined, parent))
       ) {
         throw noSuchParent();

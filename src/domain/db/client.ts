@@ -8,10 +8,7 @@
  * calls {@link createDatabase}.
  */
 
-import {
-  createDatabase as createGenericDatabase,
-  type Database as GenericDatabase,
-} from '@/lib/core/db/client';
+import { createDatabase as createGenericDatabase } from '@/lib/core/db/client';
 import { getDB } from '@/lib/core/runtime';
 import {
   users,
@@ -54,6 +51,7 @@ import {
   feedRecommendations,
   feedImports,
 } from '@/domain/db/schema';
+import type { Database as GenericDatabase } from '@/lib/core/db/client';
 
 const schema = {
   users,

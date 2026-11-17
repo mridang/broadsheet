@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from '@jest/globals';
 
-import { createDatabase, type Database } from '@/domain/db/client';
+import { createDatabase } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
 import { SESSION_COOKIE } from '@/domain/auth/app';
 import { APP_MIGRATIONS } from '../../../../lib/core/db/migrations';
@@ -12,6 +12,7 @@ import {
   SESSION_SECRET,
   tokenFor,
 } from '../../../../domain/auth/auth-test-kit';
+import type { Database } from '@/domain/db/client';
 
 const { PATCH, DELETE } = await import('@/app/api/editions/[id]/route');
 

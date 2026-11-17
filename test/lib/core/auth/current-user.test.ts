@@ -8,7 +8,6 @@ import {
 } from '@jest/globals';
 
 import { SESSION_COOKIE } from '@/domain/auth/app';
-import type { User } from '@/domain/auth/store';
 import {
   fakeCookies,
   installEnv,
@@ -16,9 +15,11 @@ import {
   tokenFor,
 } from '../../../domain/auth/auth-test-kit';
 import { installFakeTracing } from '../observability/fake-tracing';
+import type { User } from '@/domain/repository';
 
 const tracing = installFakeTracing();
 
+// eslint-disable-next-line tslop/no-module-mocking -- next/headers is imported directly by the code under test, which has no injection point; ESM needs the module replaced before the import
 jest.unstable_mockModule('next/headers', () => ({ cookies: fakeCookies }));
 
 /** The accounts that exist: id to the epoch their sessions must carry. */
@@ -31,6 +32,7 @@ const getUserById = jest.fn(async (id: number) => {
 });
 const getSessionEpoch = jest.fn(async (id: number) => accounts.get(id)?.epoch);
 
+// eslint-disable-next-line tslop/no-module-mocking -- @/domain/auth/store is imported directly by the code under test, which has no injection point; ESM needs the module replaced before the import
 jest.unstable_mockModule('@/domain/auth/store', () => ({
   getUserById,
   getSessionEpoch,

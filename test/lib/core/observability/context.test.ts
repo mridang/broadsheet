@@ -32,9 +32,9 @@ describe('setErrorContext', () => {
   });
 
   it('drops undefined values and anything that is not a plain value', async () => {
-    let gone: string | undefined;
     await setErrorContext({
-      gone,
+      // eslint-disable-next-line sonarjs/no-undefined-assignment -- the test is that an undefined value is dropped
+      gone: undefined,
       nan: Number.NaN,
       object: { a: 1 } as never,
       kept: 'yes',

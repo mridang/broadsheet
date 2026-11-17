@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type ReactElement } from 'react';
+import { useEffect, useState } from 'react';
 
 import {
   STAGES,
@@ -9,16 +9,21 @@ import {
 } from '@/app/(site)/briefings/_components/briefing-view';
 import { Button } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/notice';
+import type { ReactElement } from 'react';
 
-const BRIEFING_PAGE_PATTERN = /\/briefings\/(\d+)$/;
+const BRIEFING_PAGE_PATTERN = /\/briefings\/(\d+)$/u;
 
 /** How often the progress bar moves, in milliseconds. */
 const TICK_MS = 200;
 
 /** The class and the mark of one stage: done, the one under way, or still to come. */
 function stageLook(index: number, stage: number): readonly [string, string] {
-  if (index < stage) return ['text-muted', '✓ '];
-  if (index === stage) return ['font-semibold text-ink', '› '];
+  if (index < stage) {
+    return ['text-muted', '✓ '];
+  }
+  if (index === stage) {
+    return ['font-semibold text-ink', '› '];
+  }
   return ['text-subtle', ''];
 }
 
@@ -60,7 +65,9 @@ export function WriteBriefing(): ReactElement {
   const [error, setError] = useState<string | null>(null);
 
   useEffect((): (() => void) | undefined => {
-    if (started === null) return undefined;
+    if (started === null) {
+      return undefined;
+    }
     const timer = setInterval(() => setNow(Date.now()), TICK_MS);
     return () => clearInterval(timer);
   }, [started]);
@@ -98,7 +105,9 @@ export function WriteBriefing(): ReactElement {
     <div className="w-full sm:w-72">
       <Button
         variant="accent"
-        onClick={() => void write()}
+        onClick={() => {
+          void write();
+        }}
         disabled={started !== null}
         className="w-full"
       >
@@ -126,9 +135,9 @@ export function WriteBriefing(): ReactElement {
           </ol>
         </div>
       )}
-      <p role="status" aria-live="polite" className="sr-only">
+      <output aria-live="polite" className="sr-only">
         {started === null ? '' : `${STAGES[stage]}…`}
-      </p>
+      </output>
       {error ? <ErrorText>{error}</ErrorText> : null}
     </div>
   );

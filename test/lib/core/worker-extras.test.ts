@@ -12,6 +12,7 @@ const written = new Set<string>();
 const failingBriefings = new Set<number>();
 const thinBriefings = new Set<number>();
 
+// eslint-disable-next-line tslop/no-module-mocking -- cloudflare:workers is imported directly by the code under test, which has no injection point; ESM needs the module replaced before the import
 jest.unstable_mockModule(
   'cloudflare:workers',
   () => ({
@@ -25,10 +26,12 @@ jest.unstable_mockModule(
   { virtual: true },
 );
 
+// eslint-disable-next-line tslop/no-module-mocking -- @/domain/db/client is imported directly by the code under test, which has no injection point; ESM needs the module replaced before the import
 jest.unstable_mockModule('@/domain/db/client', () => ({
   createDatabase: () => 'db',
 }));
 
+// eslint-disable-next-line tslop/no-module-mocking -- @/domain/repository is imported directly by the code under test, which has no injection point; ESM needs the module replaced before the import
 jest.unstable_mockModule('@/domain/repository', () => ({
   DEFAULT_PREFERENCES: { briefing_enabled: true },
   Repository: class {
@@ -47,6 +50,7 @@ jest.unstable_mockModule('@/domain/repository', () => ({
   },
 }));
 
+// eslint-disable-next-line tslop/no-module-mocking -- @/domain/scraping/index is imported directly by the code under test, which has no injection point; ESM needs the module replaced before the import
 jest.unstable_mockModule('@/domain/scraping/index', () => ({
   FETCH_FAILED: 'The feed could not be fetched.',
   scrapeSource: async (
@@ -56,7 +60,9 @@ jest.unstable_mockModule('@/domain/scraping/index', () => ({
     edition: string,
   ) => {
     calls.push(`scrape:${source.id}:${edition}`);
-    if (failing.has(source.id)) throw new Error('feed down');
+    if (failing.has(source.id)) {
+      throw new Error('feed down');
+    }
     if (refusing.has(source.id)) {
       return { articles: 0, failed: 'The feed answered HTTP 404.' };
     }
@@ -68,7 +74,9 @@ jest.unstable_mockModule('@/domain/scraping/index', () => ({
     source: { id: number },
   ) => {
     calls.push(`refresh:${source.id}`);
-    if (failing.has(source.id)) throw new Error('feed down');
+    if (failing.has(source.id)) {
+      throw new Error('feed down');
+    }
     return { ok: true, n: 1 };
   },
   backfillRecent: async (_db: unknown, _env: unknown, days: number) => {
@@ -76,6 +84,7 @@ jest.unstable_mockModule('@/domain/scraping/index', () => ({
   },
 }));
 
+// eslint-disable-next-line tslop/no-module-mocking -- @/domain/clustering is imported directly by the code under test, which has no injection point; ESM needs the module replaced before the import
 jest.unstable_mockModule('@/domain/clustering', () => ({
   clusterEdition: async (_db: unknown, _env: unknown, edition: string) => {
     calls.push(`cluster:${edition}`);
@@ -83,6 +92,7 @@ jest.unstable_mockModule('@/domain/clustering', () => ({
   },
 }));
 
+// eslint-disable-next-line tslop/no-module-mocking -- @/domain/issues is imported directly by the code under test, which has no injection point; ESM needs the module replaced before the import
 jest.unstable_mockModule('@/domain/issues', () => ({
   publishIssue: async (
     _db: unknown,
@@ -91,7 +101,9 @@ jest.unstable_mockModule('@/domain/issues', () => ({
     date: string,
   ) => {
     calls.push(`issue:${user}:${date}`);
-    if (failingIssues.has(user)) throw new Error('model down');
+    if (failingIssues.has(user)) {
+      throw new Error('model down');
+    }
     return 3;
   },
   publishEditionIssue: async (
@@ -101,11 +113,14 @@ jest.unstable_mockModule('@/domain/issues', () => ({
     date: string,
   ) => {
     calls.push(`edition:${edition.id}:${date}`);
-    if (failingIssues.has(edition.id)) throw new Error('model down');
+    if (failingIssues.has(edition.id)) {
+      throw new Error('model down');
+    }
     return 2;
   },
 }));
 
+// eslint-disable-next-line tslop/no-module-mocking -- @/domain/briefings is imported directly by the code under test, which has no injection point; ESM needs the module replaced before the import
 jest.unstable_mockModule('@/domain/briefings', () => ({
   dueSlots: (prefs: { briefing_enabled: boolean }) =>
     prefs.briefing_enabled
@@ -122,8 +137,12 @@ jest.unstable_mockModule('@/domain/briefings', () => ({
     date: string,
   ) => {
     calls.push(`brief:${user}:${slot}:${date}`);
-    if (failingBriefings.has(user)) throw new Error('model down');
-    if (thinBriefings.has(user)) return { replaced: false };
+    if (failingBriefings.has(user)) {
+      throw new Error('model down');
+    }
+    if (thinBriefings.has(user)) {
+      return { replaced: false };
+    }
     return {
       briefing: { id: 40, title: 'Morning', status: 'complete' },
       replaced: false,
@@ -131,6 +150,7 @@ jest.unstable_mockModule('@/domain/briefings', () => ({
   },
 }));
 
+// eslint-disable-next-line tslop/no-module-mocking -- @/domain/notify is imported directly by the code under test, which has no injection point; ESM needs the module replaced before the import
 jest.unstable_mockModule('@/domain/notify', () => ({
   sendBriefingReady: async (
     _env: unknown,
@@ -148,7 +168,9 @@ jest.unstable_mockModule('@/domain/notify', () => ({
     date: string,
   ) => {
     calls.push(`push:${user}:${date}`);
-    if (failingPushes.has(user)) throw new Error('database down');
+    if (failingPushes.has(user)) {
+      throw new Error('database down');
+    }
     return { sent: 1, failed: 0, removed: 0 };
   },
   notifyNewStories: async (
@@ -158,7 +180,9 @@ jest.unstable_mockModule('@/domain/notify', () => ({
     date: string,
   ) => {
     calls.push(`notice:${user}:${date}`);
-    if (failingNotices.has(user)) throw new Error('database down');
+    if (failingNotices.has(user)) {
+      throw new Error('database down');
+    }
     return { stories: 1, pushed: 1, emailed: 0, hooked: 0 };
   },
 }));
@@ -166,12 +190,15 @@ jest.unstable_mockModule('@/domain/notify', () => ({
 const failingChunks = new Set<number>();
 let purgeFails = false;
 
+// eslint-disable-next-line tslop/no-module-mocking -- @/domain/feed-import-runs is imported directly by the code under test, which has no injection point; ESM needs the module replaced before the import
 jest.unstable_mockModule('@/domain/feed-import-runs', () => ({
   IMPORT_CHUNK: 2,
   FeedImportRuns: class {
     importChunk = async (id: string, user: number, feeds: unknown[]) => {
       calls.push(`chunk:${id}:${user}:${feeds.length}`);
-      if (failingChunks.has(feeds.length)) throw new Error('database down');
+      if (failingChunks.has(feeds.length)) {
+        throw new Error('database down');
+      }
       return feeds.map((_f, index) => ({
         id: 100 + index,
         url: `https://f.test/${index}`,
@@ -187,13 +214,17 @@ jest.unstable_mockModule('@/domain/feed-import-runs', () => ({
   },
 }));
 
+// eslint-disable-next-line tslop/no-module-mocking -- @/domain/db/oauth is imported directly by the code under test, which has no injection point; ESM needs the module replaced before the import
 jest.unstable_mockModule('@/domain/db/oauth', () => ({
   purgeOAuthData: async (_db: unknown, now: number) => {
     calls.push(`purgeOAuth:${now}`);
-    if (purgeFails) throw new Error('database down');
+    if (purgeFails) {
+      throw new Error('database down');
+    }
   },
 }));
 
+// eslint-disable-next-line tslop/no-module-mocking -- @/domain/notifications is imported directly by the code under test, which has no injection point; ESM needs the module replaced before the import
 jest.unstable_mockModule('@/domain/notifications', () => ({
   NotificationRepository: class {
     notifiedUserIds = async () => [7];
@@ -213,9 +244,9 @@ const { Repository } = await import('@/domain/repository');
 
 /** A step runner like the Workflows one: names each step and runs it once. */
 const step = {
-  do: async (name: string, ...rest: unknown[]) => {
+  do: async <Result>(name: string, ...rest: unknown[]): Promise<Result> => {
     calls.push(`step:${name}`);
-    const run = rest.at(-1) as () => Promise<unknown>;
+    const run = rest.at(-1) as () => Promise<Result>;
     return run();
   },
 } as unknown as WorkflowStep;
@@ -425,8 +456,9 @@ describe('scheduled', () => {
     await fire(async () => {
       throw new Error('no binding');
     });
-    expect(String(error.mock.calls[0]?.[0])).toContain('scrape.failed');
-    expect(String(error.mock.calls[0]?.[0])).toContain('no binding');
+    const logged = String(error.mock.calls[0]?.[0]);
+    expect(logged).toContain('scrape.failed');
+    expect(logged).toContain('no binding');
   });
 });
 
@@ -643,7 +675,7 @@ describe('scheduled briefings', () => {
       async () => ({ id: 'run-2' }),
     );
     await fire(create);
-    expect(create).not.toHaveBeenCalled();
+    expect(create.mock.calls).toEqual([]);
   });
 
   it('logs a briefing run that could not start', async () => {
@@ -667,6 +699,8 @@ describe('scheduled briefings', () => {
       async () => ({ id: 'run-2' }),
     );
     await fire(create);
-    expect(create).toHaveBeenCalled();
+    expect(create).toHaveBeenCalledWith({
+      params: expect.objectContaining({ due: expect.any(Array) }),
+    });
   });
 });

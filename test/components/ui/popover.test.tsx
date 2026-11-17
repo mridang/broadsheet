@@ -15,19 +15,19 @@ import {
 } from '@/components/ui/popover';
 import { html, htmlAt } from '../render';
 
-const POPOVER_PATTERN = /id="([^"]+)" popover="auto"/;
+const POPOVER_PATTERN = /id="([^"]+)" popover="auto"/u;
 const IS_A_BUTTON_THAT_PATTERN =
-  /<button[^>]*aria-label="Menu"[^>]*>Open<\/button>/;
-const TIES_THE_BUTTON_TO_PATTERN = /popovertarget/i;
+  /<button[^>]*aria-label="Menu"[^>]*>Open<\/button>/u;
+const TIES_THE_BUTTON_TO_PATTERN = /popovertarget/iu;
 const KEEPS_THE_PANEL_IN_PATTERN =
-  /<div[^>]*popover="auto"[^>]*data-popover=""/;
+  /<div[^>]*popover="auto"[^>]*data-popover=""/u;
 const IS_PLAIN_TEXT_THAT_PATTERN =
-  /^<p role="status"[^>]*>Google Drive connected<\/p>$/;
+  /^<output[^>]*>Google Drive connected<\/output>$/u;
 
 describe('PopoverSeparator', () => {
   it('is a thin rule that assistive technology knows is a separator', () => {
     const out = html(<PopoverSeparator />);
-    expect(out).toContain('role="separator"');
+    expect(out).toContain('<hr');
     expect(out).toContain('h-px');
   });
 });
@@ -195,13 +195,16 @@ describe('escapeHandler', () => {
     escapeHandler(close, focusButton)({ key: 'Escape' });
     expect(close).toHaveBeenCalledTimes(1);
     expect(focusButton).toHaveBeenCalledTimes(1);
+    expect(close.mock.invocationCallOrder[0]).toBeLessThan(
+      focusButton.mock.invocationCallOrder[0] ?? 0,
+    );
   });
 
   it('leaves every other key to whatever has focus', () => {
     const close = jest.fn();
     const focusButton = jest.fn();
     escapeHandler(close, focusButton)({ key: 'ArrowDown' });
-    escapeHandler(close, focusButton)({ key: 'Tab' });
+    expect(escapeHandler(close, focusButton)({ key: 'Tab' })).toBeUndefined();
     expect(close).not.toHaveBeenCalled();
     expect(focusButton).not.toHaveBeenCalled();
   });

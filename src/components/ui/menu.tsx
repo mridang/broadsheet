@@ -1,7 +1,6 @@
-import type { ComponentProps, ReactElement, ReactNode } from 'react';
-
 import { cn } from '@/components/ui/cn';
 import { Popover } from '@/components/ui/popover';
+import type { ComponentProps, ReactElement, ReactNode } from 'react';
 
 /**
  * A button that opens a floating panel: a menu of actions or a small form. It

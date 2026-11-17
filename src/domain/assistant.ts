@@ -103,6 +103,7 @@ export interface AnswerModel {
           stream?: boolean;
         }
       | { audio: string },
+    // eslint-disable-next-line tslop/no-unknown-returns -- the value is untyped model output that every caller parses
   ): Promise<unknown>;
 }
 
@@ -201,7 +202,9 @@ export function cacheKey(
   presetId: string,
   request: Pick<AnswerRequest, 'model' | 'thinking'>,
 ): string {
-  if (request.thinking) return `${presetId}:thinking`;
+  if (request.thinking) {
+    return `${presetId}:thinking`;
+  }
   return request.model === 'fast' ? presetId : `${presetId}:${request.model}`;
 }
 
@@ -217,9 +220,14 @@ function questionText(
   errors: string[],
 ): string | undefined {
   const question = typeof value === 'string' ? value.trim() : '';
-  if (typeof value !== 'string') errors.push(`${key}: must be a string.`);
-  else if (!question) errors.push(`${key}: must not be blank.`);
-  else if (question.length > MAX_QUESTION_LENGTH) {
+  if (typeof value !== 'string') {
+    // eslint-disable-next-line functional/immutable-data -- each validator adds its messages to the caller's list of errors, in order
+    errors.push(`${key}: must be a string.`);
+  } else if (!question) {
+    // eslint-disable-next-line functional/immutable-data -- each validator adds its messages to the caller's list of errors, in order
+    errors.push(`${key}: must not be blank.`);
+  } else if (question.length > MAX_QUESTION_LENGTH) {
+    // eslint-disable-next-line functional/immutable-data -- each validator adds its messages to the caller's list of errors, in order
     errors.push(`${key}: at most ${MAX_QUESTION_LENGTH} characters.`);
   } else {
     // the question is non-blank and within the length limit
@@ -248,8 +256,11 @@ function isTurnRole(value: unknown): value is 'user' | 'assistant' {
  * a string of at most {@link MAX_TURN_LENGTH} characters.
  */
 function parseHistory(value: unknown, errors: string[]): ChatMessage[] {
-  if (value === undefined) return [];
+  if (value === undefined) {
+    return [];
+  }
   if (!Array.isArray(value) || value.length > HISTORY_TURNS) {
+    // eslint-disable-next-line functional/immutable-data -- each validator adds its messages to the caller's list of errors, in order
     errors.push(`history: an array of at most ${HISTORY_TURNS} turns.`);
     return [];
   }
@@ -264,6 +275,7 @@ function parseHistory(value: unknown, errors: string[]): ChatMessage[] {
       t['content'].length > MAX_TURN_LENGTH ||
       extraKey
     ) {
+      // eslint-disable-next-line functional/immutable-data -- each validator adds its messages to the caller's list of errors, in order
       errors.push(
         `history[${index}]: must be {role: user|assistant, content} with at most ${MAX_TURN_LENGTH} characters.`,
       );
@@ -290,28 +302,39 @@ export function parseAnswerRequest(
   ]);
   const model = body['model'] ?? 'fast';
   if (typeof model !== 'string' || !(model in ANSWER_MODELS)) {
+    // eslint-disable-next-line functional/immutable-data -- each validator adds its messages to the caller's list of errors, in order
     errors.push(`model: one of ${Object.keys(ANSWER_MODELS).join(', ')}.`);
   }
   const thinking = body['thinking'] ?? false;
-  if (typeof thinking !== 'boolean') errors.push('thinking: true or false.');
-  let question: ArticleQuestion | undefined;
-  if ('question_id' in body === 'question' in body) {
-    errors.push('question_id or question: send exactly one.');
-  } else if ('question_id' in body) {
-    const preset =
-      typeof body['question_id'] === 'string'
-        ? presetQuestion(body['question_id'])
-        : undefined;
-    if (preset) question = { kind: 'preset', preset };
-    else {
-      errors.push(
-        `question_id: one of ${PRESET_QUESTIONS.map((p) => p.id).join(', ')}.`,
-      );
-    }
-  } else {
-    const text = questionText(body['question'], 'question', errors);
-    if (text !== undefined) question = { kind: 'custom', question: text };
+  if (typeof thinking !== 'boolean') {
+    // eslint-disable-next-line functional/immutable-data -- each validator adds its messages to the caller's list of errors, in order
+    errors.push('thinking: true or false.');
   }
+  const hasId = 'question_id' in body;
+  const exactlyOne = hasId !== 'question' in body;
+  if (!exactlyOne) {
+    // eslint-disable-next-line functional/immutable-data -- each validator adds its messages to the caller's list of errors, in order
+    errors.push('question_id or question: send exactly one.');
+  }
+  const preset =
+    exactlyOne && hasId && typeof body['question_id'] === 'string'
+      ? presetQuestion(body['question_id'])
+      : undefined;
+  if (exactlyOne && hasId && !preset) {
+    // eslint-disable-next-line functional/immutable-data -- each validator adds its messages to the caller's list of errors, in order
+    errors.push(
+      `question_id: one of ${PRESET_QUESTIONS.map((p) => p.id).join(', ')}.`,
+    );
+  }
+  const text =
+    exactlyOne && !hasId
+      ? questionText(body['question'], 'question', errors)
+      : undefined;
+  const custom: ArticleQuestion | undefined =
+    text === undefined ? undefined : { kind: 'custom', question: text };
+  const question: ArticleQuestion | undefined = preset
+    ? { kind: 'preset', preset }
+    : custom;
   const history = parseHistory(body['history'], errors);
   return errors.length > 0 || !question
     ? { ok: false, errors }
@@ -352,7 +375,7 @@ const DATA_ONLY =
  * open one is taken out, so the text cannot break out of it.
  */
 export function storyBlock(attributes: string, text: string): string {
-  const inert = text.replaceAll(/<\/?\s*story\b[^>]*>/gi, '');
+  const inert = text.replaceAll(/<\/?\s*story\b[^>]*>/giu, '');
   return `<story ${attributes}>\n${inert}\n</story>`;
 }
 
@@ -378,13 +401,12 @@ export function articlePrompt(
     {
       role: 'system',
       content:
-        'You help a newspaper reader with one story. Answer only from the story; ' +
-        (body
-          ? ''
-          : 'its full text was not kept, so answer from its title and summary, saying so. ') +
-        'If the story does not say, answer that it does not say. Be brief and plain, ' +
-        'with no preamble. ' +
-        DATA_ONLY,
+        `You help a newspaper reader with one story. Answer only from the story; ${
+          body
+            ? ''
+            : 'its full text was not kept, so answer from its title and summary, saying so. '
+        }If the story does not say, answer that it does not say. Be brief and plain, ` +
+        `with no preamble. ${DATA_ONLY}`,
     },
     { role: 'user', content: storyBlock('id="1"', story) },
     ...history,
@@ -417,15 +439,14 @@ export function archivePrompt(
     {
       role: 'system',
       content:
-        "You answer questions about a reader's archive: the stories from the feeds they " +
-        'follow, the ones they saved (with their own tags, notes and highlights), the ' +
-        'ones they read, and the stories other readers shared with their comments. ' +
+        `You answer questions about a reader's archive: the stories from the feeds they ` +
+        `follow, the ones they saved (with their own tags, notes and highlights), the ` +
+        `ones they read, and the stories other readers shared with their comments. ` +
         `Today is ${today}. Use the tools to search before answering, more than once ` +
-        'if the question needs it; never guess what the archive holds. Answer only ' +
-        'from stories you were given, cite each one you use as [#id] with its id, use ' +
-        'Markdown (short paragraphs, bullet lists, bold) for readability, and ' +
-        'say so when nothing in the archive answers the question. ' +
-        DATA_ONLY,
+        `if the question needs it; never guess what the archive holds. Answer only ` +
+        `from stories you were given, cite each one you use as [#id] with its id, use ` +
+        `Markdown (short paragraphs, bullet lists, bold) for readability, and ` +
+        `say so when nothing in the archive answers the question. ${DATA_ONLY}`,
     },
     ...history.slice(-HISTORY_TURNS).map((m) => ({
       role: m.role,
@@ -446,7 +467,7 @@ export function citedIds(
   answer: string,
   allowed: ReadonlySet<number>,
 ): number[] {
-  const ids = Array.from(answer.matchAll(/\[#(\d+)\]/g), (m) =>
+  const ids = Array.from(answer.matchAll(/\[#(\d+)\]/gu), (m) =>
     Number(m[1]),
   ).filter((id) => allowed.has(id));
   return [...new Set(ids)];
@@ -470,7 +491,9 @@ async function ask(
   tool_calls?: unknown;
   text?: unknown;
 } | null> {
-  if (!model) throw new AnswerUnavailableError('No model is bound.');
+  if (!model) {
+    throw new AnswerUnavailableError('No model is bound.');
+  }
   try {
     return (await model.run(name, input)) as {
       response?: unknown;
@@ -495,7 +518,7 @@ function replyText(out: { response?: unknown } | null): string {
 
 /** A reply with the reasoning of a thinking model (`<think>…</think>`) taken out. */
 export function withoutThinking(text: string): string {
-  return text.replaceAll(/<think>[\s\S]*?(<\/think>|$)/g, '').trim();
+  return text.replaceAll(/<think>[\s\S]*?(<\/think>|$)/gu, '').trim();
 }
 
 /** Ask the model (`fast` unless named); the text of its reply, or {@link AnswerUnavailableError}. */
@@ -505,7 +528,9 @@ export async function complete(
   name: ModelId = ANSWER_MODEL,
 ): Promise<string> {
   const text = withoutThinking(replyText(await ask(model, name, { messages })));
-  if (!text) throw new AnswerUnavailableError('The model gave no answer.');
+  if (!text) {
+    throw new AnswerUnavailableError('The model gave no answer.');
+  }
   return text;
 }
 
@@ -518,15 +543,16 @@ export async function* streamAnswer(
   messages: ChatMessage[],
   name: ModelId = ANSWER_MODEL,
 ): AsyncGenerator<string> {
-  if (!model) throw new AnswerUnavailableError('No model is bound.');
-  let out: unknown;
-  try {
-    out = await model.run(name, { messages, stream: true });
-  } catch (error) {
-    throw new AnswerUnavailableError(
-      error instanceof Error ? error.message : String(error),
-    );
+  if (!model) {
+    throw new AnswerUnavailableError('No model is bound.');
   }
+  const out = await model
+    .run(name, { messages, stream: true })
+    .catch((error: unknown) => {
+      throw new AnswerUnavailableError(
+        error instanceof Error ? error.message : String(error),
+      );
+    });
   if (!(out instanceof ReadableStream)) {
     const text = replyText(out as { response?: unknown } | null);
     yield text;
@@ -544,26 +570,36 @@ export async function* modelStreamText(
 ): AsyncGenerator<string> {
   const reader = stream.getReader();
   const decoder = new TextDecoder();
+  // eslint-disable-next-line functional/no-let -- the buffer carries partial lines between reads of the stream
   let buffered = '';
+  // eslint-disable-next-line functional/no-loop-statements -- the stream is read one chunk at a time, in order, with an await per chunk
   for (;;) {
     const { done, value } = await reader.read();
     buffered += done
       ? decoder.decode()
       : decoder.decode(value, { stream: true });
     const lines = buffered.split('\n');
+    // eslint-disable-next-line functional/immutable-data -- the line buffer is cut at the last newline as the stream arrives
     buffered = done ? '' : (lines.pop() ?? '');
+    // eslint-disable-next-line functional/no-loop-statements -- the stream is read one chunk at a time, in order, with an await per chunk
     for (const line of lines) {
       const piece = pieceOfLine(line);
-      if (piece) yield piece;
+      if (piece) {
+        yield piece;
+      }
     }
-    if (done) return;
+    if (done) {
+      return;
+    }
   }
 }
 
 /** The text piece of one event line, or undefined when it carries none. */
 function pieceOfLine(line: string): string | undefined {
   const data = line.startsWith('data:') ? line.slice(5).trim() : '';
-  if (!data || data === '[DONE]') return undefined;
+  if (!data || data === '[DONE]') {
+    return undefined;
+  }
   try {
     const piece = (JSON.parse(data) as { response?: unknown }).response;
     return typeof piece === 'string' ? piece : undefined;
@@ -581,13 +617,18 @@ export async function transcribe(
   model: AnswerModel | undefined,
   audio: Uint8Array,
 ): Promise<string> {
-  let binary = '';
-  for (let index = 0; index < audio.length; index += 0x80_00) {
-    binary += String.fromCodePoint(...audio.subarray(index, index + 0x80_00));
-  }
+  const binary = Array.from(
+    { length: Math.ceil(audio.length / 0x80_00) },
+    (_, chunk) =>
+      String.fromCodePoint(
+        ...audio.subarray(chunk * 0x80_00, (chunk + 1) * 0x80_00),
+      ),
+  ).join('');
   const out = await ask(model, TRANSCRIPTION_MODEL, { audio: btoa(binary) });
   const text = typeof out?.text === 'string' ? out.text.trim() : '';
-  if (!text) throw new AnswerUnavailableError('Nothing could be heard.');
+  if (!text) {
+    throw new AnswerUnavailableError('Nothing could be heard.');
+  }
   return text;
 }
 
@@ -599,15 +640,20 @@ export function toolCallsOf(
   return calls.flatMap((call: unknown) => {
     const c = (call ?? {}) as Record<string, unknown>;
     const fn = (c['function'] ?? c) as Record<string, unknown>;
-    if (typeof fn['name'] !== 'string') return [];
-    let args: unknown = fn['arguments'] ?? {};
-    if (typeof args === 'string') {
-      try {
-        args = JSON.parse(args);
-      } catch {
-        args = {};
-      }
+    if (typeof fn['name'] !== 'string') {
+      return [];
     }
+    const raw = fn['arguments'] ?? {};
+    const args =
+      typeof raw === 'string'
+        ? (() => {
+            try {
+              return JSON.parse(raw) as unknown;
+            } catch {
+              return {};
+            }
+          })()
+        : raw;
     return [
       {
         name: fn['name'],
@@ -635,27 +681,36 @@ export async function converse(
   run: (call: ToolCall) => Promise<string>,
 ): Promise<string> {
   const thread = [...messages];
+  // eslint-disable-next-line functional/no-let, functional/no-loop-statements -- each round depends on the answer to the previous one, so the awaits are sequential
   for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
     const out = await ask(model, ASSISTANT_MODEL, {
       messages: thread,
       ...(round < MAX_TOOL_ROUNDS ? { tools } : {}),
     });
     const calls = round < MAX_TOOL_ROUNDS ? toolCallsOf(out) : [];
-    if (calls.length === 0) return replyText(out);
+    if (calls.length === 0) {
+      return replyText(out);
+    }
+    // eslint-disable-next-line functional/no-loop-statements -- each tool call is answered in order, as the model sees them in order
     for (const call of calls) {
+      // eslint-disable-next-line functional/immutable-data -- the conversation thread grows with each tool round the model asks for
       thread.push({ role: 'assistant', content: JSON.stringify(call) });
       const content = await run(call);
+      // eslint-disable-next-line functional/immutable-data -- the conversation thread grows with each tool round the model asks for
       thread.push({ role: 'tool', name: call.name, content });
     }
   }
   throw new AnswerUnavailableError('The assistant did not answer.');
 }
 
-/** The UTC day `now` falls in, as stored timestamps write it, and the seconds until the next. */
-export function usageDay(now: Date): {
+/** The start of a UTC day, and the seconds left until the next. */
+export interface UsageDay {
   readonly since: string;
   readonly retryAfter: number;
-} {
+}
+
+/** The UTC day `now` falls in, as stored timestamps write it, and the seconds until the next. */
+export function usageDay(now: Date): UsageDay {
   const start = new Date(
     Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
   );
@@ -671,22 +726,17 @@ export function starterQuestions(summary: {
   readonly top_sources: readonly { readonly source: string }[];
   readonly tags: readonly { readonly tag: string }[];
 }): string[] {
-  const questions = [
+  const [first, second] = summary.tags;
+  const source = summary.top_sources[0];
+  return [
     'What topics have I been reading about lately?',
     "Give me a summary of everything I've read this week",
-  ];
-  const [first, second] = summary.tags;
-  if (first) questions.push(`Summarise what I saved under "${first.tag}"`);
-  if (first && second) {
-    questions.push(
-      `Compare what I saved under "${first.tag}" and "${second.tag}"`,
-    );
-  }
-  const source = summary.top_sources[0];
-  if (source) questions.push(`What has ${source.source} covered recently?`);
-  questions.push(
+    ...(first ? [`Summarise what I saved under "${first.tag}"`] : []),
+    ...(first && second
+      ? [`Compare what I saved under "${first.tag}" and "${second.tag}"`]
+      : []),
+    ...(source ? [`What has ${source.source} covered recently?`] : []),
     'Pick the most interesting story I read and summarise it',
     'What are the main themes across my recent reading?',
-  );
-  return questions.slice(0, 6);
+  ].slice(0, 6);
 }

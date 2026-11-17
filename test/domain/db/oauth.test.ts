@@ -1,5 +1,5 @@
-import { SCOPE_READ, SCOPE_WRITE } from '@/domain/mcp/app';
 import { describe, expect, it, jest } from '@jest/globals';
+import { SCOPE_READ, SCOPE_WRITE } from '@/domain/mcp/app';
 
 import {
   D1OAuthStore,
@@ -11,11 +11,11 @@ import {
   saveClient,
 } from '@/domain/db/oauth';
 import { MAX_LIVE_GRANTS_PER_APP, OAUTH_LIMITS } from '@/lib/oauth';
-import type { RateLimitStore } from '@/lib/rate-limit';
 import { fakeDb } from '../../lib/core/db/fake-db';
 import { APP_MIGRATIONS } from '../../lib/core/db/migrations';
 import { sqliteDatabase } from '../../lib/core/db/sqlite-db';
 import { quietSecurityLogs } from '../../lib/oauth/quiet-logs';
+import type { RateLimitStore } from '@/lib/rate-limit';
 
 quietSecurityLogs();
 
@@ -554,9 +554,10 @@ describe('against a real SQLite database', () => {
     it('accepts an assertion once and refuses it the second time, per client', async () => {
       const { db } = sqliteDatabase(...MIGRATIONS);
       const store = new D1OAuthStore(db);
-      expect(await store.claimAssertion('a', 'jti-1', 99)).toBe(true);
-      expect(await store.claimAssertion('a', 'jti-1', 99)).toBe(false);
-      expect(await store.claimAssertion('b', 'jti-1', 99)).toBe(true);
+      const first = await store.claimAssertion('a', 'jti-1', 99);
+      const again = await store.claimAssertion('a', 'jti-1', 99);
+      const other = await store.claimAssertion('b', 'jti-1', 99);
+      expect([first, again, other]).toEqual([true, false, true]);
     });
   });
 
@@ -1043,13 +1044,18 @@ describe('against a real SQLite database', () => {
       const { db, raw } = sqliteDatabase(...MIGRATIONS);
       seedClient(raw, CIMD, 'cimd', ago(900), ago(600), ahead(600));
       const fetchImpl = serve();
-      await resolveClient(db, CIMD, fetchImpl, { ...unlimited, now: NOW });
+      const cached = await resolveClient(db, CIMD, fetchImpl, {
+        ...unlimited,
+        now: NOW,
+      });
       expect(fetchImpl).not.toHaveBeenCalled();
-      await resolveClient(db, CIMD, fetchImpl, {
+      const refreshed = await resolveClient(db, CIMD, fetchImpl, {
         ...unlimited,
         now: NOW + 3_600_000,
       });
       expect(fetchImpl).toHaveBeenCalledTimes(1);
+      expect(cached).toMatchObject({ name: `Name of ${CIMD}` });
+      expect(refreshed).toMatchObject({ name: 'Fresh' });
     });
 
     it('records how long to reuse a fetched document, from its cache headers', async () => {

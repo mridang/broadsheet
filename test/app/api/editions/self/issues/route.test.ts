@@ -7,7 +7,7 @@ import {
   jest,
 } from '@jest/globals';
 
-import { createDatabase, type Database } from '@/domain/db/client';
+import { createDatabase } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
 import { SESSION_COOKIE } from '@/domain/auth/app';
 import { APP_MIGRATIONS } from '../../../../../lib/core/db/migrations';
@@ -19,12 +19,17 @@ import {
   SESSION_SECRET,
   tokenFor,
 } from '../../../../../domain/auth/auth-test-kit';
+import type { Database } from '@/domain/db/client';
 
 const { GET, POST } = await import('@/app/api/editions/self/issues/route');
 
 let restore: () => void;
 let db: Database;
-let auth: Record<string, string>;
+/** The Cookie header of the signed-in caller; empty for a signed-out one. */
+interface CallerCookie {
+  [name: string]: string;
+}
+let auth: CallerCookie;
 let run: jest.Mock<() => Promise<{ response: string }>>;
 
 const DAY = '2026-11-01';
@@ -120,7 +125,7 @@ describe('POST /api/editions/self/issues', () => {
     const res = await publish({ date: DAY });
     expect(res.status).toBe(201);
     expect(res.headers.get('location')).toMatch(
-      new RegExp(`/api/editions/self/issues/${DAY}$`),
+      new RegExp(`/api/editions/self/issues/${DAY}$`, 'u'),
     );
     const body = await res.json<{
       briefing: string;

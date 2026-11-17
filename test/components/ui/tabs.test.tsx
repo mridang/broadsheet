@@ -3,8 +3,8 @@ import { describe, expect, it } from '@jest/globals';
 import { Tabs } from '@/components/ui/tabs';
 import { htmlAt } from '../render';
 
-const MARKS_ONLY_THE_OPEN_PATTERN = /aria-current="page"/g;
-const SHOWS_A_COUNT_BESIDE_PATTERN = /All<span[^>]*>4<\/span>/;
+const MARKS_ONLY_THE_OPEN_PATTERN = /aria-current="page"/gu;
+const SHOWS_A_COUNT_BESIDE_PATTERN = /All<span[^>]*>4<\/span>/u;
 
 describe('Tabs', () => {
   const out = htmlAt(

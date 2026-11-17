@@ -9,16 +9,14 @@
  */
 
 import { DAILY_LIMITS, usageDay } from '@/domain/assistant';
-import {
-  liveUid,
-  requestCookieResolver,
-  type CurrentUserResolver,
-} from '@/domain/api/auth';
+import { liveUid, requestCookieResolver } from '@/domain/api/auth';
 import { ApiController, ok, problems } from '@/lib/core/api';
 import { getDatabase } from '@/domain/db/client';
-import { Repository, type UsageKind } from '@/domain/repository';
+import { Repository } from '@/domain/repository';
+import type { CurrentUserResolver } from '@/domain/api/auth';
+import type { UsageKind } from '@/domain/repository';
 
-const BUDGET_PATTERN = /\.\d{3}Z$/;
+const BUDGET_PATTERN = /\.\d{3}Z$/u;
 
 /** How much of one budget is used today. */
 export interface BudgetResource {
@@ -69,7 +67,9 @@ export async function overBudget(
   now: Date = new Date(),
 ): Promise<Response | undefined> {
   const { remaining, limit } = await budget(repo, uid, kind, now);
-  if (remaining > 0) return undefined;
+  if (remaining > 0) {
+    return undefined;
+  }
   const what = {
     answer: 'Ask AI questions',
     assistant: 'assistant questions',

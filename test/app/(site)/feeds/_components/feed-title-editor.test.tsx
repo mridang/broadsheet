@@ -6,7 +6,7 @@ import {
 } from '@/app/(site)/feeds/_components/feed-title-editor';
 import { html } from '../../../../components/render';
 
-const LINKS_THE_NAME_TO_PATTERN = /<a[^>]*href="\/feeds\/3"[^>]*>a.test<\/a>/;
+const LINKS_THE_NAME_TO_PATTERN = /<a[^>]*href="\/feeds\/3"[^>]*>a.test<\/a>/u;
 
 describe('editedTitle', () => {
   it('trims what was typed', () => {

@@ -5,14 +5,15 @@
  * it, the arguments it accepts, and what it does when called.
  */
 
+import { z } from 'zod';
 import { feedResource, parseFeedInput } from '@/domain/api/feed-resource';
 import { ToolFailureError } from '@/domain/mcp/tool-failure';
-import type { ToolContext } from '@/domain/mcp/tool-context';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { checked, id } from '@/domain/mcp/tools/support';
 import { Repository } from '@/domain/repository';
-import { type ToolAnnotations, writes } from '@/lib/mcp';
-import { z } from 'zod';
+import { writes } from '@/lib/mcp';
+import type { ToolAnnotations } from '@/lib/mcp';
+import type { ToolContext } from '@/domain/mcp/tool-context';
 
 /** What `follow_feed` accepts. */
 const SCHEMA = z.object({
@@ -47,9 +48,13 @@ export class FollowFeedTool extends JsonTool<'follow_feed', typeof SCHEMA> {
       throw new ToolFailureError('There is no such section.');
     }
     const existing = await repo.getFeedByUrl(uid, url);
-    if (existing) return { feed: feedResource(existing), created: false };
+    if (existing) {
+      return { feed: feedResource(existing), created: false };
+    }
     const feed = await repo.addFeed(uid, url);
-    if (!feed) throw new ToolFailureError('The feed could not be added.');
+    if (!feed) {
+      throw new ToolFailureError('The feed could not be added.');
+    }
     refresh({ id: feed.source_id, url: feed.url });
     const filed =
       section_id === undefined

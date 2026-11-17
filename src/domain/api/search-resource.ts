@@ -24,7 +24,9 @@ export interface SearchResource {
 export function searchResource(search: Readonly<SavedSearch>): SearchResource {
   const created = search.created_at ? rfc3339(search.created_at) : undefined;
   const query = new URLSearchParams({ q: search.query });
-  if (search.feed_id !== null) query.set('feed_id', String(search.feed_id));
+  if (search.feed_id !== null) {
+    query.set('feed_id', String(search.feed_id));
+  }
   return {
     id: String(search.id),
     query: search.query,
@@ -53,28 +55,26 @@ export type SearchBody =
 export function parseSearchInput(
   body: Readonly<Record<string, unknown>>,
 ): SearchBody {
-  const errors: string[] = [];
-  for (const key of Object.keys(body)) {
-    if (key !== 'query' && key !== 'feed_id') {
-      errors.push(`${key}: not a member of a saved search.`);
-    }
-  }
   const raw = body['query'];
   const query =
-    typeof raw === 'string' ? raw.trim().replaceAll(/\s+/g, ' ') : '';
-  if (raw === undefined) errors.push('query: required.');
-  else if (!query) errors.push('query: must be non-blank text.');
-  else if (query.length > MAX_QUERY_LENGTH) errors.push('query: too long.');
-  else {
-    // the query is non-blank and within the length limit
-  }
+    typeof raw === 'string' ? raw.trim().replaceAll(/\s+/gu, ' ') : '';
   const rawFeed = body['feed_id'];
-  let feedId: number | null = null;
-  if (rawFeed !== undefined && rawFeed !== null) {
-    const id = typeof rawFeed === 'string' ? parseFeedId(rawFeed) : undefined;
-    if (id === undefined) errors.push('feed_id: not a feed id.');
-    else feedId = id;
-  }
+  const id =
+    rawFeed !== undefined && rawFeed !== null && typeof rawFeed === 'string'
+      ? parseFeedId(rawFeed)
+      : undefined;
+  const feedId: number | null = id ?? null;
+  const errors: string[] = [
+    ...Object.keys(body)
+      .filter((key) => key !== 'query' && key !== 'feed_id')
+      .map((key) => `${key}: not a member of a saved search.`),
+    ...(raw === undefined ? ['query: required.'] : []),
+    ...(raw !== undefined && !query ? ['query: must be non-blank text.'] : []),
+    ...(query.length > MAX_QUERY_LENGTH ? ['query: too long.'] : []),
+    ...(rawFeed !== undefined && rawFeed !== null && id === undefined
+      ? ['feed_id: not a feed id.']
+      : []),
+  ];
   return errors.length > 0
     ? { ok: false, errors }
     : { ok: true, input: { query, feed_id: feedId } };

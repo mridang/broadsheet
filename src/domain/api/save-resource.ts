@@ -79,35 +79,32 @@ const strings = (raw: unknown, most: number, longest: number): boolean =>
 export function parseSaveInput(
   body: Readonly<Record<string, unknown>>,
 ): SaveBody {
-  const errors: string[] = [];
-  for (const key of Object.keys(body)) {
-    if (!['tags', 'notes', 'highlights'].includes(key)) {
-      errors.push(`${key}: not a member of a save.`);
-    }
-  }
   const raw = body['tags'] ?? [];
-  if (!strings(raw, MAX_TAGS, MAX_TAG_LENGTH)) {
-    errors.push(
-      `tags: must be a list of up to ${MAX_TAGS} non-blank strings of at most ${MAX_TAG_LENGTH} characters.`,
-    );
-  }
   const notes = body['notes'];
-  if (
+  const highlights = body['highlights'];
+  const notesBad =
     notes !== undefined &&
     notes !== null &&
-    (typeof notes !== 'string' || notes.length > MAX_NOTES)
-  ) {
-    errors.push(`notes: must be a string of at most ${MAX_NOTES} characters.`);
-  }
-  const highlights = body['highlights'];
-  if (
-    highlights !== undefined &&
+    (typeof notes !== 'string' || notes.length > MAX_NOTES);
+  const errors: string[] = [
+    ...Object.keys(body)
+      .filter((key) => !['tags', 'notes', 'highlights'].includes(key))
+      .map((key) => `${key}: not a member of a save.`),
+    ...(strings(raw, MAX_TAGS, MAX_TAG_LENGTH)
+      ? []
+      : [
+          `tags: must be a list of up to ${MAX_TAGS} non-blank strings of at most ${MAX_TAG_LENGTH} characters.`,
+        ]),
+    ...(notesBad
+      ? [`notes: must be a string of at most ${MAX_NOTES} characters.`]
+      : []),
+    ...(highlights !== undefined &&
     !strings(highlights, MAX_HIGHLIGHTS, MAX_HIGHLIGHT)
-  ) {
-    errors.push(
-      `highlights: must be a list of up to ${MAX_HIGHLIGHTS} non-blank passages of at most ${MAX_HIGHLIGHT} characters.`,
-    );
-  }
+      ? [
+          `highlights: must be a list of up to ${MAX_HIGHLIGHTS} non-blank passages of at most ${MAX_HIGHLIGHT} characters.`,
+        ]
+      : []),
+  ];
   return errors.length > 0
     ? { ok: false, errors }
     : {
@@ -136,20 +133,19 @@ export type SaveTagBody =
 export function parseSaveTagInput(
   body: Readonly<Record<string, unknown>>,
 ): SaveTagBody {
-  const errors: string[] = [];
-  for (const key of Object.keys(body)) {
-    if (key !== 'name') errors.push(`${key}: not a member of a tag.`);
-  }
   const name = body['name'];
-  if (
-    typeof name !== 'string' ||
+  const errors: string[] = [
+    ...Object.keys(body)
+      .filter((key) => key !== 'name')
+      .map((key) => `${key}: not a member of a tag.`),
+    ...(typeof name !== 'string' ||
     !name.trim() ||
     name.trim().length > MAX_TAG_LENGTH
-  ) {
-    errors.push(
-      `name: must be a non-blank string of at most ${MAX_TAG_LENGTH} characters.`,
-    );
-  }
+      ? [
+          `name: must be a non-blank string of at most ${MAX_TAG_LENGTH} characters.`,
+        ]
+      : []),
+  ];
   return errors.length > 0
     ? { ok: false, errors }
     : { ok: true, name: (name as string).trim() };

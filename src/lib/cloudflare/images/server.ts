@@ -9,39 +9,12 @@
  * {@link ImageService} is the handle a route mounts: build it with the request
  * dependencies (the access rules, the picture catalog, the optional bindings)
  * and call {@link ImageService.serve}. The signing codec, the capped fetch,
- * the low-level `serveImage` and the runtime accessors are re-exported here
- * too.
+ * the low-level `serveImage` and the runtime accessors live in `./signer`,
+ * `./proxy`, `./service` and `./runtime`.
  */
 
-import { serveImage, type ImageServiceDeps } from './service';
-
-export { ImageSigner } from './signer';
-export {
-  fetchImage,
-  type ImageFetch,
-  type ImageResult,
-  type ImagesLike,
-  isImagesBinding,
-  MAX_IMAGE_BYTES,
-} from './proxy';
-export {
-  BROWSER_SECONDS,
-  EDGE_SECONDS,
-  type ImageAccess,
-  type ImageCache,
-  imageCacheKey,
-  imageHeaders,
-  type ImageServiceDeps,
-  refuse,
-  serveImage,
-  unavailable,
-} from './service';
-export {
-  imageCache,
-  imagesBinding,
-  imageSigner,
-  runInBackground,
-} from './runtime';
+import { serveImage } from './service';
+import type { ImageServiceDeps } from './service';
 
 /**
  * Serves `/img` requests: a thin handle over {@link serveImage} built with the

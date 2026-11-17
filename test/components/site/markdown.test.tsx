@@ -49,7 +49,7 @@ describe('Markdown', () => {
 });
 
 describe('blocks line forms', () => {
-  const BULLET = new RegExp(['^[-*]', String.raw`\s`, '+(.*)$'].join(''));
+  const BULLET = new RegExp(['^[-*]', String.raw`\s`, '+(.*)$'].join(''), 'u');
 
   it.each([
     '-',
@@ -96,7 +96,10 @@ describe('INLINE_MARKS', () => {
     '`([^`]+)`',
   ].join('|');
   const found = (text: string, pattern: string): unknown[] =>
-    Array.from(text.matchAll(new RegExp(pattern, 'g')), (m) => [m.index, ...m]);
+    Array.from(text.matchAll(new RegExp(pattern, 'gu')), (m) => [
+      m.index,
+      ...m,
+    ]);
 
   it.each([
     'see [#12] and [a link](https://x.org) with **bold**, *em* and `code`',
@@ -109,7 +112,9 @@ describe('INLINE_MARKS', () => {
   it('matches the old pattern on seeded random text', () => {
     let state = 3;
     const random = (): number => {
-      state = (Math.imul(state, 1_664_525) + 1_013_904_223) >>> 0;
+      state = Number(
+        BigInt.asUintN(32, BigInt(Math.imul(state, 1_664_525) + 1_013_904_223)),
+      );
       return state / 2 ** 32;
     };
     const parts = ['[', ']', '(', ')', '#', '1', '*', '**', '`', ' ', 'a'];

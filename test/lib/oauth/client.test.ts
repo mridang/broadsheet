@@ -23,9 +23,9 @@ import {
 import { SITE_NAME } from '@/utils/site';
 import urls from '../../fixtures/insecure-urls.json' with { type: 'json' };
 
-const MINTS_A_DCR_CLIENT_PATTERN = /^dcr_/;
+const MINTS_A_DCR_CLIENT_PATTERN = /^dcr_/u;
 const ERROR_DESCRIPTION_IS_PRINTABLE_ASCII_PATTERN =
-  /^[\u0020\u0021\u0023-\u005B\u005D-\u007E]+$/;
+  /^[\u0020\u0021\u0023-\u005B\u005D-\u007E]+$/u;
 
 const URL_ID = 'https://chatgpt.com/oauth/client.json';
 const goodDocument = {
@@ -51,7 +51,8 @@ const CHATGPT_DOCUMENT = {
 };
 
 /** A key the document carries with no value, as an override can send it. */
-let notProvided: undefined;
+// eslint-disable-next-line sonarjs/no-undefined-assignment -- a key set to undefined is what these tests send
+const notProvided = undefined;
 
 describe('isMetadataDocumentUrl', () => {
   it('accepts an https URL with a path', () => {
@@ -101,7 +102,11 @@ describe('parseClientMetadataDocument', () => {
     ).toBe(false);
     expect(
       parseClientMetadataDocument(
-        { ...goodDocument, redirect_uris: ['javascript:alert(1)'] },
+        {
+          ...goodDocument,
+          // eslint-disable-next-line no-script-url -- a script URL is the input being refused
+          redirect_uris: ['javascript:alert(1)'],
+        },
         URL_ID,
       ).ok,
     ).toBe(false);
@@ -436,7 +441,10 @@ describe('fetchClientMetadata details', () => {
       RequestInit | undefined;
     expect(init?.headers).toMatchObject({ 'User-Agent': FETCH_USER_AGENT });
     expect(FETCH_USER_AGENT).toMatch(
-      new RegExp(String.raw`^${SITE_NAME.toLowerCase()}-oauth/1 \(\+https://`),
+      new RegExp(
+        String.raw`^${SITE_NAME.toLowerCase()}-oauth/1 \(\+https://`,
+        'u',
+      ),
     );
   });
 
@@ -539,8 +547,9 @@ describe('readCappedText', () => {
     new Response(
       new ReadableStream<Uint8Array>({
         start(controller) {
-          for (const part of parts)
+          for (const part of parts) {
             controller.enqueue(new TextEncoder().encode(part));
+          }
           controller.close();
         },
       }),

@@ -7,8 +7,8 @@ import {
   sqliteSince,
   trendingArticleResource,
 } from '@/domain/api/article-resource';
-import type { Article } from '@/domain/repository';
 import { encodeCursor } from '@/lib/core/api';
+import type { Article } from '@/domain/repository';
 
 const stored: Article = {
   id: 9,

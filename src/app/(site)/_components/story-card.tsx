@@ -1,4 +1,3 @@
-import type { Article } from '@/domain/repository';
 import { pictureSrc } from '@/domain/render/pictures';
 import {
   SaveButton,
@@ -19,10 +18,9 @@ import {
   ClusterPreview,
   clusterPictures,
 } from '@/app/(site)/_components/cluster-preview';
-import type { Sibling } from '@/domain/render/layout';
 import { hasChanges } from '@/domain/render/changes';
 import { spokenText } from '@/app/(site)/_components/read-aloud';
-import { imageSigner } from '@/lib/cloudflare/images/server';
+import { imageSigner } from '@/lib/cloudflare/images/runtime';
 import {
   IMG_WIDTH,
   TIER,
@@ -30,9 +28,11 @@ import {
   excerpt,
   hostOf,
   tagsOf,
-  type Tier,
 } from '@/domain/render/tiers';
 import { cn } from '@/components/ui/cn';
+import type { Tier } from '@/domain/render/tiers';
+import type { Sibling } from '@/domain/render/layout';
+import type { Article } from '@/domain/repository';
 
 /** The width a source's favicon is asked for, in pixels (Google's service sends 64). */
 const FAVICON_WIDTH = 64;
@@ -69,6 +69,9 @@ export const FOOT_LINK =
  */
 const DIM = 'transition-opacity group-data-read:opacity-55';
 
+const NO_ALSO: readonly string[] = [];
+const NO_SIBLINGS: readonly Sibling[] = [];
+
 /**
  * One story. Its tier decides how much room it gets (a lead spans the desk
  * with a large photo, a feature is a card, a standard story a row) and how
@@ -84,8 +87,8 @@ const DIM = 'transition-opacity group-data-read:opacity-55';
 export async function StoryCard({
   article,
   tier,
-  also = [],
-  siblings = [],
+  also = NO_ALSO,
+  siblings = NO_SIBLINGS,
   read = false,
   saved = false,
   shared = false,

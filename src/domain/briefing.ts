@@ -19,11 +19,11 @@
  * beyond the budget, and the site-wide sections (most read, long reads, good
  * reads, most shared) add {@link PER_GLOBAL} each, outside the budget.
  */
-import type { Article, Preferences } from '@/domain/repository';
 import { coverageBoost, hostOf, weight } from '@/domain/render/tiers';
 import { logWarn } from '@/utils/logging';
+import type { Article, Preferences } from '@/domain/repository';
 
-const WORD_COUNT_PATTERN = /\s+/;
+const WORD_COUNT_PATTERN = /\s+/u;
 
 /** The model the note is written with when the reader chose none. */
 export const BRIEFING_MODEL = '@cf/meta/llama-3.1-8b-instruct-fast';
@@ -247,9 +247,13 @@ export function sectionOn(
   key: Category,
   prefs: Pick<Preferences, 'briefing_sections' | 'briefing_prompts'>,
 ): boolean {
-  if (key === 'top_stories') return true;
+  if (key === 'top_stories') {
+    return true;
+  }
   const custom = CUSTOM_SECTIONS.indexOf(key as CustomSection);
-  if (custom !== -1 && !prefs.briefing_prompts[custom]?.trim()) return false;
+  if (custom !== -1 && !prefs.briefing_prompts[custom]?.trim()) {
+    return false;
+  }
   return prefs.briefing_sections[key] !== false;
 }
 
@@ -260,9 +264,7 @@ export function sectionOrder(
   const chosen = (prefs.briefing_section_order ?? []).filter(
     (k): k is Category => CATEGORIES.includes(k as Category),
   );
-  const sections = new Set(chosen);
-  for (const key of DEFAULT_SECTION_ORDER) sections.add(key);
-  return [...sections];
+  return [...new Set(chosen).union(new Set(DEFAULT_SECTION_ORDER))];
 }
 
 /**
@@ -273,37 +275,46 @@ export function allocate(
   budget: number,
   sections: readonly Category[],
 ): Map<Category, number> {
-  const out = new Map<Category, number>();
   const n = sections.length;
-  if (!n) return out;
   const total = (n * (n + 1)) / 2;
-  let left = budget;
-  for (const [index, key] of sections.entries()) {
-    const share =
-      index === n - 1
-        ? Math.max(left, 0)
-        : Math.max(1, Math.floor((budget * (n - index)) / total));
-    const given = Math.min(share, Math.max(left, 0));
-    out.set(key, given);
-    left -= given;
-  }
-  return out;
+  const { shares } = sections.reduce<{
+    left: number;
+    shares: [Category, number][];
+  }>(
+    (acc, key, index) => {
+      const share =
+        index === n - 1
+          ? Math.max(acc.left, 0)
+          : Math.max(1, Math.floor((budget * (n - index)) / total));
+      const given = Math.min(share, Math.max(acc.left, 0));
+      return { left: acc.left - given, shares: [...acc.shares, [key, given]] };
+    },
+    { left: budget, shares: [] },
+  );
+  return new Map(shares);
 }
 
 /** The first personal section a candidate fits, before the reader's switches. */
 function personalSection(
   c: Candidate,
-  usedClusters: Set<number>,
+  usedClusters: ReadonlySet<number>,
 ): PersonalSection {
   const cluster = c.article.cluster_id;
   if (c.coverage > 1 && (cluster === null || !usedClusters.has(cluster))) {
-    if (cluster !== null) usedClusters.add(cluster);
     return 'widely_covered';
   }
-  if (c.monthly <= INFREQUENT) return 'infrequent';
-  if (c.followed_up && !c.read) return 'follow_up';
-  if (c.liked) return 'classifier_match';
-  if (wordCount(c.article) >= LONG_READ) return 'long_read';
+  if (c.monthly <= INFREQUENT) {
+    return 'infrequent';
+  }
+  if (c.followed_up && !c.read) {
+    return 'follow_up';
+  }
+  if (c.liked) {
+    return 'classifier_match';
+  }
+  if (wordCount(c.article) >= LONG_READ) {
+    return 'long_read';
+  }
   return 'top_stories';
 }
 
@@ -334,26 +345,41 @@ export function selectStories(
     prefs.briefing_include_read || unread.length < MIN_BRIEFED
       ? allowed
       : unread;
-  const perSource = new Map<number, number>();
-  const ranked: Candidate[] = [];
-  for (const c of pool.toSorted(
-    (x, y) => briefingScore(y) - briefingScore(x),
-  )) {
-    if (ranked.length >= prefs.briefing_story_count * 3) break;
-    const n = perSource.get(c.article.source_id) ?? 0;
-    if (n < PER_SOURCE) {
-      perSource.set(c.article.source_id, n + 1);
-      ranked.push(c);
-    }
-  }
-  const used = new Set<number>();
-  const filed = ranked.map((candidate) => {
-    const key = personalSection(candidate, used);
-    return {
-      candidate,
-      category: sectionOn(key, prefs) ? key : 'top_stories',
-    };
-  });
+  const { ranked } = pool
+    .toSorted((x, y) => briefingScore(y) - briefingScore(x))
+    .reduce<{ perSource: ReadonlyMap<number, number>; ranked: Candidate[] }>(
+      (acc, c) => {
+        const n = acc.perSource.get(c.article.source_id) ?? 0;
+        return acc.ranked.length >= prefs.briefing_story_count * 3 ||
+          n >= PER_SOURCE
+          ? acc
+          : {
+              perSource: new Map(acc.perSource).set(c.article.source_id, n + 1),
+              ranked: [...acc.ranked, c],
+            };
+      },
+      { perSource: new Map<number, number>(), ranked: [] },
+    );
+  const { filed } = ranked.reduce<{
+    used: ReadonlySet<number>;
+    filed: Choice[];
+  }>(
+    (acc, candidate) => {
+      const key = personalSection(candidate, acc.used);
+      const cluster = candidate.article.cluster_id;
+      return {
+        used:
+          key === 'widely_covered' && cluster !== null
+            ? new Set(acc.used).add(cluster)
+            : acc.used,
+        filed: [
+          ...acc.filed,
+          { candidate, category: sectionOn(key, prefs) ? key : 'top_stories' },
+        ],
+      };
+    },
+    { used: new Set(), filed: [] },
+  );
   const order = sectionOrder(prefs);
   const personal = order.filter(
     (k) =>
@@ -362,39 +388,55 @@ export function selectStories(
       filed.some((f) => f.category === k),
   );
   const quotas = allocate(prefs.briefing_story_count, personal);
-  const chosen: Choice[] = [];
-  for (const key of personal) {
-    chosen.push(
-      ...filed.filter((f) => f.category === key).slice(0, quotas.get(key) ?? 0),
-    );
-  }
+  const quoted = personal.flatMap((key) =>
+    filed.filter((f) => f.category === key).slice(0, quotas.get(key) ?? 0),
+  );
   // Sections with fewer stories than their share leave room for the rest.
-  for (const f of filed) {
-    if (chosen.length >= prefs.briefing_story_count) break;
-    if (!chosen.includes(f)) chosen.push(f);
+  const chosen = [
+    ...quoted,
+    ...filed
+      .filter((f) => !quoted.includes(f))
+      .slice(0, Math.max(0, prefs.briefing_story_count - quoted.length)),
+  ];
+  if (chosen.length < minimum) {
+    return [];
   }
-  if (chosen.length < minimum) return [];
-  const taken = new Set(chosen.map((c) => c.candidate.article.id));
-  const urls = new Set(chosen.map((c) => c.candidate.article.url));
-  for (const key of order) {
-    const isCustom = (CUSTOM_SECTIONS as readonly string[]).includes(key);
-    const isGlobal = (GLOBAL_SECTIONS as readonly string[]).includes(key);
-    if (!sectionOn(key, prefs) || (!isCustom && !isGlobal)) continue;
-    const pick = (extra.get(key as CustomSection | GlobalSection) ?? [])
-      .filter(
-        (c) =>
-          !taken.has(c.article.id) &&
-          !urls.has(c.article.url) &&
-          (isCustom || !c.read),
-      )
-      .slice(0, isCustom ? PER_PROMPT : PER_GLOBAL);
-    for (const c of pick) {
-      taken.add(c.article.id);
-      urls.add(c.article.url);
-      chosen.push({ candidate: c, category: key });
-    }
-  }
-  return order.flatMap((key) => chosen.filter((c) => c.category === key));
+  const { picks: extras } = order.reduce<{
+    taken: ReadonlySet<Candidate['article']['id']>;
+    urls: ReadonlySet<Candidate['article']['url']>;
+    picks: Choice[];
+  }>(
+    (acc, key) => {
+      const isCustom = (CUSTOM_SECTIONS as readonly string[]).includes(key);
+      const isGlobal = (GLOBAL_SECTIONS as readonly string[]).includes(key);
+      if (!sectionOn(key, prefs) || (!isCustom && !isGlobal)) {
+        return acc;
+      }
+      const pick = (extra.get(key as CustomSection | GlobalSection) ?? [])
+        .filter(
+          (c) =>
+            !acc.taken.has(c.article.id) &&
+            !acc.urls.has(c.article.url) &&
+            (isCustom || !c.read),
+        )
+        .slice(0, isCustom ? PER_PROMPT : PER_GLOBAL);
+      return {
+        taken: acc.taken.union(new Set(pick.map((c) => c.article.id))),
+        urls: acc.urls.union(new Set(pick.map((c) => c.article.url))),
+        picks: [
+          ...acc.picks,
+          ...pick.map((c) => ({ candidate: c, category: key })),
+        ],
+      };
+    },
+    {
+      taken: new Set(chosen.map((c) => c.candidate.article.id)),
+      urls: new Set(chosen.map((c) => c.candidate.article.url)),
+      picks: [],
+    },
+  );
+  const all = [...chosen, ...extras];
+  return order.flatMap((key) => all.filter((c) => c.category === key));
 }
 
 /** Preferences that keep the default section order. */
@@ -441,45 +483,37 @@ export function systemPrompt(
     })
     .join('\n');
   return (
-    "You are the paper's editor, writing the reader's briefing on their " +
-    'news.\n\nCover the stories in these sections, in this order, each ' +
-    'under its heading on a line of its own; put each story in the section ' +
-    'its CATEGORY names, and in only one section:\n' +
-    sections +
-    `\n\nLength: ${LENGTHS[given.briefing_length]}\n` +
+    `You are the paper's editor, writing the reader's briefing on their ` +
+    `news.\n\nCover the stories in these sections, in this order, each ` +
+    `under its heading on a line of its own; put each story in the section ` +
+    `its CATEGORY names, and in only one section:\n${
+      sections
+    }\n\nLength: ${LENGTHS[given.briefing_length]}\n` +
     `Style: ${STYLES[given.briefing_style]}\n` +
-    'Reply in plain text only: no HTML, no markdown, no preamble, no sign-off.'
+    `Reply in plain text only: no HTML, no markdown, no preamble, no sign-off.`
   );
 }
 
 /** The stories as the model reads them, most important first. */
 export function userPrompt(picks: readonly Choice[], date: string): string {
-  return (
-    `Today's date: ${date}\n\nStories, most important first:\n\n` +
-    picks
-      .map(({ candidate: c, category }, index) => {
-        const a = c.article;
-        const lines = [
-          `${index + 1}. TITLE: ${a.title ?? ''}`,
-          `FEED: ${a.source || hostOf(a.url)}`,
-          `DATE: ${a.published_at || a.edition || ''}`,
-          `CATEGORY: ${category}`,
-          `READ_STATUS: ${c.read ? 'read' : 'unread'}`,
-          `WORD_COUNT: ${wordCount(a)}`,
-          `EXCERPT: ${(a.summary || a.body_text || '').slice(0, 300)}`,
-        ];
-        if (c.matches.length > 0) {
-          lines.push(`MATCHES: ${c.matches.join(', ')}`);
-        }
-        if (c.also.length > 0) {
-          lines.push(
-            `CLUSTER: Also covered by: ${c.also.slice(0, 5).join(', ')}`,
-          );
-        }
-        return lines.join('\n');
-      })
-      .join('\n\n')
-  );
+  return `Today's date: ${date}\n\nStories, most important first:\n\n${picks
+    .map(({ candidate: c, category }, index) => {
+      const a = c.article;
+      return [
+        `${index + 1}. TITLE: ${a.title ?? ''}`,
+        `FEED: ${a.source || hostOf(a.url)}`,
+        `DATE: ${a.published_at || a.edition || ''}`,
+        `CATEGORY: ${category}`,
+        `READ_STATUS: ${c.read ? 'read' : 'unread'}`,
+        `WORD_COUNT: ${wordCount(a)}`,
+        `EXCERPT: ${(a.summary || a.body_text || '').slice(0, 300)}`,
+        ...(c.matches.length > 0 ? [`MATCHES: ${c.matches.join(', ')}`] : []),
+        ...(c.also.length > 0
+          ? [`CLUSTER: Also covered by: ${c.also.slice(0, 5).join(', ')}`]
+          : []),
+      ].join('\n');
+    })
+    .join('\n\n')}`;
 }
 
 /** The most tokens the note may take, by how many stories and sections it has. */
@@ -497,7 +531,9 @@ export function modelFor(choice: string | null | undefined): string {
 
 /** Wait `ms` milliseconds. */
 const pause = async (ms: number): Promise<void> =>
-  new Promise((resolve) => setTimeout(resolve, ms));
+  new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 
 /** A note as the model wrote it, and what writing it took. */
 export interface Composed {
@@ -528,7 +564,10 @@ export async function composeBriefing(
     tokens,
     seconds: (Date.now() - started) / 1000,
   });
-  if (picks.length === 0) return done(null, null);
+  if (picks.length === 0) {
+    return done(null, null);
+  }
+  // eslint-disable-next-line functional/no-loop-statements, functional/no-let -- each attempt awaits the model and then the backoff before the next, so the tries must run one after another
   for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
     try {
       const out = await env.AI.run(model as typeof BRIEFING_MODEL, {
@@ -552,7 +591,9 @@ export async function composeBriefing(
         attempt,
         error: error instanceof Error ? error.message : String(error),
       });
-      if (attempt < ATTEMPTS) await wait(BACKOFF * attempt);
+      if (attempt < ATTEMPTS) {
+        await wait(BACKOFF * attempt);
+      }
     }
   }
   return done(null, null);
@@ -579,7 +620,9 @@ export interface BriefedStory {
 
 /** A stored list of briefed stories read back; empty when it does not read. */
 export function parseBriefedStories(stored: string | null): BriefedStory[] {
-  if (!stored) return [];
+  if (!stored) {
+    return [];
+  }
   try {
     const parsed: unknown = JSON.parse(stored);
     return Array.isArray(parsed)

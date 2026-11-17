@@ -1,5 +1,5 @@
-import { expect } from '@jest/globals';
 import { readFile } from 'node:fs/promises';
+import { expect } from '@jest/globals';
 
 import { inflateAsync } from './utils/zlib';
 
@@ -52,7 +52,7 @@ function predictor(
       return up;
     }
     case 3: {
-      return (left + up) >> 1;
+      return Math.floor((left + up) / 2);
     }
     case 4: {
       return paeth(left, up, upLeft);
@@ -93,7 +93,7 @@ export async function pngIsOpaque(file: string): Promise<boolean> {
       const up = above[index] ?? 0;
       const upLeft = index >= 4 ? (above[index - 4] ?? 0) : 0;
       const predicted = predictor(filter, left, up, upLeft);
-      row[index] = ((row[index] ?? 0) + predicted) & 255;
+      row[index] = ((row[index] ?? 0) + predicted) % 256;
       if (index % 4 === 3 && row[index] !== 255) {
         return false;
       }

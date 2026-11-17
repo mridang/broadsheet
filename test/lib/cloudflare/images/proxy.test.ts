@@ -1,15 +1,17 @@
 import { describe, expect, it } from '@jest/globals';
 
-import {
-  fetchImage,
-  isImagesBinding,
-  type ImageFetch,
-} from '@/lib/cloudflare/images/server';
+import { fetchImage, isImagesBinding } from '@/lib/cloudflare/images/proxy';
+import type { SafeFetcher } from '@/lib/safe-fetch';
+
+/** What the fake image service saw of the transform it was asked for. */
+interface Seen {
+  width?: number;
+}
 
 const image = (type = 'image/jpeg', headers: Record<string, string> = {}) =>
   new Response('bytes', { headers: { 'content-type': type, ...headers } });
 const returning =
-  (res: Response): ImageFetch =>
+  (res: Response): SafeFetcher =>
   async () =>
     res;
 
@@ -41,10 +43,7 @@ describe('fetchImage', () => {
       new Response(new Uint8Array(100_000), {
         headers: { 'content-type': 'image/jpeg' },
       });
-    const images = (
-      out: ArrayBuffer | Error,
-      seen: { width?: number } = {},
-    ) => ({
+    const images = (out: ArrayBuffer | Error, seen: Seen = {}) => ({
       input: () => ({
         transform: (t: { width: number }) => {
           seen.width = t.width;
@@ -61,7 +60,7 @@ describe('fetchImage', () => {
     });
 
     it('scales a large photo to the width we asked for and sends WebP', async () => {
-      const seen: { width?: number } = {};
+      const seen: Seen = {};
       // The caller (the image service) snaps the width; the proxy uses it as given.
       const result = await fetchImage('https://a.com/x.jpg', 800, {
         fetcher: returning(big()),
@@ -158,8 +157,8 @@ describe('fetchImage', () => {
   describe('the shared safe fetch', () => {
     /** A fetcher that answers each call from `responses` and remembers the calls. */
     function serving(...responses: readonly Response[]) {
-      const calls: { url: string; init: Parameters<ImageFetch>[1] }[] = [];
-      const fetcher: ImageFetch = async (url, init) => {
+      const calls: { url: string; init: Parameters<SafeFetcher>[1] }[] = [];
+      const fetcher: SafeFetcher = async (url, init) => {
         calls.push({ url, init });
         return responses[calls.length - 1] ?? new Response('', { status: 500 });
       };

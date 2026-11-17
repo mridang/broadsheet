@@ -5,21 +5,22 @@
  * it, the arguments it accepts, and what it does when called.
  */
 
+import { z } from 'zod';
 import { issueResource } from '@/domain/api/issue-resource';
 import { ToolFailureError } from '@/domain/mcp/tool-failure';
 import { isIssueDate, issueFor } from '@/domain/issues';
-import type { ToolContext } from '@/domain/mcp/tool-context';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { Repository } from '@/domain/repository';
 import { todayEdition } from '@/domain/scraping/index';
-import { READS, type ToolAnnotations } from '@/lib/mcp';
-import { z } from 'zod';
+import { READS } from '@/lib/mcp';
+import type { ToolAnnotations } from '@/lib/mcp';
+import type { ToolContext } from '@/domain/mcp/tool-context';
 
 /** What `get_briefing` accepts. */
 const SCHEMA = z.object({
   date: z
     .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .regex(/^\d{4}-\d{2}-\d{2}$/u)
     .optional()
     .describe('The day, as YYYY-MM-DD. Leave out for the latest edition.'),
 });
@@ -45,8 +46,9 @@ export class GetBriefingTool extends JsonTool<'get_briefing', typeof SCHEMA> {
     const repo = new Repository(db);
     const editions = date === undefined ? await repo.listEditions(uid) : [];
     const day = date ?? editions[0] ?? todayEdition();
-    if (!isIssueDate(day))
+    if (!isIssueDate(day)) {
       throw new ToolFailureError('That is not a calendar date.');
+    }
     return issueResource(await issueFor(repo, uid, day, uid));
   }
 }

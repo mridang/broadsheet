@@ -6,8 +6,10 @@ import {
   readInstallEnvironment,
   rememberDismissed,
   shouldOfferIosInstall,
-  type InstallEnvironment,
-  type InstallHost,
+} from '@/components/site/ios-install';
+import type {
+  InstallEnvironment,
+  InstallHost,
 } from '@/components/site/ios-install';
 
 /** Real user-agent strings, as the browsers send them. */

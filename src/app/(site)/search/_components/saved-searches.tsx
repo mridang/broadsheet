@@ -1,12 +1,14 @@
-import type { SavedSearch } from '@/domain/repository';
 import { TextLink } from '@/components/ui/button';
 import { List, ListItem } from '@/components/ui/card';
 import { RemoveSearchButton } from '@/app/(site)/search/_components/remove-search-button';
+import type { SavedSearch } from '@/domain/repository';
 
 /** Where a saved search runs: the search page with its words and feed. */
 export function searchHref(search: Pick<SavedSearch, 'query' | 'feed_id'>) {
   const params = new URLSearchParams({ q: search.query });
-  if (search.feed_id !== null) params.set('feed_id', String(search.feed_id));
+  if (search.feed_id !== null) {
+    params.set('feed_id', String(search.feed_id));
+  }
   return `/search?${params}`;
 }
 
@@ -14,7 +16,9 @@ export function searchHref(search: Pick<SavedSearch, 'query' | 'feed_id'>) {
 export function SavedSearches({
   searches,
 }: Readonly<{ searches: readonly SavedSearch[] }>) {
-  if (searches.length === 0) return null;
+  if (searches.length === 0) {
+    return null;
+  }
   return (
     <nav aria-label="Saved searches">
       <List>

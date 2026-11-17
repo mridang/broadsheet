@@ -8,9 +8,10 @@
  * tool asks for rather than something done for every call.
  */
 
-import type { AnswerModel } from '@/domain/assistant';
-import { getDatabase, type Database } from '@/domain/db/client';
+import { getDatabase } from '@/domain/db/client';
 import { refreshSource } from '@/domain/scraping/index';
+import type { Database } from '@/domain/db/client';
+import type { AnswerModel } from '@/domain/assistant';
 
 /** What this app's tools reach for. */
 export interface ToolServices {

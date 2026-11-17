@@ -81,7 +81,7 @@ export type KeyPress = Readonly<{
 }>;
 
 /** The single keys, as `KeyboardEvent.key` names them (Shift gives capitals). */
-const KEYS: Readonly<Record<string, Shortcut>> = {
+const KEYS = {
   j: 'next',
   ArrowDown: 'next',
   k: 'prev',
@@ -122,7 +122,7 @@ const KEYS: Readonly<Record<string, Shortcut>> = {
   F: 'fullscreen',
   U: 'masthead',
   '?': 'help',
-};
+} as const satisfies Readonly<Record<string, Shortcut>>;
 
 /**
  * The shortcut a key press asks for. Ctrl or Cmd with Enter opens in the
@@ -132,13 +132,25 @@ const KEYS: Readonly<Record<string, Shortcut>> = {
  */
 export function shortcutFor(press: KeyPress): Shortcut | null {
   if (press.key === 'Enter' && !press.altKey) {
-    if (press.ctrlKey || press.metaKey) return 'open-background';
-    if (press.shiftKey) return 'full-text';
+    if (press.ctrlKey || press.metaKey) {
+      return 'open-background';
+    }
+    if (press.shiftKey) {
+      return 'full-text';
+    }
   }
-  if (press.altKey || press.ctrlKey || press.metaKey) return null;
-  if (press.shiftKey && press.key === 'ArrowDown') return 'next-section';
-  if (press.shiftKey && press.key === 'ArrowUp') return 'prev-section';
-  return Object.hasOwn(KEYS, press.key) ? KEYS[press.key]! : null;
+  if (press.altKey || press.ctrlKey || press.metaKey) {
+    return null;
+  }
+  if (press.shiftKey && press.key === 'ArrowDown') {
+    return 'next-section';
+  }
+  if (press.shiftKey && press.key === 'ArrowUp') {
+    return 'prev-section';
+  }
+  return Object.hasOwn(KEYS, press.key)
+    ? KEYS[press.key as keyof typeof KEYS]
+    : null;
 }
 
 /** The minimal shape of an event target this module reads. */
@@ -149,8 +161,12 @@ export type KeyTarget = Readonly<{
 
 /** Whether keys pressed here are being typed, so no shortcut should fire. */
 export function isTyping(target: KeyTarget): boolean {
-  if (!target) return false;
-  if (target.isContentEditable) return true;
+  if (!target) {
+    return false;
+  }
+  if (target.isContentEditable) {
+    return true;
+  }
   const tag = target.tagName?.toUpperCase();
   return ['INPUT', 'TEXTAREA', 'SELECT'].includes(tag ?? '');
 }
@@ -164,8 +180,12 @@ export function step(
   count: number,
   move: 'next' | 'prev',
 ): number {
-  if (count <= 0) return -1;
-  if (current < 0) return move === 'next' ? 0 : count - 1;
+  if (count <= 0) {
+    return -1;
+  }
+  if (current < 0) {
+    return move === 'next' ? 0 : count - 1;
+  }
   const to = current + (move === 'next' ? 1 : -1);
   return Math.min(count - 1, Math.max(0, to));
 }
@@ -178,7 +198,9 @@ export function focusedStory(
   cards: ReadonlyArray<Readonly<{ contains(node: unknown): boolean }>>,
   active: unknown,
 ): number {
-  if (!active) return -1;
+  if (!active) {
+    return -1;
+  }
   return cards.findIndex((card) => card.contains(active));
 }
 
@@ -200,7 +222,9 @@ export function sectionStep(
   current: number,
   move: 'next' | 'prev',
 ): number {
-  if (sections.length === 0) return -1;
+  if (sections.length === 0) {
+    return -1;
+  }
   const here = current < 0 ? undefined : sections[current];
   const first = (section: number) => sections.indexOf(section);
   const order = [...new Set(sections)];
@@ -227,8 +251,12 @@ export function storiesToMark(
   which: 'read-all' | 'read-above' | 'read-below',
 ): number[] {
   const all = Array.from({ length: count }, (_, index) => index);
-  if (which === 'read-all') return all;
-  if (current < 0) return [];
+  if (which === 'read-all') {
+    return all;
+  }
+  if (current < 0) {
+    return [];
+  }
   return which === 'read-above'
     ? all.filter((index) => index < current)
     : all.filter((index) => index > current);

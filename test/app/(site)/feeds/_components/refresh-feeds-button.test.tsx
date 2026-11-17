@@ -4,7 +4,7 @@ import { RefreshFeedsButton } from '@/app/(site)/feeds/_components/refresh-feeds
 import { html } from '../../../../components/render';
 
 const REFRESHES_WITH_A_PLAIN_PATTERN =
-  /^<button type="button" class="[^"]*">Refresh now<\/button>$/;
+  /^<button type="button" class="[^"]*">Refresh now<\/button>$/u;
 
 describe('RefreshFeedsButton', () => {
   it('refreshes with a plain button, not a form', () => {

@@ -118,14 +118,12 @@ export {
   isSupportedScope,
   normaliseScope,
   SCOPE_OFFLINE_ACCESS,
-  SCOPE_READ,
-  SCOPE_WRITE,
   type Scope,
   type ScopedMessage,
   scopeForMessage,
   scopeForTool,
-  SUPPORTED_SCOPES,
 } from './scopes';
+export { SCOPE_READ, SCOPE_WRITE, SUPPORTED_SCOPES } from '@/domain/mcp/app';
 export {
   ACCESS_PREFIX,
   CODE_PREFIX,

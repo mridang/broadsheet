@@ -1,9 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 
-import {
-  visibleStories,
-  type Personal,
-} from '@/app/(site)/_components/section';
+import { visibleStories } from '@/app/(site)/_components/section';
+import type { Personal } from '@/app/(site)/_components/section';
 import type { Article } from '@/domain/repository';
 import type { Intelligence } from '@/domain/render/tiers';
 
@@ -61,7 +59,7 @@ const reader = (
   level,
   markReadOnOpen: true,
   markReadOnScroll: false,
-  prompted: new Map(),
+  prompted: new Map<number, ReadonlySet<number>>(),
   sections: new Map([[4, 9]]),
   ...over,
 });
@@ -96,7 +94,9 @@ describe('visibleStories', () => {
   });
 
   it('skips a laid story whose article is gone', () => {
-    expect(visibleStories(desk, new Map(), reader('all'))).toEqual([]);
+    expect(
+      visibleStories(desk, new Map<number, Article>(), reader('all')),
+    ).toEqual([]);
   });
 });
 

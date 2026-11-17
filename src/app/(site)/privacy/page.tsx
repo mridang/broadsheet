@@ -1,6 +1,3 @@
-import type { Metadata } from 'next';
-import type { ReactElement } from 'react';
-
 import { pageMetadata } from '@/app/_metadata';
 import { CONTACT_EMAIL, PRIVACY_LAST_UPDATED } from '@/utils/site';
 
@@ -11,6 +8,8 @@ import {
   LegalPage,
   LegalSection,
 } from '@/app/(site)/privacy/_components/legal-section';
+import type { ReactElement } from 'react';
+import type { Metadata } from 'next';
 
 /**
  * A public page: it may be indexed, and it carries its own social card (the

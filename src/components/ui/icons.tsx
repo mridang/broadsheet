@@ -1,6 +1,5 @@
-import type { ReactElement } from 'react';
-
 import { cn } from '@/components/ui/cn';
+import type { ReactElement } from 'react';
 
 /** The outline of each icon, drawn on a 24-unit grid with a 1.75 stroke. */
 const PATHS = {

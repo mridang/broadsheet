@@ -5,14 +5,15 @@
  * it, the arguments it accepts, and what it does when called.
  */
 
+import { z } from 'zod';
 import { MAX_SUGGESTIONS, suggestionResource } from '@/domain/api/suggestions';
 import { ToolFailureError } from '@/domain/mcp/tool-failure';
-import type { ToolContext } from '@/domain/mcp/tool-context';
 import { JsonTool } from '@/domain/mcp/tools/json-tool';
 import { Repository } from '@/domain/repository';
 import { TOPICS } from '@/domain/topics';
-import { READS, type ToolAnnotations } from '@/lib/mcp';
-import { z } from 'zod';
+import { READS } from '@/lib/mcp';
+import type { ToolAnnotations } from '@/lib/mcp';
+import type { ToolContext } from '@/domain/mcp/tool-context';
 
 /** What `discover_feeds` accepts. */
 const SCHEMA = z.object({
@@ -50,8 +51,9 @@ export class DiscoverFeedsTool extends JsonTool<
         t.id.toLowerCase() === wanted ||
         t.name.toLowerCase() === wanted,
     );
-    if (wanted && topics.length === 0)
+    if (wanted && topics.length === 0) {
       throw new ToolFailureError('There is no such topic.');
+    }
     const suggested = await new Repository(db).suggestSources(
       uid,
       MAX_SUGGESTIONS,

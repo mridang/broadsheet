@@ -6,18 +6,16 @@
  * best of them, which names the other sources that covered it. The result is
  * plain data, so a day's paper can be stored as JSON and read back as printed.
  */
-import type { Article, Feed } from '@/domain/repository';
 import {
   assignTiers,
   hostOf,
   rank,
   verdict,
   weight,
-  type Classifiable,
-  type Tier,
-  type Training,
 } from '@/domain/render/tiers';
 import { matchTier } from '@/domain/titles';
+import type { Classifiable, Tier, Training } from '@/domain/render/tiers';
+import type { Article, Feed } from '@/domain/repository';
 
 /** One story as the paper prints it. */
 export interface LaidStory {
@@ -91,6 +89,14 @@ export interface DeskGroup {
 /** The name a story's source goes by in print. */
 const byline = (a: Article): string => a.source || hostOf(a.url);
 
+/** What folding the clusters of a paper leaves out, and what it says of what it left out. */
+export interface ClusterCollapse {
+  readonly dropped: ReadonlySet<number>;
+  readonly also: ReadonlyMap<number, readonly string[]>;
+  readonly siblings: ReadonlyMap<number, readonly Sibling[]>;
+  readonly coverage: ReadonlyMap<number, number>;
+}
+
 /**
  * Keep one article per cluster across the whole paper: the one the reader
  * likes most, then one its desk has room to print (in `printable`), then the
@@ -106,67 +112,78 @@ export function collapseClusters(
   printable?: ReadonlySet<number>,
   options: ClusterOptions = {},
   outside: readonly Article[] = [],
-): {
-  readonly dropped: ReadonlySet<number>;
-  readonly also: ReadonlyMap<number, readonly string[]>;
-  readonly siblings: ReadonlyMap<number, readonly Sibling[]>;
-  readonly coverage: ReadonlyMap<number, number>;
-} {
-  const dropped = new Set<number>();
-  const also = new Map<number, string[]>();
-  const siblings = new Map<number, Sibling[]>();
-  const coverage = new Map<number, number>();
+): ClusterCollapse {
   if (options.clustering === false) {
-    return { dropped, also, siblings, coverage };
+    return {
+      dropped: new Set<number>(),
+      also: new Map<number, string[]>(),
+      siblings: new Map<number, Sibling[]>(),
+      coverage: new Map<number, number>(),
+    };
   }
-  const members = new Map<number, Article[]>();
-  for (const a of articles) {
-    if (a.cluster_id === null) continue;
-    members.set(a.cluster_id, [...(members.get(a.cluster_id) ?? []), a]);
-  }
+  const clustered = (list: readonly Article[]): Map<number, Article[]> =>
+    new Map(
+      Map.groupBy(
+        list.flatMap((a) =>
+          a.cluster_id === null ? [] : [{ cluster: a.cluster_id, a }],
+        ),
+        ({ cluster }) => cluster,
+      )
+        .entries()
+        .map(([cluster, items]) => [cluster, items.map(({ a }) => a)]),
+    );
+  const members = clustered(articles);
   // Copies from other days or desks the paper does not print: named, never
   // printed, never the one kept.
   const printed = new Set(articles.map((a) => a.id));
-  const elsewhere = new Map<number, Article[]>();
-  for (const a of outside) {
-    if (a.cluster_id === null || printed.has(a.id)) continue;
-    elsewhere.set(a.cluster_id, [...(elsewhere.get(a.cluster_id) ?? []), a]);
-  }
-  for (const [cluster, group] of members.entries()) {
-    const extra = elsewhere.get(cluster) ?? [];
-    const [first, ...others] =
-      group.length + extra.length < 2
-        ? []
-        : group.toSorted(
-            (x, y) =>
-              verdict(y, training) - verdict(x, training) ||
-              Number(printable?.has(y.id) ?? 0) -
-                Number(printable?.has(x.id) ?? 0) ||
-              weight(y) - weight(x),
-          );
-    if (!first) continue;
-    const kept = first;
-    const rest = [...others, ...extra];
-    const folded = rest
-      .map((a) => ({ a, tier: matchTier(kept.title, a.title) }))
-      .filter(
-        ({ a, tier }) =>
-          tier === 'title' ||
-          (options.mode !== 'title' && a.source_id !== kept.source_id),
-      );
-    if (folded.length > 0) {
-      for (const id of folded
-        .map(({ a }) => a.id)
-        .filter((id) => printed.has(id))) {
-        dropped.add(id);
+  const elsewhere = clustered(outside.filter((a) => !printed.has(a.id)));
+  const folds = members
+    .entries()
+    .flatMap(([cluster, group]) => {
+      const extra = elsewhere.get(cluster) ?? [];
+      const [first, ...others] =
+        group.length + extra.length < 2
+          ? []
+          : group.toSorted(
+              (x, y) =>
+                verdict(y, training) - verdict(x, training) ||
+                Number(printable?.has(y.id) ?? 0) -
+                  Number(printable?.has(x.id) ?? 0) ||
+                weight(y) - weight(x),
+            );
+      if (!first) {
+        return [];
       }
-      also.set(
+      const kept = first;
+      const rest = [...others, ...extra];
+      const folded = rest
+        .values()
+        .map((a) => ({ a, tier: matchTier(kept.title, a.title) }))
+        .filter(
+          ({ a, tier }) =>
+            tier === 'title' ||
+            (options.mode !== 'title' && a.source_id !== kept.source_id),
+        )
+        .toArray();
+      return folded.length > 0 ? [{ cluster, kept, folded }] : [];
+    })
+    .toArray();
+  return {
+    dropped: new Set(
+      folds.flatMap(({ folded }) =>
+        folded.map(({ a }) => a.id).filter((id) => printed.has(id)),
+      ),
+    ),
+    also: new Map(
+      folds.map(({ kept, folded }) => [
         kept.id,
         [...new Set(folded.map(({ a }) => byline(a)))].filter(
           (n) => n !== byline(kept),
         ),
-      );
-      siblings.set(
+      ]),
+    ),
+    siblings: new Map(
+      folds.map(({ kept, folded }) => [
         kept.id,
         folded.map(({ a, tier }) => ({
           id: a.id,
@@ -185,15 +202,16 @@ export function collapseClusters(
               }
             : {}),
         })),
-      );
-      coverage.set(
+      ]),
+    ),
+    coverage: new Map(
+      folds.map(({ cluster, kept, folded }) => [
         cluster,
         new Set([kept, ...folded.map(({ a }) => a)].map((a) => a.source_id))
           .size,
-      );
-    }
-  }
-  return { dropped, also, siblings, coverage };
+      ]),
+    ),
+  };
 }
 
 /** The most stories one feed's desk prints; the rest stay in the archive. */
@@ -298,16 +316,19 @@ const TIERS: ReadonlySet<string> = new Set([
 ]);
 
 /** Whether each of `keys` on `v` is absent or a string. */
-const optionalStrings = (v: unknown, keys: readonly string[]): boolean =>
-  typeof v === 'object' &&
-  v !== null &&
+const optionalStrings = (
+  v: Sibling,
+  keys: readonly (keyof Sibling)[],
+): boolean =>
   keys.every((k) => {
-    const value: unknown = Reflect.get(v, k);
+    const value: unknown = v[k];
     return value === undefined || typeof value === 'string';
   });
 
 const isSibling = (v: unknown): v is Sibling => {
-  if (typeof v !== 'object' || v === null) return false;
+  if (typeof v !== 'object' || v === null) {
+    return false;
+  }
   const s = v as Sibling;
   const identity =
     Number.isInteger(s.id) &&
@@ -317,33 +338,41 @@ const isSibling = (v: unknown): v is Sibling => {
   return (
     identity &&
     tier &&
-    optionalStrings(v, ['title', 'published_at', 'image', 'excerpt'])
+    optionalStrings(s, ['title', 'published_at', 'image', 'excerpt'])
   );
 };
 
 const isStory = (v: unknown): v is LaidStory => {
-  if (typeof v !== 'object' || v === null) return false;
+  if (typeof v !== 'object' || v === null) {
+    return false;
+  }
   const s = v as LaidStory;
-  const shape =
+  const hasStoryFields =
     Number.isInteger(s.id) && TIERS.has(s.tier) && Array.isArray(s.also);
   const siblings =
     s.siblings === undefined ||
     (Array.isArray(s.siblings) && s.siblings.every(isSibling));
-  return shape && s.also.every((n) => typeof n === 'string') && siblings;
+  return (
+    hasStoryFields && s.also.every((n) => typeof n === 'string') && siblings
+  );
 };
 
 const isDesk = (v: unknown): v is LaidDesk => {
-  if (typeof v !== 'object' || v === null) return false;
+  if (typeof v !== 'object' || v === null) {
+    return false;
+  }
   const d = v as LaidDesk;
-  const shape =
+  const hasDeskFields =
     Number.isInteger(d.feed_id) &&
     typeof d.title === 'string' &&
     typeof d.url === 'string';
-  return shape && Array.isArray(d.stories) && d.stories.every(isStory);
+  return hasDeskFields && Array.isArray(d.stories) && d.stories.every(isStory);
 };
 
 const isGroup = (v: unknown): v is LaidGroup => {
-  if (typeof v !== 'object' || v === null) return false;
+  if (typeof v !== 'object' || v === null) {
+    return false;
+  }
   const g = v as LaidGroup;
   return (
     (g.name === null || typeof g.name === 'string') &&
@@ -356,7 +385,9 @@ const isGroup = (v: unknown): v is LaidGroup => {
 export function parseLayout(stored: string): Layout | undefined {
   try {
     const parsed: unknown = JSON.parse(stored);
-    if (typeof parsed !== 'object' || parsed === null) return undefined;
+    if (typeof parsed !== 'object' || parsed === null) {
+      return undefined;
+    }
     const layout = parsed as Layout;
     return Array.isArray(layout.groups) && layout.groups.every(isGroup)
       ? layout

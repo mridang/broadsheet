@@ -1,16 +1,17 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
-import { createDatabase, type Database } from '@/domain/db/client';
+import { createDatabase } from '@/domain/db/client';
 import { ToolFailureError } from '@/domain/mcp/tool-failure';
 import { callTool } from '@/domain/mcp/tool-calls';
+import { Repository } from '@/domain/repository';
+import { APP_MIGRATIONS } from '../../../lib/core/db/migrations';
+import { sqliteD1 } from '../../../lib/core/db/sqlite-d1';
+import type { Database } from '@/domain/db/client';
 import type { ToolContext } from '@/domain/mcp/tool-context';
 import type { ToolServices } from '@/domain/mcp/tool-services';
 import type { User } from '@/domain/db/users';
 import type { AnswerModel } from '@/domain/assistant';
-import { Repository } from '@/domain/repository';
 import type { ScrapedItem } from '@/lib/scraping';
-import { APP_MIGRATIONS } from '../../../lib/core/db/migrations';
-import { sqliteD1 } from '../../../lib/core/db/sqlite-d1';
 
 let db: Database;
 let ctx: ToolContext;

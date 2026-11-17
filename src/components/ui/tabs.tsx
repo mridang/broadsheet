@@ -1,7 +1,6 @@
-import type { ReactElement } from 'react';
-
 import { TextLink } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
+import type { ReactElement } from 'react';
 
 /** One tab: its words, where it goes, and whether it is the one open. */
 export interface Tab {

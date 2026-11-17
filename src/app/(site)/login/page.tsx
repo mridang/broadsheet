@@ -1,9 +1,8 @@
-import type { Metadata } from 'next';
-
 import { LegalLinks } from '@/app/(site)/_components/legal-links';
 import { BrandMark } from '@/components/site/logo';
 import { ButtonLink } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import type { Metadata } from 'next';
 
 export const dynamic = 'force-dynamic';
 

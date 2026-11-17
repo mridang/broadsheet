@@ -2,8 +2,6 @@ import { is } from 'drizzle-orm';
 import { SQLiteTable, getTableConfig } from 'drizzle-orm/sqlite-core';
 import { describe, expect, it } from '@jest/globals';
 
-import type { DatabaseSync } from 'node:sqlite';
-
 import {
   users,
   sources,
@@ -89,6 +87,7 @@ const schema = {
 };
 import { APP_MIGRATIONS } from '../../lib/core/db/migrations';
 import { sqliteD1 } from '../../lib/core/db/sqlite-d1';
+import type { DatabaseSync } from 'node:sqlite';
 
 const collator = new Intl.Collator();
 
@@ -147,8 +146,9 @@ describe('the schema file and the migrations', () => {
       // Every index the schema names exists (the database may carry more, such
       // as the legacy unique constraint on recipes.drive_file_id).
       const present = indexesOf(raw, name);
-      for (const index of config.indexes)
+      for (const index of config.indexes) {
         expect(present).toContain(index.config.name);
+      }
     },
   );
 
@@ -171,8 +171,9 @@ describe('the schema file and the migrations', () => {
       expect(created.toSorted((a, b) => collator.compare(a, b))).toEqual(
         [...declared.keys()].toSorted((a, b) => collator.compare(a, b)),
       );
-      for (const index of created)
+      for (const index of created) {
         expect(keyColumns(raw, index)).toEqual(declared.get(index));
+      }
     },
   );
 });

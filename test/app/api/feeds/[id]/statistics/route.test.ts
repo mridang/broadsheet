@@ -20,11 +20,13 @@ import {
   tokenFor,
 } from '../../../../../domain/auth/auth-test-kit';
 
-const REPORTS_THE_LAST_FETCH_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
+const REPORTS_THE_LAST_FETCH_PATTERN =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/u;
 
-const refreshSource = jest.fn<(...args: unknown[]) => Promise<unknown>>(
+const refreshSource = jest.fn<(...args: unknown[]) => Promise<object>>(
   async () => ({ ok: true, n: 0 }),
 );
+// eslint-disable-next-line tslop/no-module-mocking -- the route imports the scraper directly, so the test replaces that module; injecting it would change the route's public API
 jest.unstable_mockModule('@/domain/scraping/index', () => ({
   refreshSource,
   discoverFeed: async (url: string) => url,
@@ -34,7 +36,11 @@ const route = await import('@/app/api/feeds/[id]/statistics/route');
 
 let restore: () => void;
 let repo: Repository;
-let auth: Record<string, string>;
+/** The Cookie header of the signed-in caller; empty for a signed-out one. */
+interface CallerCookie {
+  [name: string]: string;
+}
+let auth: CallerCookie;
 const origin = 'https://app.test';
 
 beforeEach(async () => {

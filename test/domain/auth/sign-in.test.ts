@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import { LANDING_PATH, SESSION_COOKIE, sessionClaims } from '@/domain/auth/app';
-import type { User } from '@/domain/auth/store';
-import { SESSION_SECRET, appRequest } from './auth-test-kit';
 import { installFakeTracing } from '../../lib/core/observability/fake-tracing';
+import { SESSION_SECRET, appRequest } from './auth-test-kit';
+import type { User } from '@/domain/repository';
 
-const REFUSES_A_GOOGLE_ACCOUNT_PATTERN = /email/;
-const FAILS_CLOSED_WITHOUT_A_PATTERN = /SESSION_SECRET/;
+const REFUSES_A_GOOGLE_ACCOUNT_PATTERN = /email/u;
+const FAILS_CLOSED_WITHOUT_A_PATTERN = /SESSION_SECRET/u;
 
 /** A value that is not there, for fields the test leaves out on purpose. */
 const unset = (): undefined => undefined;
@@ -30,6 +30,7 @@ const afterSignIn = jest
   .fn<(user: unknown) => Promise<void>>()
   .mockResolvedValue();
 
+// eslint-disable-next-line tslop/no-module-mocking -- the module reads the runtime (cookies or the Cloudflare context), which a test cannot supply, so the test replaces it before importing the code under test
 jest.unstable_mockModule('@/domain/auth/store', () => ({
   upsertGoogleUser,
   // Importing core/auth via its barrel now also loads the current-user lookup,
@@ -37,6 +38,7 @@ jest.unstable_mockModule('@/domain/auth/store', () => ({
   getUserById: jest.fn(async () => person),
   getSessionEpoch: jest.fn(async () => 0),
 }));
+// eslint-disable-next-line tslop/no-module-mocking -- the module reads the runtime (cookies or the Cloudflare context), which a test cannot supply, so the test replaces it before importing the code under test
 jest.unstable_mockModule('@/domain/auth/hooks', () => ({
   afterSignIn,
   OTHER_FLOWS: {},

@@ -9,13 +9,8 @@
 import {
   briefingResource,
   parseBriefingQuery,
-  type BriefingQuery,
 } from '@/domain/api/briefing-resource';
-import {
-  liveUid,
-  requestCookieResolver,
-  type CurrentUserResolver,
-} from '@/domain/api/auth';
+import { liveUid, requestCookieResolver } from '@/domain/api/auth';
 import { parseFeedId } from '@/domain/api/feed-resource';
 import { idOf } from '@/domain/api/feeds';
 import { parseBriefedStories } from '@/domain/briefing';
@@ -23,16 +18,15 @@ import {
   currentSlot,
   localTime,
   writeScheduledBriefing,
-  type Written,
 } from '@/domain/briefings';
 import { getDatabase } from '@/domain/db/client';
-import {
-  Repository,
-  type Article,
-  type StoredBriefing,
-} from '@/domain/repository';
+import { Repository } from '@/domain/repository';
 import { ApiController, created, ok, page, problems } from '@/lib/core/api';
 import { getEnv } from '@/lib/core/runtime';
+import type { Article, StoredBriefing } from '@/domain/repository';
+import type { Written } from '@/domain/briefings';
+import type { CurrentUserResolver } from '@/domain/api/auth';
+import type { BriefingQuery } from '@/domain/api/briefing-resource';
 
 /** The signed-in caller's id and the request. */
 interface UidContext {
@@ -102,8 +96,9 @@ async function pageOf(
 /** Decode a list query, or refuse it. */
 const decodeQuery = (request: Request): BriefingQuery => {
   const input = parseBriefingQuery(new URL(request.url).searchParams);
-  if (!input.ok)
+  if (!input.ok) {
     throw problems.badRequest('The list is not valid.', input.errors);
+  }
   return input.query;
 };
 
@@ -150,14 +145,18 @@ export function createBriefingsCollection(
       method: 'POST',
       handle: async (_input, { uid }) => {
         const { briefing, replaced } = await write(uid);
-        if (!briefing) return { replaced };
+        if (!briefing) {
+          return { replaced };
+        }
         const [shown] = await show(new Repository(getDatabase()), uid, [
           briefing,
         ]);
         return { shown, replaced };
       },
       encode: ({ shown, replaced }) => {
-        if (!shown) return problems.notFound('stories for a briefing');
+        if (!shown) {
+          return problems.notFound('stories for a briefing');
+        }
         const body = briefingResource(
           shown.briefing,
           shown.articles,
@@ -188,10 +187,14 @@ export function createBriefingItem(
     method: 'GET',
     handle: async (_input, { request, uid }): Promise<Shown | undefined> => {
       const id = parseFeedId(idOf(request));
-      if (id === undefined) return undefined;
+      if (id === undefined) {
+        return undefined;
+      }
       const repo = new Repository(getDatabase());
       const briefing = await repo.getBriefing(uid, id);
-      if (!briefing) return undefined;
+      if (!briefing) {
+        return undefined;
+      }
       const [shown] = await show(repo, uid, [briefing]);
       return shown;
     },

@@ -11,13 +11,13 @@ import {
 } from '@/app/(site)/privacy/_components/legal-section';
 import { cssClassesOf, html } from '../../../../components/render';
 
-const HEADS_THE_PAGE_WITH_PATTERN = /<h1/g;
-const HEADS_THE_PAGE_WITH_PATTERN_2 = /<h1[^>]*>Privacy Policy<\/h1>/;
-const IS_A_SECTION_HEADED_PATTERN = /<h2[^>]*>What we store<\/h2>/;
+const HEADS_THE_PAGE_WITH_PATTERN = /<h1/gu;
+const HEADS_THE_PAGE_WITH_PATTERN_2 = /<h1[^>]*>Privacy Policy<\/h1>/u;
+const IS_A_SECTION_HEADED_PATTERN = /<h2[^>]*>What we store<\/h2>/u;
 const OPENS_ANOTHER_SITE_IN_PATTERN =
-  /<a href="https:\/\/example\.com\/" target="_blank" rel="noopener noreferrer"[^>]*>Example<\/a>/;
+  /<a href="https:\/\/example\.com\/" target="_blank" rel="noopener noreferrer"[^>]*>Example<\/a>/u;
 const LINKS_A_PAGE_OF_PATTERN =
-  /<a [^>]*href="\/privacy"[^>]*>privacy policy<\/a>/;
+  /<a [^>]*href="\/privacy"[^>]*>privacy policy<\/a>/u;
 
 describe('longDate', () => {
   it('writes an ISO day as day, month name and year', () => {
@@ -54,7 +54,7 @@ describe('LegalPage', () => {
 
   it('ends with a link back home, naming the app', () => {
     expect(out).toMatch(
-      new RegExp(`<a [^>]*href="/"[^>]*>.*Back to ${BRAND_NAME}</a>`),
+      new RegExp(`<a [^>]*href="/"[^>]*>.*Back to ${BRAND_NAME}</a>`, 'u'),
     );
     expect(out.indexOf('The body.')).toBeLessThan(out.indexOf('Back to'));
   });
@@ -105,8 +105,9 @@ describe('LegalLink', () => {
 
   it('is underlined in the accent colour', () => {
     const out = html(<LegalLink href="/terms">terms</LegalLink>);
-    expect(cssClassesOf(out, 'a')).toContain('text-accent');
-    expect(cssClassesOf(out, 'a')).toContain('underline');
+    const classes = cssClassesOf(out, 'a');
+    expect(classes).toContain('text-accent');
+    expect(classes).toContain('underline');
   });
 });
 

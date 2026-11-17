@@ -6,14 +6,10 @@
  * stops sharing it. A share is keyed by the article it shares.
  */
 
-import {
-  liveUid,
-  requestCookieResolver,
-  type CurrentUserResolver,
-} from '@/domain/api/auth';
+import { liveUid, requestCookieResolver } from '@/domain/api/auth';
 import { parseFeedId } from '@/domain/api/feed-resource';
 import { idOf } from '@/domain/api/feeds';
-import { pageRequest, type PageRequest } from '@/domain/api/paging';
+import { pageRequest } from '@/domain/api/paging';
 import {
   parseShareInput,
   parseSharerIds,
@@ -27,11 +23,14 @@ import {
   created,
   noContent,
   page,
-  type Slice,
 } from '@/lib/core/api';
 import { Repository } from '@/domain/repository';
-import { ShareRepository, type SharedStory } from '@/domain/shares';
+import { ShareRepository } from '@/domain/shares';
 import { getDatabase } from '@/domain/db/client';
+import type { SharedStory } from '@/domain/shares';
+import type { Slice } from '@/lib/core/api';
+import type { PageRequest } from '@/domain/api/paging';
+import type { CurrentUserResolver } from '@/domain/api/auth';
 
 /** The signed-in caller's id and the request, for a share endpoint. */
 interface UidContext {
@@ -51,13 +50,16 @@ interface ShareQuery extends PageRequest {
 async function optionalObject(
   request: Request,
 ): Promise<Readonly<Record<string, unknown>>> {
-  if (!request.headers.has('content-type') && !(await request.clone().text()))
+  if (!request.headers.has('content-type') && !(await request.clone().text())) {
     return {};
+  }
   const body = await readJsonObject(
     request,
     'The share must be a JSON object.',
   );
-  if (!body.ok) throw body.response;
+  if (!body.ok) {
+    throw body.response;
+  }
   return body.value;
 }
 
@@ -155,12 +157,18 @@ export function createShareItem(
       ): Promise<{ story: SharedStory; created: boolean } | undefined> => {
         const id = parseFeedId(idOf(request));
         const db = getDatabase();
-        if (id === undefined || !(await new Repository(db).getArticle(uid, id)))
+        if (
+          id === undefined ||
+          !(await new Repository(db).getArticle(uid, id))
+        ) {
           return undefined;
+        }
         return new ShareRepository(db).share(uid, id, comments);
       },
       encode: (result) => {
-        if (!result) return problems.notFound('article');
+        if (!result) {
+          return problems.notFound('article');
+        }
         const body = shareResource(result.story);
         const at = `/api/users/self/shares/${body.article_id}`;
         return result.created ? created(body, at) : ok(body, { location: at });

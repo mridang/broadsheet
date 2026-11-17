@@ -1,18 +1,13 @@
 import { EmptyState } from '@/components/ui/notice';
 import { SectionHeader } from '@/components/ui/page-header';
-import type { Article } from '@/domain/repository';
-import type { LaidDesk } from '@/domain/render/layout';
-import {
-  hostOf,
-  shows,
-  verdict,
-  type Intelligence,
-  type Training,
-} from '@/domain/render/tiers';
+import { hostOf, shows, verdict } from '@/domain/render/tiers';
 import { MarkFeedReadButton } from '@/app/(site)/_components/mark-feed-read-button';
 import { StoryCard } from '@/app/(site)/_components/story-card';
 import { BriefBlock } from '@/app/(site)/_components/brief-block';
 import { countOf } from '@/lib/intl';
+import type { Intelligence, Training } from '@/domain/render/tiers';
+import type { LaidDesk } from '@/domain/render/layout';
+import type { Article } from '@/domain/repository';
 
 /** What the reader has done, which shapes their desks. */
 export interface Personal {
@@ -45,8 +40,12 @@ export function visibleStories(
 ) {
   return desk.stories.flatMap((s) => {
     const a = articles.get(s.id);
-    if (!a) return [];
-    if (!personal) return [{ ...s, a }];
+    if (!a) {
+      return [];
+    }
+    if (!personal) {
+      return [{ ...s, a }];
+    }
     const v = verdict(
       {
         ...a,

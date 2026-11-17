@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from '@jest/globals';
 
-import { createDatabase, type Database } from '@/domain/db/client';
+import { createDatabase } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
 import { ShareRepository } from '@/domain/shares';
 import { SESSION_COOKIE } from '@/domain/auth/app';
@@ -13,6 +13,7 @@ import {
   SESSION_SECRET,
   tokenFor,
 } from '../../../../../../domain/auth/auth-test-kit';
+import type { Database } from '@/domain/db/client';
 
 const { POST, DELETE } =
   await import('@/app/api/users/self/shares/[article_id]/route');
@@ -20,7 +21,11 @@ const { POST, DELETE } =
 let restore: () => void;
 let db: Database;
 let story: number;
-let auth: Record<string, string>;
+/** The Cookie header of the signed-in caller; empty for a signed-out one. */
+interface CallerCookie {
+  [name: string]: string;
+}
+let auth: CallerCookie;
 
 async function cookieFor(uid: number): Promise<Record<string, string>> {
   return {
@@ -92,7 +97,7 @@ describe('POST /api/users/self/shares/:article_id', () => {
   it('answers with the share’s Location', async () => {
     const res = await call('POST', story);
     expect(res.headers.get('location')).toMatch(
-      new RegExp(`/api/users/self/shares/${story}$`),
+      new RegExp(`/api/users/self/shares/${story}$`, 'u'),
     );
   });
 

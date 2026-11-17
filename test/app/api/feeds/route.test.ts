@@ -7,8 +7,6 @@ import {
   jest,
 } from '@jest/globals';
 
-import type { DatabaseSync } from 'node:sqlite';
-
 import { SESSION_COOKIE } from '@/domain/auth/app';
 import { APP_MIGRATIONS } from '../../../lib/core/db/migrations';
 import {
@@ -17,15 +15,17 @@ import {
   sqliteD1,
 } from '../../../lib/core/db/sqlite-d1';
 import { SESSION_SECRET, tokenFor } from '../../../domain/auth/auth-test-kit';
+import type { DatabaseSync } from 'node:sqlite';
 
 // Identity is resolved from the signed session cookie on the request; the
 // resolver has its own tests (test/domain/api/auth). Here we sign a real
 // cookie for the caller so the feed endpoints run as that person.
-const refreshSource = jest.fn<(...args: unknown[]) => Promise<unknown>>(
+const refreshSource = jest.fn<(...args: unknown[]) => Promise<object>>(
   async () => ({ ok: true, n: 0 }),
 );
 /** What feed discovery finds for an address; the address itself by default. */
 let discovered: (url: string) => string | undefined = (url) => url;
+// eslint-disable-next-line tslop/no-module-mocking -- the route imports the scraper directly, so the test replaces that module; injecting it would change the route's public API
 jest.unstable_mockModule('@/domain/scraping/index', () => ({
   refreshSource,
   discoverFeed: async (url: string) => discovered(url),
@@ -36,7 +36,11 @@ const { GET, POST } = await import('@/app/api/feeds/route');
 let raw: DatabaseSync;
 let restore: () => void;
 /** The Cookie header the browser sends; empty for a signed-out caller. */
-let auth: Record<string, string>;
+/** The Cookie header of the signed-in caller; empty for a signed-out one. */
+interface CallerCookie {
+  [name: string]: string;
+}
+let auth: CallerCookie;
 
 /** A Cookie header carrying a signed session for `uid`. */
 async function cookieFor(uid: number): Promise<Record<string, string>> {
@@ -64,9 +68,9 @@ afterEach(() => restore());
 const URL = 'https://app.test/api/feeds';
 
 /** A POST with the given body text, carrying the current caller's cookie. */
-const JSON_HEADERS: Record<string, string> = {
+const JSON_HEADERS = {
   'content-type': 'application/json',
-};
+} satisfies Record<string, string>;
 const post = async (
   body: string,
   headers: Record<string, string> = JSON_HEADERS,
@@ -103,8 +107,9 @@ describe('POST /api/feeds', () => {
   });
 
   it('fetches the first edition of a new feed in the background', async () => {
-    await follow('https://a.test/feed.xml');
+    const res = await follow('https://a.test/feed.xml');
     await settleBackground();
+    expect(res.status).toBe(201);
     expect(refreshSource).toHaveBeenCalledTimes(1);
   });
 
@@ -267,7 +272,7 @@ describe('GET /api/feeds', () => {
       .run(feedId);
     const opml = await list('', { accept: 'text/x-opml' });
     const xml = await opml.text();
-    expect(xml.match(/xmlUrl="https:\/\/a\.test\/1"/g)).toHaveLength(2);
+    expect(xml.match(/xmlUrl="https:\/\/a\.test\/1"/gu)).toHaveLength(2);
   });
 
   it('carries each feed’s stored title and website in the OPML', async () => {

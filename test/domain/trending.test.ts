@@ -10,8 +10,8 @@ import {
   rank,
   titleKey,
   topicOf,
-  type Candidate,
 } from '@/domain/trending';
+import type { Candidate } from '@/domain/trending';
 
 const activity = (seconds: number[], savers = 0, words = 0) => ({
   id: 1,

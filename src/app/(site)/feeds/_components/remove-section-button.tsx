@@ -1,10 +1,9 @@
 'use client';
 
-import type { ReactElement } from 'react';
-
 import { removeSection } from '@/app/(site)/feeds/_components/feed-requests';
 import { useFeedAction } from '@/app/(site)/feeds/_components/use-feed-action';
 import { buttonClass } from '@/components/ui/button';
+import type { ReactElement } from 'react';
 
 /**
  * "Remove" on a section of the feed manager, which keeps its feeds, and
@@ -22,12 +21,12 @@ export function RemoveSectionButton({
         type="button"
         className={cssName}
         disabled={busy}
-        onClick={() =>
+        onClick={() => {
           void run(
             async () => removeSection(id),
             'Could not remove that section.',
-          )
-        }
+          );
+        }}
       >
         Remove
       </button>
@@ -35,12 +34,12 @@ export function RemoveSectionButton({
         type="button"
         className={cssName}
         disabled={busy}
-        onClick={() =>
+        onClick={() => {
           void run(
             async () => removeSection(id, true),
             'Could not remove that section.',
-          )
-        }
+          );
+        }}
       >
         Remove with feeds
       </button>

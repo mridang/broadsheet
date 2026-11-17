@@ -5,12 +5,12 @@ import {
   ClusterPreview,
   clusterPictures,
 } from '@/app/(site)/_components/cluster-preview';
-import type { Sibling } from '@/domain/render/layout';
 import { html } from '../../../components/render';
+import type { Sibling } from '@/domain/render/layout';
 
 const SHOWS_PICTURES_AND_OPENINGS_PATTERN =
-  /src="\/img\?url=https%3A%2F%2Fexample\.com%2Fp\.jpg/;
-const DIMS_THE_COPIES_THE_PATTERN = /data-read=""/g;
+  /src="\/img\?url=https%3A%2F%2Fexample\.com%2Fp\.jpg/u;
+const DIMS_THE_COPIES_THE_PATTERN = /data-read=""/gu;
 
 const siblings: Sibling[] = [
   {

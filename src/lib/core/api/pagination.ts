@@ -15,7 +15,7 @@
 
 import { problems } from './problem';
 
-const BYTES_TO_BASE64_URL_PATTERN = /={1,2}$/;
+const BYTES_TO_BASE64_URL_PATTERN = /\u003D{1,2}$/u;
 
 /** The default page size when the client asks for none. */
 export const DEFAULT_LIMIT = 20;
@@ -104,10 +104,9 @@ export function sliceAfter<T>(
 
 /** Base64url-encode bytes (RFC 4648 §5: `+/` → `-_`, no padding). */
 function bytesToBase64Url(bytes: Uint8Array): string {
-  let binary = '';
-  for (const byte of bytes) {
-    binary += String.fromCodePoint(byte);
-  }
+  const binary = Array.from(bytes, (byte) => String.fromCodePoint(byte)).join(
+    '',
+  );
   return btoa(binary)
     .replaceAll('+', '-')
     .replaceAll('/', '_')

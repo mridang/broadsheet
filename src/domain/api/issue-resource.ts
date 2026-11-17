@@ -6,16 +6,13 @@
  * checking the body that asks for an issue to be laid out again.
  */
 
-import type { Category } from '@/domain/briefing';
-import { isIssueDate, type Issue } from '@/domain/issues';
-import type { IssueListing } from '@/domain/repository';
+import { isIssueDate } from '@/domain/issues';
 import { DEFAULT_LIMIT, MAX_LIMIT, decodeCursor } from '@/lib/core/api';
-import {
-  verdict,
-  type Tier,
-  type Training,
-  type Verdict,
-} from '@/domain/render/tiers';
+import { verdict } from '@/domain/render/tiers';
+import type { Tier, Training, Verdict } from '@/domain/render/tiers';
+import type { Issue } from '@/domain/issues';
+import type { IssueListing } from '@/domain/repository';
+import type { Category } from '@/domain/briefing';
 
 /** One story as the issue prints it. */
 export interface IssueStoryResource {
@@ -89,7 +86,9 @@ export interface IssueSummaryResource {
 
 /** A stored SQLite time as RFC 3339, or undefined when it does not parse. */
 function timestamp(stored: string | null): string | undefined {
-  if (!stored) return undefined;
+  if (!stored) {
+    return undefined;
+  }
   const ms = Date.parse(`${stored.replace(' ', 'T')}Z`);
   return Number.isNaN(ms) ? undefined : new Date(ms).toISOString();
 }
@@ -168,13 +167,15 @@ export type IssueRequestInput =
 export function parseIssueRequest(
   body: Readonly<Record<string, unknown>>,
 ): IssueRequestInput {
-  const errors = Object.keys(body)
-    .filter((k) => k !== 'date')
-    .map((k) => `${k}: not a member of an issue request.`);
   const date = body['date'];
-  if (typeof date !== 'string' || !isIssueDate(date)) {
-    errors.push('date: must be a date written YYYY-MM-DD.');
-  }
+  const errors = [
+    ...Object.keys(body)
+      .filter((k) => k !== 'date')
+      .map((k) => `${k}: not a member of an issue request.`),
+    ...(typeof date !== 'string' || !isIssueDate(date)
+      ? ['date: must be a date written YYYY-MM-DD.']
+      : []),
+  ];
   return errors.length > 0 || typeof date !== 'string'
     ? { ok: false, errors }
     : { ok: true, date };
@@ -198,28 +199,23 @@ export type IssueQueryInput =
  * parameters are refused.
  */
 export function parseIssueQuery(params: URLSearchParams): IssueQueryInput {
-  const errors: string[] = [];
-  for (const key of new Set(params.keys())) {
-    if (key !== 'cursor' && key !== 'limit') {
-      errors.push(`${key}: not a parameter of this list.`);
-    }
-  }
-  let before: string | undefined;
   const cursor = params.get('cursor');
-  if (cursor !== null) {
-    before = decodeCursor(cursor)?.key;
-    if (before === undefined || !isIssueDate(before)) {
-      errors.push('cursor: not a cursor of this list.');
-    }
-  }
-  let limit = DEFAULT_LIMIT;
+  const before = cursor === null ? undefined : decodeCursor(cursor)?.key;
   const rawLimit = params.get('limit');
-  if (rawLimit !== null) {
-    limit = Number(rawLimit);
-    if (!Number.isInteger(limit) || limit < 1 || limit > MAX_LIMIT) {
-      errors.push(`limit: must be a whole number from 1 to ${MAX_LIMIT}.`);
-    }
-  }
+  const limit = rawLimit === null ? DEFAULT_LIMIT : Number(rawLimit);
+  const limitOk = Number.isInteger(limit) && limit >= 1 && limit <= MAX_LIMIT;
+  const errors: string[] = [
+    ...new Set(params.keys())
+      .values()
+      .filter((key) => key !== 'cursor' && key !== 'limit')
+      .map((key) => `${key}: not a parameter of this list.`),
+    ...(cursor !== null && (before === undefined || !isIssueDate(before))
+      ? ['cursor: not a cursor of this list.']
+      : []),
+    ...(rawLimit !== null && !limitOk
+      ? [`limit: must be a whole number from 1 to ${MAX_LIMIT}.`]
+      : []),
+  ];
   return errors.length > 0
     ? { ok: false, errors }
     : { ok: true, query: { before, limit } };

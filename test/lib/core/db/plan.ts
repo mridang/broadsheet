@@ -1,12 +1,13 @@
-import type { DatabaseSync } from 'node:sqlite';
 import { expect } from '@jest/globals';
 
-import { createDatabase, type Database } from '@/domain/db/client';
+import { createDatabase } from '@/domain/db/client';
 import { APP_MIGRATIONS } from './migrations';
 import { sqliteD1 } from './sqlite-d1';
+import type { Database } from '@/domain/db/client';
+import type { DatabaseSync } from 'node:sqlite';
 
-const EXPECT_INDEXED_PATTERN = /^\s*SCAN /;
-const EXPECT_INDEXED_PATTERN_2 = /TEMP B-TREE/;
+const EXPECT_INDEXED_PATTERN = /^\s*SCAN /u;
+const EXPECT_INDEXED_PATTERN_2 = /TEMP B-TREE/u;
 
 /** A migrated database that remembers the statements sent to it. */
 export interface RecordedDatabase {
@@ -45,7 +46,9 @@ export function recordedDatabase(): RecordedDatabase {
     sent,
     planOf: (text) => {
       const found = sent(text).at(-1);
-      if (found === undefined) throw new Error(`no statement has: ${text}`);
+      if (found === undefined) {
+        throw new Error(`no statement has: ${text}`);
+      }
       return raw
         .prepare(`EXPLAIN QUERY PLAN ${found}`)
         .all()
@@ -68,11 +71,15 @@ export function expectIndexed(
     sorts = false,
   }: { scans?: readonly string[]; sorts?: boolean } = {},
 ): void {
-  for (const index of indexes) expect(plan).toContain(index);
+  for (const index of indexes) {
+    expect(plan).toContain(index);
+  }
   const scanned = plan
     .split('\n')
     .filter((line) => EXPECT_INDEXED_PATTERN.test(line))
     .filter((line) => !scans.some((allowed) => line.includes(allowed)));
   expect(scanned).toEqual([]);
-  if (!sorts) expect(plan).not.toMatch(EXPECT_INDEXED_PATTERN_2);
+  if (!sorts) {
+    expect(plan).not.toMatch(EXPECT_INDEXED_PATTERN_2);
+  }
 }

@@ -13,7 +13,7 @@ import {
 } from '@/lib/oauth';
 import { SCOPE_READ, SCOPE_TEXT, SCOPE_WRITE } from '@/domain/mcp/app';
 
-const NEVER_LETS_A_DIRECTION_CHANGING_PATTERN = /[^\u0021-\u007E]/;
+const NEVER_LETS_A_DIRECTION_CHANGING_PATTERN = /[^\u0021-\u007E]/u;
 
 describe('sanitiseDisplayName', () => {
   it('keeps an ordinary name', () => {
@@ -39,7 +39,7 @@ describe('sanitiseDisplayName', () => {
     expect(sanitiseDisplayName('  Claude \n\n  Desktop\t', 'x')).toBe(
       'Claude Desktop',
     );
-    expect(sanitiseDisplayName('A B C', 'x')).toBe('A B C');
+    expect(sanitiseDisplayName('A\u2028B\u2029C', 'x')).toBe('A B C');
   });
 
   it('normalises look-alike forms to the plain letters', () => {

@@ -5,9 +5,9 @@ import NotFound, { metadata } from '@/app/not-found';
 import { html } from '../components/render';
 
 const SAYS_THE_PAGE_COULD_PATTERN =
-  /<h1[^>]*>We couldn&#x27;t find that page<\/h1>/;
+  /<h1[^>]*>We couldn&#x27;t find that page<\/h1>/u;
 const OFFERS_A_WAY_BACK_PATTERN =
-  /<a [^>]*href="\/"[^>]*>Back to the home page<\/a>/;
+  /<a [^>]*href="\/"[^>]*>Back to the home page<\/a>/u;
 
 describe('NotFound', () => {
   const out = html(<NotFound />);

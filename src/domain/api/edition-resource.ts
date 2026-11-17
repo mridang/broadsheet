@@ -52,27 +52,31 @@ export type EditionInput =
 /** The members an edition body may carry. */
 const MEMBERS = new Set(['name', 'section_ids', 'query', 'tag']);
 
+/** A text member that may be null: what it says, and what was wrong. */
+interface OptionalText {
+  /** The text, null to clear it; absent when not sent or not valid. */
+  readonly value?: string | null;
+  readonly errors: string[];
+}
+
 /**
- * A rule that is text or null: null or blank clears it. Pushes what is wrong
- * to `errors` and answers undefined when the member was not sent.
+ * A rule that is text or null: null or blank clears it. Answers what is wrong
+ * in `errors` and no `value` when the member was not sent.
  */
-function optionalText(
-  key: string,
-  value: unknown,
-  max: number,
-  errors: string[],
-): string | null | undefined {
-  if (value === undefined) return undefined;
-  if (value === null) return null;
+function optionalText(key: string, value: unknown, max: number): OptionalText {
+  if (value === undefined) {
+    return { errors: [] };
+  }
+  if (value === null) {
+    return { value: null, errors: [] };
+  }
   if (typeof value !== 'string') {
-    errors.push(`${key}: must be a string or null.`);
-    return undefined;
+    return { errors: [`${key}: must be a string or null.`] };
   }
   if (value.trim().length > max) {
-    errors.push(`${key}: too long.`);
-    return undefined;
+    return { errors: [`${key}: too long.`] };
   }
-  return value.trim() || null;
+  return { value: value.trim() || null, errors: [] };
 }
 
 /**
@@ -86,40 +90,43 @@ export function parseEditionInput(
   body: Readonly<Record<string, unknown>>,
   required: boolean,
 ): EditionInput {
-  const errors: string[] = [];
-  const changes: { -readonly [K in keyof EditionChanges]: EditionChanges[K] } =
-    {};
-  for (const key of Object.keys(body)) {
-    if (!MEMBERS.has(key)) errors.push(`${key}: not a member of an edition.`);
-  }
   const name = body['name'];
-  if (name === undefined) {
-    if (required) errors.push('name: required.');
-  } else if (typeof name !== 'string' || !name.trim()) {
-    errors.push('name: must be a non-blank string.');
-  } else if (name.trim().length > MAX_NAME_LENGTH) {
-    errors.push('name: too long.');
-  } else changes.name = name.trim();
+  const nameText = typeof name === 'string' ? name.trim() : '';
+  const nameBad = name !== undefined && nameText === '';
+  const nameLong = name !== undefined && nameText.length > MAX_NAME_LENGTH;
   const sections = body['section_ids'];
-  if (sections !== undefined) {
-    const ids = Array.isArray(sections)
-      ? sections.map((id) =>
-          typeof id === 'string' ? parseFeedId(id) : undefined,
-        )
-      : [];
-    if (
-      !Array.isArray(sections) ||
+  const ids = Array.isArray(sections)
+    ? sections.map((id) =>
+        typeof id === 'string' ? parseFeedId(id) : undefined,
+      )
+    : [];
+  const sectionsBad =
+    sections !== undefined &&
+    (!Array.isArray(sections) ||
       sections.length > MAX_SECTIONS ||
-      ids.includes(undefined)
-    ) {
-      errors.push(
-        `section_ids: must be a list of at most ${MAX_SECTIONS} section ids.`,
-      );
-    } else changes.section_ids = [...new Set(ids as number[])];
-  }
-  const query = optionalText('query', body['query'], MAX_QUERY_LENGTH, errors);
-  if (query !== undefined) changes.query = query;
-  const tag = optionalText('tag', body['tag'], MAX_TAG_LENGTH, errors);
-  if (tag !== undefined) changes.tag = tag;
+      ids.includes(undefined));
+  const query = optionalText('query', body['query'], MAX_QUERY_LENGTH);
+  const tag = optionalText('tag', body['tag'], MAX_TAG_LENGTH);
+  const errors: string[] = [
+    ...Object.keys(body)
+      .filter((key) => !MEMBERS.has(key))
+      .map((key) => `${key}: not a member of an edition.`),
+    ...(name === undefined && required ? ['name: required.'] : []),
+    ...(nameBad ? ['name: must be a non-blank string.'] : []),
+    ...(!nameBad && nameLong ? ['name: too long.'] : []),
+    ...(sectionsBad
+      ? [`section_ids: must be a list of at most ${MAX_SECTIONS} section ids.`]
+      : []),
+    ...query.errors,
+    ...tag.errors,
+  ];
+  const changes: EditionChanges = {
+    ...(name !== undefined && !nameBad && !nameLong ? { name: nameText } : {}),
+    ...(sections !== undefined && !sectionsBad
+      ? { section_ids: [...new Set(ids as number[])] }
+      : {}),
+    ...(query.value === undefined ? {} : { query: query.value }),
+    ...(tag.value === undefined ? {} : { tag: tag.value }),
+  };
   return errors.length > 0 ? { ok: false, errors } : { ok: true, changes };
 }

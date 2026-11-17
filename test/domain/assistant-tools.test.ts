@@ -2,13 +2,14 @@ import { beforeEach, describe, expect, it } from '@jest/globals';
 import { sql } from 'drizzle-orm';
 
 import { ASSISTANT_TOOLS, ToolRunner } from '@/domain/assistant-tools';
-import { createDatabase, type Database } from '@/domain/db/client';
+import { createDatabase } from '@/domain/db/client';
 import { Repository } from '@/domain/repository';
-import type { ScrapedItem } from '@/lib/scraping';
 import { APP_MIGRATIONS } from '../lib/core/db/migrations';
 import { sqliteD1 } from '../lib/core/db/sqlite-d1';
+import type { Database } from '@/domain/db/client';
+import type { ScrapedItem } from '@/lib/scraping';
 
-const TOOL_RUNNER_PATTERN = /^No story with id/;
+const TOOL_RUNNER_PATTERN = /^No story with id/u;
 
 let db: Database;
 let repo: Repository;

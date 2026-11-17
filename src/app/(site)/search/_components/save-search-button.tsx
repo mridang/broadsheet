@@ -1,11 +1,10 @@
 'use client';
 
-import type { ReactElement } from 'react';
-
 import { useApiAction } from '@/components/api/use-api-action';
 import { buttonClass } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/notice';
 import { saveSearch } from '@/app/(site)/search/_components/search-requests';
+import type { ReactElement } from 'react';
 
 /** "Save this search" under the results: keeps the words to run again. */
 export function SaveSearchButton({
@@ -19,12 +18,12 @@ export function SaveSearchButton({
         type="button"
         className={buttonClass({ variant: 'outline', size: 'sm' })}
         disabled={busy}
-        onClick={() =>
+        onClick={() => {
           void run(
             async () => saveSearch(query, feedId),
             'Could not save that search.',
-          )
-        }
+          );
+        }}
       >
         Save this search
       </button>

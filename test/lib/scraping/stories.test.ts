@@ -7,8 +7,8 @@ import {
   sameStory,
   similarity,
   withJitter,
-  type ScrapedItem,
 } from '@/lib/scraping';
+import type { ScrapedItem } from '@/lib/scraping';
 
 const item = (over: Partial<ScrapedItem>): ScrapedItem => ({
   url: 'https://x/1',

@@ -1,8 +1,8 @@
 import { countOf } from '@/lib/intl';
 
-const WORDS_PATTERN = /([a-z0-9])([A-Z])/g;
-const WORDS_PATTERN_2 = /[-_.]+/g;
-const CHILD_PATTERN = /^.*:/;
+const WORDS_PATTERN = /([a-z0-9])([A-Z])/gu;
+const WORDS_PATTERN_2 = /[-_.]+/gu;
+const CHILD_PATTERN = /^.*:/u;
 
 /**
  * @packageDocumentation
@@ -12,33 +12,33 @@ const CHILD_PATTERN = /^.*:/;
  */
 
 /** Labels for the elements whose names do not read well when split. */
-const LABELS: Readonly<Record<string, string>> = {
-  ttl: 'Time to live (minutes)',
-  managingEditor: 'Managing editor',
-  webMaster: 'Webmaster',
-  pubDate: 'Published',
-  lastBuildDate: 'Last built',
-  skipHours: 'Skipped hours',
-  skipDays: 'Skipped days',
-  textInput: 'Text input',
-  url: 'Address',
-  uri: 'Address',
-  id: 'Identifier',
-  subtitle: 'Subtitle',
-  rights: 'Rights',
-};
+const LABELS: ReadonlyMap<string, string> = new Map([
+  ['ttl', 'Time to live (minutes)'],
+  ['managingEditor', 'Managing editor'],
+  ['webMaster', 'Webmaster'],
+  ['pubDate', 'Published'],
+  ['lastBuildDate', 'Last built'],
+  ['skipHours', 'Skipped hours'],
+  ['skipDays', 'Skipped days'],
+  ['textInput', 'Text input'],
+  ['url', 'Address'],
+  ['uri', 'Address'],
+  ['id', 'Identifier'],
+  ['subtitle', 'Subtitle'],
+  ['rights', 'Rights'],
+]);
 
 /** Spell out the namespace prefixes feeds use most. */
-const PREFIXES: Readonly<Record<string, string>> = {
-  sy: 'Syndication',
-  dc: 'Dublin Core',
-  atom: 'Atom',
-  itunes: 'iTunes',
-  media: 'Media',
-  content: 'Content',
-  podcast: 'Podcast',
-  googleplay: 'Google Play',
-};
+const PREFIXES: ReadonlyMap<string, string> = new Map([
+  ['sy', 'Syndication'],
+  ['dc', 'Dublin Core'],
+  ['atom', 'Atom'],
+  ['itunes', 'iTunes'],
+  ['media', 'Media'],
+  ['content', 'Content'],
+  ['podcast', 'Podcast'],
+  ['googleplay', 'Google Play'],
+]);
 
 /** `updatePeriod` → `Update period`, `last-modified` → `Last modified`. */
 function words(name: string): string {
@@ -59,17 +59,27 @@ export function elementLabel(name: string): string {
   const colon = name.indexOf(':');
   const local = colon === -1 ? name : name.slice(colon + 1);
   const prefix = colon >= 0 ? name.slice(0, colon) : '';
-  const label = LABELS[local] ?? words(local);
-  return prefix ? `${label} (${PREFIXES[prefix] ?? prefix})` : label;
+  const label = LABELS.get(local) ?? words(local);
+  return prefix ? `${label} (${PREFIXES.get(prefix) ?? prefix})` : label;
 }
 
 /** How often a feed says it changes: `every 30 minutes`, `hourly`, `every 2 days`. */
 export function updateFrequency(minutes: number): string {
-  if (minutes === 60) return 'hourly';
-  if (minutes === 1440) return 'daily';
-  if (minutes === 10_080) return 'weekly';
-  if (minutes % 1440 === 0) return `every ${minutes / 1440} days`;
-  if (minutes % 60 === 0) return `every ${minutes / 60} hours`;
+  if (minutes === 60) {
+    return 'hourly';
+  }
+  if (minutes === 1440) {
+    return 'daily';
+  }
+  if (minutes === 10_080) {
+    return 'weekly';
+  }
+  if (minutes % 1440 === 0) {
+    return `every ${countOf(minutes / 1440, 'day')}`;
+  }
+  if (minutes % 60 === 0) {
+    return `every ${new Intl.DurationFormat('en', { style: 'long' }).format({ hours: minutes / 60 })}`;
+  }
   return `every ${countOf(minutes, 'minute')}`;
 }
 
@@ -119,8 +129,9 @@ function child(event5: Element, name: string): string {
  * attributes (an RSS `<cloud>` or an Atom `<category term>`).
  */
 function phrase(event4: Element): string {
-  if (event4.text && Object.keys(event4.attributes).length === 0)
+  if (event4.text && Object.keys(event4.attributes).length === 0) {
     return event4.text;
+  }
   const parts = [
     event4.text,
     ...event4.children.map((c) => phrase(c)).filter(Boolean),
@@ -152,19 +163,21 @@ const SHOWN = new Set([
  * line. Only the few the summary shows on its own are left out.
  */
 export function headerFacts(elements: readonly Element[]): HeaderFact[] {
-  const facts = new Map<string, string[]>();
-  for (const event3 of elements) {
+  const rows = elements.flatMap((event3) => {
     const local = event3.name.replace(CHILD_PATTERN, '');
     const value = phrase(event3);
     const isShown = SHOWN.has(local) && !event3.name.includes(':');
-    if (isShown || !value) continue;
-    const label = elementLabel(event3.name);
-    facts.set(label, [...(facts.get(label) ?? []), value]);
-  }
-  return Array.from(facts, ([label, values]) => ({
-    label,
-    value: values.join(', '),
-  }));
+    return isShown || !value
+      ? []
+      : [{ label: elementLabel(event3.name), value }];
+  });
+  return Array.from(
+    Map.groupBy(rows, ({ label }) => label),
+    ([label, group]) => ({
+      label,
+      value: group.map(({ value }) => value).join(', '),
+    }),
+  );
 }
 
 /** The feed's own image block (RSS `<image>`, Atom `<logo>` or `<icon>`), if any. */

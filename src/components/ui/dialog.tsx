@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useRef, type ReactElement, type ReactNode } from 'react';
-
+import { useEffect, useRef } from 'react';
 import { IconButton } from '@/components/ui/button';
+import type { ReactElement, ReactNode } from 'react';
 
 /**
  * A modal dialog over the page, drawn with the browser's own `<dialog>` (so
@@ -30,9 +30,15 @@ export function Dialog({
 
   useEffect(() => {
     const element = ref.current;
-    if (!element) return;
-    if (open && !element.open) element.showModal();
-    if (!open && element.open) element.close();
+    if (!element) {
+      return;
+    }
+    if (open && !element.open) {
+      element.showModal();
+    }
+    if (!open && element.open) {
+      element.close();
+    }
   }, [open]);
 
   return (

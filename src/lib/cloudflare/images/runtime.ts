@@ -9,8 +9,9 @@
 
 import { getCloudflareContext } from '@opennextjs/cloudflare';
 
-import { isImagesBinding, type ImagesLike } from './proxy';
+import { isImagesBinding } from './proxy';
 import { ImageSigner } from './signer';
+import type { ImagesLike } from './proxy';
 import type { ImageCache } from './service';
 
 /**
@@ -31,7 +32,7 @@ export function imageSigner(): ImageSigner | undefined {
 /** The Images binding, where the deployment has one. */
 export function imagesBinding(): ImagesLike | undefined {
   try {
-    const binding: unknown = Reflect.get(getCloudflareContext().env, 'IMAGES');
+    const binding: unknown = getCloudflareContext().env.IMAGES;
     return isImagesBinding(binding) ? binding : undefined;
   } catch {
     return undefined;
@@ -40,20 +41,24 @@ export function imagesBinding(): ImagesLike | undefined {
 
 /** Whether a value can be used as the edge cache: it answers `match` and `put`. */
 function isCache(value: unknown): value is ImageCache {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
   return (
-    typeof value === 'object' &&
-    value !== null &&
-    typeof Reflect.get(value, 'match') === 'function' &&
-    typeof Reflect.get(value, 'put') === 'function'
+    'match' in value &&
+    typeof value.match === 'function' &&
+    'put' in value &&
+    typeof value.put === 'function'
   );
 }
 
 /** Cloudflare's per-location cache; absent when running under plain Node. */
 export function imageCache(): ImageCache | undefined {
-  const store: unknown = Reflect.get(globalThis, 'caches');
   const cache: unknown =
-    typeof store === 'object' && store !== null
-      ? Reflect.get(store, 'default')
+    'caches' in globalThis &&
+    typeof globalThis.caches === 'object' &&
+    'default' in globalThis.caches
+      ? globalThis.caches.default
       : undefined;
   return isCache(cache) ? cache : undefined;
 }
