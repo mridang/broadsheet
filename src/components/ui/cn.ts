@@ -1,4 +1,4 @@
-/** A class name, or a falsy value that is skipped. */
+/** One class name, or a falsy value that is skipped. */
 type ClassPart = string | false | null | undefined;
 
 /** Join class names, skipping anything falsy: `cn('a', cond && 'b')`. */

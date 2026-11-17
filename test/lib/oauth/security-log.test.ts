@@ -39,8 +39,8 @@ describe('logSecurityEvent', () => {
     'writes %s as a warning, so an alert can watch the warnings alone',
     (event) => {
       logSecurityEvent(event);
-      expect(warn).toHaveBeenCalledWith(JSON.stringify({ event }));
       expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith(JSON.stringify({ event }));
       expect(info).not.toHaveBeenCalled();
     },
   );
@@ -53,8 +53,8 @@ describe('logSecurityEvent', () => {
     'oauth.scope_narrowed',
   ])('writes %s as information', (event) => {
     logSecurityEvent(event);
-    expect(info).toHaveBeenCalledWith(JSON.stringify({ event }));
     expect(info).toHaveBeenCalledTimes(1);
+    expect(info).toHaveBeenCalledWith(JSON.stringify({ event }));
     expect(warn).not.toHaveBeenCalled();
   });
 

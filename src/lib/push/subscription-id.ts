@@ -1,16 +1,18 @@
-const IS_SUBSCRIPTION_ID_PATTERN = /^[0-9a-f]{64}$/u;
 /**
  * @packageDocumentation
  *
- * The id of a push subscription as it appears in `/api/push/subscriptions/{id}`:
+ * The id of a push subscription as it appears in `/api/users/self/push/subscriptions/{id}`:
  * the lowercase hex SHA-256 of its endpoint. The endpoint itself is a long,
  * secret-ish URL that does not belong in a path, and a browser can always
  * recompute the id from the subscription it holds.
  */
 
+/** The pattern of a subscription id: 64 lowercase hex digits. */
+const SUBSCRIPTION_ID_PATTERN = /^[0-9a-f]{64}$/u;
+
 /** Whether `id` has the shape of a {@link subscriptionId}: 64 lowercase hex digits. */
 export function isSubscriptionId(id: string): boolean {
-  return IS_SUBSCRIPTION_ID_PATTERN.test(id);
+  return SUBSCRIPTION_ID_PATTERN.test(id);
 }
 
 /** The id for a subscription `endpoint`. */
@@ -33,11 +35,8 @@ export async function endpointForId(
   endpoints: readonly string[],
   id: string,
 ): Promise<string | undefined> {
-  // eslint-disable-next-line functional/no-loop-statements -- hashes one endpoint after another and stops at the first match
-  for (const endpoint of endpoints) {
-    if ((await subscriptionId(endpoint)) === id) {
-      return endpoint;
-    }
-  }
-  return undefined;
+  const ids = await Promise.all(
+    endpoints.map(async (endpoint) => subscriptionId(endpoint)),
+  );
+  return endpoints.find((_endpoint, index) => ids[index] === id);
 }

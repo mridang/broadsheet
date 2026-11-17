@@ -260,7 +260,7 @@ describe('grantedScope', () => {
     const asked = [SCOPE_READ, SCOPE_WRITE] as const;
     expect(grantedScope(asked, 'write')).toEqual(asked);
     expect(grantedScope(asked, null)).toEqual(asked);
-    expect(grantedScope(asked)).toEqual(asked);
+    expect(grantedScope(asked, undefined)).toEqual(asked);
     expect(grantedScope(asked, 'anything else')).toEqual(asked);
     expect(grantedScope(asked, 'read')).toEqual([SCOPE_READ]);
   });

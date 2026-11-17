@@ -4,7 +4,8 @@ import { OAUTH_LIMITS, handleRegistration } from '@/lib/oauth';
 import type { OAuthClient } from '@/lib/oauth';
 import type { RateLimitStore } from '@/lib/rate-limit';
 
-const REGISTERS_A_CLIENT_AND_PATTERN = /^dcr_/u;
+/** Matches the dynamic client id prefix. */
+const DCR_CLIENT_ID_PREFIX = /^dcr_/u;
 
 const body = JSON.stringify({
   client_name: 'Assistant',
@@ -53,7 +54,7 @@ describe('handleRegistration', () => {
       },
     });
     expect(saved).toHaveLength(1);
-    expect(saved[0]?.clientId).toMatch(REGISTERS_A_CLIENT_AND_PATTERN);
+    expect(saved[0]?.clientId).toMatch(DCR_CLIENT_ID_PREFIX);
   });
 
   it('counts the attempt against the caller address', async () => {

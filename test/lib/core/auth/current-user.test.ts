@@ -15,11 +15,11 @@ import {
   tokenFor,
 } from '../../../domain/auth/auth-test-kit';
 import { installFakeTracing } from '../observability/fake-tracing';
-import type { User } from '@/domain/repository';
+import type { User } from '@/domain/auth/store';
 
 const tracing = installFakeTracing();
 
-// eslint-disable-next-line tslop/no-module-mocking -- next/headers is imported directly by the code under test, which has no injection point; ESM needs the module replaced before the import
+// eslint-disable-next-line tslop/no-module-mocking -- next/headers needs a request scope that only the Next runtime provides; the source reads it by import
 jest.unstable_mockModule('next/headers', () => ({ cookies: fakeCookies }));
 
 /** The accounts that exist: id to the epoch their sessions must carry. */
@@ -32,7 +32,7 @@ const getUserById = jest.fn(async (id: number) => {
 });
 const getSessionEpoch = jest.fn(async (id: number) => accounts.get(id)?.epoch);
 
-// eslint-disable-next-line tslop/no-module-mocking -- @/domain/auth/store is imported directly by the code under test, which has no injection point; ESM needs the module replaced before the import
+// eslint-disable-next-line tslop/no-module-mocking -- the module under test imports the store directly and has no injection point; changing that would change production code
 jest.unstable_mockModule('@/domain/auth/store', () => ({
   getUserById,
   getSessionEpoch,
@@ -99,8 +99,8 @@ describe('getCurrentUser', () => {
   it('is the person a valid cookie names', async () => {
     account(1, 0, 'ada@b.com');
     await signIn({ id: 1 });
-    const current = await getCurrentUser();
-    expect(current?.email).toBe('ada@b.com');
+    const user = await getCurrentUser();
+    expect(user?.email).toBe('ada@b.com');
   });
 
   it('is null for a cookie signed with another secret', async () => {
@@ -150,8 +150,8 @@ describe('getSession and getSessionUid', () => {
   it('read the claims from the cookie alone, with no database read', async () => {
     // No such account at all.
     await signIn({ id: 9 });
-    const found = await getSession();
-    expect(found?.uid).toBe(9);
+    const session = await getSession();
+    expect(session?.uid).toBe(9);
     expect(await getSessionUid()).toBe(9);
     expect(getUserById).not.toHaveBeenCalled();
     expect(getSessionEpoch).not.toHaveBeenCalled();

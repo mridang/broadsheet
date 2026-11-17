@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
 
-import { z } from 'zod';
 import { GoogleOAuthClient, SIGN_IN_SCOPES } from '@/lib/google';
 
-const REPORTS_GOOGLE_S_ANSWER_WHEN_PATTERN = /invalid_grant/u;
-const REFUSES_A_TOKEN_EXCHANGE_PATTERN = /clientSecret is required/u;
+/** Matches the invalid_grant error. */
+const INVALID_GRANT = /invalid_grant/u;
+/** Matches the missing client secret message. */
+const CLIENT_SECRET_REQUIRED = /clientSecret is required/u;
 
 const client = new GoogleOAuthClient({
   clientId: 'client-id',
@@ -91,7 +92,9 @@ describe('exchangeCode', () => {
       'https://oauth2.googleapis.com/token',
     );
     expect(init?.method).toBe('POST');
-    const form = z.instanceof(URLSearchParams).parse(init?.body);
+    const form = new URLSearchParams(
+      init?.body instanceof URLSearchParams ? init.body : '',
+    );
     expect(Object.fromEntries(form)).toEqual({
       code: 'the-code',
       client_id: 'client-id',
@@ -107,7 +110,7 @@ describe('exchangeCode', () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.status).toBe(400);
-      expect(result.raw).toMatch(REPORTS_GOOGLE_S_ANSWER_WHEN_PATTERN);
+      expect(result.raw).toMatch(INVALID_GRANT);
     }
   });
 
@@ -126,9 +129,9 @@ describe('refreshAccessToken', () => {
     if (result.ok) {
       expect(result.value).toEqual({ access_token: 'fresh', expires_in: 3600 });
     }
-    const form = z
-      .instanceof(URLSearchParams)
-      .parse(fetchSpy.mock.calls[0]?.[1]?.body);
+    const form = new URLSearchParams(
+      String(fetchSpy.mock.calls[0]?.[1]?.body as string | undefined),
+    );
     expect(Object.fromEntries(form)).toEqual({
       refresh_token: 'rt',
       client_id: 'client-id',
@@ -152,7 +155,7 @@ describe('a client with no secret', () => {
     const noSecret = new GoogleOAuthClient({ clientId: 'client-id' });
     await expect(
       noSecret.exchangeCode({ code: 'c', redirectUri: 'https://app.test/cb' }),
-    ).rejects.toThrow(REFUSES_A_TOKEN_EXCHANGE_PATTERN);
+    ).rejects.toThrow(CLIENT_SECRET_REQUIRED);
   });
 });
 
@@ -212,9 +215,11 @@ describe('revoke', () => {
       'https://oauth2.googleapis.com/revoke',
     );
     expect(init?.method).toBe('POST');
-    expect(z.instanceof(URLSearchParams).parse(init?.body).get('token')).toBe(
-      'the-token',
-    );
+    expect(
+      new URLSearchParams(
+        init?.body instanceof URLSearchParams ? init.body : '',
+      ).get('token'),
+    ).toBe('the-token');
   });
 
   it('reports the status when Google refuses', async () => {

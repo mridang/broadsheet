@@ -15,24 +15,23 @@ export interface Call {
  * check what a repository asks the database for, and what it does with the
  * answer, without a database.
  */
-function builder<Result>(
-  statement: string,
-  result: Result,
-  calls: Call[],
-): PromiseLike<Result> {
-  const self = new Proxy<PromiseLike<Result>>({} as PromiseLike<Result>, {
-    get(_target, property) {
-      if (property === 'then') {
-        return (resolve: (value: Result) => void): void => {
-          resolve(result);
+function builder(statement: string, result: unknown, calls: Call[]) {
+  const self = new Proxy<object>(
+    {},
+    {
+      get(_target, property) {
+        if (property === 'then') {
+          return (resolve: (value: unknown) => void) => {
+            resolve(result);
+          };
+        }
+        return (...args: unknown[]) => {
+          calls.push({ statement, method: String(property), args });
+          return self;
         };
-      }
-      return (...args: unknown[]) => {
-        calls.push({ statement, method: String(property), args });
-        return self;
-      };
+      },
     },
-  });
+  );
   return self;
 }
 
@@ -56,9 +55,17 @@ function nth<T>(results: readonly T[] | undefined, n: number): T | undefined {
   return results?.[Math.min(n, results.length - 1)];
 }
 
-type StatementKind = 'select' | 'insert' | 'update' | 'delete';
+/** The kinds of statement a fake database records, as the keys of this shape. */
+interface StatementKinds {
+  readonly select: unknown;
+  readonly insert: unknown;
+  readonly update: unknown;
+  readonly delete: unknown;
+}
 
-/** A fake database with the statements it was asked to run. */
+type StatementKind = keyof StatementKinds;
+
+/** What `fakeDb` gives back: the database and everything it was asked. */
 export interface FakeDatabase {
   readonly db: Database;
   readonly calls: Call[];

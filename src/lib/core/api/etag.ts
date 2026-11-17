@@ -1,4 +1,3 @@
-const TAGS_IN_PATTERN = /^W\//u;
 /**
  * @packageDocumentation
  *
@@ -9,6 +8,9 @@ const TAGS_IN_PATTERN = /^W\//u;
  * generic HTTP machinery only — how a given resource derives its tag (and any
  * per-representation variants) belongs to that resource's domain.
  */
+
+/** The weak-validator marker at the start of an entity tag. */
+const WEAK_MARKER = /^W\//u;
 
 /** A strong entity tag for some text: the quoted first 16 hex digits of its SHA-256. */
 export async function entityTag(text: string): Promise<string> {
@@ -27,7 +29,7 @@ export async function entityTag(text: string): Promise<string> {
 function tagsIn(header: string): readonly string[] {
   return header
     .split(',')
-    .map((t) => t.trim().replace(TAGS_IN_PATTERN, ''))
+    .map((t) => t.trim().replace(WEAK_MARKER, ''))
     .filter(Boolean);
 }
 

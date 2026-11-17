@@ -19,7 +19,7 @@
 import { NextResponse } from 'next/server';
 
 import { GoogleOAuthClient } from '@/lib/google/auth';
-// eslint-disable-next-line unicorn/no-keyword-prefix -- newState is an exported name of the module's public surface, so it is not renamed
+// eslint-disable-next-line unicorn/no-keyword-prefix -- exported name from the web-security module, used across the app
 import { checkState, newState, safeReturnPath } from '@/lib/web-security';
 import { problem } from '@/lib/core/api';
 import { setErrorContext } from '@/lib/core/observability/context';
@@ -28,7 +28,7 @@ import { appOrigin } from '@/lib/core/origin';
 import { logError, logWarn } from '@/utils/logging';
 import { getCurrentUser } from './current-user';
 import { finishFlow, startFlowCookies } from './flow-cookies';
-import type { User } from '@/domain/repository';
+import type { User } from '@/domain/auth/store';
 import type { FlowContext, OtherFlow } from '@/domain/auth/sign-in';
 import type { NextRequest } from 'next/server';
 import type { GoogleUserResponse } from '@/lib/google/auth';
@@ -208,7 +208,7 @@ export class GoogleAuthKit {
           request.cookies.get(this.#config.returnCookie)?.value,
         ),
       };
-      // eslint-disable-next-line functional/no-let -- the catch block reports the last step reached
+      // eslint-disable-next-line functional/no-let -- the step advances as the callback proceeds, and the catch reports the step that failed
       let step: CallbackStep = 'exchange';
       try {
         await setErrorContext({ 'auth.step': step });

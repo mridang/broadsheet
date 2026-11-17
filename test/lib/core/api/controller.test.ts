@@ -91,8 +91,8 @@ describe('ApiController', () => {
     })
       .on<null, null>({ method: 'GET', handle: () => null })
       .handlers();
-    const response = await GET(new Request('https://app.test/x'));
-    expect(response.status).toBe(401);
+    const res = await GET(new Request('https://app.test/x'));
+    expect(res.status).toBe(401);
   });
 
   it('maps an unexpected throw to a 500 problem', async () => {
@@ -120,8 +120,8 @@ describe('ApiController', () => {
         },
       })
       .handlers();
-    const response = await GET(new Request('https://app.test/x'));
-    expect(response.status).toBe(503);
+    const res = await GET(new Request('https://app.test/x'));
+    expect(res.status).toBe(503);
   });
 
   it('created() answers 201 with an absolute Location from a relative path', async () => {

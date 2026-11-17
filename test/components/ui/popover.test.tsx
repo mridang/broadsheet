@@ -15,13 +15,21 @@ import {
 } from '@/components/ui/popover';
 import { html, htmlAt } from '../render';
 
-const POPOVER_PATTERN = /id="([^"]+)" popover="auto"/u;
-const IS_A_BUTTON_THAT_PATTERN =
+/** Matches panel id attribute. */
+const PANEL_ID_ATTRIBUTE = /id="([^"]+)" popover="auto"/u;
+
+/** Matches menu trigger button. */
+const MENU_TRIGGER_BUTTON =
   /<button[^>]*aria-label="Menu"[^>]*>Open<\/button>/u;
-const TIES_THE_BUTTON_TO_PATTERN = /popovertarget/iu;
-const KEEPS_THE_PANEL_IN_PATTERN =
-  /<div[^>]*popover="auto"[^>]*data-popover=""/u;
-const IS_PLAIN_TEXT_THAT_PATTERN =
+
+/** Matches popovertarget attribute. */
+const POPOVERTARGET_ATTRIBUTE = /popovertarget/iu;
+
+/** Matches popover panel div. */
+const POPOVER_PANEL_DIV = /<div[^>]*popover="auto"[^>]*data-popover=""/u;
+
+/** Matches connected status paragraph. */
+const CONNECTED_STATUS_PARAGRAPH =
   /^<output[^>]*>Google Drive connected<\/output>$/u;
 
 describe('PopoverSeparator', () => {
@@ -50,10 +58,10 @@ describe('Popover', () => {
       <a href="/x">Inside</a>
     </Popover>,
   );
-  const panelId = POPOVER_PATTERN.exec(out)?.[1];
+  const panelId = PANEL_ID_ATTRIBUTE.exec(out)?.[1];
 
   it('is a button that says the panel is closed, named for what it opens', () => {
-    expect(out).toMatch(IS_A_BUTTON_THAT_PATTERN);
+    expect(out).toMatch(MENU_TRIGGER_BUTTON);
     expect(out).toContain('aria-expanded="false"');
     expect(out).toContain('data-state="closed"');
   });
@@ -61,11 +69,11 @@ describe('Popover', () => {
   it('ties the button to the panel for assistive technology, but does not let the browser open it before React is listening', () => {
     expect(panelId).toBeDefined();
     expect(out).toContain(`aria-controls="${panelId}"`);
-    expect(out).not.toMatch(TIES_THE_BUTTON_TO_PATTERN);
+    expect(out).not.toMatch(POPOVERTARGET_ATTRIBUTE);
   });
 
   it('keeps the panel in the page as a popover the browser hides until it is opened', () => {
-    expect(out).toMatch(KEEPS_THE_PANEL_IN_PATTERN);
+    expect(out).toMatch(POPOVER_PANEL_DIV);
   });
 
   it('keeps what is inside the panel out of the page until it is opened', () => {
@@ -86,11 +94,15 @@ describe('Popover', () => {
 
 describe('supportsPopover', () => {
   it('is true for an element in a browser that has the Popover API', () => {
-    expect(supportsPopover({ __proto__: { popover: null } })).toBe(true);
+    expect(supportsPopover(Object.create({ popover: null }) as object)).toBe(
+      true,
+    );
   });
 
   it('is false in a browser that does not, so the component shows the panel itself', () => {
-    expect(supportsPopover({ __proto__: { hidden: false } })).toBe(false);
+    expect(supportsPopover(Object.create({ hidden: false }) as object)).toBe(
+      false,
+    );
   });
 });
 
@@ -169,7 +181,7 @@ describe('isOpenOn', () => {
 describe('PopoverStatus', () => {
   it('is plain text that is announced politely, not a button', () => {
     const out = html(<PopoverStatus>Google Drive connected</PopoverStatus>);
-    expect(out).toMatch(IS_PLAIN_TEXT_THAT_PATTERN);
+    expect(out).toMatch(CONNECTED_STATUS_PARAGRAPH);
     expect(out).not.toContain('<button');
     expect(out).not.toContain('disabled');
   });
@@ -193,19 +205,16 @@ describe('escapeHandler', () => {
     const close = jest.fn();
     const focusButton = jest.fn();
     escapeHandler(close, focusButton)({ key: 'Escape' });
-    expect(close).toHaveBeenCalledTimes(1);
-    expect(focusButton).toHaveBeenCalledTimes(1);
-    expect(close.mock.invocationCallOrder[0]).toBeLessThan(
-      focusButton.mock.invocationCallOrder[0] ?? 0,
-    );
+    expect(close.mock.calls).toEqual([[]]);
+    expect(focusButton.mock.calls).toEqual([[]]);
   });
 
   it('leaves every other key to whatever has focus', () => {
     const close = jest.fn();
     const focusButton = jest.fn();
     escapeHandler(close, focusButton)({ key: 'ArrowDown' });
-    expect(escapeHandler(close, focusButton)({ key: 'Tab' })).toBeUndefined();
-    expect(close).not.toHaveBeenCalled();
-    expect(focusButton).not.toHaveBeenCalled();
+    escapeHandler(close, focusButton)({ key: 'Tab' });
+    expect(close.mock.calls).toEqual([]);
+    expect(focusButton.mock.calls).toEqual([]);
   });
 });

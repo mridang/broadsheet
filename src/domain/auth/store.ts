@@ -11,6 +11,8 @@ import { Repository } from '@/domain/repository';
 import { getDatabase } from '@/domain/db/client';
 import type { Profile, User } from '@/domain/repository';
 
+export type { User } from '@/domain/repository';
+
 /** The repository bound to the current request's database. */
 function repo(): Repository {
   return new Repository(getDatabase());

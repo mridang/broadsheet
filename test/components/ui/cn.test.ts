@@ -4,14 +4,14 @@ import { cn } from '@/components/ui/cn';
 
 describe('cn', () => {
   it('joins class names with a space', () => {
-    expect(cn('flex', 'p-4')).toBe('flex p-4');
+    expect(cn('p-1', 'm-1')).toBe('p-1 m-1');
   });
 
   it('skips anything falsy, so a condition can switch a class on', () => {
     const on = true as boolean;
     const off = false as boolean;
-    expect(cn('flex', on && 'p-4', off && 'm-2', null, undefined, '')).toBe(
-      'flex p-4',
+    expect(cn('p-1', on && 'm-1', off && 'flex', null, undefined, '')).toBe(
+      'p-1 m-1',
     );
   });
 

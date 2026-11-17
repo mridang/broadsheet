@@ -5,7 +5,8 @@ import { Eyebrow, Heading } from '@/components/ui/layout';
 import { formatDay } from '@/lib/intl';
 import type { ReactElement, ReactNode } from 'react';
 
-const LEGAL_LINK_PATTERN = /^https?:\/\//iu;
+/** An address that starts with an http or https scheme, in any case. */
+const HTTP_URL = /^https?:\/\//iu;
 
 /** How a link inside a legal page looks: underlined, in the accent colour. */
 const LINK =
@@ -98,7 +99,7 @@ export function LegalLink({
   href,
   children,
 }: Readonly<{ href: string; children: ReactNode }>): ReactElement {
-  if (LEGAL_LINK_PATTERN.test(href)) {
+  if (HTTP_URL.test(href)) {
     return (
       <a href={href} target="_blank" rel="noopener noreferrer" className={LINK}>
         {children}

@@ -2,7 +2,8 @@ import { describe, expect, it } from '@jest/globals';
 
 import { GET } from '@/app/.well-known/security.txt/route';
 
-const STARTS_WITH_THE_CONTACT_PATTERN = /^Expires: (.+)$/mu;
+/** Matches expires line. */
+const EXPIRES_LINE = /^Expires: (.+)$/mu;
 
 describe('GET /.well-known/security.txt', () => {
   const res = GET();
@@ -19,7 +20,7 @@ describe('GET /.well-known/security.txt', () => {
   it('starts with the contact and carries an expiry in the future', async () => {
     const text = await res.clone().text();
     expect(text.startsWith('Contact: mailto:')).toBe(true);
-    const expires = STARTS_WITH_THE_CONTACT_PATTERN.exec(text)?.[1];
+    const expires = EXPIRES_LINE.exec(text)?.[1];
     expect(new Date(expires ?? '').getTime()).toBeGreaterThan(Date.now());
   });
 });

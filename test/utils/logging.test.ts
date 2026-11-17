@@ -21,7 +21,7 @@ function firstRecord(spy: ConsoleSpy): Record<string, unknown> {
 
 afterEach(() => {
   jest.restoreAllMocks();
-  tracing.exceptions.length = 0;
+  tracing.reset();
 });
 
 describe('error context', () => {

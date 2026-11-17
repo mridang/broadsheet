@@ -21,10 +21,10 @@ describe('without a Cloudflare context (tests, scripts)', () => {
   it('lets background work run on its own', async () => {
     let done = false;
     runInBackground(
-      (async () => {
-        await Promise.resolve();
+      Promise.resolve().then(() => {
         done = true;
-      })(),
+        return done;
+      }),
     );
     await Promise.resolve();
     await Promise.resolve();

@@ -6,79 +6,73 @@
  * security/cache response headers, the client address, and the per-app surface
  * these read.
  */
-export {
-  serve,
-  type ServeApp,
-  type ServeDeps,
-  type ServeEnv,
-  serverTiming,
-} from './serve';
+export type { ServeEnv, ServeApp, ServeDeps } from './serve';
+export { serverTiming, serve } from './serve';
 export { EDGE_LIMITS } from './extras';
 export {
-  edgeCache,
-  edgeCacheKey,
   isEdgeCacheable,
+  edgeCacheKey,
   storableCopy,
   withFreshNonce,
+  edgeCache,
 } from './edge-cache';
-export {
-  type ClassSpec,
-  type Counted,
-  counterKey,
-  type EdgeLimitEnv,
-  edgeLimitRefusal,
-  type EdgeLimits,
-  GENERIC_CLASSES,
-  genericClass,
-  type GenericClass,
-  genericLimits,
-  OVERALL_BINDING,
-  type RateLimitBinding,
-  type RefusalStyle,
-  tooManyRequests,
+export type {
+  RateLimitBinding,
+  Counted,
+  RefusalStyle,
+  ClassSpec,
+  GenericClass,
+  EdgeLimitEnv,
+  EdgeLimits,
 } from './edge-limits';
 export {
-  CSP_REPORT_DIRECTIVES,
-  CSP_REPORT_GROUP,
+  GENERIC_CLASSES,
+  OVERALL_BINDING,
+  genericClass,
+  genericLimits,
+  counterKey,
+  tooManyRequests,
+  edgeLimitRefusal,
+} from './edge-limits';
+export {
   CSP_REPORT_PATH,
+  CSP_REPORT_GROUP,
   REPORTING_ENDPOINTS,
+  CSP_REPORT_DIRECTIVES,
 } from './reporting';
+export type { CspSurface } from './csp';
 export {
-  buildCsp,
-  type CspSurface,
-  cspSurfaceFor,
-  forwardedHeaders,
-  // eslint-disable-next-line unicorn/no-keyword-prefix -- newNonce is an exported name of the module's public surface, so it is not renamed
+  // eslint-disable-next-line unicorn/no-keyword-prefix -- re-export of the public name from csp.ts
   newNonce,
+  buildCsp,
+  cspSurfaceFor,
   nonceOf,
+  forwardedHeaders,
 } from './csp';
+export type { ReportSummary } from './csp-reports';
+export { MAX_REPORTS_PER_REQUEST, summariseReports } from './csp-reports';
 export {
-  MAX_REPORTS_PER_REQUEST,
-  type ReportSummary,
-  summariseReports,
-} from './csp-reports';
-export {
-  applyResponseHeaders,
+  SECURITY_HEADERS,
+  resourcePolicyFor,
   openerPolicyFor,
   replacingHeaders,
-  resourcePolicyFor,
-  SECURITY_HEADERS,
+  applyResponseHeaders,
 } from './headers';
 export {
+  UNKNOWN_ADDRESS,
   addressSubject,
   clientSubject,
-  UNKNOWN_ADDRESS,
 } from './client-address';
 export {
-  CACHED_QUERY_PARAMS,
-  DISCOVERY_PATHS,
-  EDGE_CACHED_PAGES,
-  EDGE_TTL_SECONDS,
-  EXTRA_DIRECTIVES,
-  EXTRA_IMG_SOURCES,
-  OPEN_FILES,
-  PAGE_CACHE_RULES,
   PUBLIC_PAGES,
+  EDGE_CACHED_PAGES,
+  CACHED_QUERY_PARAMS,
+  EDGE_TTL_SECONDS,
+  OPEN_FILES,
   RARELY_CHANGING,
+  EXTRA_IMG_SOURCES,
+  EXTRA_DIRECTIVES,
   STATIC_PREFIXES,
+  DISCOVERY_PATHS,
+  PAGE_CACHE_RULES,
 } from './site';

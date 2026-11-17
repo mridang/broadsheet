@@ -12,6 +12,6 @@ export {
   getSessionUid,
 } from './current-user';
 export { setSessionCookie } from './session-cookie';
-export { finishFlow, type FlowStart, startFlowCookies } from './flow-cookies';
-export { type Caller, crossSiteRefusal, requireSignedIn } from './guard';
+export { finishFlow, startFlowCookies, type FlowStart } from './flow-cookies';
+export { crossSiteRefusal, requireSignedIn, type Caller } from './guard';
 export { GoogleAuthKit, type GoogleAuthKitConfig } from './google-auth-kit';

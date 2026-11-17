@@ -1,10 +1,12 @@
-const WITH_QUERY_PARAMS_PATTERN = /^([^?#]*)(\?[^#]*)?(#.*)?$/u;
 /**
  * @packageDocumentation
  *
  * Building query strings and addresses with query parameters set, the way
  * `URLSearchParams.set` would.
  */
+
+/** An address split into its base, its query and its fragment. */
+const URL_PARTS = /^([^?#]*)(\?[^#]*)?(#.*)?$/u;
 
 /** One `name=value` pair of a query string. */
 type Entry = readonly [string, string];
@@ -58,7 +60,6 @@ export function withQueryParams(
   if (Object.keys(params).length === 0) {
     return url.toString();
   }
-  const [, base = '', query = '', hash = ''] =
-    WITH_QUERY_PARAMS_PATTERN.exec(url.href) ?? [];
+  const [, base = '', query = '', hash = ''] = URL_PARTS.exec(url.href) ?? [];
   return `${base}${setSearchParams(query, params)}${hash}`;
 }

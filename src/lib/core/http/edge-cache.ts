@@ -20,8 +20,10 @@ import {
   EDGE_TTL_SECONDS,
 } from './site';
 
-const IS_LOCAL_PATTERN = /:\d+$/u;
-const IS_LOCAL_PATTERN_2 = /^(::ffff:)?127\./u;
+/** A port at the end of a `Host` header value, such as `:8787`. */
+const HOST_PORT_SUFFIX = /:\d+$/u;
+/** A caller address in `127.0.0.0/8`, bare or IPv4-mapped. */
+const LOOPBACK_IPV4_CALLER = /^(::ffff:)?127\./u;
 
 /** The most query parameters a kept page may carry. */
 const MAX_PARAMS = 8;
@@ -44,13 +46,13 @@ const LOCAL_HOSTS: ReadonlySet<string> = new Set([
 function isLocal(request: Request, url: URL): boolean {
   const host = (request.headers.get('host') ?? '')
     .toLowerCase()
-    .replace(IS_LOCAL_PATTERN, '');
+    .replace(HOST_PORT_SUFFIX, '');
   const caller = request.headers.get('cf-connecting-ip') ?? '';
   return (
     LOCAL_HOSTS.has(url.hostname) ||
     LOCAL_HOSTS.has(host) ||
     caller === '::1' ||
-    IS_LOCAL_PATTERN_2.test(caller)
+    LOOPBACK_IPV4_CALLER.test(caller)
   );
 }
 
@@ -72,17 +74,18 @@ function allowedQuery(
   if (entries.length > MAX_PARAMS) {
     return null;
   }
-  const refused = entries.some(
-    ([name, value], index) =>
-      !allowed.has(name) ||
-      entries.findIndex(([other]) => other === name) !== index ||
-      value.length > MAX_VALUE_LENGTH,
+  const names = entries.map(([name]) => name);
+  if (
+    new Set(names).size !== names.length ||
+    entries.some(
+      ([name, value]) => !allowed.has(name) || value.length > MAX_VALUE_LENGTH,
+    )
+  ) {
+    return null;
+  }
+  return new URLSearchParams(
+    entries.toSorted(([a], [b]) => Number(a > b) - Number(a < b)),
   );
-  return refused
-    ? null
-    : new URLSearchParams(
-        entries.toSorted(([a], [b]) => (a < b ? -1 : Number(a > b))),
-      );
 }
 
 /**
@@ -174,8 +177,8 @@ export async function withFreshNonce(
   if (old === undefined) {
     return cached;
   }
-  const bodyText = await cached.text();
-  return new Response(bodyText.replaceAll(old, nonce), {
+  const text = await cached.text();
+  return new Response(text.replaceAll(old, nonce), {
     status: cached.status,
     statusText: cached.statusText,
     headers: replacingHeaders(cached.headers, {
@@ -189,9 +192,12 @@ function isCache(value: unknown): value is Cache {
   if (typeof value !== 'object' || value === null) {
     return false;
   }
-  const answersMatch = 'match' in value && typeof value.match === 'function';
-  const answersPut = 'put' in value && typeof value.put === 'function';
-  return answersMatch && answersPut;
+  return (
+    'match' in value &&
+    typeof value.match === 'function' &&
+    'put' in value &&
+    typeof value.put === 'function'
+  );
 }
 
 /** Cloudflare's per-colo cache; absent when running under plain Node. */

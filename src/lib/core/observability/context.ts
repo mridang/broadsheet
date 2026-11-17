@@ -35,7 +35,7 @@ interface ContextTracing {
 const MAX_TEXT = 256;
 
 /** The tracing API once loaded; `null` where there is none. */
-// eslint-disable-next-line functional/no-let -- a module-level cache of the loaded tracing API, set once the module has loaded
+// eslint-disable-next-line functional/no-let -- the module is loaded once, on first use, and remembered for later calls
 let loaded: ContextTracing | null | undefined;
 
 /**
@@ -88,11 +88,14 @@ function accepted(attributes: ContextAttributes): [string, ContextValue][] {
       if (typeof value === 'string') {
         return [[key, value.slice(0, MAX_TEXT)]];
       }
-      // Anything else (undefined, objects, non-finite numbers) is dropped.
-      return typeof value === 'boolean' ||
+      if (
+        typeof value === 'boolean' ||
         (typeof value === 'number' && Number.isFinite(value))
-        ? [[key, value]]
-        : [];
+      ) {
+        return [[key, value]];
+      }
+      // Anything else (an object, undefined, NaN) is not kept.
+      return [];
     },
   );
 }
@@ -113,13 +116,13 @@ export async function setErrorContext(
       return;
     }
     await withActiveSpan((span) => {
-      // eslint-disable-next-line functional/no-loop-statements -- the loop only reports each attribute to the span
+      // eslint-disable-next-line functional/no-loop-statements -- the loop only sets each attribute on the span
       for (const [key, value] of kept) {
         span.setAttribute(key, value);
       }
     });
   } catch {
-    // Context is a convenience: it must never fail a request.
+    // Never rejects: context is a courtesy to whoever reads the error.
   }
 }
 

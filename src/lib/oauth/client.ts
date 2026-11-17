@@ -20,8 +20,11 @@ import { bytesToBase64Url } from '@/utils/base64';
 import { SITE_NAME, SITE_URL } from '@/utils/site';
 import { parseUrl } from '@/utils/url';
 
-const IS_METADATA_DOCUMENT_URL_PATTERN = /^[\d.]+$/u;
-const DOCUMENT_TTL_SECONDS_PATTERN = /^max-age=(\d+)$/u;
+/** A host made only of digits and dots, such as an IPv4 address. */
+const NUMERIC_HOST_PATTERN = /^[\d.]+$/u;
+
+/** A `max-age=<seconds>` cache directive, capturing the seconds. */
+const MAX_AGE_DIRECTIVE = /^max-age=(\d+)$/u;
 
 /** A client as the authorization server uses it. */
 export interface OAuthClient {
@@ -109,7 +112,7 @@ export function isMetadataDocumentUrl(
     // the plain one may name a client.
     !url.hostname.endsWith('.'),
     // A bare IP address is never a client's public home.
-    !IS_METADATA_DOCUMENT_URL_PATTERN.test(url.hostname),
+    !NUMERIC_HOST_PATTERN.test(url.hostname),
     !url.hostname.startsWith('['),
     // Dot segments, an upper-case host or a default port would make the URL
     // we fetch differ from the client_id the client presented.
@@ -232,11 +235,11 @@ export function isDocumentUsable(
  * any other method (a shared secret) is not supported.
  */
 function documentAuth(
-  documentRoot2: Readonly<Record<string, unknown>>,
+  metadata: Readonly<Record<string, unknown>>,
 ):
   | { readonly ok: true; readonly auth?: ClientAuth }
   | { readonly ok: false; readonly description: string } {
-  const method = documentRoot2['token_endpoint_auth_method'];
+  const method = metadata['token_endpoint_auth_method'];
   if (method === undefined || method === 'none') {
     return { ok: true };
   }
@@ -247,7 +250,7 @@ function documentAuth(
         'Only token_endpoint_auth_method none and private_key_jwt are supported.',
     };
   }
-  const jwksUri = documentRoot2['jwks_uri'];
+  const jwksUri = metadata['jwks_uri'];
   const jwks = typeof jwksUri === 'string' ? parseUrl(jwksUri) : undefined;
   if (
     typeof jwksUri !== 'string' ||
@@ -267,7 +270,7 @@ function documentAuth(
       description: 'A private_key_jwt client needs an https jwks_uri.',
     };
   }
-  const alg = documentRoot2['token_endpoint_auth_signing_alg'];
+  const alg = metadata['token_endpoint_auth_signing_alg'];
   if (
     alg !== undefined &&
     !(
@@ -314,19 +317,19 @@ export function parseClientMetadataDocument(
   if (!isRecord(document)) {
     return bad('The client metadata document is not a JSON object.');
   }
-  const documentRoot = document;
-  if (documentRoot['client_id'] !== url) {
+  const parsedDocument = document;
+  if (parsedDocument['client_id'] !== url) {
     return bad('The document client_id does not match the URL it came from.');
   }
-  const redirectUris = redirectList(documentRoot['redirect_uris']);
+  const redirectUris = redirectList(parsedDocument['redirect_uris']);
   if (!redirectUris) {
     return bad('The document has no valid redirect_uris.');
   }
-  const auth = documentAuth(documentRoot);
+  const auth = documentAuth(parsedDocument);
   if (!auth.ok) {
     return bad(auth.description);
   }
-  const logoUri = logoOf(documentRoot['logo_uri']);
+  const logoUri = logoOf(parsedDocument['logo_uri']);
   // `client_name` is among the properties the CIMD draft lists, but a document
   // without one is still unambiguous (the approval screen leads with the domain
   // that published it), so the host stands in for it rather than turning the
@@ -335,7 +338,7 @@ export function parseClientMetadataDocument(
     ok: true,
     client: {
       clientId: url,
-      name: cleanName(documentRoot['client_name'], new URL(url).hostname),
+      name: cleanName(parsedDocument['client_name'], new URL(url).hostname),
       redirectUris,
       kind: 'cimd',
       ...(auth.auth && { auth: auth.auth }),
@@ -376,7 +379,7 @@ export function documentTtlSeconds(cacheControl: string | null): number {
     return MIN_DOCUMENT_TTL_SECONDS;
   }
   const maxAge = directives
-    .map((d) => DOCUMENT_TTL_SECONDS_PATTERN.exec(d)?.[1])
+    .map((d) => MAX_AGE_DIRECTIVE.exec(d)?.[1])
     .find((value) => value !== undefined);
   return maxAge === undefined
     ? DEFAULT_DOCUMENT_TTL_SECONDS

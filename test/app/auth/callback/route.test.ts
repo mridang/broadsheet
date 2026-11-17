@@ -25,7 +25,7 @@ import {
   installEnv,
   jar,
 } from '../../../domain/auth/auth-test-kit';
-import type { User } from '@/domain/repository';
+import type { User } from '@/domain/auth/store';
 
 const person = {
   id: 4,
@@ -104,7 +104,7 @@ const trip = (state = STATE, extra: Record<string, string> = {}) => ({
 });
 
 /** A callback request from Google, from a browser holding `cookies`. */
-async function callbackRequest(
+async function returnFromGoogle(
   query: string,
   cookies: Record<string, string> = trip(),
 ) {
@@ -140,17 +140,17 @@ const cookiesOf = (res: NextResponse) =>
 
 describe('GET /auth/callback with a state that does not check out', () => {
   it('sends a sign-in back with a fixed flag when there is no state cookie', async () => {
-    const res = await callbackRequest(`code=c&state=${STATE}`, {});
+    const res = await returnFromGoogle(`code=c&state=${STATE}`, {});
     expect(where(res)).toBe(FAILED);
   });
 
   it('sends it back when the state differs from the cookie', async () => {
-    const res = await callbackRequest(`code=c&state=signin.other`);
+    const res = await returnFromGoogle(`code=c&state=signin.other`);
     expect(where(res)).toBe(FAILED);
   });
 
   it('sends it back when the state is not one of ours', async () => {
-    const res = await callbackRequest(
+    const res = await returnFromGoogle(
       `code=c&state=admin.abc`,
       trip('admin.abc'),
     );
@@ -159,7 +159,7 @@ describe('GET /auth/callback with a state that does not check out', () => {
 
   for (const purpose of EXTRA_PURPOSES) {
     it(`sends a ${purpose} round trip back to where that ask reports errors`, async () => {
-      const res = await callbackRequest(
+      const res = await returnFromGoogle(
         `code=c&state=${purpose}.other`,
         trip(`${purpose}.abc`),
       );
@@ -169,7 +169,7 @@ describe('GET /auth/callback with a state that does not check out', () => {
 
   it('never calls Google and leaves the cookies of a real round trip alone', async () => {
     const requested = answerFetch({});
-    const res = await callbackRequest(`code=c&state=signin.forged`);
+    const res = await returnFromGoogle(`code=c&state=signin.forged`);
     expect(requested).toEqual([]);
     expect(res.headers.get('set-cookie')).toBeNull();
     expect(upsertGoogleUser).not.toHaveBeenCalled();
@@ -179,7 +179,7 @@ describe('GET /auth/callback with a state that does not check out', () => {
 describe('GET /auth/callback when the person did not approve', () => {
   it('sends a cancelled sign-in back with a fixed flag and clears the round-trip cookies', async () => {
     const requested = answerFetch({});
-    const res = await callbackRequest(`error=access_denied&state=${STATE}`);
+    const res = await returnFromGoogle(`error=access_denied&state=${STATE}`);
     expect(where(res)).toBe(FAILED);
     expect(res.headers.get('set-cookie')).toContain(`${STATE_COOKIE}=;`);
     expect(requested).toEqual([]);
@@ -187,7 +187,7 @@ describe('GET /auth/callback when the person did not approve', () => {
 
   for (const purpose of EXTRA_PURPOSES) {
     it(`sends a cancelled ${purpose} round trip back as denied`, async () => {
-      const res = await callbackRequest(
+      const res = await returnFromGoogle(
         `error=access_denied&state=${purpose}.abc`,
         trip(`${purpose}.abc`),
       );
@@ -199,7 +199,7 @@ describe('GET /auth/callback when the person did not approve', () => {
 describe('GET /auth/callback signing in', () => {
   it('records the person by their Google account and lands on the landing page', async () => {
     googleSignsIn();
-    const res = await callbackRequest(`code=c&state=${STATE}`);
+    const res = await returnFromGoogle(`code=c&state=${STATE}`);
     expect(where(res)).toBe(`https://app.test${LANDING_PATH}`);
     expect(upsertGoogleUser).toHaveBeenCalledWith({
       sub: 'google-sub-1',
@@ -211,13 +211,13 @@ describe('GET /auth/callback signing in', () => {
 
   it('asks Google for the token with the callback address registered for the app', async () => {
     const requested = googleSignsIn();
-    await callbackRequest(`code=the-code&state=${STATE}`);
+    await returnFromGoogle(`code=the-code&state=${STATE}`);
     expect(requested).toEqual([`POST ${TOKEN_URL}`, `GET ${USERINFO_URL}`]);
   });
 
   it('issues a signed session for the person, stamped with their epoch and the app’s claims', async () => {
     googleSignsIn();
-    const res = await callbackRequest(`code=c&state=${STATE}`);
+    const res = await returnFromGoogle(`code=c&state=${STATE}`);
     const session = await new SessionTokens(SESSION_SECRET).verify(
       cookiesOf(res)[SESSION_COOKIE] ?? '',
     );
@@ -232,7 +232,7 @@ describe('GET /auth/callback signing in', () => {
 
   it('sets a cookie that is httpOnly, Lax and Secure on https', async () => {
     googleSignsIn();
-    const res = await callbackRequest(`code=c&state=${STATE}`);
+    const res = await returnFromGoogle(`code=c&state=${STATE}`);
     expect(res.cookies.get(SESSION_COOKIE)).toMatchObject({
       httpOnly: true,
       sameSite: 'lax',
@@ -243,13 +243,13 @@ describe('GET /auth/callback signing in', () => {
 
   it('runs the app’s hook for the person who signed in, before the session is issued', async () => {
     googleSignsIn();
-    await callbackRequest(`code=c&state=${STATE}`);
+    await returnFromGoogle(`code=c&state=${STATE}`);
     expect(afterSignIn).toHaveBeenCalledWith(person);
   });
 
   it('clears the one-time cookies once the trip is over', async () => {
     googleSignsIn();
-    const res = await callbackRequest(`code=c&state=${STATE}`);
+    const res = await returnFromGoogle(`code=c&state=${STATE}`);
     const header = res.headers.get('set-cookie') ?? '';
     expect(header).toContain(`${STATE_COOKIE}=;`);
     expect(header).toContain(`${RETURN_COOKIE}=;`);
@@ -257,7 +257,7 @@ describe('GET /auth/callback signing in', () => {
 
   it('lands on the safe returnTo the trip began with', async () => {
     googleSignsIn();
-    const res = await callbackRequest(
+    const res = await returnFromGoogle(
       `code=c&state=${STATE}`,
       trip(STATE, { [RETURN_COOKIE]: '/somewhere/else' }),
     );
@@ -266,7 +266,7 @@ describe('GET /auth/callback signing in', () => {
 
   it('ignores a returnTo cookie that points off the site', async () => {
     googleSignsIn();
-    const res = await callbackRequest(
+    const res = await returnFromGoogle(
       `code=c&state=${STATE}`,
       trip(STATE, { [RETURN_COOKIE]: '//evil.example' }),
     );
@@ -275,7 +275,7 @@ describe('GET /auth/callback signing in', () => {
 
   it('fails the sign-in when Google shares no email address', async () => {
     googleSignsIn(null);
-    const res = await callbackRequest(`code=c&state=${STATE}`);
+    const res = await returnFromGoogle(`code=c&state=${STATE}`);
     expect(where(res)).toBe(FAILED);
     expect(res.cookies.get(SESSION_COOKIE)).toBeUndefined();
     expect(upsertGoogleUser).not.toHaveBeenCalled();
@@ -283,7 +283,7 @@ describe('GET /auth/callback signing in', () => {
 
   it('fails the sign-in, showing nothing Google said, when the code is refused', async () => {
     answerFetch({ [TOKEN_URL]: () => json({ error: 'invalid_grant' }, 400) });
-    const res = await callbackRequest(`code=bad&state=${STATE}`);
+    const res = await returnFromGoogle(`code=bad&state=${STATE}`);
     expect(where(res)).toBe(FAILED);
     expect(res.cookies.get(SESSION_COOKIE)).toBeUndefined();
     expect(upsertGoogleUser).not.toHaveBeenCalled();
@@ -292,7 +292,7 @@ describe('GET /auth/callback signing in', () => {
   it('fails the sign-in, issuing no session, when the app’s hook fails', async () => {
     googleSignsIn();
     afterSignIn.mockRejectedValue(new Error('boom'));
-    const res = await callbackRequest(`code=c&state=${STATE}`);
+    const res = await returnFromGoogle(`code=c&state=${STATE}`);
     expect(where(res)).toBe(FAILED);
     expect(res.cookies.get(SESSION_COOKIE)).toBeUndefined();
   });
@@ -306,7 +306,7 @@ describe('GET /auth/callback on a server that is not set up', () => {
       GOOGLE_OAUTH_CLIENT_SECRET: 'client-secret',
     });
     const requested = googleSignsIn();
-    const res = await callbackRequest(`code=c&state=${STATE}`);
+    const res = await returnFromGoogle(`code=c&state=${STATE}`);
     expect(where(res)).toBe(FAILED);
     expect(requested).toEqual([]);
     expect(upsertGoogleUser).not.toHaveBeenCalled();
@@ -317,7 +317,7 @@ describe('GET /auth/callback on a server that is not set up', () => {
     restore();
     restore = installEnv({ SESSION_SECRET });
     const requested = googleSignsIn();
-    const res = await callbackRequest(`code=c&state=${STATE}`);
+    const res = await returnFromGoogle(`code=c&state=${STATE}`);
     expect(where(res)).toBe(FAILED);
     expect(requested).toEqual([]);
   });
@@ -327,7 +327,7 @@ for (const purpose of EXTRA_PURPOSES) {
   describe(`GET /auth/callback finishing a ${purpose} round trip`, () => {
     it('hands the round trip to that ask’s own flow, not to sign-in', async () => {
       googleSignsIn();
-      const res = await callbackRequest(
+      const res = await returnFromGoogle(
         `code=c&state=${purpose}.abc`,
         trip(`${purpose}.abc`),
       );
@@ -340,7 +340,7 @@ for (const purpose of EXTRA_PURPOSES) {
     it('sends the person to where that ask reports errors when its flow fails', async () => {
       googleSignsIn();
       completed.mockRejectedValueOnce(new Error('boom'));
-      const res = await callbackRequest(
+      const res = await returnFromGoogle(
         `code=c&state=${purpose}.abc`,
         trip(`${purpose}.abc`),
       );

@@ -166,10 +166,10 @@ describe('objects', () => {
 
   it('names a missing required property, also when it is undefined', () => {
     // A property the object leaves out: its key stays present, with no value.
+    // eslint-disable-next-line no-unassigned-vars -- never assigned on purpose: it stands for a key that is present with no value, and writing undefined inline is reported by sonarjs/no-undefined-assignment
+    let notProvided: undefined;
     expect(problems(schema, {})).toEqual(['`a` is required.']);
-    expect(problems(schema, Object.fromEntries([['a', undefined]]))).toEqual([
-      '`a` is required.',
-    ]);
+    expect(problems(schema, { a: notProvided })).toEqual(['`a` is required.']);
   });
 
   it('names an unknown property and lists the known ones', () => {
@@ -325,7 +325,8 @@ describe('unsupportedKeywords', () => {
 
   it('has nothing to say about a value that is not a schema', () => {
     expect(unsupportedKeywords(5)).toEqual([]);
-    expect(unsupportedKeywords()).toEqual([]);
+
+    expect(unsupportedKeywords(undefined)).toEqual([]);
   });
 });
 

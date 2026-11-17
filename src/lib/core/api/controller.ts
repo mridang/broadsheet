@@ -212,13 +212,14 @@ export class ApiController<Ctx = Request> {
    * methods actually registered are present.
    */
   handlers(): Record<HttpMethod, RouteHandler> {
-    const handlers = Array.from(
-      this.#endpoints,
-      ([method, endpoint]): [HttpMethod, RouteHandler] => [
-        method,
-        async (request, route = {}) => this.#run(endpoint, request, route),
-      ],
-    );
-    return Object.fromEntries(handlers) as Record<HttpMethod, RouteHandler>;
+    return Object.fromEntries(
+      Array.from(
+        this.#endpoints,
+        ([method, endpoint]): [HttpMethod, RouteHandler] => [
+          method,
+          async (request, route = {}) => this.#run(endpoint, request, route),
+        ],
+      ),
+    ) as Record<HttpMethod, RouteHandler>;
   }
 }
