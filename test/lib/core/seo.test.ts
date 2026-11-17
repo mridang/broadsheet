@@ -1,5 +1,4 @@
 import { describe, expect, it } from '@jest/globals';
-import { z } from 'zod';
 
 import { jsonLdText, landingJsonLd } from '@/lib/core/seo';
 import {
@@ -9,9 +8,7 @@ import {
 } from '@/utils/site';
 
 describe('landingJsonLd', () => {
-  const graph = z
-    .array(z.record(z.string(), z.unknown()))
-    .parse(landingJsonLd()['@graph']);
+  const graph = landingJsonLd()['@graph'] as Record<string, unknown>[];
   const byType = (type: string) => graph.find((n) => n['@type'] === type)!;
 
   it('describes the organisation, the site and the app', () => {
@@ -25,19 +22,15 @@ describe('landingJsonLd', () => {
   it('gives every node a stable id that the others point at', () => {
     const ids = graph.map((n) => n['@id']);
     expect(new Set(ids).size).toBe(3);
-    expect(
-      z
-        .looseObject({ '@id': z.string() })
-        .parse(byType('WebSite')['publisher'])['@id'],
-    ).toBe(byType('Organization')['@id']);
+    expect(byType('WebSite')['publisher']).toMatchObject({
+      '@id': byType('Organization')['@id'],
+    });
   });
 
   it('says the app is free and works anywhere with a browser', () => {
     const app = byType('WebApplication');
     expect(app['isAccessibleForFree']).toBe(true);
-    expect(
-      z.looseObject({ price: z.string() }).parse(app['offers']).price,
-    ).toBe('0');
+    expect(app['offers']).toMatchObject({ price: '0' });
     expect(app['operatingSystem']).toBe('Any');
   });
 
@@ -54,8 +47,8 @@ describe('jsonLdText', () => {
   it('can never close the script tag it is placed in', () => {
     const text = jsonLdText({ name: '</script><script>alert(1)</script>' });
     expect(text).not.toContain('<');
-    expect(
-      z.looseObject({ name: z.string() }).parse(JSON.parse(text)).name,
-    ).toBe('</script><script>alert(1)</script>');
+    expect(JSON.parse(text)).toMatchObject({
+      name: '</script><script>alert(1)</script>',
+    });
   });
 });
