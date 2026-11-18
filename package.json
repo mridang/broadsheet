@@ -89,10 +89,20 @@
     "@node-minify/core": {
       "glob": "^14.0.4"
     },
+    "@npmcli/map-workspaces": {
+      "glob": "^14.0.4",
+      "minimatch": "^11.0.5"
+    },
+    "@npmcli/package-json": {
+      "glob": "^14.0.4"
+    },
     "@opennextjs/cloudflare": {
       "glob": "^14.0.4"
     },
     "@typescript-eslint/typescript-estree": {
+      "minimatch": "^11.0.5"
+    },
+    "eslint-plugin-sonarjs": {
       "minimatch": "^11.0.5"
     },
     "jest-config": {
@@ -103,6 +113,9 @@
     },
     "test-exclude": {
       "glob": "^7.2.3"
+    },
+    "unified-engine": {
+      "glob": "^14.0.4"
     }
   }
 }
